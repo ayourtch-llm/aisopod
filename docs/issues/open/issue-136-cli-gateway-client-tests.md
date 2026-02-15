@@ -22,7 +22,7 @@ A centralized gateway client eliminates duplicated connection logic, ensures con
 
 ```rust
 use tokio_tungstenite::{connect_async, tungstenite::Message};
-use futures_util::{SinkExt, StreamExt, stream::SplitSink, stream::SplitStream};
+use futures_util::{SinkExt, StreamExt};
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -76,8 +76,13 @@ impl GatewayClient {
                 "id": 0
             });
             ws_stream.send(Message::Text(auth_msg.to_string())).await?;
-            // Wait for auth response
-            let _ = ws_stream.next().await;
+            // Wait for and validate auth response
+            if let Some(Ok(Message::Text(resp))) = ws_stream.next().await {
+                let resp: RpcResponse = serde_json::from_str(&resp)?;
+                if resp.error.is_some() {
+                    anyhow::bail!("Authentication failed: {}", resp.error.unwrap().message);
+                }
+            }
         }
 
         let id = self.request_id.fetch_add(1, Ordering::SeqCst);
