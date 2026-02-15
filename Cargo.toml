@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/aisopod-shared"]
+members = ["crates/aisopod-shared", "crates/aisopod-config"]
 
 [workspace.package]
 edition = "2024"
