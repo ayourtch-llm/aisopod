@@ -21,7 +21,7 @@ Core session storage abstraction:
 
 ```rust
 pub struct SessionStore {
-    db: SqlitePool,  // rusqlite connection pool
+    db: Arc<Mutex<rusqlite::Connection>>,  // or r2d2 pool for multi-threaded access
 }
 
 impl SessionStore {

@@ -29,7 +29,7 @@ leveraging Rust's performance, safety, and reliability advantages.
 | Async runtime       | Node.js event loop          | Tokio                                 |
 | Serialization       | JSON (custom)               | serde / serde_json                    |
 | Schema validation   | Zod                         | serde + custom validation             |
-| Config format       | JSON5                       | JSON5 or TOML (via serde)             |
+| Config format       | JSON5                       | TOML primary, JSON5 for compat        |
 | Database            | SQLite-Vec                  | rusqlite + sqlite-vec                  |
 | UI framework        | Lit web components + Vite   | Leptos, Dioxus, or Yew (or keep Lit)  |
 | CLI framework       | Custom commander-like       | clap                                  |

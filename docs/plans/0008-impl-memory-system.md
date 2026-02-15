@@ -21,7 +21,7 @@ Core memory abstraction:
 
 ```rust
 pub struct MemoryStore {
-    db: SqlitePool,     // rusqlite with sqlite-vec extension
+    db: Arc<Mutex<rusqlite::Connection>>,  // rusqlite with sqlite-vec extension loaded
 }
 
 impl MemoryStore {
