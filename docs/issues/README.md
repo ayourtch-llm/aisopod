@@ -88,7 +88,7 @@ While not encoded in the filename, issues can note priority in their content:
 
 ## Current Issue Number
 
-The highest allocated issue number is tracked by the files present. As of this writing, issue numbers up to **106** have been allocated.
+The highest allocated issue number is tracked by the files present. As of this writing, issue numbers up to **196** have been allocated.
 
 To find the next available number:
 ```bash
