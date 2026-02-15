@@ -1,7 +1,7 @@
 //! Configuration file loading module
 //!
 //! This module provides functions to load configuration files in various formats
-//! (JSON5, JSON) and auto-detect the format based on file extension.
+//! (JSON5, JSON, TOML) and auto-detect the format based on file extension.
 
 use std::path::Path;
 
@@ -14,6 +14,7 @@ use crate::AisopodConfig;
 /// Supports the following file extensions:
 /// - `.json5` - JSON5 format with comments, trailing commas, and unquoted keys
 /// - `.json` - Standard JSON format
+/// - `.toml` - TOML format
 ///
 /// # Arguments
 ///
@@ -45,21 +46,6 @@ pub fn load_config(path: &Path) -> Result<AisopodConfig> {
     }
 }
 
-/// Load and parse a JSON5 configuration file.
-///
-/// # Arguments
-///
-/// * `path` - Path to the JSON5 configuration file
-///
-/// # Returns
-///
-/// * `Result<AisopodConfig>` - The parsed configuration or an error
-///
-/// # Errors
-///
-/// Returns an error if:
-/// - The file cannot be read
-/// - The file content cannot be parsed as valid JSON5
 /// Load and parse a TOML configuration file.
 ///
 /// # Arguments
