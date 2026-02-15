@@ -1,0 +1,34 @@
+{
+  // Sample aisopod configuration for testing
+  meta: {
+    version: "1.0",
+  },
+  gateway: {
+    server: {
+      name: "aisopod-gateway",
+      port: 8080,
+      graceful_shutdown: true,
+    },
+    bind: {
+      address: "127.0.0.1",
+      ipv6: false,
+    },
+    tls: {
+      enabled: false,
+      cert_path: "",
+      key_path: "",
+    },
+  },
+  // Empty defaults for other sections
+  auth: {},
+  env: {},
+  agents: {},
+  models: {},
+  channels: {},
+  tools: {},
+  skills: {},
+  plugins: {},
+  session: {},
+  bindings: [],
+  memory: {},
+}

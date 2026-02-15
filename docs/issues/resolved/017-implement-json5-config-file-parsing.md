@@ -91,12 +91,50 @@ JSON5 is the primary configuration format for aisopod (ported from OpenClaw). Th
 016
 
 ## Acceptance Criteria
-- [ ] `json5` crate is added as a dependency in `crates/aisopod-config/Cargo.toml`
-- [ ] `load_config_json5()` function reads and parses a JSON5 file into `AisopodConfig`
-- [ ] `load_config()` auto-detects `.json` and `.json5` extensions
-- [ ] Parse errors include file path context for debugging
-- [ ] A sample JSON5 fixture file exists for testing
-- [ ] Integration test verifies parsing a sample JSON5 config file
+- [x] `json5` crate is added as a dependency in `crates/aisopod-config/Cargo.toml`
+- [x] `load_config_json5()` function reads and parses a JSON5 file into `AisopodConfig`
+- [x] `load_config()` auto-detects `.json` and `.json5` extensions
+- [x] Parse errors include file path context for debugging
+- [x] A sample JSON5 fixture file exists for testing
+- [x] Integration test verifies parsing a sample JSON5 config file
+
+## Resolution
+Issue 017 was successfully implemented with the following changes:
+
+### Changes Made:
+1. **Added json5 dependency** (`crates/aisopod-config/Cargo.toml`):
+   - Added `json5 = "0.4"` as a dependency
+   - Added `tempfile = "3"` as a dev-dependency for testing
+
+2. **Created loader module** (`crates/aisopod-config/src/loader.rs`):
+   - Implemented `load_config(path: &Path)` - auto-detects format from file extension
+   - Implemented `load_config_json5(path: &Path)` - parses JSON5 files
+   - Parse errors include file path context using anyhow's `with_context`
+
+3. **Updated lib.rs** (`crates/aisopod-config/src/lib.rs`):
+   - Added `pub mod loader;`
+   - Exported `load_config` and `load_config_json5` functions
+
+4. **Created test fixture** (`crates/aisopod-config/tests/fixtures/sample.json5`):
+   - Sample JSON5 configuration with comments, unquoted keys, and trailing commas
+
+5. **Added integration tests** (`crates/aisopod-config/tests/load_json5.rs`):
+   - `test_load_sample_json5` - verifies parsing the sample fixture
+   - `test_load_sample_with_auto_detect` - verifies auto-detection works
+
+6. **Unit tests in loader.rs**:
+   - Test basic JSON5 loading
+   - Test auto-detection for .json5 and .json extensions
+   - Test unsupported extension handling
+   - Test JSON5 comments and trailing commas
+   - Test file not found error handling
+   - Test invalid JSON5 error handling
+
+### Test Results:
+- All 8 unit tests in loader.rs passed
+- All 2 integration tests in load_json5.rs passed
+- Full workspace build and test suite completed successfully
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-16*
