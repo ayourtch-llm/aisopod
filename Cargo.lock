@@ -28,12 +28,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "aisopod-session"
+version = "0.1.0"
+dependencies = [
+ "aisopod-shared",
+ "anyhow",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "aisopod-shared"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "serde",
  "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "aisopod-tools"
+version = "0.1.0"
+dependencies = [
+ "aisopod-shared",
+ "anyhow",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
  "tracing",
 ]
 
