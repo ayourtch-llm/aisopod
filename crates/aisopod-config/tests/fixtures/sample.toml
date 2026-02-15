@@ -1,0 +1,27 @@
+[meta]
+version = "1.0"
+
+[gateway.server]
+name = "aisopod-gateway"
+port = 8080
+graceful_shutdown = true
+
+[gateway.bind]
+address = "127.0.0.1"
+ipv6 = false
+
+[gateway.tls]
+enabled = false
+cert_path = ""
+key_path = ""
+
+[auth]
+[env]
+[agents]
+[models]
+[channels]
+[tools]
+[skills]
+[plugins]
+[session]
+[memory]

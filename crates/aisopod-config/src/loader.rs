@@ -37,6 +37,7 @@ pub fn load_config(path: &Path) -> Result<AisopodConfig> {
         .unwrap_or("");
     match ext {
         "json" | "json5" => load_config_json5(path),
+        "toml" => load_config_toml(path),
         _ => Err(anyhow!(
             "Unsupported config file extension: '{}'. Use .json5, .json, or .toml",
             ext
@@ -59,6 +60,29 @@ pub fn load_config(path: &Path) -> Result<AisopodConfig> {
 /// Returns an error if:
 /// - The file cannot be read
 /// - The file content cannot be parsed as valid JSON5
+/// Load and parse a TOML configuration file.
+///
+/// # Arguments
+///
+/// * `path` - Path to the TOML configuration file
+///
+/// # Returns
+///
+/// * `Result<AisopodConfig>` - The parsed configuration or an error
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The file cannot be read
+/// - The file content cannot be parsed as valid TOML
+pub fn load_config_toml(path: &Path) -> Result<AisopodConfig> {
+    let contents = std::fs::read_to_string(path)
+        .with_context(|| format!("Failed to read config file: {}", path.display()))?;
+    let config: AisopodConfig = toml::from_str(&contents)
+        .with_context(|| format!("Failed to parse TOML config: {}", path.display()))?;
+    Ok(config)
+}
+
 pub fn load_config_json5(path: &Path) -> Result<AisopodConfig> {
     let contents = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read config file: {}", path.display()))?;

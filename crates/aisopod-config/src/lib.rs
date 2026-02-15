@@ -13,3 +13,4 @@ pub mod types;
 pub use types::AisopodConfig;
 pub use loader::load_config;
 pub use loader::load_config_json5;
+pub use loader::load_config_toml;
