@@ -130,7 +130,7 @@ fn install_launchctl_service(exe_path: &std::path::Path) -> anyhow::Result<()> {
     );
 
     let plist_path = dirs::home_dir()
-        .unwrap()
+        .ok_or_else(|| anyhow::anyhow!("Cannot determine home directory"))?
         .join("Library/LaunchAgents/com.aisopod.daemon.plist");
     std::fs::write(&plist_path, plist)?;
 
@@ -147,7 +147,8 @@ pub fn start_daemon() -> anyhow::Result<()> {
     if cfg!(target_os = "linux") {
         Command::new("systemctl").args(["start", "aisopod"]).status()?;
     } else if cfg!(target_os = "macos") {
-        Command::new("launchctl").args(["load", &plist_path()]).status()?;
+        let plist = plist_path()?;
+        Command::new("launchctl").args(["load", &plist]).status()?;
     }
     println!("Daemon started.");
     Ok(())
@@ -157,7 +158,8 @@ pub fn stop_daemon() -> anyhow::Result<()> {
     if cfg!(target_os = "linux") {
         Command::new("systemctl").args(["stop", "aisopod"]).status()?;
     } else if cfg!(target_os = "macos") {
-        Command::new("launchctl").args(["unload", &plist_path()]).status()?;
+        let plist = plist_path()?;
+        Command::new("launchctl").args(["unload", &plist]).status()?;
     }
     println!("Daemon stopped.");
     Ok(())
@@ -176,6 +178,12 @@ pub fn daemon_status() -> anyhow::Result<()> {
 4. Implement log tailing:
 
 ```rust
+fn plist_path() -> anyhow::Result<String> {
+    let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Cannot determine home directory"))?;
+    Ok(home.join("Library/LaunchAgents/com.aisopod.daemon.plist")
+        .to_string_lossy().to_string())
+}
+
 pub fn tail_logs(lines: usize, follow: bool) -> anyhow::Result<()> {
     if cfg!(target_os = "linux") {
         let mut args = vec!["--unit=aisopod", &format!("--lines={}", lines)];

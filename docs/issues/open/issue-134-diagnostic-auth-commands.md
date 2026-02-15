@@ -87,10 +87,9 @@ pub async fn run_doctor(args: DoctorArgs, config_path: Option<String>) -> anyhow
     }
 
     println!("\n{} passed, {} failed", passed, failed);
-    if failed > 0 {
-        std::process::exit(1);
-    }
-    Ok(())
+    Ok(if failed > 0 {
+        anyhow::bail!("{} diagnostic check(s) failed", failed);
+    })
 }
 
 fn print_diagnostic(name: &str, ok: bool, detail: Option<String>) {
