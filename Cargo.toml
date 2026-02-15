@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/aisopod-plugin", "crates/aisopod-shared", "crates/aisopod-config", "crates/aisopod-provider", "crates/aisopod-tools", "crates/aisopod-session", "crates/aisopod-memory", "crates/aisopod-agent", "crates/aisopod-channel"]
+members = ["crates/aisopod-plugin", "crates/aisopod-shared", "crates/aisopod-config", "crates/aisopod-provider", "crates/aisopod-tools", "crates/aisopod-session", "crates/aisopod-memory", "crates/aisopod-agent", "crates/aisopod-channel", "crates/aisopod-gateway"]
 
 [workspace.package]
 edition = "2024"
