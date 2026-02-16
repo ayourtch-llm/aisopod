@@ -19,6 +19,7 @@ mod session;
 mod skills;
 mod tools;
 
+pub use agents::Agent;
 pub use agents::AgentsConfig;
 pub use auth::AuthConfig;
 pub use bindings::AgentBinding;

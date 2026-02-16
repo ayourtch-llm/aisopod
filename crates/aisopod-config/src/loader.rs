@@ -69,8 +69,27 @@ pub fn load_config_toml(path: &Path) -> Result<AisopodConfig> {
         .with_context(|| format!("Failed to parse TOML config: {}", path.display()))?;
     crate::env::expand_env_vars(&mut value)
         .with_context(|| format!("Failed to expand environment variables in TOML config: {}", path.display()))?;
+    
+    // Process @include directives
+    let canonical = path.canonicalize()?;
+    let base_dir = canonical.parent().unwrap();
+    let mut seen = HashSet::new();
+    seen.insert(canonical.clone());
+    crate::includes::process_includes(&mut value, base_dir, &mut seen)
+        .with_context(|| format!("Failed to process @include directives in TOML config: {}", path.display()))?;
+    
     let config: AisopodConfig = serde_json::from_value(value)
         .with_context(|| format!("Failed to deserialize TOML config: {}", path.display()))?;
+    
+    // Validate the configuration
+    config.validate().map_err(|errs| {
+        let messages: Vec<String> = errs.iter().map(|e| e.to_string()).collect();
+        anyhow!(
+            "TOML config validation failed:\n  {}",
+            messages.join("\n  ")
+        )
+    })?;
+    
     Ok(config)
 }
 
@@ -92,6 +111,16 @@ pub fn load_config_json5(path: &Path) -> Result<AisopodConfig> {
     
     let config: AisopodConfig = serde_json::from_value(value)
         .with_context(|| format!("Failed to deserialize config: {}", path.display()))?;
+    
+    // Validate the configuration
+    config.validate().map_err(|errs| {
+        let messages: Vec<String> = errs.iter().map(|e| e.to_string()).collect();
+        anyhow!(
+            "Config validation failed:\n  {}",
+            messages.join("\n  ")
+        )
+    })?;
+    
     Ok(config)
 }
 
