@@ -13,3 +13,4 @@ serde_json.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+tower-http = { version = "0.5", features = ["trace"] }

@@ -4,8 +4,10 @@ use serde_json::json;
 use std::net::SocketAddr;
 use tracing::{info, warn};
 use tokio::signal;
+use tower_http::trace::TraceLayer;
 
 use aisopod_config::types::GatewayConfig;
+use crate::routes::api_routes;
 
 /// Health check endpoint handler
 async fn health() -> impl IntoResponse {
@@ -34,8 +36,11 @@ pub async fn run(config: &GatewayConfig) -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("Failed to bind to address '{}': {}", addr, e))?;
 
-    // Build the router with the /health endpoint
-    let app = Router::new().route("/health", get(health));
+    // Build the router with the /health endpoint and API routes
+    let app = Router::new()
+        .route("/health", get(health))
+        .merge(api_routes())
+        .layer(TraceLayer::new_for_http());
 
     // Set up graceful shutdown signal
     let shutdown_signal = async {
