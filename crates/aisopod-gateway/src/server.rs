@@ -4,7 +4,7 @@ use serde_json::json;
 use std::net::SocketAddr;
 use tracing::{info, warn};
 use tokio::signal;
-use tower_http::trace::{TraceLayer, DefaultMakeSpan};
+use tower_http::trace::{TraceLayer, DefaultMakeSpan, DefaultOnResponse};
 use tracing::Level;
 
 use aisopod_config::types::GatewayConfig;
@@ -46,6 +46,9 @@ pub async fn run(config: &GatewayConfig) -> Result<()> {
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                .on_response(
+                    DefaultOnResponse::new().level(Level::INFO)
+                )
         );
 
     // Set up graceful shutdown signal
