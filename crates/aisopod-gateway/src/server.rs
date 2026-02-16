@@ -4,7 +4,8 @@ use serde_json::json;
 use std::net::SocketAddr;
 use tracing::{info, warn};
 use tokio::signal;
-use tower_http::trace::TraceLayer;
+use tower_http::trace::{TraceLayer, DefaultMakeSpan};
+use tracing::Level;
 
 use aisopod_config::types::GatewayConfig;
 use crate::routes::api_routes;
@@ -42,7 +43,10 @@ pub async fn run(config: &GatewayConfig) -> Result<()> {
         .route("/health", get(health))
         .merge(ws_routes())
         .merge(api_routes())
-        .layer(TraceLayer::new_for_http());
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+        );
 
     // Set up graceful shutdown signal
     let shutdown_signal = async {
