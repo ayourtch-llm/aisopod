@@ -1,3 +1,4 @@
+use crate::sensitive::Sensitive;
 use serde::{Deserialize, Serialize};
 
 /// Authentication configuration
@@ -18,7 +19,7 @@ pub struct AuthProfile {
     pub name: String,
     /// API key reference
     #[serde(default)]
-    pub api_key: String,
+    pub api_key: Sensitive<String>,
     /// Provider type
     #[serde(default)]
     pub provider: String,
@@ -37,7 +38,7 @@ impl Default for AuthProfile {
     fn default() -> Self {
         Self {
             name: String::new(),
-            api_key: String::new(),
+            api_key: Sensitive::default(),
             provider: String::new(),
         }
     }
