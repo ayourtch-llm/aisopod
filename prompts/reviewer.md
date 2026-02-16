@@ -2,7 +2,7 @@ Please dispatch the implementation manager agent with the following prompt:
 
 "Study the current code. Then look at docs/issues/open, and launch an agent to implement the issue with the LOWEST number - ensure that the 'cargo build' and 'cargo test' pass, and then commit. IMPORTANT: instruct to always do 'cargo build' and 'cargo test' at top level, rather than crates, and always fully follow the process at docs/issues/README.md! After the issue resolution is done, launch verifier agent to verify that the issue has been implemented correctly. Repeat until the issue is implemented correctly, according to verifier agent. Move on to the next issue. Repeat until you run out of issues. If something is missing or wrong, an issue MUST be created in accordance to docs/issues/README.md - ensure this is communicate do implementer and verifier agents. IMPORTANT: before moving on to the new issue, ensure the current outstanding changes are committed. HINT: run cargo with export RUSTFLAGS=-Awarnings to reduce the context window pollution by reducing warnings; Also: if writing async, adding #![deny(unused_must_use)] may make your life much easier - it will prevent accidental omission of .await."
 
-Afterwards, re-read the prompts/reviewer.md and verify whether there are open issues still - if there are - redo the above instruction.
+Afterwards, re-read the prompts/reviewer.md and verify whether there are open issues still - if there are - redo the above instruction. Ensure you are never doing any direct operations yourself but rather are always useing subagents which launch sub-subagents.
 
 If no more open issues, then dispatch the implementation improver agent with the following prompt:
 
