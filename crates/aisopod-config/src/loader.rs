@@ -64,16 +64,24 @@ pub fn load_config(path: &Path) -> Result<AisopodConfig> {
 pub fn load_config_toml(path: &Path) -> Result<AisopodConfig> {
     let contents = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read config file: {}", path.display()))?;
-    let config: AisopodConfig = toml::from_str(&contents)
+    let mut value: serde_json::Value = toml::from_str(&contents)
         .with_context(|| format!("Failed to parse TOML config: {}", path.display()))?;
+    crate::env::expand_env_vars(&mut value)
+        .with_context(|| format!("Failed to expand environment variables in TOML config: {}", path.display()))?;
+    let config: AisopodConfig = serde_json::from_value(value)
+        .with_context(|| format!("Failed to deserialize TOML config: {}", path.display()))?;
     Ok(config)
 }
 
 pub fn load_config_json5(path: &Path) -> Result<AisopodConfig> {
     let contents = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read config file: {}", path.display()))?;
-    let config: AisopodConfig = json5::from_str(&contents)
+    let mut value: serde_json::Value = json5::from_str(&contents)
         .with_context(|| format!("Failed to parse JSON5 config: {}", path.display()))?;
+    crate::env::expand_env_vars(&mut value)
+        .with_context(|| format!("Failed to expand environment variables in config: {}", path.display()))?;
+    let config: AisopodConfig = serde_json::from_value(value)
+        .with_context(|| format!("Failed to deserialize config: {}", path.display()))?;
     Ok(config)
 }
 
