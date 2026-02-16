@@ -1,0 +1,7 @@
+{
+  // Main config with array of @include directives
+  "@include": ["models_fragment.json5", "tools_fragment.json5"],
+  meta: {
+    version: "array-include-test",
+  },
+}

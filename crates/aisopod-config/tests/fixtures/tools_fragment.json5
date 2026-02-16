@@ -1,0 +1,9 @@
+{
+  // Fragment for array include test - with proper tools structure
+  tools: {
+    bash: {
+      enabled: true,
+      working_dir: "/tmp",
+    },
+  },
+}

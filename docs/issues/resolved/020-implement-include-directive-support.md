@@ -149,13 +149,68 @@ Include directives allow users to split large configurations into manageable fra
 017, 019
 
 ## Acceptance Criteria
-- [ ] `process_includes()` resolves `@include` directives by loading and merging referenced files
-- [ ] Paths are resolved relative to the directory of the file containing the directive
-- [ ] Both single-string and array-of-strings include values are supported
-- [ ] Circular includes are detected and produce a clear error message
-- [ ] `@include` keys are removed from the final config
-- [ ] Included files have their env vars expanded and their own includes processed recursively
-- [ ] Integration tests verify include resolution and circular detection
+- [x] `process_includes()` resolves `@include` directives by loading and merging referenced files
+- [x] Paths are resolved relative to the directory of the file containing the directive
+- [x] Both single-string and array-of-strings include values are supported
+- [x] Circular includes are detected and produce a clear error message
+- [x] `@include` keys are removed from the final config
+- [x] Included files have their env vars expanded and their own includes processed recursively
+- [x] Integration tests verify include resolution and circular detection
+
+## Resolution
+
+Implementation completed on 2026-02-16.
+
+### Changes Made
+
+1. **Created `crates/aisopod-config/src/includes.rs`**
+   - Implemented `process_includes()` function that scans config for `@include` directives
+   - Supports both single string and array of strings for `@include` values
+   - Resolves paths relative to the file containing the directive
+   - Uses `HashSet<PathBuf>` to detect circular includes
+   - Merges included file contents into parent config using `map.entry(&k).or_insert(v)`
+   - Removes `@include` keys from the final config
+   - Recursively processes includes in included files
+
+2. **Updated `crates/aisopod-config/src/lib.rs`**
+   - Added `pub mod includes;` declaration
+   - Added `includes` module to the documentation
+
+3. **Updated `crates/aisopod-config/src/loader.rs`**
+   - Added `use std::collections::HashSet;` import
+   - Integrated includes processing in `load_config_json5()` after env var expansion
+   - Uses `HashSet` with canonicalized paths for circular detection
+   - Properly handles error context for debugging
+
+4. **Created test fixtures**
+   - `fragment.json5` - Simple fragment with gateway config
+   - `main_with_include.json5` - Main config with @include directive
+   - `circular_a.json5` and `circular_b.json5` - Circular include test case
+   - `models_fragment.json5` and `tools_fragment.json5` - Array include test case
+   - `nested_include.json5` - Nested include test case
+
+5. **Added integration tests in `tests/load_json5.rs`**
+   - `test_load_config_with_include` - Single string @include test
+   - `test_load_config_with_array_include` - Array of @include paths test
+   - `test_load_config_circular_include` - Circular include detection test
+   - `test_nested_include_processing` - Nested includes test
+   - `test_include_with_env_vars` - Environment variable expansion in included files
+   - `test_include_removes_include_key` - Verifies @include key is removed
+
+6. **Added unit tests in `includes.rs`**
+   - Tests for single string, array, and invalid @include values
+   - Tests for circular include detection
+   - Tests for nonexistent file handling
+   - Tests for merge behavior
+
+### Test Results
+
+All tests pass successfully:
+- 27 unit tests in aisopod-config
+- 8 integration tests for @include functionality
+- 7 existing TOML tests continue to pass
+- 2 doc tests pass
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-16*

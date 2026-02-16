@@ -1,0 +1,7 @@
+{
+  // Main config file with @include directive
+  "@include": "fragment.json5",
+  meta: {
+    version: "1.0",
+  },
+}

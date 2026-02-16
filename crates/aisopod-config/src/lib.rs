@@ -7,8 +7,10 @@
 //! - `types`: Core configuration types for the application
 //! - `loader`: Configuration file loading functionality
 //! - `env`: Environment variable substitution functionality
+//! - `includes`: @include directive processing functionality
 
 pub mod env;
+pub mod includes;
 pub mod loader;
 pub mod types;
 

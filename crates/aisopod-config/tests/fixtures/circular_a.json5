@@ -1,0 +1,7 @@
+{
+  // Circular include A - includes circular_b
+  "@include": "circular_b.json5",
+  meta: {
+    version: "circular-a",
+  },
+}

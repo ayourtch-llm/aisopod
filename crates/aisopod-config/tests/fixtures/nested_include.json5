@@ -1,0 +1,7 @@
+{
+  // Fragment that includes another fragment (nested)
+  "@include": "fragment.json5",
+  session: {
+    timeout: 3600,
+  },
+}

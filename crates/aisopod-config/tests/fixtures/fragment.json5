@@ -1,0 +1,9 @@
+{
+  // Fragment file for testing @include directive
+  gateway: {
+    server: {
+      name: "included-server",
+      port: 9090,
+    },
+  },
+}

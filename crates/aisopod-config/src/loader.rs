@@ -3,6 +3,7 @@
 //! This module provides functions to load configuration files in various formats
 //! (JSON5, JSON, TOML) and auto-detect the format based on file extension.
 
+use std::collections::HashSet;
 use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
@@ -80,6 +81,15 @@ pub fn load_config_json5(path: &Path) -> Result<AisopodConfig> {
         .with_context(|| format!("Failed to parse JSON5 config: {}", path.display()))?;
     crate::env::expand_env_vars(&mut value)
         .with_context(|| format!("Failed to expand environment variables in config: {}", path.display()))?;
+    
+    // Process @include directives
+    let canonical = path.canonicalize()?;
+    let base_dir = canonical.parent().unwrap();
+    let mut seen = HashSet::new();
+    seen.insert(canonical.clone());
+    crate::includes::process_includes(&mut value, base_dir, &mut seen)
+        .with_context(|| format!("Failed to process @include directives in config: {}", path.display()))?;
+    
     let config: AisopodConfig = serde_json::from_value(value)
         .with_context(|| format!("Failed to deserialize config: {}", path.display()))?;
     Ok(config)

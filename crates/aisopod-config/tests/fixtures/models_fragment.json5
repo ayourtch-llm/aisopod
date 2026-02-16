@@ -1,0 +1,13 @@
+{
+  // Fragment for array include test - with proper model structure
+  models: {
+    models: [
+      {
+        id: "gpt-4",
+        name: "GPT-4",
+        provider: "openai",
+        capabilities: ["chat"],
+      },
+    ],
+  },
+}
