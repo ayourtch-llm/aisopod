@@ -48,10 +48,36 @@ Good documentation is critical for onboarding new contributors and making the pr
 001
 
 ## Acceptance Criteria
-- [ ] `README.md` exists with project overview, architecture section listing all crates, and build instructions
-- [ ] `CONTRIBUTING.md` exists with development setup, coding standards, and PR workflow
-- [ ] Build instructions in `README.md` are accurate and work when followed
-- [ ] All crate names and descriptions match the actual workspace structure
+- [x] `README.md` exists with project overview, architecture section listing all crates, and build instructions
+- [x] `CONTRIBUTING.md` exists with development setup, coding standards, and PR workflow
+- [x] Build instructions in `README.md` are accurate and work when followed
+- [x] All crate names and descriptions match the actual workspace structure
+
+## Resolution
+
+The `README.md` and `CONTRIBUTING.md` files were already present in the repository with comprehensive documentation:
+
+### README.md Contents Verified:
+- Project name and brief description
+- Features/Goals section (modular architecture, LLM provider abstraction, tool system, plugin system, etc.)
+- Architecture overview section listing all 11 workspace crates with detailed purposes
+- ASCII architecture diagram showing crate relationships
+- Build instructions for prerequisites, building, testing, and development
+- License section (MIT)
+
+### CONTRIBUTING.md Contents Verified:
+- Prerequisites section (Rust stable, Cargo, Git)
+- Development setup steps (clone, build, test, run)
+- Code style guidelines (cargo fmt, cargo clippy, Rust API Guidelines)
+- Branch naming conventions (feature/, fix/, docs/, test/, refactor/, chore/)
+- Pull request process with conventional commit format
+- Testing requirements and locations
+
+Both files are comprehensive, accurate, and up-to-date with the current project structure. No modifications were needed.
+
+Files modified:
+- `docs/issues/resolved/015-add-readme-and-contributing-docs.md` - Added resolution section
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-16*
