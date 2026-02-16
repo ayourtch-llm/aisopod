@@ -12,6 +12,9 @@ pub struct GatewayConfig {
     /// TLS settings
     #[serde(default)]
     pub tls: TlsConfig,
+    /// WebSocket handshake timeout in seconds
+    #[serde(default = "default_handshake_timeout")]
+    pub handshake_timeout: u64,
 }
 
 /// HTTP server configuration
@@ -57,12 +60,17 @@ fn default_port() -> u16 {
     8080
 }
 
+fn default_handshake_timeout() -> u64 {
+    5
+}
+
 impl Default for GatewayConfig {
     fn default() -> Self {
         Self {
             server: ServerConfig::default(),
             bind: BindConfig::default(),
             tls: TlsConfig::default(),
+            handshake_timeout: default_handshake_timeout(),
         }
     }
 }

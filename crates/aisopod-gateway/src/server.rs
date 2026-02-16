@@ -9,7 +9,7 @@ use tracing::Level;
 
 use aisopod_config::types::GatewayConfig;
 use crate::routes::api_routes;
-use crate::ws::ws_routes;
+use crate::ws::{ws_routes, DEFAULT_HANDSHAKE_TIMEOUT_SECS};
 
 /// Health check endpoint handler
 async fn health() -> impl IntoResponse {
@@ -39,9 +39,16 @@ pub async fn run(config: &GatewayConfig) -> Result<()> {
         .map_err(|e| anyhow::anyhow!("Failed to bind to address '{}': {}", addr, e))?;
 
     // Build the router with the /health endpoint, API routes, and WebSocket route
+    // Use the configured handshake timeout or default to 5 seconds
+    let handshake_timeout = if config.handshake_timeout > 0 {
+        Some(config.handshake_timeout)
+    } else {
+        None
+    };
+    
     let app = Router::new()
         .route("/health", get(health))
-        .merge(ws_routes())
+        .merge(ws_routes(handshake_timeout))
         .merge(api_routes())
         .layer(
             TraceLayer::new_for_http()

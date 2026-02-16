@@ -1,5 +1,5 @@
 use axum::{
-    extract::{MatchedPath, ConnectInfo},
+    extract::{MatchedPath, ConnectInfo, WebSocketUpgrade},
     http::Method,
     response::IntoResponse,
     routing::get,
@@ -36,7 +36,7 @@ pub fn api_routes() -> Router {
 }
 
 /// Build WebSocket routes
-pub fn ws_routes() -> Router {
+pub fn ws_routes(handshake_timeout: Option<u64>) -> Router {
     Router::new()
-        .route("/ws", get(crate::ws::ws_handler))
+        .route("/ws", get(move |ws: WebSocketUpgrade| crate::ws::ws_handler(ws, handshake_timeout)))
 }
