@@ -20,11 +20,15 @@
 //!
 //! ## Example
 //!
-//! ```rust
+//! This example shows the basic structure of a plugin. Note that the `PluginApi`
+//! type referenced in `register()` is not yet implemented - see Issue 108.
+//!
+//! ```ignore
 //! use aisopod_plugin::{Plugin, PluginMeta, PluginContext};
 //! use async_trait::async_trait;
 //! use std::sync::Arc;
 //!
+//! #[derive(Debug)]
 //! struct ExamplePlugin {
 //!     meta: PluginMeta,
 //! }
@@ -54,7 +58,8 @@
 //!         &self.meta
 //!     }
 //!
-//!     fn register(&self, _api: &mut dyn PluginApi) -> Result<(), Box<dyn std::error::Error>> {
+//!     fn register(&self, _api: &mut dyn crate::r#trait::PluginApi) -> Result<(), Box<dyn std::error::Error>> {
+//!         // TODO: Issue 108 - PluginApi struct not yet implemented
 //!         Ok(())
 //!     }
 //!
@@ -80,4 +85,4 @@ pub mod r#trait;
 
 pub use context::PluginContext;
 pub use meta::PluginMeta;
-pub use r#trait::{Plugin, PluginApi};
+pub use r#trait::{Plugin};

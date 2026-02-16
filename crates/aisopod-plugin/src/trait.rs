@@ -25,11 +25,15 @@ use crate::{PluginContext, PluginMeta};
 ///
 /// # Example
 ///
-/// ```rust
-/// use aisopod_plugin::{Plugin, PluginMeta, PluginContext, PluginApi};
+/// This example shows the basic structure of a plugin. Note that the `PluginApi`
+/// type referenced in `register()` is not yet implemented - see Issue 108.
+///
+/// ```ignore
+/// use aisopod_plugin::{Plugin, PluginMeta, PluginContext};
 /// use std::sync::Arc;
 /// use serde_json::Value;
 ///
+/// #[derive(Debug)]
 /// struct MyPlugin {
 ///     meta: PluginMeta,
 /// }
@@ -49,7 +53,7 @@ use crate::{PluginContext, PluginMeta};
 ///     }
 /// }
 ///
-/// #[async_trait]
+/// #[async_trait::async_trait]
 /// impl Plugin for MyPlugin {
 ///     fn id(&self) -> &str {
 ///         "my-plugin"
@@ -59,8 +63,8 @@ use crate::{PluginContext, PluginMeta};
 ///         &self.meta
 ///     }
 ///
-///     fn register(&self, _api: &mut dyn PluginApi) -> Result<(), Box<dyn std::error::Error>> {
-///         // Register plugin capabilities here
+///     fn register(&self, _api: &mut dyn crate::r#trait::PluginApi) -> Result<(), Box<dyn std::error::Error>> {
+///         // TODO: Issue 108 - PluginApi struct not yet implemented
 ///         Ok(())
 ///     }
 ///
