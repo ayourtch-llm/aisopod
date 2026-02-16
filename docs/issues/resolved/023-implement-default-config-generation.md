@@ -132,3 +132,47 @@ Default config generation improves onboarding by giving users a working starting
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-16*
+
+## Resolution
+
+The following changes were made to implement default configuration generation:
+
+### New Files
+- **`crates/aisopod-config/src/generate.rs`**: New module with:
+  - `ConfigFormat` enum with `Json5` and `Toml` variants
+  - `generate_default_config(format: ConfigFormat)` function
+  - `generate_config_with_format(config, format)` for custom configs
+  - `load_config_json5_str()` and `load_config_toml_str()` helper functions for testing
+  - Comprehensive unit tests for both formats with round-trip validation
+
+### Modified Files
+- **`crates/aisopod-config/src/lib.rs`**:
+  - Added `pub mod generate;` module declaration
+  - Added `pub use generate::{generate_default_config, generate_config_with_format, ConfigFormat};`
+  - Added `pub use loader::load_config_json5_str;`
+  - Added `pub use loader::load_config_toml_str;`
+
+- **`crates/aisopod-config/src/loader.rs`**:
+  - Added `load_config_json5_str()` function for parsing JSON5 from string
+  - Added `load_config_toml_str()` function for parsing TOML from string
+  - Both functions include validation and environment variable expansion
+
+### Test Coverage
+The implementation includes 12 new tests:
+- `test_generate_default_json5()` - Verifies JSON5 header and parseability
+- `test_generate_default_toml()` - Verifies TOML header and parseability
+- `test_generated_json5_is_parseable()` - Full round-trip test with temp file
+- `test_generated_toml_is_parseable()` - Full round-trip test with temp file
+- `test_config_format_enum()` - Verifies enum functionality
+- `test_generate_config_with_format()` - Tests custom config generation
+- `test_default_values_match()` - Verifies all default values match
+- `test_generated_configs_are_valid()` - Cross-format validation
+
+All 62 tests pass (47 unit tests + 15 tests in sub-crates).
+
+### Implementation Notes
+- Header comments use language-specific formats (`//` for JSON5, `#` for TOML)
+- Generated configs are valid JSON5/TOML that can be parsed back without modification
+- Default values exactly match `AisopodConfig::default()`
+- The `tempfile` dev dependency was already present in Cargo.toml

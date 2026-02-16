@@ -93,6 +93,66 @@ pub fn load_config_toml(path: &Path) -> Result<AisopodConfig> {
     Ok(config)
 }
 
+/// Load a JSON5 configuration string directly (for testing).
+///
+/// This is a helper function for testing generated configs.
+///
+/// # Arguments
+///
+/// * `content` - JSON5 configuration string
+///
+/// # Returns
+///
+/// * `Result<AisopodConfig>` - The parsed configuration or an error
+pub fn load_config_json5_str(content: &str) -> Result<AisopodConfig> {
+    let mut value: serde_json::Value = json5::from_str(content)
+        .with_context(|| "Failed to parse JSON5 content")?;
+    crate::env::expand_env_vars(&mut value)
+        .with_context(|| "Failed to expand environment variables in JSON5 content")?;
+    
+    let config: AisopodConfig = serde_json::from_value(value)
+        .with_context(|| "Failed to deserialize JSON5 config")?;
+    
+    config.validate().map_err(|errs| {
+        let messages: Vec<String> = errs.iter().map(|e| e.to_string()).collect();
+        anyhow!(
+            "JSON5 config validation failed:\n  {}",
+            messages.join("\n  ")
+        )
+    })?;
+    
+    Ok(config)
+}
+
+/// Load a TOML configuration string directly (for testing).
+///
+/// This is a helper function for testing generated configs.
+///
+/// # Arguments
+///
+/// * `content` - TOML configuration string
+///
+/// # Returns
+///
+/// * `Result<AisopodConfig>` - The parsed configuration or an error
+pub fn load_config_toml_str(content: &str) -> Result<AisopodConfig> {
+    let value: serde_json::Value = toml::from_str(content)
+        .with_context(|| "Failed to parse TOML content")?;
+    
+    let config: AisopodConfig = serde_json::from_value(value)
+        .with_context(|| "Failed to deserialize TOML config")?;
+    
+    config.validate().map_err(|errs| {
+        let messages: Vec<String> = errs.iter().map(|e| e.to_string()).collect();
+        anyhow!(
+            "TOML config validation failed:\n  {}",
+            messages.join("\n  ")
+        )
+    })?;
+    
+    Ok(config)
+}
+
 pub fn load_config_json5(path: &Path) -> Result<AisopodConfig> {
     let contents = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read config file: {}", path.display()))?;

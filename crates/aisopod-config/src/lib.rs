@@ -10,8 +10,10 @@
 //! - `includes`: @include directive processing functionality
 //! - `validation`: Configuration semantic validation
 //! - `sensitive`: Sensitive field handling with redaction
+//! - `generate`: Default configuration generation functionality
 
 pub mod env;
+pub mod generate;
 pub mod includes;
 pub mod loader;
 pub mod sensitive;
@@ -22,6 +24,9 @@ pub use types::AisopodConfig;
 pub use loader::load_config;
 pub use loader::load_config_json5;
 pub use loader::load_config_toml;
+pub use loader::load_config_json5_str;
+pub use loader::load_config_toml_str;
 pub use env::expand_env_vars;
 pub use validation::ValidationError;
 pub use sensitive::Sensitive;
+pub use generate::{generate_default_config, generate_config_with_format, ConfigFormat};
