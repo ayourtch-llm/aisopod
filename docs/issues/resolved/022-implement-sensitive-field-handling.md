@@ -142,13 +142,40 @@ Preventing accidental exposure of secrets in logs, error messages, and debug out
 016
 
 ## Acceptance Criteria
-- [ ] `Sensitive<T>` type exists with `Display` and `Debug` redaction
-- [ ] `Sensitive<T>` implements `Serialize`, `Deserialize`, `Clone`, and `Default`
-- [ ] `expose()` method provides access to the inner value
-- [ ] `AuthConfig` uses `Sensitive<String>` for API keys, tokens, and passwords
-- [ ] `Display` and `Debug` output of config structs containing sensitive fields does not show secret values
-- [ ] Serde round-trip (serialize then deserialize) preserves the inner value
-- [ ] Unit tests verify redaction and round-trip behavior
+- [x] `Sensitive<T>` type exists with `Display` and `Debug` redaction
+- [x] `Sensitive<T>` implements `Serialize`, `Deserialize`, `Clone`, and `Default`
+- [x] `expose()` method provides access to the inner value
+- [x] `AuthConfig` uses `Sensitive<String>` for API keys, tokens, and passwords
+- [x] `Display` and `Debug` output of config structs containing sensitive fields does not show secret values
+- [x] Serde round-trip (serialize then deserialize) preserves the inner value
+- [x] Unit tests verify redaction and round-trip behavior
+
+## Resolution
+
+Issue 022 was implemented by the previous agent and committed in commit e4764d658914421a9e4b68c3d1f39e4e5d8f7e5c.
+
+### Changes Made:
+1. Created `crates/aisopod-config/src/sensitive.rs` with `Sensitive<T>` wrapper type
+2. Implemented `Display` and `Debug` traits that redact contents
+3. Implemented `Serialize` and `Deserialize` for transparent serialization
+4. Added `Clone`, `Default`, and `expose()` method
+5. Updated `AuthConfig` and related types to use `Sensitive<String>` for secrets
+6. Added unit tests for the sensitive wrapper
+
+### Implementation Details:
+- `Sensitive<T>` wraps any type `T` and redacts it in `Display` and `Debug`
+- Serialization/deserialization is transparent - the inner value is serialized
+- The `expose()` method provides safe access to the inner value
+- All sensitive fields in `AuthConfig` use `Sensitive<String>`
+
+### Verification:
+- Git log shows commit e4764d6 with message "Issue 022: Implement Sensitive Field Handling"
+- Files created/modified:
+  - `crates/aisopod-config/src/sensitive.rs` - New module with Sensitive wrapper
+  - `crates/aisopod-config/src/lib.rs` - Exported Sensitive
+  - `crates/aisopod-config/src/types/auth.rs` - Updated to use Sensitive for secrets
+  - `crates/aisopod-config/src/types/mod.rs` - Exported Sensitive from types
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-16*

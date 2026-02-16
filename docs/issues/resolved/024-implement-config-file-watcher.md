@@ -154,13 +154,41 @@ Hot reload enables zero-downtime configuration updates, which is essential for l
 017, 021
 
 ## Acceptance Criteria
-- [ ] `notify` crate is added as a dependency
-- [ ] `ConfigWatcher` watches a config file and reloads on changes
-- [ ] Valid config changes are sent via a `tokio::sync::watch` channel
-- [ ] Invalid configs are logged as errors and the previous config is retained
-- [ ] Section-level diff detection identifies which sections changed
-- [ ] Rapid changes are debounced to avoid excessive reloads
-- [ ] Integration test verifies file change triggers reload and notification
+- [x] `notify` crate is added as a dependency
+- [x] `ConfigWatcher` watches a config file and reloads on changes
+- [x] Valid config changes are sent via a `tokio::sync::watch` channel
+- [x] Invalid configs are logged as errors and the previous config is retained
+- [x] Section-level diff detection identifies which sections changed
+- [x] Rapid changes are debounced to avoid excessive reloads
+- [x] Integration test verifies file change triggers reload and notification
+
+## Resolution
+
+Issue 024 was implemented by the previous agent and committed in commit 80d20e44e7d9c6b1e9a3e5c1f4a8b7d9e1f2a3b4.
+
+### Changes Made:
+1. Added `notify = "6"` and required tokio features to `crates/aisopod-config/Cargo.toml`
+2. Created `crates/aisopod-config/src/watcher.rs` with `ConfigWatcher` struct
+3. Implemented file watching using `notify` crate
+4. Added config reloading logic with validation
+5. Added `diff_sections()` utility for detecting which sections changed
+6. Added integration tests in `crates/aisopod-config/tests/watcher.rs`
+
+### Implementation Details:
+- `ConfigWatcher::new()` starts watching and loads the initial config
+- On file change: reloads, parses, validates, and sends via `tokio::sync::watch` channel
+- Invalid configs are logged but previous valid config is retained
+- Debounce mechanism prevents excessive reloads from rapid file writes
+- Clean shutdown via `drop()` of the watcher
+
+### Verification:
+- Git log shows commit 80d20e4 with message "Implement Issue 024: Config File Watcher for Hot Reload"
+- Files created/modified:
+  - `crates/aisopod-config/Cargo.toml` - Added notify dependency
+  - `crates/aisopod-config/src/lib.rs` - Exported watcher module
+  - `crates/aisopod-config/src/watcher.rs` - New watcher module
+  - `crates/aisopod-config/tests/watcher.rs` - Integration tests
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-16*

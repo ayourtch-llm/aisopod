@@ -134,14 +134,44 @@ Semantic validation catches configuration errors early with clear, actionable me
 016
 
 ## Acceptance Criteria
-- [ ] `AisopodConfig::validate()` exists and checks semantic rules
-- [ ] `ValidationError` includes the field path and a human-readable message
-- [ ] Port range validation catches invalid ports
-- [ ] Empty required fields are flagged
-- [ ] All violations are collected, not fail-fast
-- [ ] Default config passes validation
-- [ ] Validation is integrated into the config loading pipeline
-- [ ] Unit tests verify both valid and invalid configurations
+- [x] `AisopodConfig::validate()` exists and checks semantic rules
+- [x] `ValidationError` includes the field path and a human-readable message
+- [x] Port range validation catches invalid ports
+- [x] Empty required fields are flagged
+- [x] All violations are collected, not fail-fast
+- [x] Default config passes validation
+- [x] Validation is integrated into the config loading pipeline
+- [x] Unit tests verify both valid and invalid configurations
+
+## Resolution
+
+Issue 021 was implemented by the previous agent and committed in commit 412b5b940a013e7f320679e500d5a8b63c1c9c35.
+
+### Changes Made:
+1. Created `crates/aisopod-config/src/validation.rs` with `validate()` method
+2. Created `ValidationError` struct with path and message fields
+3. Added validation for:
+   - Port numbers in range 1-65535
+   - Non-empty required fields (agent names, model IDs, etc.)
+   - No duplicate agent names or model IDs
+4. Integrated validation into `loader.rs` for all config formats
+5. Added comprehensive tests in `crates/aisopod-config/tests/validation.rs`
+
+### Implementation Details:
+- The `validate()` method collects all validation errors (not fail-fast)
+- Each `ValidationError` includes the field path and a human-readable message
+- Validation is called after deserialization in the config loading pipeline
+- Tests cover valid configs, invalid configs, boundary values, and edge cases
+
+### Verification:
+- Git log shows commit 412b5b9 with message "feat: implement Issue 021 - Implement Config Validation"
+- Files created/modified:
+  - `crates/aisopod-config/src/validation.rs` - New validation module
+  - `crates/aisopod-config/src/lib.rs` - Exported validation
+  - `crates/aisopod-config/src/loader.rs` - Integrated validation
+  - `crates/aisopod-config/tests/validation.rs` - Integration tests
+  - `crates/aisopod-config/tests/fixtures/*.json5, *.toml` - Test fixtures
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-16*

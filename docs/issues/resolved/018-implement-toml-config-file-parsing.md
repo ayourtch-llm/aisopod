@@ -74,12 +74,40 @@ TOML is a popular configuration format in the Rust ecosystem. Supporting it alon
 016, 017
 
 ## Acceptance Criteria
-- [ ] `toml` crate is added as a dependency in `crates/aisopod-config/Cargo.toml`
-- [ ] `load_config_toml()` function reads and parses a TOML file into `AisopodConfig`
-- [ ] `load_config()` auto-detects `.toml` extension and routes to `load_config_toml()`
-- [ ] A sample TOML fixture file exists for testing
-- [ ] Integration test verifies parsing a sample TOML config file
-- [ ] Both JSON5 and TOML tests pass together
+- [x] `toml` crate is added as a dependency in `crates/aisopod-config/Cargo.toml`
+- [x] `load_config_toml()` function reads and parses a TOML file into `AisopodConfig`
+- [x] `load_config()` auto-detects `.toml` extension and routes to `load_config_toml()`
+- [x] A sample TOML fixture file exists for testing
+- [x] Integration test verifies parsing a sample TOML config file
+- [x] Both JSON5 and TOML tests pass together
+
+## Resolution
+
+Issue 018 was implemented by the previous agent and committed in commit 8e05ee042f9a00628082cd96cd2343cece3be0d3.
+
+### Changes Made:
+1. Added `toml = "0.8"` dependency to `crates/aisopod-config/Cargo.toml`
+2. Added `load_config_toml()` function in `crates/aisopod-config/src/loader.rs`
+3. Updated `load_config()` match statement to include `.toml` extension routing
+4. Exported `load_config_toml` from `crates/aisopod-config/src/lib.rs`
+5. Created sample TOML test fixture at `crates/aisopod-config/tests/fixtures/sample.toml`
+6. Added integration tests in `crates/aisopod-config/tests/load_toml.rs`
+
+### Implementation Details:
+- The `load_config_toml()` function reads the file, parses it as TOML using `toml::from_str()`, expands environment variables, processes @include directives, deserializes to `AisopodConfig`, and validates the result.
+- The `load_config()` function's match statement now routes `.toml` files to `load_config_toml()`.
+- A comprehensive `load_config_toml_str()` helper function was also added for testing.
+- All tests pass, verifying that TOML configs are parsed correctly alongside JSON5.
+
+### Verification:
+- Git log shows commit 8e05ee0 with the message "Issue 018: Implement TOML Config File Parsing"
+- Files created/modified:
+  - `crates/aisopod-config/Cargo.toml` - Added toml dependency
+  - `crates/aisopod-config/src/lib.rs` - Exported load_config_toml
+  - `crates/aisopod-config/src/loader.rs` - Added load_config_toml() and updated match
+  - `crates/aisopod-config/tests/fixtures/sample.toml` - Test fixture
+  - `crates/aisopod-config/tests/load_toml.rs` - Integration tests
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-16*
