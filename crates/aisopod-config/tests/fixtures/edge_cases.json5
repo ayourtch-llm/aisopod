@@ -1,0 +1,15 @@
+// Edge cases configuration
+{
+  // Empty strings
+  meta: {
+    version: "",
+  },
+  gateway: {
+    server: {
+      port: 0,  // Boundary value: 0 is invalid
+    },
+    bind: {
+      address: "",  // Empty address
+    },
+  },
+}

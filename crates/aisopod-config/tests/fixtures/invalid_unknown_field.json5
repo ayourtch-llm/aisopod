@@ -1,0 +1,7 @@
+// Config with unknown top-level key (for deny_unknown_fields testing)
+{
+  meta: {
+    version: "1.0",
+  },
+  unknown_field: "this should cause deserialization error",
+}

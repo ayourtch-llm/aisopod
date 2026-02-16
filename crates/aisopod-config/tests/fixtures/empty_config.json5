@@ -1,0 +1,6 @@
+// Empty config with empty version (should fail validation)
+{
+  meta: {
+    version: "",
+  },
+}

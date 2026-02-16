@@ -1,0 +1,6 @@
+{
+  // Minimal valid configuration with only required fields
+  meta: {
+    version: "1.0",
+  },
+}

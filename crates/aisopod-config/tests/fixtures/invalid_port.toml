@@ -1,0 +1,50 @@
+# Config with invalid port (99999 is out of valid range 1-65535)
+[meta]
+version = "1.0"
+
+[gateway.server]
+port = 99999
+
+[gateway.bind]
+address = "127.0.0.1"
+
+[agents]
+agents = []
+
+[models]
+models = []
+
+[channels]
+channels = []
+
+[tools]
+bash = { enabled = true, working_dir = "/tmp", allowed_commands = [] }
+
+[skills]
+settings = { timeout = 30 }
+
+[plugins]
+registry = []
+
+[session]
+messages = { max_messages = 1000 }
+persistence = { enabled = true, storage_path = "./data/sessions" }
+
+[bindings]
+agent_id = "default-agent"
+channel_type = "websocket"
+
+[memory]
+enabled = true
+provider = "sqlite"
+embedding_provider = "openai"
+storage_path = "./data/memory"
+
+[auth]
+enabled = false
+provider = "jwt"
+secret_key = "test"
+
+[env]
+debug = false
+

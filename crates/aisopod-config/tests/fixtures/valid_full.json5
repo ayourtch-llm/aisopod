@@ -1,0 +1,133 @@
+// Full valid configuration with all sections populated
+{
+  meta: {
+    version: "1.0",
+  },
+  
+  auth: {
+    enabled: true,
+    provider: "jwt",
+    secret_key: "${AUTH_SECRET:-default-secret}",
+  },
+  
+  env: {
+    debug: true,
+  },
+  
+  gateway: {
+    server: {
+      name: "aisopod-gateway",
+      port: 8080,
+      graceful_shutdown: true,
+    },
+    bind: {
+      address: "127.0.0.1",
+      ipv6: false,
+    },
+    tls: {
+      enabled: false,
+      cert_path: "",
+      key_path: "",
+    },
+  },
+  
+  agents: {
+    agents: [
+      {
+        id: "default-agent",
+        name: "Default Agent",
+        model: "gpt-4",
+        workspace: "/workspace",
+        sandbox: false,
+        subagents: [],
+      },
+    ],
+  },
+  
+  models: {
+    models: [
+      {
+        id: "gpt-4",
+        name: "GPT-4",
+        provider: "openai",
+        capabilities: ["chat"],
+      },
+      {
+        id: "gpt-3.5-turbo",
+        name: "GPT-3.5 Turbo",
+        provider: "openai",
+        capabilities: ["chat"],
+      },
+    ],
+  },
+  
+  channels: {
+    channels: [],
+    default: {
+      channel_type: "websocket",
+    },
+  },
+  
+  tools: {
+    bash: {
+      enabled: true,
+      working_dir: "/tmp",
+      allowed_commands: [],
+    },
+    file_ops: {
+      enabled: true,
+      allowed_paths: [],
+      read_only: false,
+    },
+    message_send: {
+      enabled: true,
+    },
+    subagent_spawning: {
+      enabled: true,
+    },
+    session_management: {
+      enabled: true,
+    },
+    cron_scheduled_task: {
+      enabled: true,
+    },
+    canvas: {
+      enabled: true,
+    },
+  },
+  
+  skills: {
+    default: {
+      timeout: 30,
+    },
+  },
+  
+  plugins: {
+    default: {
+    },
+  },
+  
+  session: {
+    messages: {
+      max_messages: 1000,
+    },
+    persistence: {
+      enabled: true,
+      storage_path: "./data/sessions",
+    },
+  },
+  
+  bindings: [
+    {
+      agent_id: "default-agent",
+      channel_type: "websocket",
+    },
+  ],
+  
+  memory: {
+    enabled: true,
+    provider: "sqlite",
+    embedding_provider: "openai",
+    storage_path: "./data/memory",
+  },
+}

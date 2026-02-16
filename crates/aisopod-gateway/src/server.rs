@@ -1,5 +1,5 @@
 use anyhow::Result;
-use axum::{response::IntoResponse, routing::get, Json, Router};
+use axum::{response::IntoResponse, routing::{get, post}, Json, Router};
 use serde_json::json;
 use std::net::SocketAddr;
 use tracing::{info, warn};
@@ -8,6 +8,7 @@ use tower_http::trace::TraceLayer;
 
 use aisopod_config::types::GatewayConfig;
 use crate::routes::api_routes;
+use crate::ws::ws_routes;
 
 /// Health check endpoint handler
 async fn health() -> impl IntoResponse {
@@ -36,9 +37,10 @@ pub async fn run(config: &GatewayConfig) -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("Failed to bind to address '{}': {}", addr, e))?;
 
-    // Build the router with the /health endpoint and API routes
+    // Build the router with the /health endpoint, API routes, and WebSocket route
     let app = Router::new()
         .route("/health", get(health))
+        .merge(ws_routes())
         .merge(api_routes())
         .layer(TraceLayer::new_for_http());
 

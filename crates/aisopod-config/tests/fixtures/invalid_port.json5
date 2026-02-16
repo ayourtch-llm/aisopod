@@ -1,0 +1,14 @@
+// Config with invalid port (99999 is out of valid range 1-65535)
+{
+  meta: {
+    version: "1.0",
+  },
+  gateway: {
+    server: {
+      port: 99999,
+    },
+    bind: {
+      address: "127.0.0.1",
+    },
+  },
+}

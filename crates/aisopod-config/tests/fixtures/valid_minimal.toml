@@ -1,0 +1,3 @@
+# Minimal valid configuration in TOML format
+[meta]
+version = "1.0"

@@ -1,0 +1,3 @@
+# Config with invalid TOML syntax (missing closing bracket)
+[meta
+version = "invalid"

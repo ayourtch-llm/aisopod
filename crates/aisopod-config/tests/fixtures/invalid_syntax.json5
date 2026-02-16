@@ -1,0 +1,7 @@
+// Config with invalid JSON5 syntax (unclosed brace)
+{
+  gateway: {
+    server: {
+      port: 8080,
+    },
+  }
