@@ -1,5 +1,5 @@
 use axum::{
-    extract::MatchedPath,
+    extract::{MatchedPath, ConnectInfo},
     http::Method,
     response::IntoResponse,
     routing::get,
@@ -11,10 +11,12 @@ use serde_json::json;
 pub async fn not_implemented(
     method: Method,
     matched_path: MatchedPath,
+    ConnectInfo(client_ip): ConnectInfo<std::net::SocketAddr>,
 ) -> impl IntoResponse {
     tracing::info!(
         method = %method,
         path = %matched_path.as_str(),
+        client_ip = %client_ip,
         "Request to unimplemented endpoint"
     );
     
@@ -31,4 +33,10 @@ pub fn api_routes() -> Router {
         .route("/hooks", post(not_implemented))
         .route("/tools/invoke", get(not_implemented))
         .route("/status", get(not_implemented))
+}
+
+/// Build WebSocket routes
+pub fn ws_routes() -> Router {
+    Router::new()
+        .route("/ws", get(crate::ws::ws_handler))
 }

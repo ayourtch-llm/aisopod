@@ -18,7 +18,7 @@ pub fn ws_routes() -> Router {
 }
 
 /// Handle a WebSocket upgrade request
-async fn ws_handler(ws: axum::extract::WebSocketUpgrade) -> impl IntoResponse {
+pub async fn ws_handler(ws: axum::extract::WebSocketUpgrade) -> impl IntoResponse {
     ws.on_upgrade(handle_connection)
 }
 

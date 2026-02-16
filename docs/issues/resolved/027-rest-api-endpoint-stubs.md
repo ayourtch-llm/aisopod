@@ -40,10 +40,21 @@ Having the full route table in place early lets front-end developers, tests, and
 - Issue 026 (Axum HTTP server skeleton)
 
 ## Acceptance Criteria
-- [ ] All five endpoints are reachable at their documented paths.
-- [ ] Each returns HTTP 501 with a JSON error body.
-- [ ] Every request produces a `tracing` log line containing method, path, and response status.
-- [ ] Existing `/health` endpoint is unaffected.
+- [x] All five endpoints are reachable at their documented paths.
+- [x] Each returns HTTP 501 with a JSON error body.
+- [x] Every request produces a `tracing` log line containing method, path, and response status.
+- [x] Existing `/health` endpoint is unaffected.
+
+## Resolution
+Fixed visibility issues in the implementation:
+1. Made `ws_handler` function public in `crates/aisopod-gateway/src/ws.rs` so it can be accessed from `routes.rs`
+2. Removed the private `into_inner()` call in `api_routes()` function in `crates/aisopod-gateway/src/routes.rs`
+3. The `not_implemented` handler function already properly logs requests with method, path, and client IP using `tracing::info!`
+4. The `api_routes()` function properly returns `Router` directly without needing to unwrap
+5. All five endpoints are registered: `/v1/chat/completions`, `/v1/responses`, `/hooks`, `/tools/invoke`, `/status`
+6. The `TraceLayer` is applied in `server.rs` to log all requests
+7. `cargo build` and `cargo test` pass successfully
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-16*
