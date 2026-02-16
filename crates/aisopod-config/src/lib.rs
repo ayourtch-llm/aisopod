@@ -11,6 +11,7 @@
 //! - `validation`: Configuration semantic validation
 //! - `sensitive`: Sensitive field handling with redaction
 //! - `generate`: Default configuration generation functionality
+//! - `watcher`: Configuration file watcher for hot reload
 
 pub mod env;
 pub mod generate;
@@ -19,6 +20,7 @@ pub mod loader;
 pub mod sensitive;
 pub mod types;
 pub mod validation;
+pub mod watcher;
 
 pub use types::AisopodConfig;
 pub use loader::load_config;
@@ -30,3 +32,5 @@ pub use env::expand_env_vars;
 pub use validation::ValidationError;
 pub use sensitive::Sensitive;
 pub use generate::{generate_default_config, generate_config_with_format, ConfigFormat};
+pub use watcher::ConfigWatcher;
+pub use watcher::diff_sections;
