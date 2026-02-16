@@ -1,5 +1,5 @@
 use anyhow::Result;
-use axum::{response::IntoResponse, routing::{get, post}, Json, Router};
+use axum::{response::IntoResponse, routing::get, Json, Router};
 use serde_json::json;
 use std::net::SocketAddr;
 use tracing::{info, warn};

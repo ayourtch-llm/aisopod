@@ -87,6 +87,34 @@ While not encoded in the filename, issues can note priority in their content:
 - **Medium**: Moderate impact, should be fixed soon
 - **Low**: Minor issue or enhancement
 
+## Dependencies and Ordering
+
+### Dependency Checking
+Before resolving an issue, verify that all dependencies are satisfied:
+
+1. **Check the issue file**: Look for a "Dependencies" section listing other issues that must be resolved first
+2. **Check open issues**: Ensure all listed dependencies are either in `open/` (and resolved) or not listed as required
+3. **Check implementation**: The code should not reference undefined types or traits from unimplemented dependencies
+
+### Common Issues That Cause Out-of-Order Resolution
+
+| Problem | Why It Happens | How to Prevent |
+|---------|---------------|----------------|
+| **Pre-mature resolution** | Implementation started before dependencies were ready | Add `dependencies` field to issue template; run `cargo build` to catch undefined types |
+| **Jumping issue numbers** | New issues created with high numbers while old ones remain open | Always use lowest available number; document dependencies clearly |
+| **Incomplete implementation** | Core trait defined but dependencies stubbed out | Require complete implementation, not just skeleton; use `cargo check --all-targets` before resolution |
+
+### Resolution Checklist
+
+Before moving an issue to `resolved/`, verify:
+
+- [ ] All listed dependencies are resolved
+- [ ] `cargo build` passes without errors for all crates
+- [ ] No compilation warnings (use `RUSTFLAGS=-Awarnings` for cleaner output)
+- [ ] The implementation matches the "Expected Behavior" section
+- [ ] Tests pass (`cargo test` at project root)
+- [ ] Documentation is complete (`cargo doc` generates without warnings)
+
 ## Current Issue Number
 
 The highest allocated issue number is tracked by the files present. As of this writing, issue numbers up to **196** have been allocated.

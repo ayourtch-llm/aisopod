@@ -1,11 +1,10 @@
 use axum::{
-    extract::ws::{CloseCode, CloseFrame, Message, WebSocket},
+    extract::ws::{Message, WebSocket},
     response::IntoResponse,
     routing::get,
-    Json, Router,
+    Router,
 };
 use futures_util::{stream::StreamExt, sink::SinkExt};
-use serde_json::json;
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
@@ -24,7 +23,7 @@ async fn ws_handler(ws: axum::extract::WebSocketUpgrade) -> impl IntoResponse {
 }
 
 /// Handle an established WebSocket connection
-async fn handle_connection(mut ws: WebSocket) {
+async fn handle_connection(ws: WebSocket) {
     // Generate unique connection ID
     let conn_id = Uuid::new_v4();
     let start_time = std::time::Instant::now();
@@ -71,7 +70,7 @@ async fn handle_connection(mut ws: WebSocket) {
             }
             Ok(Message::Close(close)) => {
                 info!(conn_id = %conn_id, "Received close frame: {:?}", close);
-                if let Some(reason) = close {
+                if let Some(_reason) = close {
                     // Can't send close ack here since tx is moved
                 }
                 break;

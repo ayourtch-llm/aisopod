@@ -1,7 +1,5 @@
-use std::error::Error;
-
 use async_trait::async_trait;
-use serde_json::Value;
+use std::error::Error;
 
 use crate::{PluginContext, PluginMeta};
 
@@ -28,7 +26,7 @@ use crate::{PluginContext, PluginMeta};
 /// # Example
 ///
 /// ```rust
-/// use aisopod_plugin::{Plugin, PluginMeta, PluginContext};
+/// use aisopod_plugin::{Plugin, PluginMeta, PluginContext, PluginApi};
 /// use std::sync::Arc;
 /// use serde_json::Value;
 ///
@@ -61,17 +59,17 @@ use crate::{PluginContext, PluginMeta};
 ///         &self.meta
 ///     }
 ///
-///     fn register(&self, _api: &mut dyn PluginApi) -> Result<(), Box<dyn Error>> {
+///     fn register(&self, _api: &mut dyn PluginApi) -> Result<(), Box<dyn std::error::Error>> {
 ///         // Register plugin capabilities here
 ///         Ok(())
 ///     }
 ///
-///     async fn init(&self, _ctx: &PluginContext) -> Result<(), Box<dyn Error>> {
+///     async fn init(&self, _ctx: &PluginContext) -> Result<(), Box<dyn std::error::Error>> {
 ///         // Perform async initialization
 ///         Ok(())
 ///     }
 ///
-///     async fn shutdown(&self) -> Result<(), Box<dyn Error>> {
+///     async fn shutdown(&self) -> Result<(), Box<dyn std::error::Error>> {
 ///         // Perform cleanup
 ///         Ok(())
 ///     }

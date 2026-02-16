@@ -6,7 +6,7 @@
 
 #![deny(unused_must_use)]
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -87,7 +87,7 @@ impl ConfigWatcher {
                     _ = reload_trigger_receiver.recv() => {
                         // Trigger a reload after debounce delay
                         debug!("Reloading config with debounce");
-                        let mut current_time = std::time::Instant::now();
+                        let current_time = std::time::Instant::now();
                         let last_time = last_reload_time.unwrap_or(current_time);
                         let time_since_last_reload = current_time.duration_since(last_time);
 
@@ -194,7 +194,7 @@ async fn reload_and_send(config_path: &Path, tx: &tokio::sync::Mutex<watch::Send
     match load_config(config_path) {
         Ok(new_config) => {
             // Use the mutex to safely send the new config
-            let mut tx_guard = tx.lock().await;
+            let tx_guard = tx.lock().await;
             if tx_guard.send(new_config).is_err() {
                 warn!("Config receiver dropped, stopping watcher");
             } else {

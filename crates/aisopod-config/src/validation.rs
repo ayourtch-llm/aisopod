@@ -52,10 +52,12 @@ impl AisopodConfig {
 
     fn validate_gateway(&self, errors: &mut Vec<ValidationError>) {
         let port = self.gateway.server.port;
-        if port < 1 || port > 65535 {
+        // Note: port is u16, so 0 <= port <= 65535 always holds
+        // We only check for 0 which is invalid for server binding
+        if port == 0 {
             errors.push(ValidationError {
                 path: "gateway.server.port".to_string(),
-                message: format!("Port must be between 1 and 65535, got {}", port),
+                message: "Port must be between 1 and 65535, got 0".to_string(),
             });
         }
 

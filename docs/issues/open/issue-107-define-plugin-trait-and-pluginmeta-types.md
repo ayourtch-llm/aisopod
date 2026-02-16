@@ -78,50 +78,19 @@ Every other plugin system issue depends on this trait definition. It is the sing
 
 ## Dependencies
 - Issue 010 (create aisopod-plugin crate scaffold)
+- Issue 049 (Tool trait) - for PluginApi to register tools
+- Issue 089 (ChannelPlugin trait) - for PluginApi to register channels
+- Issue 038 (ModelProvider trait) - for PluginApi to register providers
+- Issue 108 (PluginApi struct) - MUST be resolved before this issue
 
 ## Acceptance Criteria
-- [x] `Plugin` trait is defined with `id()`, `meta()`, `register()`, `init()`, and `shutdown()` methods
-- [x] `PluginMeta` struct includes name, version, description, author, supported_channels, and supported_providers fields
-- [x] `PluginContext` struct provides runtime context including config and data directory
-- [x] All public types and methods have documentation comments
-- [x] `cargo build -p aisopod-plugin` compiles without errors
-- [x] `cargo doc -p aisopod-plugin` generates documentation without warnings
+- [ ] `Plugin` trait is defined with `id()`, `meta()`, `register()`, `init()`, and `shutdown()` methods
+- [ ] `PluginMeta` struct includes name, version, description, author, supported_channels, and supported_providers fields
+- [ ] `PluginContext` struct provides runtime context including config and data directory
+- [ ] All public types and methods have documentation comments
+- [ ] `PluginApi` is a **struct** (not a trait) with registration methods
+- [ ] `cargo build -p aisopod-plugin` compiles without errors
+- [ ] `cargo doc -p aisopod-plugin` generates documentation without warnings
 
-## Resolution
-
-Issue 107 was implemented by the implementation manager in commit 29179614a8b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6.
-
-### Implementation Details:
-1. **Created `meta.rs`** with `PluginMeta` struct:
-   - Fields: name, version, description, author, supported_channels, supported_providers
-   - Derives: Debug, Clone, Serialize, Deserialize
-
-2. **Created `context.rs`** with `PluginContext` struct:
-   - Fields: config (Arc<serde_json::Value>), data_dir (PathBuf)
-   - Provides runtime context to plugins during initialization
-
-3. **Created `trait.rs`** with `Plugin` trait:
-   - Methods: id(), meta(), register(), init(), shutdown()
-   - Uses async_trait for async methods
-   - Implements Send + Sync bounds for compatibility with compiled-in and dynamic plugins
-
-4. **Updated `lib.rs`**:
-   - Declares modules: `trait`, `meta`, `context`
-   - Re-exports: `Plugin`, `PluginMeta`, `PluginContext`
-   - Added `PluginApi` trait (minimal placeholder for future expansion)
-
-5. **Added `async-trait` dependency** to `Cargo.toml`
-
-### Files Created:
-- `crates/aisopod-plugin/src/context.rs`
-- `crates/aisopod-plugin/src/meta.rs`
-- `crates/aisopod-plugin/src/trait.rs`
-
-### Verification:
-- `cargo build -p aisopod-plugin` compiles successfully
-- `cargo doc -p aisopod-plugin` generates documentation without warnings
-- All public types have comprehensive documentation
-
----
-*Created: 2026-02-15*
-*Resolved: 2026-02-16*
+## Important Notes
+This issue **MUST NOT** be resolved until Issue 108 (PluginApi) is fully implemented. The `PluginApi` type must be a concrete struct with methods like `register_channel()`, `register_tool()`, `register_provider()`, and `register_command()` before this issue can be considered complete.
