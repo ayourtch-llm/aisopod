@@ -64,6 +64,13 @@ async fn handle_connection(ws: WebSocket) {
     // Split the WebSocket into receiver and sender halves
     let (mut tx, mut rx) = ws.split();
     
+    // Use Arc<Mutex> to share the sender between heartbeat and main loop
+    // This allows both tasks to send messages
+    let tx = std::sync::Arc::new(tokio::sync::Mutex::new(tx));
+    
+    // Clone for the heartbeat task
+    let tx_heartbeat = tx.clone();
+    
     // Spawn heartbeat task that sends pings periodically and handles pongs
     let conn_id_heartbeat = conn_id.clone();
     let heartbeat_task = tokio::spawn(async move {
@@ -76,7 +83,9 @@ async fn handle_connection(ws: WebSocket) {
                     debug!(conn_id = %conn_id_heartbeat, "Sending ping frame");
                     
                     // Use a cloned sender from the heartbeat task
-                    if let Err(e) = tx.send(Message::Ping(vec![])).await {
+                    let mut tx_guard = tx_heartbeat.lock().await;
+                    if let Err(e) = tx_guard.send(Message::Ping(vec![])).await {
+                        drop(tx_guard);
                         warn!(conn_id = %conn_id_heartbeat, "Failed to send ping: {}", e);
                         break;
                     }
@@ -86,7 +95,9 @@ async fn handle_connection(ws: WebSocket) {
                     match msg {
                         Some(Ok(Message::Ping(_))) => {
                             debug!(conn_id = %conn_id_heartbeat, "Received ping, sending pong");
-                            if let Err(e) = tx.send(Message::Pong(vec![])).await {
+                            let mut tx_guard = tx_heartbeat.lock().await;
+                            if let Err(e) = tx_guard.send(Message::Pong(vec![])).await {
+                                drop(tx_guard);
                                 warn!(conn_id = %conn_id_heartbeat, "Failed to send pong: {}", e);
                                 break;
                             }
