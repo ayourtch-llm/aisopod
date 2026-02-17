@@ -50,11 +50,14 @@
 
 #![deny(unused_must_use)]
 
+pub mod auth;
+pub mod providers;
 pub mod registry;
 pub mod trait_module;
 pub mod types;
 
 // Re-export the main trait and all types for convenience
+pub use crate::auth::{AuthProfile, AuthProfileManager, ProfileStatus};
 pub use crate::registry::{ModelAlias, ProviderRegistry};
 pub use crate::trait_module::{
     ChatCompletionStream, ModelProvider,
