@@ -7,6 +7,8 @@ use axum::{
 };
 use serde_json::json;
 
+use crate::middleware::ExtractAuthInfo;
+
 /// Handler for not implemented endpoints
 pub async fn not_implemented(
     method: Method,

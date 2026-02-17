@@ -32,27 +32,34 @@ pub async fn ws_handler(
 ) -> impl IntoResponse {
     let handshake_timeout_duration = Duration::from_secs(handshake_timeout.unwrap_or(DEFAULT_HANDSHAKE_TIMEOUT_SECS));
     
-    // Create a future that wraps the on_upgrade call
-    // We need to run the upgrade in a separate task with timeout
-    let ws_handler = async move {
-        tokio::time::timeout(handshake_timeout_duration, async move {
-            // The on_upgrade method returns a Response, not a Future
-            // We need to wrap it in a future that completes when the connection is closed
-            ws.on_upgrade(handle_connection)
-        })
-        .await
-    };
+    // Create a oneshot channel to signal when the connection handler completes
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     
-    match ws_handler.await {
-        Ok(result) => result,
-        Err(_) => {
-            warn!(timeout_secs = handshake_timeout_duration.as_secs(), "WebSocket handshake timed out");
-            axum::response::Response::builder()
-                .status(axum::http::StatusCode::REQUEST_TIMEOUT)
-                .body(axum::body::Body::from("WebSocket handshake timeout"))
-                .expect("Failed to build timeout response")
+    ws.on_upgrade(move |socket| {
+        // The callback must return a Future<Output = ()>
+        // We spawn the connection handler and send completion signal via oneshot
+        let conn_task = tokio::spawn(async move {
+            handle_connection(socket).await;
+            // Send completion signal
+            let _ = tx.send(());
+        });
+        
+        // Return a future that waits for the connection to complete
+        async move {
+            // Wait for either completion or timeout
+            tokio::select! {
+                _ = rx => {
+                    // Connection completed normally
+                }
+                _ = tokio::time::sleep(handshake_timeout_duration) => {
+                    warn!("WebSocket connection timed out after {} seconds", handshake_timeout_duration.as_secs());
+                    // The connection task is dropped when this future completes
+                    // Axum will close the connection
+                }
+            }
+            conn_task.abort();
         }
-    }
+    })
 }
 
 /// Handle an established WebSocket connection
@@ -74,6 +81,9 @@ async fn handle_connection(ws: WebSocket) {
     // Broadcast allows multiple subscribers to receive the same messages
     let (tx, mut rx_heartbeat) = tokio::sync::broadcast::channel::<Message>(16);
     let mut rx_main = rx_heartbeat.resubscribe();
+    
+    // Clone for heartbeat task
+    let ws_tx_heartbeat = Arc::clone(&ws_tx);
     
     // Spawn one task that reads from ws_rx and sends to the channel
     let forwarder_task = tokio::spawn(async move {
@@ -99,7 +109,6 @@ async fn handle_connection(ws: WebSocket) {
     });
     
     // Spawn heartbeat task that sends pings periodically and handles pongs
-    let ws_tx_heartbeat = Arc::clone(&ws_tx);
     let conn_id_heartbeat = conn_id.clone();
     let heartbeat_task = tokio::spawn(async move {
         let ping_interval = Duration::from_secs(PING_INTERVAL_SECS);

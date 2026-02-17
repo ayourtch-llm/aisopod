@@ -7,9 +7,10 @@ use tokio::signal;
 use tower_http::trace::{TraceLayer, DefaultMakeSpan, DefaultOnResponse};
 use tracing::Level;
 
-use aisopod_config::types::GatewayConfig;
+use aisopod_config::types::{AisopodConfig, GatewayConfig};
 use crate::routes::api_routes;
 use crate::ws::{ws_routes, DEFAULT_HANDSHAKE_TIMEOUT_SECS};
+use crate::middleware::{auth_middleware, AuthConfigData};
 
 /// Health check endpoint handler
 async fn health() -> impl IntoResponse {
@@ -17,11 +18,14 @@ async fn health() -> impl IntoResponse {
 }
 
 /// Run the Axum HTTP server with the given configuration
-pub async fn run(config: &GatewayConfig) -> Result<()> {
-    let address = config.bind.address.clone();
-    let port = config.server.port;
+pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
+    let gateway_config = &config.gateway;
+    let auth_config = &config.auth;
+    
+    let address = gateway_config.bind.address.clone();
+    let port = gateway_config.server.port;
 
-    let bind_addr = if config.bind.ipv6 {
+    let bind_addr = if gateway_config.bind.ipv6 {
         format!("[{}]:{}", address, port)
     } else {
         format!("{}:{}", address, port)
@@ -38,10 +42,13 @@ pub async fn run(config: &GatewayConfig) -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("Failed to bind to address '{}': {}", addr, e))?;
 
+    // Build the auth config data
+    let auth_config_data = AuthConfigData::new(auth_config.clone());
+    
     // Build the router with the /health endpoint, API routes, and WebSocket route
     // Use the configured handshake timeout or default to 5 seconds
-    let handshake_timeout = if config.handshake_timeout > 0 {
-        Some(config.handshake_timeout)
+    let handshake_timeout = if gateway_config.handshake_timeout > 0 {
+        Some(gateway_config.handshake_timeout)
     } else {
         None
     };
@@ -50,6 +57,14 @@ pub async fn run(config: &GatewayConfig) -> Result<()> {
         .route("/health", get(health))
         .merge(ws_routes(handshake_timeout))
         .merge(api_routes())
+        .layer(axum::middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+            let config_data = auth_config_data.clone();
+            async move {
+                req.extensions_mut().insert(config_data);
+                next.run(req).await
+            }
+        }))
+        .layer(axum::middleware::from_fn(auth_middleware))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
@@ -91,4 +106,13 @@ pub async fn run(config: &GatewayConfig) -> Result<()> {
 
     info!("Server shut down gracefully");
     Ok(())
+}
+
+/// Run the Axum HTTP server with the given configuration (backward compatible)
+pub async fn run(config: &GatewayConfig) -> Result<()> {
+    let aisopod_config = AisopodConfig {
+        gateway: config.clone(),
+        ..Default::default()
+    };
+    run_with_config(&aisopod_config).await
 }
