@@ -1,3 +1,59 @@
 //! # aisopod-provider
 //!
 //! Provider abstractions and implementations for LLM backends and AI service providers.
+//!
+//! ## Overview
+//!
+//! This crate provides the [`ModelProvider`] trait, which is the primary
+//! abstraction for communicating with AI model providers. Every concrete
+//! provider (Anthropic, OpenAI, Gemini, Bedrock, Ollama) implements this trait.
+//!
+//! ## Core Types
+//!
+//! - [`ModelProvider`] - The main trait for AI providers
+//! - [`ChatCompletionRequest`] - Request for chat completion
+//! - [`ChatCompletionChunk`] - Streaming response chunk
+//! - [`Message`] - A chat message
+//! - [`ModelInfo`] - Information about a supported model
+//! - [`ProviderHealth`] - Health status of a provider
+//!
+//! ## Example
+//!
+//! ```ignore
+//! use aisopod_provider::{ModelProvider, ChatCompletionRequest, Message, Role, MessageContent};
+//!
+//! async fn example(provider: &impl ModelProvider) -> anyhow::Result<()> {
+//!     let request = ChatCompletionRequest {
+//!         model: "gpt-4".to_string(),
+//!         messages: vec![Message {
+//!             role: Role::User,
+//!             content: MessageContent::Text("Hello!".to_string()),
+//!             tool_calls: None,
+//!             tool_call_id: None,
+//!         }],
+//!         tools: None,
+//!         temperature: None,
+//!         max_tokens: None,
+//!         stop: None,
+//!         stream: true,
+//!     };
+//!
+//!     let response = provider.chat_completion(request).await?;
+//!     Ok(())
+//! }
+//! ```
+
+#![deny(unused_must_use)]
+
+pub mod trait_module;
+pub mod types;
+
+// Re-export the main trait and all types for convenience
+pub use crate::trait_module::{
+    ChatCompletionStream, ModelProvider,
+};
+pub use crate::types::{
+    ChatCompletionChunk, ChatCompletionRequest, ContentPart, FinishReason, Message,
+    MessageContent, MessageDelta, ModelInfo, ProviderHealth, Role, ToolCall, ToolDefinition,
+    TokenUsage,
+};

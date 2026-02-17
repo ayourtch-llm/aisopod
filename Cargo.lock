@@ -141,6 +141,10 @@ version = "0.1.0"
 dependencies = [
  "aisopod-shared",
  "anyhow",
+ "async-trait",
+ "futures-core",
+ "futures-util",
+ "pin-project-lite",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
