@@ -82,12 +82,12 @@ The ProviderRegistry was implemented with the following components:
 - Build passes with `RUSTFLAGS=-Awarnings`
 
 ### Acceptance Criteria Met
-- [x] `ProviderRegistry` struct is defined and exported.
-- [x] Providers can be registered and retrieved by ID.
-- [x] `list()` returns all registered providers.
-- [x] Model aliases can be registered and resolved to a provider/model pair.
-- [x] `resolve_model()` works for both direct provider IDs and aliases.
-- [x] `cargo check -p aisopod-provider` passes.
+- [x] `ProviderRegistry` struct is defined and exported
+- [x] Providers can be registered and retrieved by ID
+- [x] `list_providers()` returns all registered providers
+- [x] Model aliases can be registered and resolved to a provider/model pair
+- [x] `resolve_model()` works for both direct provider IDs and aliases
+- [x] `cargo check -p aisopod-provider` passes
 
 ---
 *Created: 2026-02-15*
