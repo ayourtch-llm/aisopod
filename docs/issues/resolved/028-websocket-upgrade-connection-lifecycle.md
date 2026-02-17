@@ -48,5 +48,27 @@ WebSocket connections are the primary transport for JSON-RPC messages between op
 - [ ] Connections that fail the handshake timeout are dropped with an appropriate log.
 - [ ] Disconnected connections are cleaned up (no resource leaks).
 
+## Resolution
+
+The WebSocket upgrade and connection lifecycle was implemented with the following changes to `crates/aisopod-gateway/src/ws.rs`:
+
+1. **WebSocket Upgrade**: Implemented `ws_handler` using Axum's `WebSocketUpgrade` extractor that performs the upgrade at `/ws` path with configurable handshake timeout.
+
+2. **Connection ID**: Each connection receives a unique `connId` using `Uuid::new_v4()`, logged when connections establish and close.
+
+3. **Heartbeat Mechanism**: 
+   - Server sends periodic ping frames every 30 seconds
+   - Client pongs are tracked to keep the connection alive
+   - Connection times out if pong not received within 10 seconds after ping
+   - Server also sends pong responses when receiving pings from clients
+
+4. **Handshake Timeout**: Uses `tokio::time::timeout` to enforce configurable timeout (default 5 seconds) on the initial WebSocket handshake.
+
+5. **Connection Cleanup**: When disconnecting (clean close or error), resources are properly released and connection duration is logged.
+
+6. **Code Structure**: Simplified the implementation from using multiple tasks with broadcast channels to a single loop using `tokio::select!` for clean message handling.
+
 ---
+
 *Created: 2026-02-15*
+*Resolved: 2026-02-17*
