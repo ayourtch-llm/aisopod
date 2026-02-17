@@ -17,10 +17,15 @@
 //! - [`ModelInfo`] - Information about a supported model
 //! - [`ProviderHealth`] - Health status of a provider
 //!
+//! ## Registry
+//!
+//! - [`ProviderRegistry`] - Central registry for managing provider instances
+//! - [`ModelAlias`] - Mapping from alias to provider/model pair
+//!
 //! ## Example
 //!
 //! ```ignore
-//! use aisopod_provider::{ModelProvider, ChatCompletionRequest, Message, Role, MessageContent};
+//! use aisopod_provider::{ModelProvider, ChatCompletionRequest, Message, Role, MessageContent, ProviderRegistry};
 //!
 //! async fn example(provider: &impl ModelProvider) -> anyhow::Result<()> {
 //!     let request = ChatCompletionRequest {
@@ -45,10 +50,12 @@
 
 #![deny(unused_must_use)]
 
+pub mod registry;
 pub mod trait_module;
 pub mod types;
 
 // Re-export the main trait and all types for convenience
+pub use crate::registry::{ModelAlias, ProviderRegistry};
 pub use crate::trait_module::{
     ChatCompletionStream, ModelProvider,
 };
