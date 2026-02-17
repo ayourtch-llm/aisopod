@@ -29,6 +29,8 @@ pub use bindings::AgentBinding;
 pub use channels::ChannelsConfig;
 pub use env::EnvConfig;
 pub use gateway::GatewayConfig;
+pub use gateway::RateLimitConfig;
+pub use gateway::WebUiConfig;
 pub use meta::MetaConfig;
 pub use memory::MemoryConfig;
 pub use models::ModelsConfig;

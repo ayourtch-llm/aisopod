@@ -7,8 +7,6 @@ use axum::{
 };
 use serde_json::json;
 
-use crate::middleware::ExtractAuthInfo;
-
 /// Handler for not implemented endpoints
 pub async fn not_implemented(
     method: Method,
@@ -40,5 +38,7 @@ pub fn api_routes() -> Router {
 /// Build WebSocket routes
 pub fn ws_routes(handshake_timeout: Option<u64>) -> Router {
     Router::new()
-        .route("/ws", get(move |ws: WebSocketUpgrade| crate::ws::ws_handler(ws, handshake_timeout)))
+        .route("/ws", get(move |ws: WebSocketUpgrade, request: axum::extract::Request| {
+            crate::ws::ws_handler(ws, request, handshake_timeout)
+        }))
 }

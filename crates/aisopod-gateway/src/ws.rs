@@ -6,8 +6,13 @@ use axum::{
 };
 use futures_util::{stream::StreamExt, sink::SinkExt};
 use std::time::Duration;
+use std::net::SocketAddr;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
+
+use crate::broadcast::Broadcaster;
+use crate::client::{ClientRegistry, GatewayClient};
+use crate::auth::AuthInfo;
 
 /// Default handshake timeout in seconds
 pub const DEFAULT_HANDSHAKE_TIMEOUT_SECS: u64 = 5;
@@ -18,24 +23,31 @@ const HEARTBEAT_PONG_TIMEOUT_SECS: u64 = 10;
 /// Ping interval in seconds
 const PING_INTERVAL_SECS: u64 = 30;
 
+/// Extension key for ClientRegistry
+pub const CLIENT_REGISTRY_KEY: &str = "aisopod.client.registry";
+
+/// Extension key for Broadcaster
+pub const BROADCASTER_KEY: &str = "aisopod.broadcast.broadcaster";
+
 /// Build the WebSocket routes with configurable timeout
 pub fn ws_routes(handshake_timeout: Option<u64>) -> Router {
     let timeout = handshake_timeout;
-    Router::new().route("/ws", get(move |ws: WebSocketUpgrade| {
-        ws_handler(ws, timeout)
+    Router::new().route("/ws", get(move |ws: WebSocketUpgrade, req: axum::extract::Request| {
+        ws_handler(ws, req, timeout)
     }))
 }
 
 /// Handle a WebSocket upgrade request with configurable timeout
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
+    request: axum::extract::Request,
     handshake_timeout: Option<u64>,
 ) -> impl IntoResponse {
     let handshake_timeout_duration = Duration::from_secs(handshake_timeout.unwrap_or(DEFAULT_HANDSHAKE_TIMEOUT_SECS));
     
     ws.on_upgrade(move |socket| async move {
         // Use tokio::time::timeout to enforce the handshake timeout
-        match tokio::time::timeout(handshake_timeout_duration, handle_connection(socket)).await {
+        match tokio::time::timeout(handshake_timeout_duration, handle_connection(socket, request)).await {
             Ok(()) => {
                 // Connection completed normally
             }
@@ -49,16 +61,63 @@ pub async fn ws_handler(
     })
 }
 
+/// Extract remote address from request extensions
+fn extract_remote_addr(request: &axum::extract::Request) -> SocketAddr {
+    request
+        .extensions()
+        .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+        .map(|info| info.0)
+        .unwrap_or_else(|| "127.0.0.1:0".parse().unwrap())
+}
+
 /// Handle an established WebSocket connection
-async fn handle_connection(ws: WebSocket) {
+async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
+    // Extract connection metadata from request
+    let remote_addr = extract_remote_addr(&request);
+    
+    // Get auth info from extensions
+    let auth_info = request.extensions().get::<AuthInfo>().cloned();
+    
+    // Get client registry from extensions
+    let client_registry = request.extensions().get::<std::sync::Arc<ClientRegistry>>().cloned();
+    
+    // Get broadcaster from extensions
+    let broadcaster = request.extensions().get::<std::sync::Arc<Broadcaster>>().cloned();
+    
     // Generate unique connection ID
-    let conn_id = Uuid::new_v4();
+    let conn_id = Uuid::new_v4().to_string();
     let start_time = std::time::Instant::now();
     
     info!(conn_id = %conn_id, "New WebSocket connection established");
     
     // Split the WebSocket into sink and stream halves
     let (mut ws_tx, mut ws_rx) = ws.split();
+    
+    // Create sender for messages (wrapped in Arc for sharing)
+    let (tx, mut rx) = tokio::sync::mpsc::channel(16);
+    
+    // Register client if we have auth info and registry
+    // The sender is moved into the client and also used in the main loop
+    let client = if let (Some(auth_info), Some(registry)) = (auth_info, client_registry.clone()) {
+        let sender = std::sync::Arc::new(tx);
+        let client = GatewayClient::from_auth_info(
+            conn_id.clone(),
+            sender,
+            remote_addr,
+            auth_info,
+        );
+        registry.on_connect(client.clone());
+        Some(client)
+    } else {
+        None
+    };
+    
+    // Subscribe to broadcast events if broadcaster is available
+    let mut broadcast_rx = if let Some(broadcaster) = &broadcaster {
+        Some(broadcaster.subscribe())
+    } else {
+        None
+    };
     
     let pong_timeout = Duration::from_secs(HEARTBEAT_PONG_TIMEOUT_SECS);
     let mut last_pong = std::time::Instant::now();
@@ -74,7 +133,7 @@ async fn handle_connection(ws: WebSocket) {
                 // Only enforce timeout after we've received at least one pong
                 if has_received_pong && last_pong.elapsed() > pong_timeout {
                     info!(conn_id = %conn_id, duration_secs = %start_time.elapsed().as_secs(), "WebSocket connection closed due to pong timeout");
-                    return;
+                    break;
                 }
                 
                 debug!(conn_id = %conn_id, "Sending ping frame");
@@ -126,10 +185,59 @@ async fn handle_connection(ws: WebSocket) {
                     }
                 }
             }
+            // Send messages from the channel to the client
+            msg = rx.recv() => {
+                match msg {
+                    Some(msg) => {
+                        if let Err(e) = ws_tx.send(msg).await {
+                            error!(conn_id = %conn_id, "Failed to send message to client: {}", e);
+                            break;
+                        }
+                    }
+                    None => {
+                        // Sender was dropped, exit the loop
+                        break;
+                    }
+                }
+            }
+            // Forward broadcast events to the client
+            broadcast_event = async {
+                if let Some(ref mut rx) = broadcast_rx {
+                    rx.recv().await.ok()
+                } else {
+                    futures_util::future::pending().await
+                }
+            } => {
+                if let Some(event) = broadcast_event {
+                    // Check if the event type is in the client's subscription
+                    let should_send = client.as_ref()
+                        .map(|c| c.subscription.includes(event.event_type()))
+                        .unwrap_or(false);
+                    
+                    if should_send {
+                        // Serialize event as JSON-RPC notification (no id field)
+                        let notification = serde_json::json!({
+                            "jsonrpc": "2.0",
+                            "method": "gateway.event",
+                            "params": event
+                        });
+                        
+                        if let Err(e) = ws_tx.send(Message::Text(notification.to_string())).await {
+                            error!(conn_id = %conn_id, "Failed to send broadcast event to client: {}", e);
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
     
     // Cleanup on disconnect with logging
     let duration = start_time.elapsed();
     info!(conn_id = %conn_id, duration_secs = %duration.as_secs(), "WebSocket connection closed");
+    
+    // Deregister client from registry
+    if let Some(registry) = client_registry {
+        registry.on_disconnect(&conn_id);
+    }
 }

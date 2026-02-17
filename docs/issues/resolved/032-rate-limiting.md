@@ -56,12 +56,83 @@ Rate limiting is a basic operational safeguard that prevents denial-of-service c
 - Issue 031 (Gateway authentication — rate limiting runs after auth)
 
 ## Acceptance Criteria
-- [ ] Requests within the configured limit succeed normally.
-- [ ] Requests exceeding the limit receive HTTP 429 with a `Retry-After` header.
-- [ ] Rate-limit state is per-IP.
-- [ ] Expired entries are cleaned up periodically (no memory leak).
-- [ ] Limits are configurable via `GatewayConfig`.
-- [ ] Unit tests cover under-limit, at-limit, and over-limit cases.
+- [x] Requests within the configured limit succeed normally.
+- [x] Requests exceeding the limit receive HTTP 429 with a `Retry-After` header.
+- [x] Rate-limit state is per-IP.
+- [x] Expired entries are cleaned up periodically (no memory leak).
+- [x] Limits are configurable via `GatewayConfig`.
+- [x] Unit tests cover under-limit, at-limit, and over-limit cases.
+
+## Resolution
+The rate limiting middleware was implemented in `crates/aisopod-gateway/src/middleware/rate_limit.rs`:
+
+### RateLimitConfig
+```rust
+pub struct RateLimitConfig {
+    pub max_requests: u64,
+    pub window: Duration,
+}
+```
+- Configurable rate limit settings
+- Default: 100 requests per 60 seconds
+
+### RateLimiter
+```rust
+pub struct RateLimiter {
+    state: DashMap<IpAddr, Vec<Instant>>,
+    max_requests: u64,
+    window: Duration,
+}
+```
+- Thread-safe per-IP tracking using `dashmap::DashMap`
+- `check(ip)` implements sliding-window rate limiting
+- Returns `Ok(())` if allowed, `Err(retry_after)` if over limit
+
+### Rate Limiting Algorithm
+1. Look up or create entry for the IP address
+2. Remove timestamps older than the window
+3. If count >= max_requests, return `Err(retry_after)`
+4. Otherwise, add current timestamp and return `Ok(())`
+5. `retry_after` is the time until the oldest request expires
+
+### Axum Middleware (`rate_limit_middleware`)
+- Gets `RateLimiter` from request extensions (not State)
+- Gets client IP from `ConnectInfo<SocketAddr>` extension
+- Returns HTTP 429 with `Retry-After` header when limit exceeded
+- Allows request to proceed if under limit
+
+### Cleanup Loop
+- Background task runs every window duration
+- Removes expired timestamps from each IP's entry
+- Removes empty entries to prevent memory leaks
+
+### Integration in server.rs
+```rust
+// Inject rate limiter into request extensions
+.layer(axum::middleware::from_fn(move |mut req, next| {
+    let rate_limiter = rate_limiter.clone();
+    async move {
+        req.extensions_mut().insert(rate_limiter);
+        next.run(req).await
+    }
+}))
+// Rate limiting middleware runs after auth
+.layer(axum::middleware::from_fn(rate_limit_middleware))
+```
+
+### Unit Tests
+- `test_under_limit`: 5 requests allowed with limit of 5
+- `test_at_limit`: 3 requests succeed at limit of 3, 4th rejected
+- `test_over_limit`: 2 requests allowed at limit of 2, 3rd+ rejected
+- `test_sliding_window_expiry`: Window expiry after 100ms
+- `test_different_ips_independent`: Each IP tracked separately
+
+### Dependencies Added
+Added `dashmap` to `aisopod-gateway/Cargo.toml`:
+```toml
+dashmap = "5"
+```
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-17*

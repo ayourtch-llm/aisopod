@@ -66,12 +66,65 @@ Every RPC interaction between the gateway and its clients passes through this pa
 - Issue 028 (WebSocket upgrade and connection lifecycle)
 
 ## Acceptance Criteria
-- [ ] `RpcRequest`, `RpcResponse`, and `RpcError` types are defined and public.
-- [ ] Valid JSON-RPC 2.0 messages parse into `RpcRequest` correctly.
-- [ ] Invalid JSON returns error code `-32700`.
-- [ ] Missing or wrong `jsonrpc` field returns error code `-32600`.
-- [ ] Unknown method detection is available for use by the router (error `-32601`).
-- [ ] Unit tests cover all happy and error paths.
+- [x] `RpcRequest`, `RpcResponse`, and `RpcError` types are defined and public.
+- [x] Valid JSON-RPC 2.0 messages parse into `RpcRequest` correctly.
+- [x] Invalid JSON returns error code `-32700`.
+- [x] Missing or wrong `jsonrpc` field returns error code `-32600`.
+- [x] Unknown method detection is available for use by the router (error `-32601`).
+- [x] Unit tests cover all happy and error paths.
+
+## Resolution
+The JSON-RPC 2.0 message parsing layer was implemented in `crates/aisopod-gateway/src/rpc/types.rs`:
+
+### Types Implemented
+- **`RpcRequest`**: Deserialize incoming JSON-RPC requests with validation for required fields (`jsonrpc`, `method`) and optional fields (`params`, `id`)
+- **`RpcResponse`**: Serialize responses with `result` or `error` fields, always including `jsonrpc: "2.0"` and `id`
+- **`RpcError`**: Error structure with `code`, `message`, and optional `data` for additional context
+
+### Error Codes
+Standard JSON-RPC 2.0 error codes defined in `error_codes` module:
+- `-32700` (PARSE_ERROR) - Invalid JSON
+- `-32600` (INVALID_REQUEST) - Missing required fields or wrong version
+- `-32601` (METHOD_NOT_FOUND) - Unknown method
+
+### Parse Function
+```rust
+pub fn parse(raw: &str) -> Result<RpcRequest, RpcResponse>
+```
+- Attempts `serde_json::from_str` - returns `-32700` error on failure
+- Validates `jsonrpc == "2.0"` - returns `-32600` error on failure
+- Validates `method` is present and non-empty - returns `-32600` error on failure
+- Returns `Ok(RpcRequest)` on success
+
+### Helper Constructors
+- `RpcResponse::success(id, result)` - Create successful response
+- `RpcResponse::error(id, code, message)` - Create error response
+- `RpcResponse::error_with_data(id, code, message, data)` - Create error with custom data
+
+### Method Router
+Implemented in `crates/aisopod-gateway/src/rpc/handler.rs`:
+- `RpcMethod` trait for handler implementations
+- `MethodRouter` for dispatching requests to appropriate handlers
+- `PlaceholderHandler` returning `-32601` for unimplemented methods
+- `default_router()` with placeholder handlers for 24 method namespaces
+
+### Unit Tests
+Comprehensive test coverage in `types.rs` and `handler.rs`:
+- Valid request parsing
+- Invalid JSON error (`-32700`)
+- Wrong JSON-RPC version error (`-32600`)
+- Missing/empty method field error (`-32600`)
+- Empty method name validation
+- Response serialization (success and error)
+- Notification requests (no id)
+- Method router dispatch (known and unknown methods)
+- Default router with placeholder handlers
+
+### Verification
+- `cargo build` passes without errors
+- `cargo test` passes without failures
+- No compilation warnings (`RUSTFLAGS=-Awarnings`)
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-17*

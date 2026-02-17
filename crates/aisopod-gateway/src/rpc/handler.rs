@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 
 use crate::rpc::types;
+use crate::broadcast::Subscription;
 
 /// Request context for RPC method handlers
 #[derive(Clone)]
@@ -102,6 +103,7 @@ impl Default for MethodRouter {
 }
 
 /// Create a default router with placeholder handlers for all 24 method namespaces
+/// plus gateway.subscribe for subscription management
 pub fn default_router() -> MethodRouter {
     let mut router = MethodRouter::new();
     
@@ -143,7 +145,52 @@ pub fn default_router() -> MethodRouter {
         router.register(namespace, PlaceholderHandler::new(namespace));
     }
     
+    // Register gateway.subscribe for runtime subscription updates
+    router.register("gateway.subscribe", GatewaySubscribeHandler);
+    
     router
+}
+
+/// Handler for gateway.subscribe RPC method
+///
+/// This method allows clients to update their event subscription filter
+/// at runtime to receive only the event types they're interested in.
+pub struct GatewaySubscribeHandler;
+
+impl RpcMethod for GatewaySubscribeHandler {
+    fn handle(&self, _ctx: &RequestContext, params: Option<serde_json::Value>) -> types::RpcResponse {
+        // Parse the subscription parameters
+        let subscription: Subscription = match params {
+            Some(p) => match serde_json::from_value(p) {
+                Ok(sub) => sub,
+                Err(e) => {
+                    // Use -32602 (INVALID_PARAMS) - standard JSON-RPC 2.0 error code
+                    return types::RpcResponse::error(
+                        None, // Notification-style error (no id)
+                        -32602,
+                        format!("Invalid subscription parameters: {}", e),
+                    );
+                }
+            },
+            None => {
+                // Use -32602 (INVALID_PARAMS) - standard JSON-RPC 2.0 error code
+                return types::RpcResponse::error(
+                    None, // Notification-style error (no id)
+                    -32602,
+                    "Subscription parameters required",
+                );
+            }
+        };
+        
+        // Create a response indicating the subscription was updated
+        types::RpcResponse::success(
+            None, // No id - this is a notification response
+            serde_json::json!({
+                "status": "subscribed",
+                "events": subscription.event_types,
+            }),
+        )
+    }
 }
 
 #[cfg(test)]
@@ -209,8 +256,8 @@ mod tests {
     fn test_default_router_method_count() {
         let router = default_router();
         
-        // Should have 24 methods registered
-        assert_eq!(router.method_count(), 24);
+        // Should have 25 methods registered (24 namespace handlers + gateway.subscribe)
+        assert_eq!(router.method_count(), 25);
     }
 
     #[test]
