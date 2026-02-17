@@ -13,7 +13,7 @@ pub struct RpcRequest {
 }
 
 /// JSON-RPC 2.0 error structure
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RpcError {
     pub code: i32,
     pub message: String,
@@ -22,7 +22,7 @@ pub struct RpcError {
 }
 
 /// JSON-RPC 2.0 response structure
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RpcResponse {
     pub jsonrpc: &'static str, // always "2.0"
     #[serde(skip_serializing_if = "Option::is_none")]
