@@ -13,6 +13,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::{info, warn};
 use tokio::signal;
+use tokio::net::TcpListener;
 use tower_http::trace::{TraceLayer, DefaultMakeSpan, DefaultOnResponse};
 use tower_http::cors::{CorsLayer, Any};
 use tracing::Level;
@@ -24,6 +25,7 @@ use crate::middleware::{auth_middleware, AuthConfigData, RateLimiter, RateLimitC
 use crate::client::ClientRegistry;
 use crate::broadcast::Broadcaster;
 use crate::static_files::{StaticFileState, get_content_type, get_cache_control};
+use crate::tls::{load_tls_config, is_tls_enabled};
 use rust_embed::RustEmbed;
 
 /// Embedded static assets from the web UI dist directory
@@ -96,7 +98,13 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
         .parse()
         .map_err(|e| anyhow::anyhow!("Failed to parse bind address '{}': {}", bind_addr, e))?;
 
-    info!("Starting HTTP server on {}", addr);
+    let tls_enabled = is_tls_enabled(&gateway_config.tls.cert_path, &gateway_config.tls.key_path);
+
+    if tls_enabled {
+        info!("Starting HTTPS server on {} with TLS enabled", addr);
+    } else {
+        info!("Starting HTTP server on {}", addr);
+    }
 
     // Create a tokio TCP listener for the server
     let tcp_listener = tokio::net::TcpListener::bind(addr)
@@ -219,18 +227,32 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
         warn!("Received SIGTERM, starting graceful shutdown...");
     };
 
-    // Run the server with graceful shutdown
-    let server = axum::serve(tcp_listener, app);
-
     // Use select to handle either signal
-    let server_with_graceful = server.with_graceful_shutdown(async {
+    let server_with_graceful = async {
         tokio::select! {
             _ = shutdown_signal => {},
             _ = sigterm_signal => {},
         }
-    });
+    };
 
-    server_with_graceful.await?;
+    if tls_enabled {
+        // Start the server with TLS using axum-server
+        let tls_config = load_tls_config(
+            std::path::Path::new(&gateway_config.tls.cert_path),
+            std::path::Path::new(&gateway_config.tls.key_path)
+        ).await?;
+        
+        // Note: axum-server bind_rustls doesn't support with_graceful_shutdown
+        // The server will shut down when the signal is received via Ctrl+C
+        axum_server::bind_rustls(addr, tls_config)
+            .serve(app.into_make_service())
+            .await?;
+    } else {
+        // Start the server without TLS (plain HTTP)
+        axum::serve(tcp_listener, app)
+            .with_graceful_shutdown(server_with_graceful)
+            .await?;
+    }
 
     info!("Server shut down gracefully");
     Ok(())

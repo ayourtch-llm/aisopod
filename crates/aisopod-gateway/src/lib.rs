@@ -10,6 +10,7 @@ pub mod routes;
 pub mod rpc;
 pub mod server;
 pub mod static_files;
+pub mod tls;
 pub mod ws;
 
 pub use server::run;

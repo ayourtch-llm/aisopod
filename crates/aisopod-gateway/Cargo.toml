@@ -7,6 +7,7 @@ edition.workspace = true
 aisopod-config = { path = "../aisopod-config" }
 aisopod-shared = { path = "../aisopod-shared" }
 axum = { version = "0.7", features = ["ws"] }
+axum-server = { version = "0.8", features = ["tls-rustls"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json.workspace = true
@@ -21,3 +22,10 @@ base64 = "0.21"
 dashmap = "5.5"
 rust-embed = "8.0"
 mime_guess = "2.0"
+rustls = "0.22"
+rustls-pemfile = "2.0"
+tokio-rustls = "0.26"
+
+[dev-dependencies]
+rcgen = "0.13"
+tracing-test = "0.2"
