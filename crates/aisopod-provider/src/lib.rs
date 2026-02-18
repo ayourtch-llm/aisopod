@@ -25,6 +25,10 @@
 //! - [`normalize::extract_system_prompt`] - Extract system prompt from messages
 //! - [`normalize::aggregate_usage`] - Aggregate token usage from streaming chunks
 //!
+//! ## Model Discovery
+//!
+//! - [`discovery::ModelCatalog`] - Aggregated model catalog with caching and capability filtering
+//!
 //! ## Registry
 //!
 //! - [`ProviderRegistry`] - Central registry for managing provider instances
@@ -59,6 +63,7 @@
 #![deny(unused_must_use)]
 
 pub mod auth;
+pub mod discovery;
 pub mod normalize;
 pub mod providers;
 pub mod registry;
@@ -67,6 +72,7 @@ pub mod types;
 
 // Re-export the main trait and all types for convenience
 pub use crate::auth::{AuthProfile, AuthProfileManager, ProfileStatus};
+pub use crate::discovery::ModelCatalog;
 pub use crate::normalize::{
     aggregate_usage, enforce_alternating_turns, extract_system_prompt, map_http_error, ProviderError,
 };
