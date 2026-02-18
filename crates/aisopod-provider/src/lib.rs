@@ -17,6 +17,14 @@
 //! - [`ModelInfo`] - Information about a supported model
 //! - [`ProviderHealth`] - Health status of a provider
 //!
+//! ## Normalization
+//!
+//! - [`normalize::ProviderError`] - Standard error type for provider operations
+//! - [`normalize::map_http_error`] - Map HTTP errors to ProviderError
+//! - [`normalize::enforce_alternating_turns`] - Merge consecutive same-role messages
+//! - [`normalize::extract_system_prompt`] - Extract system prompt from messages
+//! - [`normalize::aggregate_usage`] - Aggregate token usage from streaming chunks
+//!
 //! ## Registry
 //!
 //! - [`ProviderRegistry`] - Central registry for managing provider instances
@@ -51,6 +59,7 @@
 #![deny(unused_must_use)]
 
 pub mod auth;
+pub mod normalize;
 pub mod providers;
 pub mod registry;
 pub mod trait_module;
@@ -58,6 +67,9 @@ pub mod types;
 
 // Re-export the main trait and all types for convenience
 pub use crate::auth::{AuthProfile, AuthProfileManager, ProfileStatus};
+pub use crate::normalize::{
+    aggregate_usage, enforce_alternating_turns, extract_system_prompt, map_http_error, ProviderError,
+};
 pub use crate::registry::{ModelAlias, ProviderRegistry};
 pub use crate::trait_module::{
     ChatCompletionStream, ModelProvider,
