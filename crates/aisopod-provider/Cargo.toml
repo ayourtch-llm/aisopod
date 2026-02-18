@@ -22,3 +22,46 @@ async-stream = "0.3"
 aws-sdk-bedrockruntime = { version = "1", features = ["rt-tokio"] }
 aws-config = { version = "1", features = ["rustls"] }
 aws-types = "1"
+
+[dev-dependencies]
+wiremock = "0.6"
+tokio-test = "0.4"
+futures-util = "0.3"
+mockall = "0.13"
+
+[[test]]
+name = "helpers"
+path = "tests/helpers/mod.rs"
+
+[[test]]
+name = "unit_tests"
+path = "tests/unit_tests.rs"
+
+[[test]]
+name = "streaming_tests"
+path = "tests/streaming_tests.rs"
+
+[[test]]
+name = "error_handling_tests"
+path = "tests/error_handling_tests.rs"
+
+[[test]]
+name = "auth_tests"
+path = "tests/auth_tests.rs"
+
+[[test]]
+name = "registry_tests"
+path = "tests/registry_tests.rs"
+
+[[test]]
+name = "normalize_tests"
+path = "tests/normalize_tests.rs"
+
+[[test]]
+name = "discovery_tests"
+path = "tests/discovery_tests.rs"
+
+[[test]]
+name = "integration_tests"
+path = "tests/integration/mod.rs"
+harness = false
