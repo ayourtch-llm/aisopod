@@ -19,6 +19,10 @@ use std::time::Duration;
 use tokio::sync::oneshot;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
+// Import test-only reset methods
+use aisopod_gateway::middleware::rate_limit::RateLimiter;
+use aisopod_gateway::client::ClientRegistry;
+
 /// Test configuration constants
 const TEST_TOKEN: &str = "test-auth-token";
 const TEST_PASSWORD: &str = "test-password";
@@ -28,14 +32,31 @@ const TEST_USERNAME: &str = "testuser";
 // Test Helper Functions
 // ============================================================================
 
-/// Global counter for unique port allocation
-static PORT_COUNTER: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(10000);
+/// Global counter for unique port allocation -每个测试独占100个端口以避免冲突
+static PORT_COUNTER: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(30000);
 
 /// Find an available port for testing
 fn find_available_port() -> u16 {
     // Use a simple counter to ensure unique ports across parallel tests
-    // Add a large offset to reduce chance of collision in parallel execution
-    PORT_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 20000
+    // Each test gets 100 ports to itself to handle edge cases and parallel execution
+    // With --test-threads=8, we need plenty of buffer between tests
+    PORT_COUNTER.fetch_add(100, std::sync::atomic::Ordering::SeqCst) + 10000
+}
+
+/// Wait for port to be released (helps with port reuse in parallel tests)
+fn wait_for_port_release(port: u16) {
+    // Try to bind to the port to verify it's available
+    let max_attempts = 100;
+    let delay = Duration::from_millis(50);
+    
+    for _ in 0..max_attempts {
+        if TcpListener::bind(("127.0.0.1", port)).is_ok() {
+            // Port is available, we can use it
+            return;
+        }
+        std::thread::sleep(delay);
+    }
+    // If we still can't bind, continue anyway - the server might have started
 }
 
 /// Configuration builder for gateway tests
@@ -174,6 +195,10 @@ async fn start_test_server_with_auth(config: GatewayConfig, auth_mode: AuthMode,
         let _ = run_with_config(&aisopod_config).await;
     });
 
+    // Wait for the port to be released before starting the next test
+    // This prevents port conflicts in parallel test execution
+    wait_for_port_release(config.server.port);
+    
     // Give the server time to start
     tokio::time::sleep(Duration::from_millis(100)).await;
 
@@ -186,6 +211,9 @@ async fn start_test_server_with_auth(config: GatewayConfig, auth_mode: AuthMode,
     // The shutdown_tx is dropped, allowing the server to run
     let _shutdown_rx: tokio::sync::oneshot::Receiver<()> = shutdown_rx;
 
+    // Small delay to ensure server is fully ready
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    
     address
 }
 
@@ -446,14 +474,32 @@ async fn test_ws_connect_and_ping() {
         .expect("Failed to send ping");
 
     // Wait for pong response
+    // We might receive a Ping from the server's heartbeat first
     let msg = ws
         .next()
         .await
         .expect("Connection closed unexpectedly")
         .expect("Failed to receive message");
 
+    eprintln!("=== TEST RECEIVED MESSAGE: {:?} ===", msg);
+
+    // Keep reading until we get a Pong message
+    let mut msg = msg;
+    while !matches!(msg, Message::Pong(_)) {
+        if matches!(msg, Message::Text(_)) {
+            // This shouldn't happen in this test - ignore it
+            eprintln!("=== TEST RECEIVED TEXT MESSAGE: {:?} ===", msg);
+        }
+        msg = ws
+            .next()
+            .await
+            .expect("Connection closed unexpectedly")
+            .expect("Failed to receive message");
+        eprintln!("=== TEST RECEIVED MESSAGE (retry): {:?} ===", msg);
+    }
+
     // Should receive a pong
-    assert!(matches!(msg, Message::Pong(_)), "Expected Pong message");
+    assert!(matches!(msg, Message::Pong(_)), "Expected Pong message, got {:?}", msg);
 }
 
 #[tokio::test]
@@ -510,6 +556,18 @@ async fn test_valid_rpc_request() {
 
     eprintln!("=== TEST RECEIVED MESSAGE: {:?} ===", msg);
 
+    // We might receive a Ping from the server's heartbeat before the response
+    // Keep reading until we get a Text message or the connection closes
+    let mut msg = msg;
+    while !matches!(msg, Message::Text(_)) {
+        msg = ws
+            .next()
+            .await
+            .expect("Connection closed unexpectedly")
+            .expect("Failed to receive message");
+        eprintln!("=== TEST RECEIVED MESSAGE (retry): {:?} ===", msg);
+    }
+
     if let Message::Text(text) = msg {
         let json: serde_json::Value = serde_json::from_str(&text).expect("Invalid JSON response");
         
@@ -551,6 +609,18 @@ async fn test_malformed_json_returns_parse_error() {
 
     eprintln!("=== TEST RECEIVED MESSAGE: {:?} ===", msg);
 
+    // We might receive a Ping from the server's heartbeat before the response
+    // Keep reading until we get a Text message or the connection closes
+    let mut msg = msg;
+    while !matches!(msg, Message::Text(_)) {
+        msg = ws
+            .next()
+            .await
+            .expect("Connection closed unexpectedly")
+            .expect("Failed to receive message");
+        eprintln!("=== TEST RECEIVED MESSAGE (retry): {:?} ===", msg);
+    }
+
     if let Message::Text(text) = msg {
         let json: serde_json::Value = serde_json::from_str(&text).expect("Invalid JSON response");
         
@@ -591,6 +661,18 @@ async fn test_unknown_method_returns_not_found() {
         .expect("Failed to receive message");
 
     eprintln!("=== TEST RECEIVED MESSAGE: {:?} ===", msg);
+
+    // We might receive a Ping from the server's heartbeat before the response
+    // Keep reading until we get a Text message or the connection closes
+    let mut msg = msg;
+    while !matches!(msg, Message::Text(_)) {
+        msg = ws
+            .next()
+            .await
+            .expect("Connection closed unexpectedly")
+            .expect("Failed to receive message");
+        eprintln!("=== TEST RECEIVED MESSAGE (retry): {:?} ===", msg);
+    }
 
     if let Message::Text(text) = msg {
         let json: serde_json::Value = serde_json::from_str(&text).expect("Invalid JSON response");

@@ -98,6 +98,14 @@ impl MethodRouter {
         let methods = self.methods.lock().unwrap();
         methods.len()
     }
+
+    /// (Test-only) Clear all registered methods from the router
+    ///
+    /// This should only be used in tests to ensure test isolation.
+    pub fn clear_for_tests(&self) {
+        let mut methods = self.methods.lock().unwrap();
+        methods.clear();
+    }
 }
 
 impl Default for MethodRouter {

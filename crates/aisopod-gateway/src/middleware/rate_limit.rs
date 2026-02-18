@@ -137,6 +137,13 @@ impl RateLimiter {
             }
         });
     }
+
+    /// (Test-only) Reset all rate limiter state
+    ///
+    /// This should only be used in tests to ensure test isolation.
+    pub fn reset_for_tests(&self) {
+        self.state.clear();
+    }
 }
 
 /// Request extension key for RateLimiter
