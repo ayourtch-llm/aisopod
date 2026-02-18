@@ -3,4 +3,5 @@
 pub mod anthropic;
 pub mod bedrock;
 pub mod gemini;
+pub mod ollama;
 pub mod openai;
