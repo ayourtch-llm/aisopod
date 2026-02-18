@@ -57,12 +57,47 @@ The registry is the central access point for all tool operations. The tool execu
 - Issue 049 (Tool trait and core types)
 
 ## Acceptance Criteria
-- [ ] `ToolRegistry` struct is defined and publicly accessible.
-- [ ] Tools can be registered with `register()`.
-- [ ] Tools can be looked up by name with `get()`.
-- [ ] All registered tool names can be listed with `list()`.
-- [ ] `schemas()` generates a JSON array of tool definitions.
-- [ ] `cargo check -p aisopod-tools` compiles without errors.
+- [x] `ToolRegistry` struct is defined and publicly accessible.
+- [x] Tools can be registered with `register()`.
+- [x] Tools can be looked up by name with `get()`.
+- [x] All registered tool names can be listed with `list()`.
+- [x] `schemas()` generates a JSON array of tool definitions.
+- [x] `cargo check -p aisopod-tools` compiles without errors.
+
+## Resolution
+
+The `ToolRegistry` implementation was completed in commit `81a028250ae3f458291ffee1b3fd456f8f91689f`.
+
+### Changes Made
+1. **Created `crates/aisopod-tools/src/registry.rs`** - Complete implementation of `ToolRegistry` with:
+   - `tools: HashMap<String, Arc<dyn Tool>>` - Internal storage
+   - `new()` - Constructor for empty registry
+   - `register()` - Register tools with duplicate handling (warning + overwrite)
+   - `get()` - Retrieve tool by name, returns `Option<Arc<dyn Tool>>`
+   - `list()` - Return all registered tool names as `Vec<String>`
+   - `schemas()` - Generate JSON schemas for AI model function calling
+   - `remove()` - Remove tool by name, returns `bool` indicating presence
+   - `len()` and `is_empty()` - Utility methods
+
+2. **Updated `crates/aisopod-tools/src/lib.rs`**:
+   - Added `pub mod registry;`
+   - Added `pub use registry::ToolRegistry;`
+
+3. **Added comprehensive tests** in `registry.rs` covering:
+   - New registry is empty
+   - Register and retrieve tools
+   - List all tools
+   - Schema generation
+   - Remove tools
+   - Duplicate registration handling
+
+4. **Dependencies**: Issue 049 (Tool trait and core types) must be resolved first.
+
+### Verification
+- `cargo build --package aisopod-tools` passes
+- `cargo test --package aisopod-tools` passes (21 tests)
+- `cargo doc --package aisopod-tools` generates documentation
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-19*
