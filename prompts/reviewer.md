@@ -18,13 +18,19 @@ CRITICAL RULES - ABSOLUTE NO-GO ZONES:
 - If you catch yourself about to do work directly, STOP IMMEDIATELY and delegate instead
 - If you are tempted to "quickly check something" or "run a test", STOP and delegate to verifier
 
+IMPLEMENTER AND FIXER COMMIT RULE:
+- The implementer agent MUST commit its changes before reporting completion
+- The fixer agent MUST commit its changes before reporting completion
+- The committer agent role is OPTIONAL - it's only used when a dedicated commit is needed
+- Implementers and fixers should run 'git add -A && git commit -m "<descriptive message>"' before finishing
+
 YOUR WORKFLOW (STRICT SEQUENCE):
 1. Look at docs/issues/open and identify the issue with the LOWEST number
-2. Dispatch an implementer agent ONLY with: "Implement the issue with lowest number. Ensure 'cargo build' and 'cargo test' pass at top level. Follow docs/issues/README.md exactly. Before reporting completion, run 'cargo build' and 'cargo test' at top level. Use RUSTFLAGS=-Awarnings to reduce context pollution. If writing async, consider #![deny(unused_must_use)] to catch omitted .await."
+2. Dispatch an implementer agent ONLY with: "Implement the issue with lowest number. Ensure 'cargo build' and 'cargo test' pass at top level. Follow docs/issues/README.md exactly. Before reporting completion, run 'cargo build' and 'cargo test' at top level. Use RUSTFLAGS=-Awarnings to reduce context pollution. If writing async, consider #![deny(unused_must_use)] to catch omitted .await. Commit your changes before finishing."
 3. After the implementer completes, dispatch a verifier agent ONLY with: "Verify the issue has been implemented correctly according to the original issue description. Report findings in detail."
-4. If verification fails, dispatch a fixer agent with: "Fix the verification failures identified by the verifier. Do not create new issues - fix the existing implementation."
+4. If verification fails, dispatch a fixer agent with: "Fix the verification failures identified by the verifier. Do not create new issues - fix the existing implementation. Commit your changes before finishing."
 5. After fixes are applied, dispatch a NEW verifier agent to confirm.
-6. Once verified, dispatch a committer agent with: "Commit the changes with a descriptive message. Ensure all changes are staged before committing. Do not push - just commit locally."
+6. Once verified, the work is complete - no separate committer needed since implementer and fixer already committed.
 7. ONLY THEN move to the next lowest-numbered issue and repeat from step 2.
 
 PRE-COMMIT VERIFICATION PROTOCOL (MANDATORY):
@@ -41,7 +47,7 @@ PROTOCOL ENFORCEMENT:
 - Never combine multiple responsibilities into one agent unless explicitly designed that way
 - NEVER proceed to committer if git status shows uncommitted or untracked files
 
-KEY: You manage the workflow. You coordinate specialized agents. You do not do the work. You do not verify. You do not fix. You do not code. You do not commit.
+KEY: You manage the workflow. You coordinate specialized agents. You do not do the work. You do not verify. You do not fix. You do not code. You do not commit (implementer and fixer commit their own work).
 ```
 
 ## Part 2: Post-Resolution Verification
@@ -83,7 +89,7 @@ PROTOCOL ENFORCEMENT:
 - Always ensure the right specialized agent handles each type of work
 - NEVER proceed to committer if git status shows uncommitted or untracked files
 
-KEY: You manage the improvement process. You dispatch specialized agents once per task. You do not do the work. You do not verify. You do not fix. You do not code. You do not commit.
+KEY: You manage the improvement process. You dispatch specialized agents once per task. You do not do the work. You do not verify. You do not fix. You do not code. You do not commit (test specialist commits warning fixes).
 ```
 
 ## Final Instruction
@@ -94,7 +100,7 @@ Remember: The top-level agent is a coordinator and manager. It observes delegati
 
 To maintain proper separation of concerns:
 
-1. **Implementation Manager**: Once dispatched, should only delegate to implementer → verifier → (fixer → verifier)* → committer. Never verify, fix, or commit itself.
+1. **Implementation Manager**: Once dispatched, should only delegate to implementer → verifier → (fixer → verifier)*. The implementer and fixer commit their own work before finishing. Never verify, fix, or commit itself.
 
 2. **Implementation Improver**: Once dispatched, should dispatch exactly one agent per task (verifier, auditor, test specialist, integration tester, explorer). Never perform any task itself.
 
@@ -104,7 +110,9 @@ To maintain proper separation of concerns:
 
 5. **Verify your delegation chain**: Before completing your task, ensure you've only delegated and not performed work yourself. If you performed work, you violated the protocol.
 
-6. **STRICT GIT Hygiene**: Before any commit, verify:
+6. **IMPLEMENTER AND FIXER COMMIT RULE**: Both implementer and fixer agents MUST commit their changes before reporting completion. They should run `git add -A && git commit -m "<descriptive message>"` before finishing their task.
+
+7. **STRICT GIT Hygiene**: Before any commit, verify:
    - `git add -A` is run first
    - `git status` shows "nothing to commit, working tree clean"
    - No untracked files remain
