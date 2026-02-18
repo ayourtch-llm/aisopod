@@ -64,4 +64,3 @@ path = "tests/discovery_tests.rs"
 [[test]]
 name = "integration_tests"
 path = "tests/integration/mod.rs"
-harness = false
