@@ -1,7 +1,7 @@
 use anyhow::Result;
 use axum::{
     body::Body,
-    extract::State,
+    extract::{ConnectInfo, State},
     http::{header, StatusCode, Uri},
     response::IntoResponse,
     routing::get,
@@ -17,6 +17,7 @@ use tokio::net::TcpListener;
 use tower_http::trace::{TraceLayer, DefaultMakeSpan, DefaultOnResponse};
 use tower_http::cors::{CorsLayer, Any};
 use tracing::Level;
+use tower::layer::util::Identity;
 
 use aisopod_config::types::{AisopodConfig, GatewayConfig};
 use crate::routes::api_routes;
@@ -47,6 +48,12 @@ async fn static_file_handler(
     
     // Skip API routes (they are handled by the router)
     if path.starts_with("api/") || path.starts_with("v1/") || path.starts_with("ws") {
+        return (StatusCode::NOT_FOUND, "Not Found").into_response();
+    }
+    
+    // Check if static files are enabled
+    let config = state.get_config().await;
+    if !config.enabled {
         return (StatusCode::NOT_FOUND, "Not Found").into_response();
     }
 
@@ -85,6 +92,11 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
     let gateway_config = &config.gateway;
     let auth_config = &config.auth;
     
+    tracing::info!("=== Starting server with auth config ===");
+    tracing::info!("Auth mode: {:?}", auth_config.gateway_mode);
+    tracing::info!("Auth config tokens: {:?}", auth_config.tokens.len());
+    tracing::info!("Auth config passwords: {:?}", auth_config.passwords.len());
+    
     let address = gateway_config.bind.address.clone();
     let port = gateway_config.server.port;
 
@@ -105,6 +117,8 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
     } else {
         info!("Starting HTTP server on {}", addr);
     }
+    
+    eprintln!("=== SERVER STARTUP DEBUG v2 ===");
 
     // Create a tokio TCP listener for the server
     let tcp_listener = tokio::net::TcpListener::bind(addr)
@@ -152,40 +166,24 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
         .route("/*path", get(static_file_handler))
         .with_state(static_state);
     
-    let app = Router::new()
-        .route("/health", get(health))
-        .nest_service("/", static_router)
-        .merge(ws_routes(handshake_timeout))
-        .merge(api_routes())
-        .layer(axum::middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-            let config_data = auth_config_data.clone();
-            async move {
-                req.extensions_mut().insert(config_data);
-                next.run(req).await
-            }
-        }))
-        .layer(axum::middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-            let rate_limiter = rate_limiter.clone();
-            async move {
-                req.extensions_mut().insert(rate_limiter);
-                next.run(req).await
-            }
-        }))
-        .layer(axum::middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-            let registry = client_registry.clone();
-            async move {
-                req.extensions_mut().insert(registry);
-                next.run(req).await
-            }
-        }))
-        .layer(axum::middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-            let broadcaster = broadcaster.clone();
-            async move {
-                req.extensions_mut().insert(broadcaster);
-                next.run(req).await
-            }
-        }))
-        .layer(axum::middleware::from_fn(auth_middleware))
+    // Build the middleware stack using Layer trait
+    use tower::Layer;
+    
+    // Order matters! The middleware runs in reverse order (last layer listed runs first).
+    // When a request comes in, it goes through layers from outside to inside.
+    // We need auth_config_data AVAILABLE BEFORE auth_middleware runs.
+    // 
+    // Request flow (outer to inner):
+    // 1. TraceLayer (logs requests)
+    // 2. ConnectInfo middleware (adds connection info if missing)
+    // 3. auth_config_data middleware (injects auth config into extensions)
+    // 4. rate_limiter middleware (checks rate limits)
+    // 5. client_registry middleware (registers clients)
+    // 6. broadcaster middleware (injects broadcaster)
+    // 7. auth_middleware (validates auth - needs auth_config_data and rate_limiter)
+    // 8. Router (handles the actual route)
+    
+    let middleware_stack = tower::ServiceBuilder::new()
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
@@ -193,7 +191,69 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
                     DefaultOnResponse::new().level(Level::INFO)
                 )
         )
-        .layer(axum::middleware::from_fn(rate_limit_middleware));
+        // Add ConnectInfo middleware - this must come before middleware that need it
+        .layer(axum::middleware::from_fn(|mut req: axum::extract::Request, next: axum::middleware::Next| {
+            async move {
+                // Add ConnectInfo if not already present (axum::serve adds it automatically)
+                // For local testing, we use 127.0.0.1 as the default connection info
+                let conn_info = req.extensions().get::<ConnectInfo<SocketAddr>>()
+                    .cloned()
+                    .unwrap_or(ConnectInfo(std::net::SocketAddr::new(
+                        std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
+                        0,
+                    )));
+                req.extensions_mut().insert(conn_info);
+                next.run(req).await
+            }
+        }))
+        // Auth config data MUST be injected BEFORE auth_middleware runs
+        // This layer runs AFTER auth_middleware in the request flow (middleware stack order)
+        .layer(axum::middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+            let config_data = auth_config_data.clone();
+            async move {
+                tracing::debug!("Injecting AuthConfigData into extensions");
+                req.extensions_mut().insert(config_data);
+                next.run(req).await
+            }
+        }))
+        // Rate limiter middleware - first insert the RateLimiter, then check limits
+        .layer(axum::middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+            let rate_limiter = rate_limiter.clone();
+            async move {
+                req.extensions_mut().insert(rate_limiter);
+                next.run(req).await
+            }
+        }))
+        .layer(axum::middleware::from_fn(rate_limit_middleware))
+        // Client registry middleware
+        .layer(axum::middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+            let registry = client_registry.clone();
+            async move {
+                req.extensions_mut().insert(registry);
+                next.run(req).await
+            }
+        }))
+        // Broadcaster middleware
+        .layer(axum::middleware::from_fn(move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+            let broadcaster = broadcaster.clone();
+            async move {
+                req.extensions_mut().insert(broadcaster);
+                next.run(req).await
+            }
+        }))
+        // Auth middleware - runs FIRST (innermost in the stack, outermost in request flow)
+        // It depends on auth_config_data being available in extensions
+        .layer(axum::middleware::from_fn(auth_middleware));
+
+    eprintln!("=== MIDDLEWARE STACK BUILT === layers: 7");
+    // Build the main app - order matters: static_router first (with 404 for API paths),
+    // then API routes, then WebSocket routes
+    let app = Router::new()
+        .route("/health", get(health))
+        .nest_service("/", static_router)
+        .merge(api_routes())
+        .merge(ws_routes(handshake_timeout))
+        .layer(middleware_stack);
 
     // Build CORS layer based on web UI configuration
     let cors_origins = web_ui_config.cors_origins;

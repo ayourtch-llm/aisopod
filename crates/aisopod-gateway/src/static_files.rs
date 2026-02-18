@@ -101,6 +101,12 @@ async fn static_handler_internal(
     state: StaticFileState,
     path: &str,
 ) -> impl IntoResponse {
+    // Check if static files are enabled
+    let config = state.get_config().await;
+    if !config.enabled {
+        return (StatusCode::NOT_FOUND, "Not Found").into_response();
+    }
+
     // Skip API routes (they are handled by the router)
     if path.starts_with("api/") || path.starts_with("v1/") || path.starts_with("ws") {
         return (StatusCode::NOT_FOUND, "Not Found").into_response();

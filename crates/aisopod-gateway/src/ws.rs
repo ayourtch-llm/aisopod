@@ -13,6 +13,7 @@ use uuid::Uuid;
 use crate::broadcast::Broadcaster;
 use crate::client::{ClientRegistry, GatewayClient};
 use crate::auth::AuthInfo;
+use crate::rpc::{self, MethodRouter, RequestContext};
 
 /// Default handshake timeout in seconds
 pub const DEFAULT_HANDSHAKE_TIMEOUT_SECS: u64 = 5;
@@ -96,6 +97,9 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
     // Create sender for messages (wrapped in Arc for sharing)
     let (tx, mut rx) = tokio::sync::mpsc::channel(16);
     
+    // Create RPC method router for dispatching requests
+    let method_router = std::sync::Arc::new(MethodRouter::default());
+    
     // Register client if we have auth info and registry
     // The sender is moved into the client and also used in the main loop
     let client = if let (Some(auth_info), Some(registry)) = (auth_info, client_registry.clone()) {
@@ -159,9 +163,54 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
                         break;
                     }
                     Some(Ok(Message::Text(text))) => {
-                        debug!(conn_id = %conn_id, "Received text message");
-                        // Process the text message (for now just log)
-                        debug!(conn_id = %conn_id, text = %text, "Text message content");
+                        eprintln!("=== WS RECEIVED TEXT: {} ===", text);
+                        // Try to parse as JSON-RPC request
+                        match rpc::parse(&text) {
+                            Ok(request) => {
+                                // Create request context
+                                let ctx = RequestContext::new(conn_id.clone(), remote_addr);
+                                
+                                // Dispatch to appropriate handler
+                                let response = method_router.dispatch(ctx, request);
+                                eprintln!("=== WS DISPATCHED RESPONSE: {:?} ===", response);
+                                
+                                // Serialize response to JSON
+                                let response_text = match serde_json::to_string(&response) {
+                                    Ok(json) => json,
+                                    Err(e) => {
+                                        error!(conn_id = %conn_id, "Failed to serialize response: {}", e);
+                                        continue;
+                                    }
+                                };
+                                
+                                // Send response back to client
+                                if let Err(e) = ws_tx.send(Message::Text(response_text)).await {
+                                    error!(conn_id = %conn_id, "Failed to send RPC response: {}", e);
+                                    break;
+                                }
+                                eprintln!("=== WS SENT RESPONSE ===");
+                            }
+                            Err(rpc_error_response) => {
+                                eprintln!("=== WS PARSE ERROR: {:?} ===", rpc_error_response);
+                                // Failed to parse as valid JSON-RPC - send error response
+                                // Note: rpc_error_response.id is None for parse errors (not tied to a request)
+                                // We should send the error back but without an id since the request was malformed
+                                let error_text = match serde_json::to_string(&rpc_error_response) {
+                                    Ok(json) => json,
+                                    Err(e) => {
+                                        error!(conn_id = %conn_id, "Failed to serialize error response: {}", e);
+                                        continue;
+                                    }
+                                };
+                                
+                                eprintln!("=== WS SENDING ERROR TEXT: {} ===", error_text);
+                                if let Err(e) = ws_tx.send(Message::Text(error_text)).await {
+                                    error!(conn_id = %conn_id, "Failed to send error response: {}", e);
+                                    break;
+                                }
+                                eprintln!("=== WS SENT ERROR ===");
+                            }
+                        }
                     }
                     Some(Ok(Message::Binary(data))) => {
                         debug!(conn_id = %conn_id, "Received binary message");

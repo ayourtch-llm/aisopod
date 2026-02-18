@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
 
 use crate::rpc::types;
 use crate::broadcast::Subscription;
@@ -26,7 +27,7 @@ impl RequestContext {
 }
 
 /// RPC method trait - all handler implementations must implement this
-pub trait RpcMethod {
+pub trait RpcMethod: Send + Sync {
     /// Handle an RPC request
     /// Returns an RpcResponse that will be sent back to the client
     fn handle(&self, ctx: &RequestContext, params: Option<serde_json::Value>) -> types::RpcResponse;
@@ -58,28 +59,30 @@ impl RpcMethod for PlaceholderHandler {
 
 /// Method router that dispatches requests to the appropriate handler
 pub struct MethodRouter {
-    methods: HashMap<String, Box<dyn RpcMethod>>,
+    methods: Arc<Mutex<HashMap<String, Arc<Box<dyn RpcMethod>>>>>,
 }
 
 impl MethodRouter {
     /// Create a new empty method router
     pub fn new() -> Self {
         Self {
-            methods: HashMap::new(),
+            methods: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
     /// Register a handler for a specific method name
-    pub fn register(&mut self, name: &str, handler: impl RpcMethod + 'static) {
-        self.methods.insert(name.to_string(), Box::new(handler));
+    pub fn register(&self, name: &str, handler: impl RpcMethod + 'static) {
+        let mut methods = self.methods.lock().unwrap();
+        methods.insert(name.to_string(), Arc::new(Box::new(handler)));
     }
 
     /// Dispatch an RPC request to the appropriate handler
     /// Returns a response with -32601 if the method is not found
     pub fn dispatch(&self, ctx: RequestContext, req: types::RpcRequest) -> types::RpcResponse {
         let method_name = &req.method;
+        let methods = self.methods.lock().unwrap();
 
-        if let Some(handler) = self.methods.get(method_name) {
+        if let Some(handler) = methods.get(method_name) {
             handler.handle(&ctx, req.params)
         } else {
             types::RpcResponse::error(
@@ -92,7 +95,8 @@ impl MethodRouter {
 
     /// Get the number of registered methods
     pub fn method_count(&self) -> usize {
-        self.methods.len()
+        let methods = self.methods.lock().unwrap();
+        methods.len()
     }
 }
 
@@ -210,7 +214,7 @@ mod tests {
 
     #[test]
     fn test_method_router_dispatch_known_method() {
-        let mut router = MethodRouter::new();
+        let router = MethodRouter::new();
         router.register("test.method", PlaceholderHandler::new("test.method"));
         
         let addr: SocketAddr = "127.0.0.1:8080".parse().unwrap();

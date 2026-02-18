@@ -25,14 +25,14 @@ pub async fn not_implemented(
 
 /// Build the API router with all REST endpoint stubs
 pub fn api_routes() -> Router {
-    use axum::routing::post;
+    use axum::routing::{get, post};
     
     Router::new()
-        .route("/v1/chat/completions", post(not_implemented))
-        .route("/v1/responses", post(not_implemented))
-        .route("/hooks", post(not_implemented))
-        .route("/tools/invoke", get(not_implemented))
-        .route("/status", get(not_implemented))
+        .route("/v1/chat/completions", get(not_implemented).post(not_implemented))
+        .route("/v1/responses", get(not_implemented).post(not_implemented))
+        .route("/hooks", get(not_implemented).post(not_implemented))
+        .route("/tools/invoke", get(not_implemented).post(not_implemented))
+        .route("/status", get(not_implemented).post(not_implemented))
 }
 
 /// Build WebSocket routes

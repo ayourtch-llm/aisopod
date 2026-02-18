@@ -132,11 +132,14 @@ pub async fn auth_middleware(
     request: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> Response {
+    eprintln!("=== AUTH MIDDLEWARE CALLED ===");
+    
     let mut request = request;
     
     // Always allow health checks
     let path = request.uri().path();
     if path == "/health" {
+        eprintln!("Auth: /health endpoint, allowing through");
         return next.run(request).await;
     }
 
@@ -145,54 +148,60 @@ pub async fn auth_middleware(
         .get::<AuthConfigData>()
         .cloned();
 
+    eprintln!("AuthConfigData in extensions: {:?}", config_data.is_some());
+
     // If no config is available, allow the request through
     // (this might happen in tests or unusual configurations)
     let config_data = match config_data {
         Some(config) => config,
         None => {
-            debug!("No auth config found, allowing request through");
+            eprintln!("No auth config found, allowing request through");
             return next.run(request).await;
         }
     };
 
     // Get the auth mode
     let mode = config_data.mode();
+    eprintln!("Auth mode: {:?}", mode);
 
     // Match on auth mode
     match mode {
         aisopod_config::types::AuthMode::None => {
             // No auth required, just allow through
-            debug!("Auth mode is none, allowing request");
+            eprintln!("Auth mode is none, allowing request");
             return next.run(request).await;
         }
 
         aisopod_config::types::AuthMode::Token => {
+            eprintln!("Token auth mode - checking authorization");
             // Extract and validate Bearer token
             let header_map = request.headers();
             let auth_value = match extract_authorization(header_map) {
                 Some(v) => v,
                 None => {
-                    warn!("Missing Authorization header for token auth");
+                    eprintln!("Missing Authorization header");
                     return unauthorized_response("Missing Authorization header");
                 }
             };
+            eprintln!("Auth value: {:?}", auth_value);
 
             let token = match parse_bearer_token(&auth_value) {
                 Some(t) => t,
                 None => {
-                    warn!("Invalid Authorization header format for Bearer token");
+                    eprintln!("Invalid Authorization header format");
                     return unauthorized_response("Invalid Authorization header format");
                 }
             };
+            eprintln!("Token: {:?}", token);
 
             match config_data.validate_token(&token) {
                 Some(auth_info) => {
-                    debug!("Token validation successful for role: {}", auth_info.role);
+                    eprintln!("Token validation successful for role: {}", auth_info.role);
                     request.extensions_mut().insert(auth_info);
                     next.run(request).await
                 }
                 None => {
-                    warn!("Invalid token provided");
+                    eprintln!("Invalid token provided, returning 401");
                     unauthorized_response("Invalid token")
                 }
             }
