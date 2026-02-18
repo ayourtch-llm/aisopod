@@ -11,8 +11,8 @@ use futures_util::stream::{self, StreamExt};
 use pin_project_lite::pin_project;
 use std::pin::Pin;
 
-use aisopod_provider::types::*;
-use aisopod_provider::trait_module::{ChatCompletionStream, ModelProvider};
+use crate::types::*;
+use crate::trait_module::{ChatCompletionStream, ModelProvider};
 
 /// Alias for Result with default error type
 pub type Result<T, E = anyhow::Error> = std::result::Result<T, E>;
@@ -140,8 +140,8 @@ impl ModelProvider for MockProvider {
     ) -> Result<ChatCompletionStream> {
         if self.should_fail {
             return Err(anyhow::anyhow!(
-                self.error_message.clone().unwrap_or_else(|| "Mock error".to_string())
-            ));
+                self.error_message.clone().unwrap_or_else(|| "Mock error".to_string()
+            )));
         }
         Ok(self.create_stream())
     }
@@ -252,7 +252,6 @@ pub fn create_test_tool_call(id: &str, name: &str, arguments: &str) -> ToolCall 
 }
 
 /// Create a test request for provider testing
-/// NOTE: This function is a duplicate of the one above. Keep only one version.
 pub fn create_test_request(model: &str, content: &str) -> ChatCompletionRequest {
     ChatCompletionRequest {
         model: model.to_string(),

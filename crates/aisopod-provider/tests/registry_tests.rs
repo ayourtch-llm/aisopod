@@ -7,11 +7,32 @@
 
 use std::sync::Arc;
 
+use anyhow::Result;
 use aisopod_provider::registry::{ModelAlias, ProviderRegistry};
 use aisopod_provider::types::{ModelInfo, ChatCompletionChunk, ChatCompletionRequest, Message, MessageContent, Role, MessageDelta, FinishReason, TokenUsage};
 use aisopod_provider::trait_module::{ChatCompletionStream, ModelProvider};
 use async_trait::async_trait;
 use futures_util::stream::{self, StreamExt};
+
+// ============================================================================
+// Helper to make private fields accessible for testing
+// ============================================================================
+
+/// Helper function to get providers count for testing
+fn providers_count(registry: &ProviderRegistry) -> usize {
+    registry.providers.len()
+}
+
+/// Helper function to get aliases count for testing
+fn aliases_count(registry: &ProviderRegistry) -> usize {
+    registry.aliases.len()
+}
+
+/// Helper function to access providers HashMap for testing
+/// This allows tests to inspect internal state when needed
+fn get_providers(registry: &ProviderRegistry) -> &std::collections::HashMap<String, Arc<dyn ModelProvider>> {
+    &registry.providers
+}
 
 // ============================================================================
 // Provider Registration Tests
@@ -20,8 +41,8 @@ use futures_util::stream::{self, StreamExt};
 #[test]
 fn test_new_registry_is_empty() {
     let registry = ProviderRegistry::new();
-    assert!(registry.providers.is_empty());
-    assert!(registry.aliases.is_empty());
+    assert_eq!(providers_count(&registry), 0);
+    assert_eq!(aliases_count(&registry), 0);
 }
 
 #[test]
@@ -31,7 +52,7 @@ fn test_register_provider() {
     let provider = TestProvider::new("test-provider", vec!["model1", "model2"]);
     registry.register(Arc::new(provider));
 
-    assert_eq!(registry.providers.len(), 1);
+    assert_eq!(providers_count(&registry), 1);
     assert!(registry.get("test-provider").is_some());
 }
 
@@ -45,7 +66,7 @@ fn test_register_same_provider_twice_replaces() {
     let provider2 = TestProvider::new("test", vec!["model2", "model3"]);
     registry.register(Arc::new(provider2));
 
-    assert_eq!(registry.providers.len(), 1);
+    assert_eq!(providers_count(&registry), 1);
     
     let retrieved = registry.get("test").unwrap();
     assert_eq!(retrieved.id(), "test");
@@ -59,7 +80,7 @@ fn test_register_different_providers() {
     registry.register(Arc::new(TestProvider::new("provider2", vec!["model2"])));
     registry.register(Arc::new(TestProvider::new("provider3", vec!["model3"])));
 
-    assert_eq!(registry.providers.len(), 3);
+    assert_eq!(providers_count(&registry), 3);
     assert!(registry.get("provider1").is_some());
     assert!(registry.get("provider2").is_some());
     assert!(registry.get("provider3").is_some());
@@ -350,8 +371,8 @@ fn test_multiple_providers_same_alias_not_supported() {
 #[test]
 fn test_default_registry() {
     let registry = ProviderRegistry::default();
-    assert!(registry.providers.is_empty());
-    assert!(registry.aliases.is_empty());
+    assert_eq!(providers_count(&registry), 0);
+    assert_eq!(aliases_count(&registry), 0);
 }
 
 // ============================================================================
@@ -424,7 +445,7 @@ impl ModelProvider for TestProvider {
         &self.id
     }
 
-    async fn list_models(&self) -> Result<Vec<ModelInfo>, anyhow::Error> {
+    async fn list_models(&self) -> Result<Vec<ModelInfo>> {
         Ok(self.models.iter().map(|m| ModelInfo {
             id: m.clone(),
             name: m.clone(),
@@ -442,7 +463,7 @@ impl ModelProvider for TestProvider {
         Ok(Box::pin(stream::empty()))
     }
 
-    async fn health_check(&self) -> Result<aisopod_provider::ProviderHealth, anyhow::Error> {
+    async fn health_check(&self) -> Result<aisopod_provider::ProviderHealth> {
         Ok(aisopod_provider::ProviderHealth {
             available: true,
             latency_ms: Some(10),

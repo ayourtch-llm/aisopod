@@ -60,8 +60,8 @@ pub struct ModelAlias {
 /// }
 /// ```
 pub struct ProviderRegistry {
-    providers: HashMap<String, Arc<dyn ModelProvider>>,
-    aliases: HashMap<String, ModelAlias>,
+    pub providers: HashMap<String, Arc<dyn ModelProvider>>,
+    pub aliases: HashMap<String, ModelAlias>,
 }
 
 impl ProviderRegistry {

@@ -110,7 +110,7 @@ impl OllamaProvider {
 }
 
 /// Ollama API request types (private module)
-mod api_types {
+pub mod api_types {
     use serde::{Deserialize, Serialize};
 
     /// The role of a message in the Ollama chat API.

@@ -9,11 +9,11 @@
 use std::time::Duration;
 
 use aisopod_provider::types::*;
-use aisopod_provider::trait_module::ModelProvider;
+use aisopod_provider::trait_module::{ChatCompletionStream, ModelProvider};
 use futures_util::StreamExt;
 
 // Re-export the mock provider
-use crate::helpers::{MockProvider, create_test_request};
+use aisopod_provider::helpers::{MockProvider, create_test_request};
 
 // ============================================================================
 // Streaming Order Tests
@@ -62,9 +62,9 @@ async fn test_stream_chunks_arrive_in_order() {
         .with_chunks(chunks);
 
     let request = create_test_request("test-model", "Hello");
-    let mut stream = provider.chat_completion(request).await.unwrap();
+    let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
 
-    let mut received_chunks = Vec::new();
+    let mut received_chunks: Vec<ChatCompletionChunk> = Vec::new();
     while let Some(chunk) = stream.next().await {
         received_chunks.push(chunk.unwrap());
     }
@@ -108,9 +108,9 @@ async fn test_stream_finish_reason_on_last_chunk() {
         .with_chunks(chunks);
 
     let request = create_test_request("test-model", "Hello");
-    let mut stream = provider.chat_completion(request).await.unwrap();
+    let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
 
-    let mut chunks_received = Vec::new();
+    let mut chunks_received: Vec<ChatCompletionChunk> = Vec::new();
     while let Some(chunk) = stream.next().await {
         chunks_received.push(chunk.unwrap());
     }
@@ -157,13 +157,13 @@ async fn test_stream_terminates_correctly() {
         .with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
-    let mut stream = provider.chat_completion(request).await.unwrap();
+    let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
 
     let mut count = 0;
     let mut last_finish_reason = None;
 
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.unwrap();
+        let chunk: ChatCompletionChunk = chunk.unwrap();
         count += 1;
         last_finish_reason = chunk.finish_reason;
     }
@@ -209,11 +209,11 @@ async fn test_stream_with_tool_call_finish_reason() {
         .with_chunks(chunks);
 
     let request = create_test_request("test-model", "Use a tool");
-    let mut stream = provider.chat_completion(request).await.unwrap();
+    let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
 
     let mut tool_calls_received = 0;
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.unwrap();
+        let chunk: ChatCompletionChunk = chunk.unwrap();
         if chunk.delta.tool_calls.is_some() {
             tool_calls_received += 1;
         }
@@ -266,7 +266,7 @@ async fn test_stream_with_single_chunk() {
         .with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
-    let mut stream = provider.chat_completion(request).await.unwrap();
+    let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
 
     let mut count = 0;
     while let Some(_) = stream.next().await {
@@ -300,7 +300,7 @@ async fn test_stream_with_partial_failures() {
         .with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
-    let mut stream = provider.chat_completion(request).await.unwrap();
+    let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
 
     let mut count = 0;
     let mut error_received = false;
@@ -324,7 +324,7 @@ async fn test_stream_first_chunk_failure() {
         .with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
-    let mut stream = provider.chat_completion(request).await.unwrap();
+    let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
 
     let mut error_received = false;
     while let Some(result) = stream.next().await {
@@ -386,7 +386,7 @@ async fn test_stream_with_delays() {
     let request = create_test_request("test-model", "Test");
     let start = std::time::Instant::now();
 
-    let mut stream = provider.chat_completion(request).await.unwrap();
+    let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
     let mut count = 0;
 
     while let Some(_) = stream.next().await {
@@ -441,11 +441,12 @@ async fn test_usage_accumulates_across_chunks() {
         .with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
-    let mut stream = provider.chat_completion(request).await.unwrap();
+    let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
 
-    let mut final_usage = None;
+    let mut final_usage: Option<TokenUsage> = None;
     while let Some(chunk) = stream.next().await {
-        final_usage = chunk.unwrap().usage;
+        let usage: Option<TokenUsage> = chunk.unwrap().usage;
+        final_usage = usage;
     }
 
     assert!(final_usage.is_some());
@@ -495,11 +496,12 @@ async fn test_chunk_ids_are_unique() {
         .with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
-    let mut stream = provider.chat_completion(request).await.unwrap();
+    let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
 
-    let mut ids = Vec::new();
+    let mut ids: Vec<String> = Vec::new();
     while let Some(chunk) = stream.next().await {
-        ids.push(chunk.unwrap().id);
+        let id: String = chunk.unwrap().id;
+        ids.push(id);
     }
 
     assert_eq!(ids.len(), 3);
@@ -529,10 +531,10 @@ async fn test_role_delta_on_first_chunk() {
         .with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
-    let mut stream = provider.chat_completion(request).await.unwrap();
+    let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
 
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.unwrap();
+        let chunk: ChatCompletionChunk = chunk.unwrap();
         assert_eq!(chunk.delta.role, Some(Role::Assistant));
     }
 }
@@ -566,11 +568,11 @@ async fn test_role_delta_not_repeated() {
         .with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
-    let mut stream = provider.chat_completion(request).await.unwrap();
+    let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
 
     let mut role_sent = false;
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.unwrap();
+        let chunk: ChatCompletionChunk = chunk.unwrap();
         if let Some(role) = chunk.delta.role {
             assert!(!role_sent);
             assert_eq!(role, Role::Assistant);

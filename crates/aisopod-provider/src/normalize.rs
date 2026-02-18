@@ -369,9 +369,9 @@ pub fn aggregate_usage(chunks: &[ChatCompletionChunk]) -> TokenUsage {
 
     for chunk in chunks {
         if let Some(usage) = &chunk.usage {
-            total_prompt_tokens = usage.prompt_tokens;
-            total_completion_tokens = usage.completion_tokens;
-            total_total_tokens = usage.total_tokens;
+            total_prompt_tokens += usage.prompt_tokens;
+            total_completion_tokens += usage.completion_tokens;
+            total_total_tokens += usage.total_tokens;
         }
     }
 
@@ -818,10 +818,10 @@ mod tests {
 
         let usage = aggregate_usage(&chunks);
 
-        // Should use the last chunk's usage
-        assert_eq!(usage.prompt_tokens, 15);
-        assert_eq!(usage.completion_tokens, 5);
-        assert_eq!(usage.total_tokens, 20);
+        // Should sum all chunk usages
+        assert_eq!(usage.prompt_tokens, 30);  // 5 + 10 + 15
+        assert_eq!(usage.completion_tokens, 10);  // 2 + 3 + 5
+        assert_eq!(usage.total_tokens, 40);  // 7 + 13 + 20
     }
 
     #[test]

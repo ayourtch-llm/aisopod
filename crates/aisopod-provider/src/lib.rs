@@ -64,6 +64,7 @@
 
 pub mod auth;
 pub mod discovery;
+pub mod helpers;
 pub mod normalize;
 pub mod providers;
 pub mod registry;
@@ -73,6 +74,7 @@ pub mod types;
 // Re-export the main trait and all types for convenience
 pub use crate::auth::{AuthProfile, AuthProfileManager, ProfileStatus};
 pub use crate::discovery::ModelCatalog;
+pub use crate::helpers::{create_test_model, create_test_request, create_test_tool, create_test_tool_call, MockProvider};
 pub use crate::normalize::{
     aggregate_usage, enforce_alternating_turns, extract_system_prompt, map_http_error, ProviderError,
 };

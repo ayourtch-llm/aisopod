@@ -308,37 +308,65 @@ fn test_extract_system_prompt_empty_messages() {
 #[test]
 fn test_aggregate_usage_empty() {
     let result = aggregate_usage(&[]);
-    assert!(result.is_none());
+    assert_eq!(result.prompt_tokens, 0);
+    assert_eq!(result.completion_tokens, 0);
+    assert_eq!(result.total_tokens, 0);
 }
 
 #[test]
 fn test_aggregate_usage_single() {
-    let usage = TokenUsage {
-        prompt_tokens: 10,
-        completion_tokens: 5,
-        total_tokens: 15,
+    let chunk = ChatCompletionChunk {
+        id: "1".to_string(),
+        delta: MessageDelta {
+            role: Some(Role::Assistant),
+            content: Some("test".to_string()),
+            tool_calls: None,
+        },
+        finish_reason: Some(FinishReason::Stop),
+        usage: Some(TokenUsage {
+            prompt_tokens: 10,
+            completion_tokens: 5,
+            total_tokens: 15,
+        }),
     };
 
-    let result = aggregate_usage(&[usage.clone()]);
-    assert!(result.is_some());
-    assert_eq!(result.unwrap(), usage);
+    let result = aggregate_usage(&[chunk.clone()]);
+    assert_eq!(result, chunk.usage.unwrap());
 }
 
 #[test]
 fn test_aggregate_usage_multiple() {
-    let usage1 = TokenUsage {
-        prompt_tokens: 10,
-        completion_tokens: 5,
-        total_tokens: 15,
+    let chunk1 = ChatCompletionChunk {
+        id: "1".to_string(),
+        delta: MessageDelta {
+            role: Some(Role::Assistant),
+            content: Some("test1".to_string()),
+            tool_calls: None,
+        },
+        finish_reason: Some(FinishReason::Stop),
+        usage: Some(TokenUsage {
+            prompt_tokens: 10,
+            completion_tokens: 5,
+            total_tokens: 15,
+        }),
     };
 
-    let usage2 = TokenUsage {
-        prompt_tokens: 20,
-        completion_tokens: 10,
-        total_tokens: 30,
+    let chunk2 = ChatCompletionChunk {
+        id: "2".to_string(),
+        delta: MessageDelta {
+            role: Some(Role::Assistant),
+            content: Some("test2".to_string()),
+            tool_calls: None,
+        },
+        finish_reason: Some(FinishReason::Stop),
+        usage: Some(TokenUsage {
+            prompt_tokens: 20,
+            completion_tokens: 10,
+            total_tokens: 30,
+        }),
     };
 
-    let result = aggregate_usage(&[usage1, usage2]).unwrap();
+    let result = aggregate_usage(&[chunk1, chunk2]);
 
     // Should sum all values
     assert_eq!(result.prompt_tokens, 30);
@@ -393,12 +421,7 @@ fn test_aggregate_usage_multiple_chunks() {
         },
     ];
 
-    let usages: Vec<TokenUsage> = chunks
-        .iter()
-        .filter_map(|c| c.usage.clone())
-        .collect();
-
-    let result = aggregate_usage(&usages).unwrap();
+    let result = aggregate_usage(&chunks);
 
     // Should sum all values (5+5+5=15, 1+2+3=6, 6+7+8=21)
     assert_eq!(result.prompt_tokens, 15);
@@ -583,10 +606,8 @@ fn test_aggregate_usage_with_none() {
         },
     ];
 
-    let usages: Vec<TokenUsage> = chunks.iter().filter_map(|c| c.usage.clone()).collect();
-    assert_eq!(usages.len(), 1); // Only one has usage
-
-    let result = aggregate_usage(&usages).unwrap();
+    // aggregate_usage now takes chunks directly
+    let result = aggregate_usage(&chunks);
     assert_eq!(result.prompt_tokens, 5);
 }
 

@@ -21,7 +21,7 @@ use crate::auth::{AuthProfile, AuthProfileManager};
 use crate::trait_module::{ChatCompletionStream, ModelProvider};
 use crate::types::*;
 
-mod api_types;
+pub mod api_types;
 use api_types::*;
 
 /// AWS Bedrock provider implementation.

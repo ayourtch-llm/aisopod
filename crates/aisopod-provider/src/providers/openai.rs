@@ -13,7 +13,7 @@ use crate::auth::{AuthProfile, AuthProfileManager};
 use crate::trait_module::{ChatCompletionStream, ModelProvider};
 use crate::types::*;
 
-mod api_types;
+pub mod api_types;
 use api_types::*;
 
 /// OpenAI provider implementation.
@@ -24,7 +24,7 @@ use api_types::*;
 pub struct OpenAIProvider {
     client: reqwest::Client,
     api_key: String,
-    base_url: String,
+    pub base_url: String,
     organization: Option<String>,
     profile_manager: Arc<Mutex<AuthProfileManager>>,
 }
