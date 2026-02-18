@@ -56,14 +56,53 @@ OpenAI is one of the most widely used model providers. This integration enables 
 - Issue 040 (Auth profile management)
 
 ## Acceptance Criteria
-- [ ] `OpenAIProvider` implements `ModelProvider`.
-- [ ] Streaming SSE responses from `/v1/chat/completions` are parsed into `ChatCompletionChunk` values.
-- [ ] The `[DONE]` sentinel correctly terminates the stream.
-- [ ] Function calling / tool use is supported in requests and responses.
-- [ ] Vision content parts are formatted correctly for OpenAI.
-- [ ] JSON mode is supported via `response_format`.
-- [ ] `OpenAI-Organization` header is included when configured.
-- [ ] `cargo check` passes for the provider crate/module.
+- [x] `OpenAIProvider` implements `ModelProvider`.
+- [x] Streaming SSE responses from `/v1/chat/completions` are parsed into `ChatCompletionChunk` values.
+- [x] The `[DONE]` sentinel correctly terminates the stream.
+- [x] Function calling / tool use is supported in requests and responses.
+- [x] Vision content parts are formatted correctly for OpenAI.
+- [x] JSON mode is supported via `response_format`.
+- [x] `OpenAI-Organization` header is included when configured.
+- [x] `cargo check` passes for the provider crate/module.
+
+## Resolution
+
+The OpenAI provider was implemented as a module under `aisopod-provider` crate:
+
+**Files Created:**
+- `crates/aisopod-provider/src/providers/openai.rs` - Main provider implementation
+- `crates/aisopod-provider/src/providers/openai/api_types.rs` - Private submodule for OpenAI API types
+- `crates/aisopod-provider/src/providers/mod.rs` - Module declaration
+
+**Features Implemented:**
+- `OpenAIProvider` struct implementing `ModelProvider` trait
+- Streaming SSE chat completions from `/v1/chat/completions`
+- Function calling/tool use via `tools` array format
+- Vision support via `ContentPart::Image` → base64 data URL conversion
+- JSON mode support via `response_format` field
+- `OpenAI-Organization` header support
+- SSE stream parsing with `[DONE]` sentinel handling
+
+**Tests Implemented:**
+- `test_build_openai_request`
+- `test_convert_message_text`
+- `test_convert_message_parts`
+- `test_convert_tool`
+- `test_estimate_context_window`
+- `test_parse_sse_event`
+- `test_parse_sse_done`
+- `test_supports_tools`
+- `test_supports_vision`
+
+**Verification:**
+- `cargo check`: ✅ Passed
+- `cargo build`: ✅ Passed
+- `cargo test -p aisopod-provider`: ✅ 64 tests passed (9 OpenAI-specific)
+- `cargo test` (all crates): ✅ 272 tests passed
+
+**Rust Version Update:**
+The project's Rust version was updated from 1.90.0 to 1.93.1 via `rust-toolchain.toml` to support newer dependencies.
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-18*

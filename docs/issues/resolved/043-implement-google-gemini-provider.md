@@ -55,13 +55,49 @@ Google Gemini provides access to Gemini Pro and Ultra models. This integration b
 - Issue 040 (Auth profile management)
 
 ## Acceptance Criteria
-- [ ] `GeminiProvider` implements `ModelProvider`.
-- [ ] Streaming responses from `streamGenerateContent` are parsed into `ChatCompletionChunk` values.
-- [ ] Function calling is supported via Gemini's `function_declarations` format.
-- [ ] Multi-modal input (text + images) is correctly formatted as Gemini `parts`.
-- [ ] API key authentication works via query parameter.
-- [ ] OAuth bearer token authentication works via `Authorization` header.
-- [ ] `cargo check` passes for the provider crate/module.
+- [x] `GeminiProvider` implements `ModelProvider`.
+- [x] Streaming responses from `streamGenerateContent` are parsed into `ChatCompletionChunk` values.
+- [x] Function calling is supported via Gemini's `function_declarations` format.
+- [x] Multi-modal input (text + images) is correctly formatted as Gemini `parts`.
+- [x] API key authentication works via query parameter.
+- [x] OAuth bearer token authentication works via `Authorization` header.
+- [x] `cargo check` passes for the provider crate/module.
+
+## Resolution
+
+The Google Gemini provider was implemented as a module under `aisopod-provider` crate:
+
+**Files Created:**
+- `crates/aisopod-provider/src/providers/gemini.rs` - Main provider implementation
+- `crates/aisopod-provider/src/providers/gemini/api_types.rs` - Private submodule for Gemini API types
+- `crates/aisopod-provider/src/providers/mod.rs` - Module declaration
+
+**Features Implemented:**
+- `GeminiProvider` struct implementing `ModelProvider` trait
+- Streaming responses from `/v1beta/models/{model}:streamGenerateContent`
+- Function calling via `function_declarations` format
+- Multi-modal input (text + images) via `parts` format
+- API key authentication via query parameter (`?key=`)
+- OAuth bearer token authentication via `Authorization` header
+- Streaming JSON parsing into `ChatCompletionChunk` values
+
+**Tests Implemented:**
+- `test_gemini_part_serialization`
+- `test_gemini_function_declaration_serialization`
+- `test_gemini_content_serialization`
+- `test_gemini_model_info_serialization`
+- `test_gemini_request_serialization`
+- `test_gemini_role_serialization`
+
+**Verification:**
+- `cargo check`: ✅ Passed
+- `cargo build`: ✅ Passed
+- `cargo test -p aisopod-provider`: ✅ 64 tests passed (6 Gemini-specific)
+- `cargo test` (all crates): ✅ 272 tests passed
+
+**Rust Version Update:**
+The project's Rust version was updated from 1.90.0 to 1.93.1 via `rust-toolchain.toml` to support newer dependencies.
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-18*
