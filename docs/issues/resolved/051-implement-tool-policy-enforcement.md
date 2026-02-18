@@ -61,11 +61,36 @@ Policy enforcement is a security-critical feature. Without it, agents could use 
 - Issue 016 (Define core configuration types)
 
 ## Acceptance Criteria
-- [ ] `ToolPolicy` struct is defined with `allow` and `deny` fields.
-- [ ] `ToolPolicyEngine` supports global and per-agent policies.
-- [ ] `is_allowed()` correctly evaluates combined policies.
-- [ ] Denied tools produce clear, descriptive denial messages.
-- [ ] `cargo check -p aisopod-tools` compiles without errors.
+- [x] `ToolPolicy` struct is defined with `allow` and `deny` fields.
+- [x] `ToolPolicyEngine` supports global and per-agent policies.
+- [x] `is_allowed()` correctly evaluates combined policies.
+- [x] Denied tools produce clear, descriptive denial messages.
+- [x] `cargo check -p aisopod-tools` compiles without errors.
+
+## Resolution
+The tool policy enforcement system was implemented in commits 81a0282 and c3028a9:
+
+- **Commit 81a0282** - Implemented the core policy system:
+  - Created `crates/aisopod-tools/src/policy.rs` with `ToolPolicy` and `ToolPolicyEngine` types
+  - Added `allow` and `deny` list fields to `ToolPolicy`
+  - Implemented `ToolPolicyEngine` with `global_policy` and `agent_policies` fields
+  - Implemented `is_allowed(agent_id, tool_name)` with proper precedence rules (deny over allow, agent over global)
+  - Added helper methods: `set_global_policy()`, `set_agent_policy()`, `remove_agent_policy()`
+  - Added comprehensive unit tests (21 tests)
+  - Re-exported types from `lib.rs`
+
+- **Commit c3028a9** - Fixed policy evaluation logic:
+  - Corrected `is_explicitly_allowed()` to return false when no allow list is set
+  - Added explicit deny check before allow check in `is_explicitly_allowed()`
+  - Updated `is_allowed()` evaluation order: agent-specific policies fully override global deny
+  - When an agent has an allow list and tool is in it, agent overrides global deny
+  - Fixed test assertions to match corrected behavior
+
+- **Verification**:
+  - `cargo build -p aisopod-tools` compiles without errors
+  - `cargo test -p aisopod-tools` passes all 21 unit tests
+  - `cargo check` at project root succeeds
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-18*
