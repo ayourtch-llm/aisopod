@@ -68,14 +68,73 @@ Integration tests are the primary safety net against regressions. They validate 
 - Issue 036 (TLS/HTTPS support)
 
 ## Acceptance Criteria
-- [ ] Integration test binary compiles and runs with `cargo test -p aisopod-gateway`.
-- [ ] All HTTP endpoint tests pass.
-- [ ] All authentication tests pass.
-- [ ] All rate limiting tests pass.
-- [ ] All WebSocket connection tests pass.
-- [ ] All JSON-RPC message flow tests pass.
-- [ ] All broadcast event tests pass.
-- [ ] Tests are isolated and do not interfere with each other.
+- [x] Integration test binary compiles and runs with `cargo test -p aisopod-gateway`.
+- [x] All HTTP endpoint tests pass.
+- [x] All authentication tests pass.
+- [x] All rate limiting tests pass.
+- [x] All WebSocket connection tests pass.
+- [x] All JSON-RPC message flow tests pass.
+- [x] All broadcast event tests pass.
+- [x] Tests are isolated and do not interfere with each other.
+
+## Resolution
+
+The comprehensive integration test suite was implemented for `aisopod-gateway` crate, covering all major subsystems end-to-end.
+
+### Implementation Details
+
+**File Created:** `crates/aisopod-gateway/tests/integration.rs`
+
+**Test Helper Functions:**
+- `GatewayTestConfig` - Configuration builder for gateway tests
+- `find_available_port()` - Port allocation mechanism using atomic counter
+- `wait_for_port_release()` - Port cleanup verification
+- `start_test_server()` / `start_test_server_with_auth()` - Gateway startup with configurable auth
+
+**Test Coverage (16 tests):**
+
+| Category | Test Name | Description |
+|----------|-----------|-------------|
+| HTTP | `test_health_returns_200` | GET /health returns 200 with `{"status":"ok"}` |
+| HTTP | `test_stub_endpoints_return_501` | All stub endpoints return 501 |
+| HTTP | `test_static_file_fallback` | Unknown paths handled correctly |
+| Auth | `test_valid_token_accepted` | Bearer token authentication works |
+| Auth | `test_invalid_token_rejected` | Invalid tokens return 401 |
+| Auth | `test_no_auth_mode` | All requests succeed with auth disabled |
+| Auth | `test_password_auth_success` | Basic auth with valid credentials |
+| Auth | `test_password_auth_rejected` | Basic auth with invalid credentials |
+| Rate Limit | `test_under_limit_allowed` | Requests under limit succeed |
+| Rate Limit | `test_over_limit_returns_429` | Requests over limit return 429 with Retry-After |
+| WebSocket | `test_ws_connect_and_ping` | WebSocket connect and pong response |
+| WebSocket | `test_ws_auth_rejected` | Auth rejection for WebSocket upgrade |
+| JSON-RPC | `test_valid_rpc_request` | Valid RPC request/response flow |
+| JSON-RPC | `test_malformed_json_returns_parse_error` | Parse error -32700 |
+| JSON-RPC | `test_unknown_method_returns_not_found` | Method not found -32601 |
+| Broadcast | `test_broadcast_event_received` | Event delivery to multiple clients |
+
+### Key Fixes Applied
+
+1. **Middleware stack order** - AuthConfigData injected before auth_middleware
+2. **ConnectInfo middleware** - Added for IP-based rate limiting
+3. **Port allocation** - Atomic counter with 100-port spacing for parallel test isolation
+4. **Port cleanup** - `wait_for_port_release()` ensures ports are available before reuse
+
+### Dependencies Satisfied
+
+All dependency issues were already resolved prior to this implementation:
+- Issue 026-036 (core gateway components)
+- Issue 039 (Provider Registry)
+
+### Test Results
+
+All tests pass consistently:
+```
+running 16 tests
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+```
+
+Tests run successfully with `--test-threads=1,2,4,8` with no interference.
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-18*
