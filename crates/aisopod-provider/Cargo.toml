@@ -16,3 +16,9 @@ futures-core.workspace = true
 futures-util.workspace = true
 pin-project-lite.workspace = true
 reqwest = { workspace = true, features = ["json", "stream"] }
+async-stream = "0.3"
+
+# AWS SDK dependencies for Bedrock provider
+aws-sdk-bedrockruntime = { version = "1", features = ["rt-tokio"] }
+aws-config = { version = "1", features = ["rustls"] }
+aws-types = "1"

@@ -4,8 +4,9 @@
 Implement the `ModelProvider` trait for the AWS Bedrock Runtime API, supporting streaming completions via the AWS SDK for Rust and the full AWS credential chain (environment variables, profile, IAM role).
 
 ## Location
-- Crate: `aisopod-provider-bedrock` (new crate, or module at `crates/aisopod-provider/src/providers/bedrock.rs`)
-- File: `crates/aisopod-provider/src/providers/bedrock.rs` (if module approach)
+- Crate: `aisopod-provider`
+- Module: `crates/aisopod-provider/src/providers/bedrock.rs`
+- API Types: `crates/aisopod-provider/src/providers/bedrock/api_types.rs`
 
 ## Current Behavior
 There is no AWS Bedrock provider implementation. The system cannot invoke AI models hosted on AWS Bedrock.
@@ -56,13 +57,43 @@ AWS Bedrock provides access to Anthropic Claude and other models within an AWS-m
 - Issue 038 (ModelProvider trait and core types)
 - Issue 039 (Provider registry)
 
+## Resolution
+The AWS Bedrock provider has been implemented as a module under `aisopod-provider` crate with the following files:
+
+1. **`crates/aisopod-provider/src/providers/bedrock.rs`**: Main implementation with `BedrockProvider` struct that implements `ModelProvider` trait. Features:
+   - Async constructor with AWS credential chain resolution via `aws-config`
+   - Region configuration support
+   - Streaming chat completions via `InvokeModelWithResponseStream` API
+   - AWS-specific error handling (expired credentials, throttling, access denied, model timeout)
+   - Health check implementation
+   - Model listing with curated list of Bedrock-supported models
+
+2. **`crates/aisopod-provider/src/providers/bedrock/api_types.rs`**: Private submodule with AWS Bedrock-specific types:
+   - Request types: `BedrockRequest`, `BedrockMessage`, `BedrockContentBlock`, `BedrockTool`, etc.
+   - Response types: `BedrockStreamEvent`, `BedrockStreamEvent` variants
+   - All types implement `Serialize` and `Deserialize`
+
+3. **Updated `crates/aisopod-provider/src/providers/mod.rs`**: Added `bedrock` module export
+
+4. **Updated `crates/aisopod-provider/Cargo.toml`**: Added `async-stream = "0.3"` dependency for stream construction
+
+Key implementation details:
+- Uses `aws_config::load_defaults(BehaviorVersion::v2024_03_28())` for credential chain resolution
+- Region is configurable via `Region::new(Cow::Owned(String))` pattern to satisfy 'static lifetime requirement
+- Streaming uses `async-stream::stream!` macro to convert `EventReceiver` to `Stream`
+- Error mapping handles AWS-specific errors: ExpiredToken, Throttling, AccessDenied, ModelTimeout
+- All tests pass including provider creation, serialization tests, and integration tests
+
 ## Acceptance Criteria
-- [ ] `BedrockProvider` implements `ModelProvider`.
-- [ ] AWS credentials are resolved via the standard credential chain.
-- [ ] Region is configurable.
-- [ ] Streaming responses from `InvokeModelWithResponseStream` are parsed into `ChatCompletionChunk` values.
-- [ ] AWS-specific errors (expired credentials, throttling) are handled gracefully.
-- [ ] `cargo check` passes for the provider crate/module.
+- [x] `BedrockProvider` implements `ModelProvider`.
+- [x] AWS credentials are resolved via the standard credential chain.
+- [x] Region is configurable.
+- [x] Streaming responses from `InvokeModelWithResponseStream` are parsed into `ChatCompletionChunk` values.
+- [x] AWS-specific errors (expired credentials, throttling) are handled gracefully.
+- [x] `cargo check` passes for the provider crate/module.
+- [x] `cargo build` passes at top level.
+- [x] `cargo test` passes at top level.
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-18*
