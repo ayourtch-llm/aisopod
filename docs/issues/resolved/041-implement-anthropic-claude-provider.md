@@ -55,13 +55,45 @@ Anthropic Claude is a primary model provider for the system. This implementation
 - Issue 040 (Auth profile management — for API key rotation)
 
 ## Acceptance Criteria
-- [ ] `AnthropicProvider` implements `ModelProvider`.
-- [ ] Streaming SSE responses from `/v1/messages` are parsed into `ChatCompletionChunk` values.
-- [ ] Tool use / function calling is supported in requests and responses.
-- [ ] System prompts are sent via Anthropic's `system` parameter, not as a message.
-- [ ] Vision (image) content is correctly formatted for Anthropic's API.
-- [ ] API key is sent via the `x-api-key` header.
-- [ ] `cargo check` passes for the provider crate/module.
+- [x] `AnthropicProvider` implements `ModelProvider`.
+- [x] Streaming SSE responses from `/v1/messages` are parsed into `ChatCompletionChunk` values.
+- [x] Tool use / function calling is supported in requests and responses.
+- [x] System prompts are sent via Anthropic's `system` parameter, not as a message.
+- [x] Vision (image) content is correctly formatted for Anthropic's API.
+- [x] API key is sent via the `x-api-key` header.
+- [x] `cargo check` passes for the provider crate/module.
+
+## Resolution
+
+The Anthropic Claude provider was implemented as a module under `aisopod-provider` crate:
+
+**Files Created/Modified:**
+- `crates/aisopod-provider/src/providers/anthropic.rs` - Main provider implementation
+- `crates/aisopod-provider/src/providers/anthropic/api_types.rs` - Private submodule for Anthropic API types
+- `crates/aisopod-provider/src/providers/mod.rs` - Module declaration
+- `crates/aisopod-provider/src/lib.rs` - Public exports
+
+**Implementation Highlights:**
+- `AnthropicProvider` struct with `reqwest::Client`, API key, and base URL
+- `ModelProvider` trait implementation with all required methods
+- `chat_completion()` - streaming SSE implementation with proper parsing
+- `list_models()` - returns hardcoded list of Claude models (Opus, Sonnet, Haiku)
+- `health_check()` - verifies API endpoint availability
+- System prompt extraction from `Role::System` messages to top-level `system` field
+- Tool use support via Anthropic's `tools` array format
+- Vision support via `ContentPart::Image` to Anthropic image format conversion
+- API key authentication via `x-api-key` header
+
+**Test Coverage:**
+- `test_extract_system_prompt` - validates system prompt extraction
+- `test_build_anthropic_request` - validates request JSON construction
+- `test_convert_message_text` - validates message text conversion
+
+**Verification:**
+- `cargo check`: ✅ Passed
+- `cargo build`: ✅ Passed
+- `cargo test -p aisopod-provider`: ✅ 49 tests passed (including 3 Anthropic-specific tests)
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-18*
