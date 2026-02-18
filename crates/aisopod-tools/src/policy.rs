@@ -115,11 +115,19 @@ impl ToolPolicy {
 
     /// Checks if a tool is explicitly allowed by this policy.
     ///
-    /// Returns `true` if the tool is in the allow list, or if no allow list is set.
+    /// Returns `true` if the tool is in the allow list.
+    /// Returns `false` if tool is in deny list or no allow list is set.
     fn is_explicitly_allowed(&self, tool_name: &str) -> bool {
+        // If denied, never allowed
+        if let Some(deny_list) = &self.deny {
+            if deny_list.contains(&tool_name.to_string()) {
+                return false;
+            }
+        }
+        // Only return true if tool is explicitly in allow list
         match &self.allow {
             Some(allow_list) => allow_list.contains(&tool_name.to_string()),
-            None => true,
+            None => false,
         }
     }
 
@@ -235,11 +243,12 @@ impl ToolPolicyEngine {
     ///
     /// # Policy Evaluation Order
     ///
-    /// 1. Check global deny list - if tool is in it, deny with global reason.
-    /// 2. Check agent-specific deny list - if tool is in it, deny with agent reason.
-    /// 3. Check agent-specific allow list - if tool is not in it, deny.
-    /// 4. Check global allow list - if tool is not in it, deny.
-    /// 5. If none of the above blocked it, allow the tool.
+    /// 1. If agent-specific deny list exists and tool is in it, deny.
+    /// 2. If agent-specific allow list exists and tool is NOT in it, deny.
+    /// 3. If agent-specific allow list exists, allow (agent overrides global deny).
+    /// 4. If global deny list exists and tool is in it, deny.
+    /// 5. If global allow list exists and tool is NOT in it, deny.
+    /// 6. Tool is allowed.
     ///
     /// # Arguments
     ///
@@ -261,15 +270,7 @@ impl ToolPolicyEngine {
     /// assert!(engine.is_allowed("agent-1", "bash").is_err());
     /// ```
     pub fn is_allowed(&self, agent_id: &str, tool_name: &str) -> Result<(), String> {
-        // Rule 1: Check global deny list
-        if self.global_policy.is_explicitly_denied(tool_name) {
-            return Err(format!(
-                "Tool '{}' is denied by the global policy",
-                tool_name
-            ));
-        }
-
-        // Rule 2: Check agent-specific deny list (takes precedence)
+        // Rule 1: Check agent-specific deny list first (agent policy overrides global)
         if let Some(agent_policy) = self.agent_policies.get(agent_id) {
             if agent_policy.is_explicitly_denied(tool_name) {
                 return Err(format!(
@@ -279,22 +280,36 @@ impl ToolPolicyEngine {
             }
         }
 
-        // Rule 3: Check agent-specific allow list (if present)
+        // Rule 2: If agent-specific allow list exists, check it (agent overrides global)
         if let Some(agent_policy) = self.agent_policies.get(agent_id) {
-            if !agent_policy.is_explicitly_allowed(tool_name) {
-                return Err(format!(
-                    "Tool '{}' is not in the allow list for agent '{}'",
-                    tool_name, agent_id
-                ));
+            if agent_policy.allow.is_some() {
+                if !agent_policy.is_explicitly_allowed(tool_name) {
+                    return Err(format!(
+                        "Tool '{}' is not in the allow list for agent '{}'",
+                        tool_name, agent_id
+                    ));
+                }
+                // Agent has allow list and tool is in it - agent overrides global deny
+                return Ok(());
             }
         }
 
-        // Rule 4: Check global allow list (if present)
-        if !self.global_policy.is_explicitly_allowed(tool_name) {
+        // Rule 3: Check global deny list
+        if self.global_policy.is_explicitly_denied(tool_name) {
             return Err(format!(
-                "Tool '{}' is not in the global allow list",
+                "Tool '{}' is denied by the global policy",
                 tool_name
             ));
+        }
+
+        // Rule 4: Check global allow list
+        if self.global_policy.allow.is_some() {
+            if !self.global_policy.is_explicitly_allowed(tool_name) {
+                return Err(format!(
+                    "Tool '{}' is not in the global allow list",
+                    tool_name
+                ));
+            }
         }
 
         // Rule 5: Tool is allowed
@@ -333,7 +348,7 @@ mod tests {
     fn test_tool_policy_deny_list() {
         let policy = ToolPolicy::deny_list(vec!["bash".to_string(), "python".to_string()]);
 
-        assert!(policy.is_explicitly_allowed("read_file"));
+        assert!(!policy.is_explicitly_allowed("read_file"));
         assert!(!policy.is_explicitly_allowed("bash"));
         assert!(!policy.is_explicitly_allowed("python"));
         assert!(policy.allow.is_none());
@@ -413,7 +428,7 @@ mod tests {
         let mut engine = ToolPolicyEngine::new();
         engine.set_global_policy(ToolPolicy::deny_list(vec!["bash".to_string()]));
 
-        // Set agent policy
+        // Set agent policy - agent-1 is now allowed bash
         engine.set_agent_policy(
             "agent-1".to_string(),
             ToolPolicy::allow_list(vec!["bash".to_string()]),
@@ -422,6 +437,8 @@ mod tests {
 
         // Remove agent policy - should fall back to global (deny)
         engine.remove_agent_policy("agent-1");
+        // After removing agent policy, agent-1 falls back to global deny policy
+        // so bash should now be denied
         assert!(engine.is_allowed("agent-1", "bash").is_err());
     }
 
