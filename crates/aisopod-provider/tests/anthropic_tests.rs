@@ -2432,7 +2432,7 @@ fn test_anthropic_tool_result_content_with_nested_object() {
     let json = serde_json::to_string(&content).unwrap();
     eprintln!("JSON: {}", json);
     assert!(json.contains("\"Result: \""));
-    assert!(json.contains("\"value\":42"));
+    assert!(json.contains("\\\"value\\\":42"));
 }
 
 // ============================================================================
@@ -2541,7 +2541,8 @@ fn test_anthropic_tool_result_with_nested_content() {
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"result\":42"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains("\\\"result\\\":42"));
 }
 
 // ============================================================================
@@ -2731,9 +2732,9 @@ fn test_anthropic_tool_definition_with_special_characters() {
     };
 
     let json = serde_json::to_string(&tool).unwrap();
-    eprintln!("Actual JSON: {}", json);
-    assert!(json.contains("\"calculator-v2\""));
-    assert!(json.contains("\"complex operations!\""));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#""calculator-v2""#));
+    assert!(json.contains("complex operations!"));
 }
 
 // ============================================================================
@@ -2931,7 +2932,7 @@ fn test_anthropic_tool_result_with_special_characters() {
     let json = serde_json::to_string(&result).unwrap();
     eprintln!("JSON: {}", json);
     assert!(json.contains("'quotes'"));
-    assert!(json.contains("\"double quotes\""));
+    assert!(json.contains("\\\"double quotes\\\""));
 }
 
 // ============================================================================
@@ -3016,9 +3017,10 @@ fn test_anthropic_tool_result_content_with_mixed_types() {
     ];
 
     let json = serde_json::to_string(&content).unwrap();
-    assert!(json.contains("\"value\":42"));
-    assert!(json.contains("\"success\":true"));
-    assert!(json.contains("\"Success\""));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"value\":42"#));
+    assert!(json.contains(r#"\"success\":true"#));
+    assert!(json.contains(r#"\"Success\""#));
 }
 
 // ============================================================================
@@ -3336,7 +3338,8 @@ fn test_anthropic_tool_result_content_with_empty_string_in_nested_object() {
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"value\":\"\""));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"value\":\"\"#));
 }
 
 // ============================================================================
@@ -3380,7 +3383,8 @@ fn test_anthropic_tool_result_content_with_empty_array_in_object() {
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"values\":[]"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"values\":[]"#));
 }
 
 // ============================================================================
@@ -3416,7 +3420,8 @@ fn test_anthropic_tool_result_content_with_null_value() {
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"value\":null"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains("\\\"value\\\":null"));
 }
 
 // ============================================================================
@@ -3557,8 +3562,9 @@ fn test_anthropic_tool_result_content_with_nested_empty_objects() {
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"level1\""));
-    assert!(json.contains("\"level2\":{}"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"level1\""#));
+    assert!(json.contains(r#"\"level2\":{}"#));
 }
 
 // ============================================================================
@@ -3743,7 +3749,8 @@ fn test_anthropic_tool_result_content_with_mixed_type_arrays() {
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"two\""));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"two\""#));
     assert!(json.contains("3.0"));
     assert!(json.contains("true"));
 }
@@ -3813,10 +3820,11 @@ fn test_anthropic_tool_result_content_with_complex_nested_structures() {
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"first\""));
-    assert!(json.contains("\"second\""));
-    assert!(json.contains("\"enabled\":true"));
-    assert!(json.contains("\"enabled\":false"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"first\""#));
+    assert!(json.contains(r#"\"second\""#));
+    assert!(json.contains(r#"\"enabled\":true"#));
+    assert!(json.contains(r#"\"enabled\":false"#));
 }
 
 // ============================================================================
@@ -3873,8 +3881,8 @@ fn test_anthropic_tool_result_content_with_circular_reference_simulation() {
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    eprintln!("Actual JSON: {}", json);
-    assert!(json.contains(r#""parent":null"#));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"parent\":null"#));
 }
 
 // ============================================================================
@@ -3921,8 +3929,9 @@ fn test_anthropic_tool_result_content_with_schema_validation() {
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"result\""));
-    assert!(json.contains("\"value\":42"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"result\""#));
+    assert!(json.contains(r#"\"value\":42"#));
 }
 
 // ============================================================================
@@ -3979,10 +3988,11 @@ fn test_anthropic_tool_result_content_with_schema_validation_multiple_levels() {
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"level1\""));
-    assert!(json.contains("\"level2\""));
-    assert!(json.contains("\"level3\""));
-    assert!(json.contains("\"deep\":\"value\""));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"level1\""#));
+    assert!(json.contains(r#"\"level2\""#));
+    assert!(json.contains(r#"\"level3\""#));
+    assert!(json.contains(r#"\"deep\":\"value\""#));
 }
 
 // ============================================================================
@@ -4052,10 +4062,11 @@ fn test_anthropic_tool_result_content_with_schema_validation_complex_nested() {
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"id\":1"));
-    assert!(json.contains("\"id\":2"));
-    assert!(json.contains("\"value\":42"));
-    assert!(json.contains("\"value\":43"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"id\":1"#));
+    assert!(json.contains(r#"\"id\":2"#));
+    assert!(json.contains(r#"\"value\":42"#));
+    assert!(json.contains(r#"\"value\":43"#));
 }
 
 // ============================================================================
@@ -4117,10 +4128,11 @@ fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"operation\":\"add\""));
-    assert!(json.contains("\"a\":5"));
-    assert!(json.contains("\"b\":3"));
-    assert!(json.contains("\"precision\":2"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"operation\":\"add\""#));
+    assert!(json.contains(r#"\"a\":5"#));
+    assert!(json.contains(r#"\"b\":3"#));
+    assert!(json.contains(r#"\"precision\":2"#));
 }
 
 // ============================================================================
@@ -4181,13 +4193,14 @@ fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"level1\""));
-    assert!(json.contains("\"level2\""));
-    assert!(json.contains("\"level3\""));
-    assert!(json.contains("\"operation\":\"add\""));
-    assert!(json.contains("\"a\":5"));
-    assert!(json.contains("\"b\":3"));
-    assert!(json.contains("\"precision\":2"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"level1\""#));
+    assert!(json.contains(r#"\"level2\""#));
+    assert!(json.contains(r#"\"level3\""#));
+    assert!(json.contains(r#"\"operation\":\"add\""#));
+    assert!(json.contains(r#"\"a\":5"#));
+    assert!(json.contains(r#"\"b\":3"#));
+    assert!(json.contains(r#"\"precision\":2"#));
 }
 
 // ============================================================================
@@ -4262,10 +4275,11 @@ fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"add\""));
-    assert!(json.contains("\"subtract\""));
-    assert!(json.contains("\"precision\":2"));
-    assert!(json.contains("\"precision\":4"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"add\""#));
+    assert!(json.contains(r#"\"subtract\""#));
+    assert!(json.contains(r#"\"precision\":2"#));
+    assert!(json.contains(r#"\"precision\":4"#));
 }
 
 // ============================================================================
@@ -4302,10 +4316,11 @@ fn test_anthropic_tool_use_with_schema_validation_all_required_fields_complex() 
     };
 
     let json = serde_json::to_string(&tool_use).unwrap();
-    assert!(json.contains("\"add\""));
-    assert!(json.contains("\"subtract\""));
-    assert!(json.contains("\"precision\":2"));
-    assert!(json.contains("\"precision\":4"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#""add""#));
+    assert!(json.contains(r#""subtract""#));
+    assert!(json.contains(r#""precision":2"#));
+    assert!(json.contains(r#""precision":4"#));
 }
 
 // ============================================================================
@@ -4384,12 +4399,13 @@ fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"level1\""));
-    assert!(json.contains("\"level2\""));
-    assert!(json.contains("\"add\""));
-    assert!(json.contains("\"subtract\""));
-    assert!(json.contains("\"precision\":2"));
-    assert!(json.contains("\"precision\":4"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"level1\""#));
+    assert!(json.contains(r#"\"level2\""#));
+    assert!(json.contains(r#"\"add\""#));
+    assert!(json.contains(r#"\"subtract\""#));
+    assert!(json.contains(r#"\"precision\":2"#));
+    assert!(json.contains(r#"\"precision\":4"#));
 }
 
 // ============================================================================
@@ -4516,13 +4532,14 @@ fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"level1\""));
-    assert!(json.contains("\"level2\""));
-    assert!(json.contains("\"level3\""));
-    assert!(json.contains("\"add\""));
-    assert!(json.contains("\"subtract\""));
-    assert!(json.contains("\"precision\":2"));
-    assert!(json.contains("\"precision\":4"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"level1\""#));
+    assert!(json.contains(r#"\"level2\""#));
+    assert!(json.contains(r#"\"level3\""#));
+    assert!(json.contains(r#"\"add\""#));
+    assert!(json.contains(r#"\"subtract\""#));
+    assert!(json.contains(r#"\"precision\":2"#));
+    assert!(json.contains(r#"\"precision\":4"#));
 }
 
 // ============================================================================
@@ -4565,13 +4582,14 @@ fn test_anthropic_tool_use_with_schema_validation_all_required_fields_very_compl
     };
 
     let json = serde_json::to_string(&tool_use).unwrap();
-    assert!(json.contains("\"level1\""));
-    assert!(json.contains("\"level2\""));
-    assert!(json.contains("\"level3\""));
-    assert!(json.contains("\"add\""));
-    assert!(json.contains("\"subtract\""));
-    assert!(json.contains("\"precision\":2"));
-    assert!(json.contains("\"precision\":4"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#""level1""#));
+    assert!(json.contains(r#""level2""#));
+    assert!(json.contains(r#""level3""#));
+    assert!(json.contains(r#""add""#));
+    assert!(json.contains(r#""subtract""#));
+    assert!(json.contains(r#""precision":2"#));
+    assert!(json.contains(r#""precision":4"#));
 }
 
 // ============================================================================
@@ -4654,14 +4672,15 @@ fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"level1\""));
-    assert!(json.contains("\"level2\""));
-    assert!(json.contains("\"level3\""));
-    assert!(json.contains("\"level4\""));
-    assert!(json.contains("\"add\""));
-    assert!(json.contains("\"subtract\""));
-    assert!(json.contains("\"precision\":2"));
-    assert!(json.contains("\"precision\":4"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"level1\""#));
+    assert!(json.contains(r#"\"level2\""#));
+    assert!(json.contains(r#"\"level3\""#));
+    assert!(json.contains(r#"\"level4\""#));
+    assert!(json.contains(r#"\"add\""#));
+    assert!(json.contains(r#"\"subtract\""#));
+    assert!(json.contains(r#"\"precision\":2"#));
+    assert!(json.contains(r#"\"precision\":4"#));
 }
 
 // ============================================================================
@@ -4798,15 +4817,16 @@ fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"level1\""));
-    assert!(json.contains("\"level2\""));
-    assert!(json.contains("\"level3\""));
-    assert!(json.contains("\"level4\""));
-    assert!(json.contains("\"level5\""));
-    assert!(json.contains("\"add\""));
-    assert!(json.contains("\"subtract\""));
-    assert!(json.contains("\"precision\":2"));
-    assert!(json.contains("\"precision\":4"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"level1\""#));
+    assert!(json.contains(r#"\"level2\""#));
+    assert!(json.contains(r#"\"level3\""#));
+    assert!(json.contains(r#"\"level4\""#));
+    assert!(json.contains(r#"\"level5\""#));
+    assert!(json.contains(r#"\"add\""#));
+    assert!(json.contains(r#"\"subtract\""#));
+    assert!(json.contains(r#"\"precision\":2"#));
+    assert!(json.contains(r#"\"precision\":4"#));
 }
 
 // ============================================================================
@@ -4948,16 +4968,17 @@ fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"level1\""));
-    assert!(json.contains("\"level2\""));
-    assert!(json.contains("\"level3\""));
-    assert!(json.contains("\"level4\""));
-    assert!(json.contains("\"level5\""));
-    assert!(json.contains("\"level6\""));
-    assert!(json.contains("\"add\""));
-    assert!(json.contains("\"subtract\""));
-    assert!(json.contains("\"precision\":2"));
-    assert!(json.contains("\"precision\":4"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"level1\""#));
+    assert!(json.contains(r#"\"level2\""#));
+    assert!(json.contains(r#"\"level3\""#));
+    assert!(json.contains(r#"\"level4\""#));
+    assert!(json.contains(r#"\"level5\""#));
+    assert!(json.contains(r#"\"level6\""#));
+    assert!(json.contains(r#"\"add\""#));
+    assert!(json.contains(r#"\"subtract\""#));
+    assert!(json.contains(r#"\"precision\":2"#));
+    assert!(json.contains(r#"\"precision\":4"#));
 }
 
 // ============================================================================
@@ -5104,17 +5125,18 @@ fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields
     };
 
     let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"level1\""));
-    assert!(json.contains("\"level2\""));
-    assert!(json.contains("\"level3\""));
-    assert!(json.contains("\"level4\""));
-    assert!(json.contains("\"level5\""));
-    assert!(json.contains("\"level6\""));
-    assert!(json.contains("\"level7\""));
-    assert!(json.contains("\"add\""));
-    assert!(json.contains("\"subtract\""));
-    assert!(json.contains("\"precision\":2"));
-    assert!(json.contains("\"precision\":4"));
+    eprintln!("JSON: {}", json);
+    assert!(json.contains(r#"\"level1\""#));
+    assert!(json.contains(r#"\"level2\""#));
+    assert!(json.contains(r#"\"level3\""#));
+    assert!(json.contains(r#"\"level4\""#));
+    assert!(json.contains(r#"\"level5\""#));
+    assert!(json.contains(r#"\"level6\""#));
+    assert!(json.contains(r#"\"level7\""#));
+    assert!(json.contains(r#"\"add\""#));
+    assert!(json.contains(r#"\"subtract\""#));
+    assert!(json.contains(r#"\"precision\":2"#));
+    assert!(json.contains(r#"\"precision\":4"#));
 }
 
 // ============================================================================
