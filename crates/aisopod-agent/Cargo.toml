@@ -9,6 +9,7 @@ aisopod-config = { path = "../aisopod-config" }
 aisopod-provider = { path = "../aisopod-provider" }
 aisopod-tools = { path = "../aisopod-tools" }
 aisopod-session = { path = "../aisopod-session" }
+aisopod-memory = { path = "../aisopod-memory" }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 anyhow.workspace = true
@@ -16,3 +17,4 @@ thiserror.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 regex.workspace = true
+chrono.workspace = true

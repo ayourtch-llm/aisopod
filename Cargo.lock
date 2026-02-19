@@ -36,11 +36,13 @@ name = "aisopod-agent"
 version = "0.1.0"
 dependencies = [
  "aisopod-config",
+ "aisopod-memory",
  "aisopod-provider",
  "aisopod-session",
  "aisopod-shared",
  "aisopod-tools",
  "anyhow",
+ "chrono",
  "regex",
  "serde",
  "serde_json",

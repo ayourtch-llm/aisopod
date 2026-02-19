@@ -4,6 +4,7 @@
 //! including parameters, results, events, and usage reporting.
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// Session metadata for matching agents to sessions.
 ///
@@ -197,4 +198,30 @@ pub enum AgentEvent {
         /// The usage report.
         usage: UsageReport,
     },
+}
+
+/// Schema definition for a tool.
+///
+/// This type is used for documenting tool capabilities in system prompts.
+/// It contains the essential information about a tool: its name, description,
+/// and parameter schema.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolSchema {
+    /// The unique name of the tool.
+    pub name: String,
+    /// A human-readable description of what the tool does.
+    pub description: String,
+    /// The JSON Schema defining the tool's expected parameters.
+    pub parameters: Value,
+}
+
+impl ToolSchema {
+    /// Creates a new ToolSchema with the given name, description, and parameters.
+    pub fn new(name: impl Into<String>, description: impl Into<String>, parameters: Value) -> Self {
+        Self {
+            name: name.into(),
+            description: description.into(),
+            parameters,
+        }
+    }
 }
