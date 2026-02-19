@@ -65,13 +65,14 @@ pub mod registry;
 pub use registry::ToolRegistry;
 
 pub mod builtins;
-pub use builtins::{BashTool, FileTool, MessageSender, MessageTool, NoOpMessageSender};
+pub use builtins::{BashTool, FileTool, MessageSender, MessageTool, NoOpMessageSender, SubagentTool, NoOpAgentSpawner};
 
 /// Registers all built-in tools with the given registry.
 pub fn register_all_tools(registry: &mut ToolRegistry) {
     registry.register(Arc::new(BashTool::default()));
     registry.register(Arc::new(FileTool::new()));
     registry.register(Arc::new(MessageTool::new(Arc::new(NoOpMessageSender::default()))));
+    registry.register(Arc::new(SubagentTool::new(Arc::new(NoOpAgentSpawner::default()), 3, None)));
 }
 
 /// Configuration for the sandbox environment in which tools may execute.
@@ -182,6 +183,8 @@ pub struct ToolContext {
     pub sandbox_config: Option<SandboxConfig>,
     /// Optional handler for requesting user approvals before execution.
     pub approval_handler: Option<Arc<dyn ApprovalHandler>>,
+    /// Optional metadata for tool execution context.
+    pub metadata: Option<serde_json::Value>,
 }
 
 impl ToolContext {
@@ -193,6 +196,7 @@ impl ToolContext {
             workspace_path: None,
             sandbox_config: None,
             approval_handler: None,
+            metadata: None,
         }
     }
 
@@ -212,6 +216,17 @@ impl ToolContext {
     pub fn with_approval_handler(mut self, handler: Arc<dyn ApprovalHandler>) -> Self {
         self.approval_handler = Some(handler);
         self
+    }
+
+    /// Sets the metadata for tool execution.
+    pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
+        self.metadata = Some(metadata);
+        self
+    }
+
+    /// Gets a value from metadata by key.
+    pub fn metadata_get(&self, key: &str) -> Option<serde_json::Value> {
+        self.metadata.as_ref().and_then(|m| m.get(key).cloned())
     }
 }
 
