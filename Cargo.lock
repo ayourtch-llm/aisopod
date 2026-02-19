@@ -35,7 +35,11 @@ dependencies = [
 name = "aisopod-agent"
 version = "0.1.0"
 dependencies = [
+ "aisopod-config",
+ "aisopod-provider",
+ "aisopod-session",
  "aisopod-shared",
+ "aisopod-tools",
  "anyhow",
  "serde",
  "serde_json",

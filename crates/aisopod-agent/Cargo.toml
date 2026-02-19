@@ -5,6 +5,10 @@ edition.workspace = true
 
 [dependencies]
 aisopod-shared = { path = "../aisopod-shared" }
+aisopod-config = { path = "../aisopod-config" }
+aisopod-provider = { path = "../aisopod-provider" }
+aisopod-tools = { path = "../aisopod-tools" }
+aisopod-session = { path = "../aisopod-session" }
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
