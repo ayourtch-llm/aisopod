@@ -66,12 +66,46 @@ Message sending is how agents communicate back to users or other systems through
 - Issue 050 (Tool registry)
 
 ## Acceptance Criteria
-- [ ] `MessageTool` implements the `Tool` trait.
-- [ ] Messages can be sent to a specified channel with text content.
-- [ ] Optional `account` and `peer` targeting is supported.
-- [ ] `parameters_schema()` returns a valid JSON Schema.
-- [ ] A no-op sender exists for testing.
-- [ ] `cargo check -p aisopod-tools` compiles without errors.
+- [x] `MessageTool` implements the `Tool` trait.
+- [x] Messages can be sent to a specified channel with text content.
+- [x] Optional `account` and `peer` targeting is supported.
+- [x] `parameters_schema()` returns a valid JSON Schema.
+- [x] A no-op sender exists for testing.
+- [x] `cargo check -p aisopod-tools` compiles without errors.
+- [x] `cargo build` passes at top level.
+- [x] `cargo test` passes at top level.
+
+## Resolution
+This issue has been completed. The message sending tool was implemented with the following changes:
+
+### Changes Made
+1. **Created `crates/aisopod-tools/src/builtins/message.rs`** with:
+   - `MessageSender` trait defining the interface for message sending backends
+   - `MessageTool` struct implementing the `Tool` trait
+   - `NoOpMessageSender` for testing scenarios
+
+2. **Tool Implementation**:
+   - `name()` returns `"message"`
+   - `description()` returns `"Send a message to a channel"`
+   - `parameters_schema()` returns JSON Schema with `channel`, `content` (required), `account` (optional), and `peer` (optional)
+   - `execute()` parses parameters, validates required fields, and calls the sender
+
+3. **Tool Registration**:
+   - Added to `builtins/mod.rs` exports
+   - Registered in `register_all_tools()` function in `lib.rs`
+   - Exposed in the crate's public API
+
+4. **Testing**:
+   - Unit tests for tool name, description, schema
+   - Tests for successful message sending
+   - Tests for missing parameter validation
+   - Tests for no-op sender
+
+5. **Verification**:
+   - `cargo build` passes without errors (using `RUSTFLAGS=-Awarnings`)
+   - `cargo test` passes all tests including message-specific tests
+   - All integration tests pass
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-19*
