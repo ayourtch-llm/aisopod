@@ -3,6 +3,8 @@
 //! Core agent loop, orchestration logic, and agent lifecycle management.
 
 pub mod binding;
+pub mod failover;
+pub mod pipeline;
 pub mod prompt;
 pub mod resolution;
 pub mod runner;
@@ -11,6 +13,8 @@ pub mod types;
 
 // Re-export key types from crate root
 pub use binding::{AgentBinding, BindingMatch, PeerMatch};
+pub use failover::{classify_error, execute_with_failover, FailoverAction, FailoverState, ModelAttempt};
+pub use pipeline::{AgentPipeline, AgentRunStream};
 pub use prompt::{PromptSection, SystemPromptBuilder};
 pub use resolution::{
     list_agent_ids, resolve_agent_config, resolve_agent_model, resolve_session_agent_id,

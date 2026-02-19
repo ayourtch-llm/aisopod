@@ -34,6 +34,26 @@ name = "helpers"
 path = "tests/helpers/mod.rs"
 
 [[test]]
+name = "anthropic_tests"
+path = "tests/anthropic_tests.rs"
+
+[[test]]
+name = "openai_tests"
+path = "tests/openai_tests.rs"
+
+[[test]]
+name = "gemini_tests"
+path = "tests/gemini_tests.rs"
+
+[[test]]
+name = "bedrock_tests"
+path = "tests/bedrock_tests.rs"
+
+[[test]]
+name = "ollama_tests"
+path = "tests/ollama_tests.rs"
+
+[[test]]
 name = "unit_tests"
 path = "tests/unit_tests.rs"
 
@@ -44,6 +64,10 @@ path = "tests/streaming_tests.rs"
 [[test]]
 name = "error_handling_tests"
 path = "tests/error_handling_tests.rs"
+
+[[test]]
+name = "streaming_behavior_tests"
+path = "tests/streaming_behavior_tests.rs"
 
 [[test]]
 name = "auth_tests"

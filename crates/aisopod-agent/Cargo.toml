@@ -18,3 +18,5 @@ tracing.workspace = true
 tokio.workspace = true
 regex.workspace = true
 chrono.workspace = true
+futures-core.workspace = true
+futures-util.workspace = true

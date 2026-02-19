@@ -43,6 +43,8 @@ dependencies = [
  "aisopod-tools",
  "anyhow",
  "chrono",
+ "futures-core",
+ "futures-util",
  "regex",
  "serde",
  "serde_json",
