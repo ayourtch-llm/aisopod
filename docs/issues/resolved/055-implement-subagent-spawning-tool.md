@@ -70,12 +70,31 @@ Subagent spawning enables complex multi-step workflows where a primary agent del
 - Issue 050 (Tool registry)
 
 ## Acceptance Criteria
-- [ ] `SubagentTool` implements the `Tool` trait.
-- [ ] Subagents can be spawned with a name and prompt.
-- [ ] Depth limit enforcement prevents spawning beyond the configured maximum.
-- [ ] Model allowlist restricts which models subagents can use.
-- [ ] `parameters_schema()` returns a valid JSON Schema.
-- [ ] `cargo check -p aisopod-tools` compiles without errors.
+- [x] `SubagentTool` implements the `Tool` trait.
+- [x] Subagents can be spawned with a name and prompt.
+- [x] Depth limit enforcement prevents spawning beyond the configured maximum.
+- [x] Model allowlist restricts which models subagents can use.
+- [x] `parameters_schema()` returns a valid JSON Schema.
+- [x] `cargo check -p aisopod-tools` compiles without errors.
+
+## Resolution
+Implementation completed on 2026-02-19.
+
+The `SubagentTool` was implemented in `crates/aisopod-tools/src/builtins/subagent.rs` with the following features:
+
+- **`AgentSpawner` trait**: Defines the interface for spawning child agents with async support via `#[async_trait]`
+- **`SubagentTool` struct**: Implements the `Tool` trait with:
+  - `name()` returning `"subagent"`
+  - `description()` returning `"Spawn a child agent to handle a subtask"`
+  - `parameters_schema()` returning a JSON Schema with required parameters: `agent_name`, `prompt`, `model`
+  - `execute()` that validates parameters, checks depth limits via `ToolContext` metadata, enforces model allowlists, and delegates to the spawner
+- **Depth limit enforcement**: Checks `spawn_depth` in context metadata against configured `max_depth`
+- **Model allowlist**: Validates requested models against an optional allowlist
+- **`NoOpAgentSpawner`**: A no-op implementation for testing scenarios
+- **Comprehensive tests**: Unit tests covering name, description, schema, execution success, missing parameters, depth limits, and model allowlist
+
+The tool is registered in `register_all_tools()` with a default depth limit of 3 and no model allowlist.
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-19*

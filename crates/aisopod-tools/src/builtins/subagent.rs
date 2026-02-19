@@ -360,9 +360,10 @@ mod tests {
             )
             .await;
 
-        assert!(result.is_ok()); // Current implementation doesn't check allowlist
+        // The tool should return an Ok(ToolResult) with is_error=true for disallowed models
+        assert!(result.is_ok(), "execute should return Ok even for disallowed model");
         let output = result.unwrap();
-        assert!(output.is_error);
+        assert!(output.is_error, "ToolResult should have is_error=true for disallowed model");
         assert!(output.content.contains("not in the allowlist"));
     }
 
