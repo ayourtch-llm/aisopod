@@ -2430,6 +2430,7 @@ fn test_anthropic_tool_result_content_with_nested_object() {
     ];
 
     let json = serde_json::to_string(&content).unwrap();
+    eprintln!("JSON: {}", json);
     assert!(json.contains("\"Result: \""));
     assert!(json.contains("\"value\":42"));
 }
@@ -2928,6 +2929,7 @@ fn test_anthropic_tool_result_with_special_characters() {
     };
 
     let json = serde_json::to_string(&result).unwrap();
+    eprintln!("JSON: {}", json);
     assert!(json.contains("'quotes'"));
     assert!(json.contains("\"double quotes\""));
 }
