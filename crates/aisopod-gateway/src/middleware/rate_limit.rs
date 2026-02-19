@@ -73,12 +73,14 @@ impl RateLimiter {
             match self.state.entry(ip) {
                 dashmap::mapref::entry::Entry::Vacant(entry) => {
                     // New IP, allow the request
+                    eprintln!("Rate limiter: New IP entry created, timestamps.len() = 1");
                     let timestamps = vec![now];
                     entry.insert(timestamps);
                     return Ok(());
                 }
                 dashmap::mapref::entry::Entry::Occupied(mut entry) => {
                     let timestamps = entry.get_mut();
+                    eprintln!("Rate limiter: Existing IP entry, timestamps.len() before cleanup = {}", timestamps.len());
                     
                     // Remove expired timestamps (older than window_start)
                     let expired_count = timestamps.iter()
@@ -90,6 +92,7 @@ impl RateLimiter {
                     }
 
                     // Check if we've exceeded the limit
+                    eprintln!("Rate limiter check: timestamps.len() = {}, max_requests = {}, limit check: {} >= {} = {}", timestamps.len(), self.max_requests, timestamps.len(), self.max_requests, timestamps.len() >= self.max_requests as usize);
                     if timestamps.len() >= self.max_requests as usize {
                         // Calculate how long until the oldest request expires
                         let oldest = timestamps[0];

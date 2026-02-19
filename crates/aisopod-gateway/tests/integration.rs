@@ -10,8 +10,9 @@
 
 #![deny(unused_must_use)]
 
-use aisopod_config::types::{AuthConfig, AuthMode, GatewayConfig, WebUiConfig, RateLimitConfig};
+use aisopod_config::types::{AuthConfig, AuthMode, GatewayConfig, WebUiConfig};
 use aisopod_gateway::{run, server::run_with_config};
+use aisopod_gateway::middleware::RateLimitConfig;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use std::net::{SocketAddr, TcpListener};
 use std::sync::Arc;
@@ -57,6 +58,53 @@ fn wait_for_port_release(port: u16) {
         std::thread::sleep(delay);
     }
     // If we still can't bind, continue anyway - the server might have started
+}
+
+/// Wait for the server to be ready to accept WebSocket connections
+async fn wait_for_server_ready(addr: &str, max_attempts: u32, delay_ms: u64) {
+    let delay = Duration::from_millis(delay_ms);
+    
+    for attempt in 0..max_attempts {
+        // Try to connect to the WebSocket endpoint
+        let url = format!("ws://{}/ws", addr);
+        match connect_async(&url).await {
+            Ok((_ws, _response)) => {
+                // Successfully connected - server is ready
+                return;
+            }
+            Err(e) => {
+                // Connection failed, check if we should retry
+                let err_str = format!("{}", e);
+                
+                // Check for HTTP status codes in the error
+                if err_str.contains("401") || err_str.contains("403") {
+                    // Server is running but auth is required - this means the server is ready
+                    return;
+                }
+                
+                if err_str.contains("ConnectionRefused") || err_str.contains("Connection refused") {
+                    // Server not ready yet, wait and retry
+                    if attempt + 1 >= max_attempts {
+                        // Final attempt failed, panic with detailed info
+                        panic!("Server failed to start - connection refused at {}", addr);
+                    }
+                    tokio::time::sleep(delay).await;
+                } else {
+                    // Some other error, still retry
+                    if attempt + 1 >= max_attempts {
+                        panic!("Server failed to start at {}: {}", addr, e);
+                    }
+                    tokio::time::sleep(delay).await;
+                }
+            }
+        }
+    }
+    
+    // Should not reach here, but if we do, panic
+    let url = format!("ws://{}/ws", addr);
+    connect_async(&url)
+        .await
+        .expect(&format!("Server failed to start and accept WebSocket connections at {}", addr));
 }
 
 /// Configuration builder for gateway tests
@@ -139,7 +187,7 @@ impl GatewayTestConfig {
                 ..Default::default()
             },
             handshake_timeout: 5,
-            rate_limit: RateLimitConfig {
+            rate_limit: aisopod_config::types::RateLimitConfig {
                 max_requests: self.rate_limit_max_requests,
                 window: self.rate_limit_window,
             },
@@ -199,11 +247,8 @@ async fn start_test_server_with_auth(config: GatewayConfig, auth_mode: AuthMode,
     // This prevents port conflicts in parallel test execution
     wait_for_port_release(config.server.port);
     
-    // Give the server time to start
-    tokio::time::sleep(Duration::from_millis(100)).await;
-
     // Get the actual bound address
-    let address = format!("{}:{}", config.bind.address, config.server.port)
+    let address: SocketAddr = format!("{}:{}", config.bind.address, config.server.port)
         .parse()
         .unwrap();
 
@@ -211,8 +256,9 @@ async fn start_test_server_with_auth(config: GatewayConfig, auth_mode: AuthMode,
     // The shutdown_tx is dropped, allowing the server to run
     let _shutdown_rx: tokio::sync::oneshot::Receiver<()> = shutdown_rx;
 
-    // Small delay to ensure server is fully ready
-    tokio::time::sleep(Duration::from_millis(50)).await;
+    // Wait for server to be ready to accept connections
+    let addr_str = format!("{}:{}", config.bind.address, config.server.port);
+    wait_for_server_ready(&addr_str, 50, 100).await;
     
     address
 }

@@ -132,6 +132,7 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
         Duration::from_secs(config_rate_limit.window),
     );
     let rate_limiter = Arc::new(RateLimiter::new(rate_limit_config.clone()));
+    eprintln!("Created rate limiter with max_requests = {}, window = {:?}", rate_limit_config.max_requests, rate_limit_config.window);
     
     // Spawn the cleanup task
     let cleanup_limiter = rate_limiter.clone();
