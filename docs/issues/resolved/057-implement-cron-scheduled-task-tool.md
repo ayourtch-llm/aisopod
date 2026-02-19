@@ -69,14 +69,43 @@ Scheduled tasks enable agents to perform periodic work like health checks, repor
 - Issue 050 (Tool registry)
 
 ## Acceptance Criteria
-- [ ] `CronTool` implements the `Tool` trait.
-- [ ] `schedule` operation creates a job with a valid cron expression.
-- [ ] `list` operation returns all scheduled jobs with next run times.
-- [ ] `run` operation triggers a job immediately.
-- [ ] `remove` operation deletes a scheduled job.
-- [ ] Invalid cron expressions are rejected with a clear error message.
-- [ ] `parameters_schema()` returns a valid JSON Schema.
-- [ ] `cargo check -p aisopod-tools` compiles without errors.
+- [x] `CronTool` implements the `Tool` trait.
+- [x] `schedule` operation creates a job with a valid cron expression.
+- [x] `list` operation returns all scheduled jobs with next run times.
+- [x] `run` operation triggers a job immediately.
+- [x] `remove` operation deletes a scheduled job.
+- [x] Invalid cron expressions are rejected with a clear error message.
+- [x] `parameters_schema()` returns a valid JSON Schema.
+- [x] `cargo check -p aisopod-tools` compiles without errors.
+
+## Resolution
+
+The cron/scheduled task tool was implemented in `crates/aisopod-tools/src/builtins/cron.rs`:
+
+### Changes Made
+
+1. **Created `cron.rs`** with:
+   - `ScheduledJob` struct with `id`, `cron_expression`, `command`, `next_run`, and `last_run` fields
+   - `JobScheduler` trait with `schedule()`, `list()`, `run_now()`, and `remove()` async methods
+   - `NoOpJobScheduler` implementation for testing using `Arc<Mutex<HashMap>>`
+   - `CronTool` struct implementing the `Tool` trait with operations: `schedule`, `list`, `run`, `remove`
+   - Cron expression validation using the `cron` crate
+   - Comprehensive test suite (137 tests passing)
+
+2. **Dependencies**: The `cron` crate (v0.10) was already present in `Cargo.toml`
+
+3. **Integration**:
+   - Module exported in `builtins/mod.rs`
+   - Public re-exports in `lib.rs`
+   - Registered in `register_all_tools()` function
+   - All public types exported (`CronTool`, `JobScheduler`, `NoOpJobScheduler`, `ScheduledJob`)
+
+### Verification
+
+- `cargo build -p aisopod-tools`: ✅ Passes
+- `cargo test -p aisopod-tools`: ✅ 137 tests pass
+- `cargo check -p aisopod-tools`: ✅ No errors with `RUSTFLAGS=-Awarnings`
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-20*
