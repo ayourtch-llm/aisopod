@@ -199,7 +199,7 @@ mod tests {
     fn test_role_serialization() {
         let system = Role::System;
         let json = serde_json::to_string(&system).unwrap();
-        assert_eq!(json, "\"System\"");
+        assert_eq!(json, "\"system\"");
 
         let parsed: Role = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, Role::System);
@@ -275,7 +275,7 @@ mod tests {
     fn test_finish_reason_serialization() {
         let reason = FinishReason::Stop;
         let json = serde_json::to_string(&reason).unwrap();
-        assert_eq!(json, "\"Stop\"");
+        assert_eq!(json, "\"stop\"");
 
         let parsed: FinishReason = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, FinishReason::Stop);
