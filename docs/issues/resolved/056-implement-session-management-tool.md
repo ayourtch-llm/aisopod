@@ -65,13 +65,37 @@ Session management enables agents to coordinate across sessions, inspect session
 - Issue 050 (Tool registry)
 
 ## Acceptance Criteria
-- [ ] `SessionTool` implements the `Tool` trait.
-- [ ] `list` operation returns active sessions.
-- [ ] `send` operation sends a message to a specific session.
-- [ ] `patch` operation updates session metadata.
-- [ ] `history` operation retrieves recent session messages.
-- [ ] `parameters_schema()` returns a valid JSON Schema.
-- [ ] `cargo check -p aisopod-tools` compiles without errors.
+- [x] `SessionTool` implements the `Tool` trait.
+- [x] `list` operation returns active sessions.
+- [x] `send` operation sends a message to a specific session.
+- [x] `patch` operation updates session metadata.
+- [x] `history` operation retrieves recent session messages.
+- [x] `parameters_schema()` returns a valid JSON Schema.
+- [x] `cargo check -p aisopod-tools` compiles without errors.
+
+## Resolution
+
+**Date Resolved:** 2026-02-20
+
+**Changes Made:**
+1. Created `crates/aisopod-tools/src/builtins/session.rs` with:
+   - `SessionInfo` struct containing session metadata (id, agent_id, created_at, metadata)
+   - `SessionManager` trait for pluggable session management implementations
+   - `SessionTool` struct implementing the `Tool` trait with operations: `list`, `send`, `patch`, `history`
+   - `NoOpSessionManager` implementation for testing
+
+2. All acceptance criteria verified through:
+   - Compilation: `cargo build -p aisopod-tools` passes
+   - Unit tests: All 14 tests pass in `session.rs`
+
+3. Tool features:
+   - `list`: Returns list of active sessions with metadata
+   - `send`: Sends messages to specific sessions
+   - `patch`: Updates session metadata
+   - `history`: Retrieves message history for sessions
+
+4. Proper error handling for missing required parameters
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-20*
