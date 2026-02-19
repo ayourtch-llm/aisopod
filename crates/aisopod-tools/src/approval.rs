@@ -102,8 +102,8 @@ pub struct ApprovalRequest {
     pub operation: String,
     /// The risk level of the operation.
     pub risk_level: RiskLevel,
-    /// Optional timeout for this approval request.
-    pub timeout: Option<Duration>,
+    /// Timeout for this approval request.
+    pub timeout: Duration,
     /// Optional metadata about the request.
     pub metadata: Option<serde_json::Value>,
 }
@@ -136,14 +136,14 @@ impl ApprovalRequest {
             agent_id,
             operation,
             risk_level,
-            timeout: None,
+            timeout: Duration::from_secs(30),
             metadata: None,
         }
     }
 
     /// Sets the timeout for this approval request.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = Some(timeout);
+        self.timeout = timeout;
         self
     }
 
@@ -520,16 +520,15 @@ mod tests {
         assert_eq!(request.agent_id, "agent-1");
         assert_eq!(request.operation, "test operation");
         assert_eq!(request.risk_level, RiskLevel::Low);
-        assert!(request.timeout.is_none());
+        assert_eq!(request.timeout, Duration::from_secs(30));
     }
 
     #[test]
     fn test_approval_request_with_timeout() {
         let request =
             ApprovalRequest::new("agent-1", "test operation", RiskLevel::Low)
-                .with_timeout(Duration::from_secs(30));
-        assert!(request.timeout.is_some());
-        assert_eq!(request.timeout.unwrap(), Duration::from_secs(30));
+                .with_timeout(Duration::from_secs(60));
+        assert_eq!(request.timeout, Duration::from_secs(60));
     }
 
     #[test]
