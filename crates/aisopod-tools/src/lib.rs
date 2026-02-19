@@ -65,11 +65,13 @@ pub mod registry;
 pub use registry::ToolRegistry;
 
 pub mod builtins;
-pub use builtins::BashTool;
+pub use builtins::{BashTool, FileTool, MessageSender, MessageTool, NoOpMessageSender};
 
 /// Registers all built-in tools with the given registry.
 pub fn register_all_tools(registry: &mut ToolRegistry) {
     registry.register(Arc::new(BashTool::default()));
+    registry.register(Arc::new(FileTool::new()));
+    registry.register(Arc::new(MessageTool::new(Arc::new(NoOpMessageSender::default()))));
 }
 
 /// Configuration for the sandbox environment in which tools may execute.
