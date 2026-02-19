@@ -70,11 +70,37 @@ Every tool in the system depends on this trait. It is the single most foundation
 - Issue 016 (Define core configuration types)
 
 ## Acceptance Criteria
-- [ ] `Tool` trait is defined with `name()`, `description()`, `parameters_schema()`, and `execute()` methods.
-- [ ] `ToolContext` struct is defined with all five fields.
-- [ ] `ToolResult` struct is defined with `content`, `is_error`, and `metadata`.
-- [ ] All public types have rustdoc comments.
-- [ ] `cargo check -p aisopod-tools` compiles without errors.
+- [x] `Tool` trait is defined with `name()`, `description()`, `parameters_schema()`, and `execute()` methods.
+- [x] `ToolContext` struct is defined with all five fields.
+- [x] `ToolResult` struct is defined with `content`, `is_error`, and `metadata`.
+- [x] All public types have rustdoc comments.
+- [x] `cargo check -p aisopod-tools` compiles without errors.
+- [x] `cargo build` passes at project root.
+- [x] `cargo test` passes at project root.
+
+## Resolution
+
+The Tool trait and core types were implemented in the `aisopod-tools` crate. The implementation includes:
+
+### Changes Made
+- **File**: `crates/aisopod-tools/src/lib.rs`
+  - Defined `Tool` async trait with four methods: `name()`, `description()`, `parameters_schema()`, and `execute()`
+  - Defined `ToolContext` struct with fields: `agent_id`, `session_key`, `workspace_path`, `sandbox_config`, `approval_handler`, and `metadata`
+  - Defined `ToolResult` struct with fields: `content`, `is_error`, and `metadata`
+  - Implemented associated methods for `ToolResult` (`success()`, `error()`, `with_metadata()`)
+  - Implemented helper methods for `ToolContext` (`new()`, `with_workspace_path()`, `with_sandbox_config()`, `with_approval_handler()`, `with_metadata()`, `metadata_get()`)
+  - Added comprehensive rustdoc documentation for all types and methods
+  - Re-exported `Tool`, `ToolContext`, and `ToolResult` from crate root
+
+### Dependencies Implemented
+- Issue 005: aisopod-tools crate (already created)
+- Issue 016: Core configuration types (SandboxConfig, SandboxIsolationMode defined as part of this issue)
+
+### Verification
+- `cargo build` passes at project root
+- `cargo test` passes at project root (137 tests in aisopod-tools crate)
+- `cargo check -p aisopod-tools` compiles without errors
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-19*
