@@ -65,7 +65,7 @@ pub mod registry;
 pub use registry::ToolRegistry;
 
 pub mod builtins;
-pub use builtins::{BashTool, FileTool, MessageSender, MessageTool, NoOpMessageSender, SubagentTool, NoOpAgentSpawner};
+pub use builtins::{BashTool, FileTool, MessageSender, MessageTool, NoOpMessageSender, SubagentTool, NoOpAgentSpawner, SessionManager, SessionTool, NoOpSessionManager};
 
 /// Registers all built-in tools with the given registry.
 pub fn register_all_tools(registry: &mut ToolRegistry) {
@@ -73,6 +73,7 @@ pub fn register_all_tools(registry: &mut ToolRegistry) {
     registry.register(Arc::new(FileTool::new()));
     registry.register(Arc::new(MessageTool::new(Arc::new(NoOpMessageSender::default()))));
     registry.register(Arc::new(SubagentTool::new(Arc::new(NoOpAgentSpawner::default()), 3, None)));
+    registry.register(Arc::new(SessionTool::new(Arc::new(NoOpSessionManager::default()))));
 }
 
 /// Configuration for the sandbox environment in which tools may execute.
