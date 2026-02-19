@@ -61,20 +61,20 @@ impl FailoverState {
     }
 
     /// Gets the current model ID being attempted.
-    pub fn current_model(&self) -> &str {
+    pub fn current_model(&self) -> String {
         // Get all models first, then index into it
         let all_models = self.model_chain.all_models();
         if self.current_model_index < all_models.len() {
-            all_models[self.current_model_index].as_str()
+            all_models[self.current_model_index].clone()
         } else {
             // Fallback - should not happen in normal operation
-            self.model_chain.primary()
+            self.model_chain.primary().to_string()
         }
     }
 
     /// Advances to the next model in the chain.
     /// Returns Some(model_id) if there are more models, None if exhausted.
-    pub fn advance(&mut self) -> Option<&str> {
+    pub fn advance(&mut self) -> Option<String> {
         self.current_model_index += 1;
         if self.current_model_index < self.model_chain.all_models().len() {
             Some(self.current_model())
@@ -178,6 +178,8 @@ pub fn classify_error(error: &ProviderError) -> FailoverAction {
             // Unknown errors - abort
             FailoverAction::Abort
         }
+        // Handle any future variants that may be added to ProviderError
+        _ => FailoverAction::Abort,
     }
 }
 
@@ -243,16 +245,18 @@ where
                         // For now, we just failover since we don't have
                         // multiple auth credentials to try
                         // In a full implementation, this would switch credentials
-                        if state.can_retry_current_model() {
-                            current_attempts += 1;
-                            continue;
-                        } else {
-                            state.advance();
+                        if state.advance().is_some() {
                             emit_event(AgentEvent::ModelSwitch {
                                 from: model_id.clone(),
                                 to: state.current_model().to_string(),
                             });
                             current_attempts = 0;
+                        } else {
+                            // No more models to try
+                            return Err(format!(
+                                "All models exhausted. Last error: {}",
+                                error
+                            ));
                         }
                     }
                     FailoverAction::WaitAndRetry(duration) => {
@@ -344,9 +348,9 @@ mod tests {
         let mut state = FailoverState::new(&chain);
 
         assert_eq!(state.current_model(), "gpt-4");
-        assert_eq!(state.advance(), Some("gpt-3.5-turbo"));
+        assert_eq!(state.advance(), Some("gpt-3.5-turbo".to_string()));
         assert_eq!(state.current_model(), "gpt-3.5-turbo");
-        assert_eq!(state.advance(), Some("claude-3-opus"));
+        assert_eq!(state.advance(), Some("claude-3-opus".to_string()));
         assert_eq!(state.current_model(), "claude-3-opus");
         assert_eq!(state.advance(), None);
     }
@@ -431,8 +435,8 @@ mod tests {
         assert_eq!(action, FailoverAction::Abort);
     }
 
-    #[test]
-    fn test_execute_with_failover_success_first_attempt() {
+    #[tokio::test]
+    async fn test_execute_with_failover_success_first_attempt() {
         let chain = ModelChain::new("gpt-4");
         let mut state = FailoverState::new(&chain);
         let mut events: Vec<AgentEvent> = Vec::new();
@@ -441,8 +445,11 @@ mod tests {
             &mut state,
             &mut |event| events.push(event),
             |model_id| {
-                assert_eq!(model_id, "gpt-4");
-                Ok("success".to_string())
+                let model_id_clone = model_id.to_string();
+                async move {
+                    assert_eq!(model_id_clone, "gpt-4");
+                    Ok("success".to_string())
+                }
             },
         )
         .await;
@@ -453,8 +460,8 @@ mod tests {
         assert!(events.is_empty()); // No ModelSwitch events
     }
 
-    #[test]
-    fn test_execute_with_failover_failover_on_auth_error() {
+    #[tokio::test]
+    async fn test_execute_with_failover_failover_on_auth_error() {
         let chain = ModelChain::with_fallbacks(
             "gpt-4",
             vec!["gpt-3.5-turbo".to_string(), "claude-3-opus".to_string()],
@@ -467,13 +474,16 @@ mod tests {
             &mut state,
             &mut |event| events.push(event),
             |model_id| {
-                if model_id == "gpt-4" {
-                    Err(ProviderError::AuthenticationFailed {
-                        provider: "openai".to_string(),
-                        message: "Invalid API key".to_string(),
-                    })
-                } else {
-                    Ok("success".to_string())
+                let model_id_clone = model_id.to_string();
+                async move {
+                    if model_id_clone == "gpt-4" {
+                        Err(ProviderError::AuthenticationFailed {
+                            provider: "openai".to_string(),
+                            message: "Invalid API key".to_string(),
+                        })
+                    } else {
+                        Ok("success".to_string())
+                    }
                 }
             },
         )
@@ -491,8 +501,8 @@ mod tests {
         assert_eq!(model_switch_events.len(), 1);
     }
 
-    #[test]
-    fn test_execute_with_failover_all_models_exhausted() {
+    #[tokio::test]
+    async fn test_execute_with_failover_all_models_exhausted() {
         let chain = ModelChain::with_fallbacks(
             "gpt-4",
             vec!["gpt-3.5-turbo".to_string()],
@@ -500,14 +510,16 @@ mod tests {
         let mut state = FailoverState::new(&chain);
         let mut events: Vec<AgentEvent> = Vec::new();
 
-        let result = execute_with_failover(
+        let result: Result<String, String> = execute_with_failover(
             &mut state,
             &mut |event| events.push(event),
             |_model_id| {
-                Err(ProviderError::AuthenticationFailed {
-                    provider: "openai".to_string(),
-                    message: "Invalid API key".to_string(),
-                })
+                async move {
+                    Err(ProviderError::AuthenticationFailed {
+                        provider: "openai".to_string(),
+                        message: "Invalid API key".to_string(),
+                    })
+                }
             },
         )
         .await;

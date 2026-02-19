@@ -13,7 +13,7 @@ use crate::types::*;
 ///
 /// This enum provides a unified error interface that abstracts provider-specific
 /// error formats, enabling consistent error handling across all providers.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 #[non_exhaustive]
 pub enum ProviderError {
     /// Authentication failed with the provider.
@@ -60,8 +60,11 @@ pub enum ProviderError {
     },
 
     /// Network error occurred during communication.
-    #[error("Network error: {0}")]
-    NetworkError(#[from] reqwest::Error),
+    #[error("Network error: {message}")]
+    NetworkError {
+        provider: String,
+        message: String,
+    },
 
     /// Stream was closed unexpectedly.
     #[error("Stream closed unexpectedly")]
@@ -95,6 +98,9 @@ impl PartialEq for ProviderError {
             }
             (Self::ServerError { provider: p1, status: s1, message: m1 }, Self::ServerError { provider: p2, status: s2, message: m2 }) => {
                 p1 == p2 && s1 == s2 && m1 == m2
+            }
+            (Self::NetworkError { provider: p1, message: m1 }, Self::NetworkError { provider: p2, message: m2 }) => {
+                p1 == p2 && m1 == m2
             }
             (Self::StreamClosed, Self::StreamClosed) => true,
             (Self::Unknown { provider: p1, message: m1 }, Self::Unknown { provider: p2, message: m2 }) => {

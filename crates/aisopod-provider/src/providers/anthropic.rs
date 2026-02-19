@@ -69,6 +69,11 @@ impl AnthropicProvider {
             .map(|p| p.api_key.clone())
     }
 
+    /// Returns the base URL of the Anthropic API as an Option.
+    pub fn base_url(&self) -> Option<&str> {
+        Some(&self.base_url)
+    }
+
     /// Converts a core [`Message`] to an Anthropic message.
     fn convert_message(&self, message: &Message) -> Option<AnthropicMessage> {
         let role = match message.role {
@@ -100,7 +105,6 @@ impl AnthropicProvider {
                                     media_type: media_type.clone(),
                                     data: data.clone(),
                                 },
-                                _type: "image".to_string(),
                             });
                         }
                     }
@@ -136,12 +140,18 @@ impl AnthropicProvider {
         None
     }
 
+    /// Converts a string system prompt to a JSON Value.
+    fn system_prompt_to_value(prompt: Option<String>) -> Option<serde_json::Value> {
+        prompt.map(|p| serde_json::Value::String(p))
+    }
+
     /// Builds the Anthropic request from a core request.
     fn build_anthropic_request(
         &self,
         request: &ChatCompletionRequest,
     ) -> AnthropicRequest {
         let system_prompt = self.extract_system_prompt(&request.messages);
+        let system_value = Self::system_prompt_to_value(system_prompt);
 
         let mut anthropic_messages = Vec::new();
         for message in &request.messages {
@@ -160,12 +170,14 @@ impl AnthropicProvider {
         AnthropicRequest {
             model: request.model.clone(),
             messages: anthropic_messages,
-            system: system_prompt,
+            system: system_value,
             tools,
             temperature: request.temperature,
             max_tokens: request.max_tokens,
+            top_p: None,
             stop_sequences: request.stop.clone(),
             stream: request.stream,
+            metadata: None,
         }
     }
 
@@ -224,11 +236,11 @@ impl AnthropicProvider {
             },
             AnthropicSseEvent::ContentBlockStop { .. } => None,
             AnthropicSseEvent::MessageDelta { delta, usage, .. } => {
-                let finish_reason = delta.stop_reason.as_ref().and_then(|s| match s.as_str() {
-                    "end_turn" => Some(FinishReason::Stop),
-                    "max_tokens" => Some(FinishReason::Length),
-                    "tool_use" => Some(FinishReason::ToolCall),
-                    _ => None,
+                let finish_reason = delta.stop_reason.as_ref().and_then(|s| match s {
+                    AnthropicStopReason::EndTurn => Some(FinishReason::Stop),
+                    AnthropicStopReason::MaxTokens => Some(FinishReason::Length),
+                    AnthropicStopReason::ToolUse => Some(FinishReason::ToolCall),
+                    AnthropicStopReason::StopSequence => Some(FinishReason::Stop),
                 });
 
                 Some(ChatCompletionChunk {
@@ -558,7 +570,7 @@ mod tests {
         let anthropic_request = provider.build_anthropic_request(&request);
 
         assert_eq!(anthropic_request.model, "claude-3-5-sonnet-latest");
-        assert_eq!(anthropic_request.system, Some("System prompt".to_string()));
+        assert_eq!(anthropic_request.system, Some(serde_json::Value::String("System prompt".to_string())));
         assert_eq!(anthropic_request.messages.len(), 1);
         assert_eq!(anthropic_request.temperature, Some(0.7));
         assert_eq!(anthropic_request.max_tokens, Some(1000));

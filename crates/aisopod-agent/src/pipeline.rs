@@ -110,10 +110,11 @@ impl AgentPipeline {
                     let provider_clone = provider.clone();
                     let tools = agent_tools.clone();
                     let messages_clone = messages.clone();
+                    let model_id_clone = model_id.to_string();
                     
                     // Return an async block that will be awaited
                     async move {
-                        Self::call_model_async(&provider_clone, model_id, &messages_clone, &tools).await
+                        Self::call_model_async(&provider_clone, &model_id_clone, &messages_clone, &tools).await
                     }
                 },
             )
@@ -227,14 +228,23 @@ impl AgentPipeline {
             stream: true, // We need streaming for the full pipeline
         };
 
-        // Call the model
-        let mut stream = provider.chat_completion(request).await?;
+        // Call the model - convert anyhow::Error to ProviderError
+        let stream_result = provider.chat_completion(request).await
+            .map_err(|e| aisopod_provider::normalize::ProviderError::Unknown {
+                provider: model_id.to_string(),
+                message: e.to_string(),
+            });
+
+        let mut stream = stream_result?;
 
         let mut full_response = String::new();
         let mut tool_calls: Vec<aisopod_provider::ToolCall> = Vec::new();
 
         while let Some(chunk) = stream.next().await {
-            let chunk = chunk?;
+            let chunk = chunk.map_err(|e| aisopod_provider::normalize::ProviderError::Unknown {
+                provider: model_id.to_string(),
+                message: e.to_string(),
+            })?;
 
             // Handle text deltas
             if let Some(content) = &chunk.delta.content {
@@ -372,14 +382,23 @@ impl AgentPipeline {
             stream: true, // We need streaming for the full pipeline
         };
 
-        // Call the model
-        let mut stream = provider.chat_completion(request).await?;
+        // Call the model - convert anyhow::Error to ProviderError
+        let stream_result = provider.chat_completion(request).await
+            .map_err(|e| aisopod_provider::normalize::ProviderError::Unknown {
+                provider: model_id.to_string(),
+                message: e.to_string(),
+            });
+
+        let mut stream = stream_result?;
 
         let mut full_response = String::new();
         let mut tool_calls: Vec<aisopod_provider::ToolCall> = Vec::new();
 
         while let Some(chunk) = stream.next().await {
-            let chunk = chunk?;
+            let chunk = chunk.map_err(|e| aisopod_provider::normalize::ProviderError::Unknown {
+                provider: model_id.to_string(),
+                message: e.to_string(),
+            })?;
 
             // Handle text deltas
             if let Some(content) = &chunk.delta.content {
