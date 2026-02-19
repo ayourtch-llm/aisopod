@@ -5,6 +5,70 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Session metadata for matching agents to sessions.
+///
+/// Contains information about a session that can be used to determine
+/// which agent should handle it, such as channel, account, peer, and guild information.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SessionMetadata {
+    /// The channel ID associated with the session.
+    #[serde(default)]
+    pub channel: Option<String>,
+    /// The account ID associated with the session.
+    #[serde(default)]
+    pub account_id: Option<String>,
+    /// The peer ID associated with the session.
+    #[serde(default)]
+    pub peer: Option<String>,
+    /// The guild ID associated with the session.
+    #[serde(default)]
+    pub guild_id: Option<String>,
+}
+
+impl SessionMetadata {
+    /// Creates a new SessionMetadata with all fields set to None.
+    pub fn new() -> Self {
+        Self {
+            channel: None,
+            account_id: None,
+            peer: None,
+            guild_id: None,
+        }
+    }
+
+    /// Creates a new SessionMetadata with the given channel.
+    pub fn with_channel(channel: impl Into<String>) -> Self {
+        Self {
+            channel: Some(channel.into()),
+            ..Self::new()
+        }
+    }
+
+    /// Creates a new SessionMetadata with the given account ID.
+    pub fn with_account_id(account_id: impl Into<String>) -> Self {
+        Self {
+            account_id: Some(account_id.into()),
+            ..Self::new()
+        }
+    }
+
+    /// Creates a new SessionMetadata with the given peer.
+    pub fn with_peer(peer: impl Into<String>) -> Self {
+        Self {
+            peer: Some(peer.into()),
+            ..Self::new()
+        }
+    }
+
+    /// Creates a new SessionMetadata with the given guild ID.
+    pub fn with_guild_id(guild_id: impl Into<String>) -> Self {
+        Self {
+            guild_id: Some(guild_id.into()),
+            ..Self::new()
+        }
+    }
+}
+
 /// Parameters for running an agent.
 ///
 /// Contains the session key, message history, and agent ID
