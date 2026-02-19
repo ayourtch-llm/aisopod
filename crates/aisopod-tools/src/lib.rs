@@ -11,6 +11,16 @@
 //! - [`ToolResult`]: The result returned by tool execution.
 //! - [`ToolRegistry`]: Central registry for managing registered tools.
 //!
+//! ## Schema Normalization
+//!
+//! This crate also provides tool schema normalization functions:
+//!
+//! - [`schema::ToolDefinition`]: The internal tool definition type.
+//! - [`schema::to_anthropic_format`]: Convert to Anthropic's tool format.
+//! - [`schema::to_openai_format`]: Convert to OpenAI's function calling format.
+//! - [`schema::to_gemini_format`]: Convert to Gemini's function declaration format.
+//! - Batch conversion functions for arrays of tools.
+//!
 //! ## Example
 //!
 //! ```ignore
@@ -63,6 +73,9 @@ pub use policy::{ToolPolicy, ToolPolicyEngine};
 
 pub mod registry;
 pub use registry::ToolRegistry;
+
+pub mod schema;
+pub use schema::{ToolDefinition, to_anthropic_batch, to_anthropic_format, to_gemini_batch, to_gemini_format, to_openai_batch, to_openai_format};
 
 pub mod approval;
 pub use approval::{
