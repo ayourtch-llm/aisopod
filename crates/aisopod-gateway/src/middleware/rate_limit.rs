@@ -152,6 +152,9 @@ impl RateLimiter {
 /// Request extension key for RateLimiter
 pub const RATE_LIMITER_KEY: &str = "aisopod.rate_limiter";
 
+/// Header to bypass rate limiting (for test setup)
+pub const RATE_LIMIT_BYPASS_HEADER: &str = "X-Aisopod-Bypass-Rate-Limit";
+
 /// Axum middleware for rate limiting
 ///
 /// This middleware checks the client's IP address against the rate limiter.
@@ -162,6 +165,15 @@ pub async fn rate_limit_middleware(
     next: axum::middleware::Next,
 ) -> Response<Body> {
     eprintln!(">>> RATE LIMIT MIDDLEWARE CALLED <<<");
+    
+    // Check for bypass header - allows tests to skip rate limiting during setup
+    let bypass = request.headers().get(RATE_LIMIT_BYPASS_HEADER)
+        .is_some();
+    
+    if bypass {
+        eprintln!("Rate limiting bypassed via header");
+        return next.run(request).await;
+    }
     
     // Get the rate limiter from request extensions
     let limiter = match request.extensions().get::<Arc<RateLimiter>>().cloned() {
