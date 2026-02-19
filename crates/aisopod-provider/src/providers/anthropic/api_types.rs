@@ -133,12 +133,24 @@ pub enum AnthropicSseEvent {
     #[serde(rename = "message_delta")]
     MessageDelta {
         delta: AnthropicMessageDelta,
+        #[serde(default)]
         usage: AnthropicUsage,
     },
     #[serde(rename = "message_stop")]
     MessageStop,
     #[serde(rename = "ping")]
     Ping,
+    #[serde(rename = "error")]
+    Error {
+        error: AnthropicSseError,
+    },
+}
+
+/// Error object in Anthropic SSE stream.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AnthropicSseError {
+    pub r#type: String,
+    pub message: String,
 }
 
 /// Message event in Anthropic SSE stream.
@@ -162,6 +174,7 @@ pub struct AnthropicMessageEvent {
 
 /// Content block delta in Anthropic SSE stream.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum AnthropicContentBlockDelta {
     #[serde(rename = "text_delta")]
     TextDelta { text: String },
@@ -179,7 +192,7 @@ pub struct AnthropicMessageDelta {
 }
 
 /// Usage statistics in Anthropic API response.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct AnthropicUsage {
     pub input_tokens: u32,
     pub output_tokens: u32,

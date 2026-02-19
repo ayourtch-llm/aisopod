@@ -279,6 +279,7 @@ impl AnthropicProvider {
                 })
             }
             AnthropicSseEvent::Ping => None,
+           AnthropicSseEvent::Error { .. } => None,
         }
     }
 

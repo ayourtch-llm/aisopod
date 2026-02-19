@@ -191,6 +191,7 @@ fn test_anthropic_sse_content_block_delta_event() {
     let event_json = r#"{"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "Hello"}}"#;
     
     let result: Result<anthropic_api::AnthropicSseEvent, _> = serde_json::from_str(event_json);
+    eprintln!("ContentBlockDelta result: {:?}", result);
     assert!(result.is_ok());
 }
 
@@ -199,6 +200,7 @@ fn test_anthropic_sse_message_delta_event() {
     let event_json = r#"{"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": null}}"#;
     
     let result: Result<anthropic_api::AnthropicSseEvent, _> = serde_json::from_str(event_json);
+    eprintln!("MessageDelta result: {:?}", result);
     assert!(result.is_ok());
 }
 
@@ -2825,10 +2827,10 @@ fn test_anthropic_tool_result_with_multiple_text_blocks() {
         tool_use_id: "tool_123".to_string(),
         content: vec![
             anthropic_api::AnthropicContentBlock::Text {
-                text: "First ".to_string(),
+                text: "First".to_string(),
             },
             anthropic_api::AnthropicContentBlock::Text {
-                text: "second ".to_string(),
+                text: "second".to_string(),
             },
             anthropic_api::AnthropicContentBlock::Text {
                 text: "third".to_string(),

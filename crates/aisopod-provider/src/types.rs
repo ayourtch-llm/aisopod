@@ -10,12 +10,16 @@ use serde::{Deserialize, Serialize};
 #[non_exhaustive]
 pub enum Role {
     /// A system message that provides high-level instructions to the model.
+    #[serde(rename = "system")]
     System,
     /// A user message representing input from the end user.
+    #[serde(rename = "user")]
     User,
     /// An assistant message representing the model's response.
+    #[serde(rename = "assistant")]
     Assistant,
     /// A tool message representing the result of a tool execution.
+    #[serde(rename = "tool")]
     Tool,
 }
 
@@ -105,14 +109,19 @@ pub struct ChatCompletionRequest {
 #[non_exhaustive]
 pub enum FinishReason {
     /// The model reached a natural stop point.
+    #[serde(rename = "stop")]
     Stop,
     /// The model reached the maximum token limit.
+    #[serde(rename = "length")]
     Length,
     /// The model triggered a tool call.
+    #[serde(rename = "tool_call")]
     ToolCall,
     /// The content was filtered due to safety policies.
+    #[serde(rename = "content_filter")]
     ContentFilter,
     /// An error occurred during completion.
+    #[serde(rename = "error")]
     Error,
 }
 
