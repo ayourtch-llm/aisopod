@@ -6,6 +6,7 @@ pub mod binding;
 pub mod prompt;
 pub mod resolution;
 pub mod runner;
+pub mod transcript;
 pub mod types;
 
 // Re-export key types from crate root
@@ -16,4 +17,5 @@ pub use resolution::{
     ModelChain, ResolutionConfig,
 };
 pub use runner::AgentRunner;
+pub use transcript::{repair_transcript, ProviderKind};
 pub use types::{AgentEvent, AgentRunParams, AgentRunResult, SessionMetadata, UsageReport};
