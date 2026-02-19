@@ -64,6 +64,14 @@ pub use policy::{ToolPolicy, ToolPolicyEngine};
 pub mod registry;
 pub use registry::ToolRegistry;
 
+pub mod builtins;
+pub use builtins::BashTool;
+
+/// Registers all built-in tools with the given registry.
+pub fn register_all_tools(registry: &mut ToolRegistry) {
+    registry.register(Arc::new(BashTool::default()));
+}
+
 /// Configuration for the sandbox environment in which tools may execute.
 ///
 /// This type defines the isolation and resource constraints for tool execution.
