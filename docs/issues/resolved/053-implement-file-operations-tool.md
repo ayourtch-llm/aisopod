@@ -70,15 +70,41 @@ File operations are essential for agents that read code, write files, and naviga
 - Issue 050 (Tool registry)
 
 ## Acceptance Criteria
-- [ ] `FileTool` implements the `Tool` trait.
-- [ ] `read` operation returns file contents.
-- [ ] `write` operation creates or overwrites files.
-- [ ] `search` operation finds files by glob pattern and text content.
-- [ ] `list` operation returns directory contents.
-- [ ] `metadata` operation returns file size, permissions, and modification time.
-- [ ] Workspace path restriction prevents access outside the workspace.
-- [ ] `parameters_schema()` returns a valid JSON Schema.
-- [ ] `cargo check -p aisopod-tools` compiles without errors.
+- [x] `FileTool` implements the `Tool` trait.
+- [x] `read` operation returns file contents.
+- [x] `write` operation creates or overwrites files.
+- [x] `search` operation finds files by glob pattern and text content.
+- [x] `list` operation returns directory contents.
+- [x] `metadata` operation returns file size, permissions, and modification time.
+- [x] Workspace path restriction prevents access outside the workspace.
+- [x] `parameters_schema()` returns a valid JSON Schema.
+- [x] `cargo check -p aisopod-tools` compiles without errors.
+- [x] All tests pass (`cargo test -p aisopod-tools`).
+
+## Resolution
+
+This issue was resolved by implementing the complete `FileTool` in `crates/aisopod-tools/src/builtins/file.rs`. The implementation includes:
+
+- **Tool Implementation**: `FileTool` struct implementing the `Tool` trait with:
+  - `name()` returning `"file"`
+  - `description()` returning `"Read, write, search, list, and inspect files"`
+  - `parameters_schema()` returning a JSON Schema with all operation parameters
+
+- **Operations**:
+  - `read`: Reads file contents as text
+  - `write`: Writes content to a file, creating parent directories as needed
+  - `search`: Searches for files matching glob patterns using `walkdir` and `glob_match`
+  - `list`: Lists directory contents with metadata (size, permissions, modification time)
+  - `metadata`: Returns detailed file/directory metadata in JSON format
+
+- **Security**: All file operations resolve paths relative to the workspace directory and reject path traversal attempts outside the workspace.
+
+- **Tests**: Comprehensive test suite covering all operations, edge cases, and security checks.
+
+- **Registration**: The tool is registered in `builtins/mod.rs` and `lib.rs`.
+
+The implementation passed all acceptance criteria with `cargo build` and `cargo test` at the project root.
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-19*
