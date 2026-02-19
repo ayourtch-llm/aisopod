@@ -64,6 +64,12 @@ pub use policy::{ToolPolicy, ToolPolicyEngine};
 pub mod registry;
 pub use registry::ToolRegistry;
 
+pub mod approval;
+pub use approval::{
+    is_auto_approved, ApprovalError, ApprovalHandler, ApprovalRequest, ApprovalResponse,
+    ApprovalState, ApprovalStateTracker, ApprovalSummary, RiskLevel,
+};
+
 pub mod builtins;
 pub use builtins::{BashTool, CanvasRenderer, CanvasTool, CronTool, FileTool, InMemoryCanvasRenderer, JobScheduler, MessageSender, MessageTool, NoOpAgentSpawner, NoOpJobScheduler, NoOpMessageSender, NoOpSessionManager, ScheduledJob, SessionManager, SessionTool, SubagentTool};
 
@@ -101,33 +107,6 @@ pub enum SandboxIsolationMode {
     Subprocess,
     /// Runs in a containerized environment.
     Container,
-}
-
-/// Trait for handling tool execution approvals.
-///
-/// Tools that require approval before execution will interact with an
-/// implementation of this trait to obtain user approval.
-pub trait ApprovalHandler: Send + Sync {
-    /// Request approval for a tool execution.
-    ///
-    /// Returns `Ok(true)` if approved, `Ok(false)` if denied.
-    fn request_approval(
-        &self,
-        tool_name: &str,
-        description: &str,
-        params: &serde_json::Value,
-    ) -> Result<bool, ApprovalError>;
-}
-
-/// Error type for approval-related failures.
-#[derive(Debug, thiserror::Error, Clone)]
-pub enum ApprovalError {
-    /// The approval request was denied by the user.
-    #[error("Approval denied")]
-    Denied,
-    /// The approval handler encountered an internal error.
-    #[error("Approval handler error: {0}")]
-    HandlerError(String),
 }
 
 /// The result of a tool execution.

@@ -10,6 +10,7 @@ use serde_json::{json, Value};
 use tokio::process::Command;
 
 use crate::{Tool, ToolContext, ToolResult};
+use crate::approval::{is_auto_approved, ApprovalRequest, ApprovalResponse, RiskLevel};
 
 /// A built-in tool that executes shell commands.
 ///
@@ -73,57 +74,14 @@ impl BashTool {
     pub fn with_defaults() -> Self {
         Self::default()
     }
-}
 
-#[async_trait]
-impl Tool for BashTool {
-    fn name(&self) -> &str {
-        "bash"
-    }
-
-    fn description(&self) -> &str {
-        "Execute a shell command"
-    }
-
-    fn parameters_schema(&self) -> Value {
-        json!({
-            "type": "object",
-            "properties": {
-                "command": {
-                    "type": "string",
-                    "description": "The shell command to execute"
-                },
-                "timeout": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "description": "Optional timeout in seconds (overrides default)"
-                },
-                "working_dir": {
-                    "type": "string",
-                    "description": "Optional working directory (overrides default)"
-                },
-                "env": {
-                    "type": "object",
-                    "additionalProperties": { "type": "string" },
-                    "description": "Optional environment variables as key-value pairs"
-                }
-            },
-            "required": ["command"]
-        })
-    }
-
-    async fn execute(&self, params: Value, ctx: &ToolContext) -> Result<ToolResult> {
-        // Extract command parameter (required)
-        let command_str = params
-            .get("command")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Missing required parameter 'command'"))?;
-
-        // Check for empty command
-        if command_str.trim().is_empty() {
-            return Ok(ToolResult::error("Command cannot be empty"));
-        }
-
+    /// Internal method to execute a command with all parameters extracted.
+    async fn execute_command(
+        &self,
+        command_str: &str,
+        params: &Value,
+        ctx: &ToolContext,
+    ) -> Result<ToolResult> {
         // Extract optional timeout (in seconds)
         let timeout = params
             .get("timeout")
@@ -217,6 +175,98 @@ impl Tool for BashTool {
                     "Command was terminated by a signal".to_string(),
                 ))
             }
+        }
+    }
+}
+
+#[async_trait]
+impl Tool for BashTool {
+    fn name(&self) -> &str {
+        "bash"
+    }
+
+    fn description(&self) -> &str {
+        "Execute a shell command"
+    }
+
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string",
+                    "description": "The shell command to execute"
+                },
+                "timeout": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Optional timeout in seconds (overrides default)"
+                },
+                "working_dir": {
+                    "type": "string",
+                    "description": "Optional working directory (overrides default)"
+                },
+                "env": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string" },
+                    "description": "Optional environment variables as key-value pairs"
+                }
+            },
+            "required": ["command"]
+        })
+    }
+
+    async fn execute(&self, params: Value, ctx: &ToolContext) -> Result<ToolResult> {
+        // Extract command parameter (required)
+        let command_str = params
+            .get("command")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("Missing required parameter 'command'"))?;
+
+        // Check for empty command
+        if command_str.trim().is_empty() {
+            return Ok(ToolResult::error("Command cannot be empty"));
+        }
+
+        // Check if command is auto-approved (safe)
+        if is_auto_approved(command_str) {
+            // Command is safe, execute directly
+            return self.execute_command(command_str, &params, ctx).await;
+        }
+
+        // Check if approval handler is available
+        if let Some(approval_handler) = &ctx.approval_handler {
+            // Create approval request
+            let request = ApprovalRequest::new(
+                &ctx.agent_id,
+                format!("Execute bash command: {}", command_str),
+                RiskLevel::Medium,
+            )
+            .with_timeout(Duration::from_secs(60));
+
+            // Request approval
+            let response = approval_handler
+                .request_approval(request)
+                .await?;
+
+            // Only proceed if approved
+            match response {
+                ApprovalResponse::Approved => {
+                    return self.execute_command(command_str, &params, ctx).await;
+                }
+                ApprovalResponse::Denied { reason } => {
+                    return Ok(ToolResult::error(format!(
+                        "Command execution denied: {}",
+                        reason
+                    )));
+                }
+                ApprovalResponse::TimedOut => {
+                    return Ok(ToolResult::error("Command execution timed out (approval timeout)"));
+                }
+            }
+        } else {
+            // No approval handler available - execute without approval (backward compatible)
+            return self.execute_command(command_str, &params, ctx).await;
         }
     }
 }
