@@ -90,12 +90,52 @@ This is the heart of the agent engine. Without it, no agent can execute. It inte
 - Issue 050 (Tool registry — for executing tools)
 
 ## Acceptance Criteria
-- [ ] `AgentRunner::run()` executes the full pipeline from resolution to completion.
-- [ ] Events are streamed via `tokio::mpsc` to subscribers.
-- [ ] The tool call loop executes tools and returns results to the model.
-- [ ] `TextDelta`, `ToolCallStart`, `ToolCallResult`, `Complete`, and `Error` events are emitted at the correct points.
-- [ ] `AgentRunStream` provides an ergonomic receiver interface.
-- [ ] `cargo check -p aisopod-agent` succeeds without errors.
+- [x] `AgentRunner::run()` executes the full pipeline from resolution to completion.
+- [x] Events are streamed via `tokio::mpsc` to subscribers.
+- [x] The tool call loop executes tools and returns results to the model.
+- [x] `TextDelta`, `ToolCallStart`, `ToolCallResult`, `Complete`, and `Error` events are emitted at the correct points.
+- [x] `AgentRunStream` provides an ergonomic receiver interface.
+- [x] `cargo check -p aisopod-agent` succeeds without errors.
+
+## Resolution
+
+The streaming agent execution pipeline was implemented as specified:
+
+### Changes Made:
+1. **Created `crates/aisopod-agent/src/pipeline.rs`**:
+   - `AgentPipeline` struct implementing the full execution sequence:
+     - Agent resolution via `resolve_session_agent_id()`
+     - Agent config retrieval via `resolve_agent_config()`
+     - Model chain resolution via `resolve_agent_model()`
+     - Tool set preparation via `self.tools.schemas_for_agent()`
+     - System prompt construction using `SystemPromptBuilder`
+     - Transcript repair using `repair_transcript()`
+     - Model calling in a loop with tool call handling
+   - Tool call loop implementation:
+     - `AgentEvent::ToolCallStart` emitted for each tool
+     - Tool execution via tool registry
+     - `AgentEvent::ToolCallResult` with results
+     - Continue until model returns final text response
+   - Event streaming via `tokio::mpsc` channels
+   - `AgentRunStream` wrapper for the event receiver
+
+2. **Updated `crates/aisopod-agent/src/runner.rs`**:
+   - Replaced `todo!()` in `AgentRunner::run()` with pipeline invocation
+   - Wired up `subscribe()` for multi-subscriber support
+
+3. **Updated `crates/aisopod-agent/src/lib.rs`**:
+   - `pipeline` module already exposed
+
+### Commits:
+- `c6c0f39`: Initial implementation of streaming agent execution pipeline
+- `05d4e82`: Fix pipeline to properly handle tool call loop
+
+### Verification:
+- `cargo test -p aisopod-agent`: 108 tests passed
+- `cargo build` at top level: succeeded
+- `cargo check -p aisopod-agent`: clean
+- No `todo!()` macros in `aisopod-agent`
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-20*
