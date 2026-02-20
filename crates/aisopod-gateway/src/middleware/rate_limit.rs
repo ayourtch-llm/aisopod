@@ -69,40 +69,38 @@ impl RateLimiter {
         let now = Instant::now();
         let window_start = now - self.window;
 
-        loop {
-            match self.state.entry(ip) {
-                dashmap::mapref::entry::Entry::Vacant(entry) => {
-                    // New IP, allow the request
-                    eprintln!("Rate limiter: New IP entry created, timestamps.len() = 1");
-                    let timestamps = vec![now];
-                    entry.insert(timestamps);
-                    return Ok(());
+        match self.state.entry(ip) {
+            dashmap::mapref::entry::Entry::Vacant(entry) => {
+                // New IP, allow the request
+                eprintln!("Rate limiter: New IP entry created, timestamps.len() = 1");
+                let timestamps = vec![now];
+                entry.insert(timestamps);
+                Ok(())
+            }
+            dashmap::mapref::entry::Entry::Occupied(mut entry) => {
+                let timestamps = entry.get_mut();
+                eprintln!("Rate limiter: Existing IP entry, timestamps.len() before cleanup = {}", timestamps.len());
+                
+                // Remove expired timestamps (older than window_start)
+                let expired_count = timestamps.iter()
+                    .take_while(|&&t| t < window_start)
+                    .count();
+                
+                if expired_count > 0 {
+                    timestamps.drain(0..expired_count);
                 }
-                dashmap::mapref::entry::Entry::Occupied(mut entry) => {
-                    let timestamps = entry.get_mut();
-                    eprintln!("Rate limiter: Existing IP entry, timestamps.len() before cleanup = {}", timestamps.len());
-                    
-                    // Remove expired timestamps (older than window_start)
-                    let expired_count = timestamps.iter()
-                        .take_while(|&&t| t < window_start)
-                        .count();
-                    
-                    if expired_count > 0 {
-                        timestamps.drain(0..expired_count);
-                    }
 
-                    // Check if we've exceeded the limit
-                    eprintln!("Rate limiter check: timestamps.len() = {}, max_requests = {}, limit check: {} >= {} = {}", timestamps.len(), self.max_requests, timestamps.len(), self.max_requests, timestamps.len() >= self.max_requests as usize);
-                    if timestamps.len() >= self.max_requests as usize {
-                        // Calculate how long until the oldest request expires
-                        let oldest = timestamps[0];
-                        let retry_after = (oldest + self.window) - now;
-                        return Err(retry_after.max(Duration::from_secs(1)));
-                    }
-
+                // Check if we've exceeded the limit
+                eprintln!("Rate limiter check: timestamps.len() = {}, max_requests = {}, limit check: {} >= {} = {}", timestamps.len(), self.max_requests, timestamps.len(), self.max_requests, timestamps.len() >= self.max_requests as usize);
+                if timestamps.len() >= self.max_requests as usize {
+                    // Calculate how long until the oldest request expires
+                    let oldest = timestamps[0];
+                    let retry_after = (oldest + self.window) - now;
+                    Err(retry_after.max(Duration::from_secs(1)))
+                } else {
                     // Add current timestamp and allow
                     timestamps.push(now);
-                    return Ok(());
+                    Ok(())
                 }
             }
         }

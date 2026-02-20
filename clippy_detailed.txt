@@ -1,0 +1,1144 @@
+    Checking aisopod-shared v0.1.0 (/home/ayourtch/rust/aisopod/crates/aisopod-shared)
+    Checking aisopod-config v0.1.0 (/home/ayourtch/rust/aisopod/crates/aisopod-config)
+    Checking aisopod-memory v0.1.0 (/home/ayourtch/rust/aisopod/crates/aisopod-memory)
+    Checking aisopod-provider v0.1.0 (/home/ayourtch/rust/aisopod/crates/aisopod-provider)
+    Checking aisopod-session v0.1.0 (/home/ayourtch/rust/aisopod/crates/aisopod-session)
+    Checking aisopod-tools v0.1.0 (/home/ayourtch/rust/aisopod/crates/aisopod-tools)
+    Checking aisopod-channel v0.1.0 (/home/ayourtch/rust/aisopod/crates/aisopod-channel)
+    Checking aisopod-plugin v0.1.0 (/home/ayourtch/rust/aisopod/crates/aisopod-plugin)
+error: unused import: `error`
+  --> crates/aisopod-tools/src/builtins/cron.rs:13:22
+   |
+13 | use tracing::{debug, error};
+   |                      ^^^^^
+   |
+   = note: `-D unused-imports` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(unused_imports)]`
+
+error: unused import: `read_dir`
+  --> crates/aisopod-tools/src/builtins/file.rs:11:33
+   |
+11 | use tokio::fs::{create_dir_all, read_dir};
+   |                                 ^^^^^^^^
+
+error: unused import: `VecDeque`
+ --> crates/aisopod-provider/src/auth.rs:7:33
+  |
+7 | use std::collections::{HashMap, VecDeque};
+  |                                 ^^^^^^^^
+  |
+  = note: `-D unused-imports` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(unused_imports)]`
+
+error: unused import: `debug`
+  --> crates/aisopod-provider/src/discovery.rs:11:15
+   |
+11 | use tracing::{debug, error, info};
+   |               ^^^^^
+
+error: unexpected `cfg` condition value: `mock-server`
+   --> crates/aisopod-provider/src/helpers.rs:181:7
+    |
+181 | #[cfg(feature = "mock-server")]
+    |       ^^^^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+    |
+    = note: no expected values for `feature`
+    = help: consider adding `mock-server` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `-D unexpected-cfgs` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unexpected_cfgs)]`
+
+error: unexpected `cfg` condition value: `mock-server`
+   --> crates/aisopod-provider/src/helpers.rs:187:7
+    |
+187 | #[cfg(feature = "mock-server")]
+    |       ^^^^^^^^^^^^^^^^^^^^^^^ help: remove the condition
+    |
+    = note: no expected values for `feature`
+    = help: consider adding `mock-server` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+error: unused imports: `Arc` and `Mutex`
+ --> crates/aisopod-provider/src/helpers.rs:6:17
+  |
+6 | use std::sync::{Arc, Mutex};
+  |                 ^^^  ^^^^^
+
+error: unused import: `futures_core::Stream`
+ --> crates/aisopod-provider/src/helpers.rs:9:5
+  |
+9 | use futures_core::Stream;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+error: unused import: `self`
+  --> crates/aisopod-provider/src/helpers.rs:10:28
+   |
+10 | use futures_util::stream::{self, StreamExt};
+   |                            ^^^^
+
+error: unused import: `pin_project_lite::pin_project`
+  --> crates/aisopod-provider/src/helpers.rs:11:5
+   |
+11 | use pin_project_lite::pin_project;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: unused import: `std::pin::Pin`
+  --> crates/aisopod-provider/src/helpers.rs:12:5
+   |
+12 | use std::pin::Pin;
+   |     ^^^^^^^^^^^^^
+
+error: unused import: `futures_core::Stream`
+ --> crates/aisopod-provider/src/providers/anthropic.rs:5:5
+  |
+5 | use futures_core::Stream;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+error: unused import: `self`
+ --> crates/aisopod-provider/src/providers/anthropic.rs:6:28
+  |
+6 | use futures_util::stream::{self, BoxStream, StreamExt};
+  |                            ^^^^
+
+error: unused import: `std::pin::Pin`
+ --> crates/aisopod-provider/src/providers/anthropic.rs:7:5
+  |
+7 | use std::pin::Pin;
+  |     ^^^^^^^^^^^^^
+
+error: unused import: `instrument`
+  --> crates/aisopod-provider/src/providers/anthropic.rs:10:22
+   |
+10 | use tracing::{debug, instrument, warn};
+   |                      ^^^^^^^^^^
+
+error: unused imports: `PayloadPart`, `ResponseStream`, `ToolInputSchema`, `Tool`, and `self as bedrockruntime`
+ --> crates/aisopod-provider/src/providers/bedrock.rs:7:5
+  |
+7 |     self as bedrockruntime,
+  |     ^^^^^^^^^^^^^^^^^^^^^^
+8 |     types::{PayloadPart, ResponseStream, Tool, ToolInputSchema},
+  |             ^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^  ^^^^^^^^^^^^^^^
+
+error: unused import: `futures_core::Stream`
+  --> crates/aisopod-provider/src/providers/bedrock.rs:13:5
+   |
+13 | use futures_core::Stream;
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+error: unused imports: `BoxStream` and `self`
+  --> crates/aisopod-provider/src/providers/bedrock.rs:14:28
+   |
+14 | use futures_util::stream::{self, BoxStream, StreamExt};
+   |                            ^^^^  ^^^^^^^^^
+
+error: unused import: `std::pin::Pin`
+  --> crates/aisopod-provider/src/providers/bedrock.rs:15:5
+   |
+15 | use std::pin::Pin;
+   |     ^^^^^^^^^^^^^
+
+error: unused import: `futures_core::Stream`
+ --> crates/aisopod-provider/src/providers/gemini.rs:5:5
+  |
+5 | use futures_core::Stream;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+error: unused import: `self`
+ --> crates/aisopod-provider/src/providers/gemini.rs:6:28
+  |
+6 | use futures_util::stream::{self, BoxStream, StreamExt};
+  |                            ^^^^
+
+error: unused import: `std::pin::Pin`
+ --> crates/aisopod-provider/src/providers/gemini.rs:7:5
+  |
+7 | use std::pin::Pin;
+  |     ^^^^^^^^^^^^^
+
+error: unused imports: `debug` and `instrument`
+  --> crates/aisopod-provider/src/providers/gemini.rs:10:15
+   |
+10 | use tracing::{debug, instrument, warn};
+   |               ^^^^^  ^^^^^^^^^^
+
+error: unused import: `futures_core::Stream`
+ --> crates/aisopod-provider/src/providers/ollama.rs:5:5
+  |
+5 | use futures_core::Stream;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+error: unused import: `self`
+ --> crates/aisopod-provider/src/providers/ollama.rs:6:28
+  |
+6 | use futures_util::stream::{self, BoxStream, StreamExt};
+  |                            ^^^^
+
+error: unused import: `std::pin::Pin`
+ --> crates/aisopod-provider/src/providers/ollama.rs:7:5
+  |
+7 | use std::pin::Pin;
+  |     ^^^^^^^^^^^^^
+
+error: unused import: `instrument`
+ --> crates/aisopod-provider/src/providers/ollama.rs:8:22
+  |
+8 | use tracing::{debug, instrument, warn};
+  |                      ^^^^^^^^^^
+
+error: unused import: `futures_core::Stream`
+ --> crates/aisopod-provider/src/providers/openai.rs:5:5
+  |
+5 | use futures_core::Stream;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+error: unused import: `self`
+ --> crates/aisopod-provider/src/providers/openai.rs:6:28
+  |
+6 | use futures_util::stream::{self, BoxStream, StreamExt};
+  |                            ^^^^
+
+error: unused import: `std::pin::Pin`
+ --> crates/aisopod-provider/src/providers/openai.rs:7:5
+  |
+7 | use std::pin::Pin;
+  |     ^^^^^^^^^^^^^
+
+error: unused import: `instrument`
+  --> crates/aisopod-provider/src/providers/openai.rs:10:22
+   |
+10 | use tracing::{debug, instrument, warn};
+   |                      ^^^^^^^^^^
+
+error: unused imports: `stream::StreamExt` and `stream`
+  --> crates/aisopod-provider/src/trait_module.rs:10:20
+   |
+10 | use futures_util::{stream, stream::StreamExt};
+   |                    ^^^^^^  ^^^^^^^^^^^^^^^^^
+
+error: unused import: `pin_project_lite::pin_project`
+  --> crates/aisopod-provider/src/trait_module.rs:11:5
+   |
+11 | use pin_project_lite::pin_project;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: unused variable: `glob_pattern`
+   --> crates/aisopod-tools/src/builtins/file.rs:177:13
+    |
+177 |         let glob_pattern = search_path.to_string_lossy();
+    |             ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_glob_pattern`
+    |
+    = note: `-D unused-variables` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unused_variables)]`
+
+error: variable does not need to be mutable
+   --> crates/aisopod-tools/src/builtins/file.rs:427:9
+    |
+427 |     let mut chars: Vec<char> = inner.chars().collect();
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `-D unused-mut` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unused_mut)]`
+
+error: method `get_effective_policy` is never used
+   --> crates/aisopod-tools/src/policy.rs:233:8
+    |
+180 | impl ToolPolicyEngine {
+    | --------------------- method in this implementation
+...
+233 |     fn get_effective_policy(&self, agent_id: &str) -> &ToolPolicy {
+    |        ^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `-D dead-code` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(dead_code)]`
+
+error: field `counter` is never read
+   --> crates/aisopod-tools/src/approval.rs:264:5
+    |
+260 | pub struct ApprovalStateTracker {
+    |            -------------------- field in this struct
+...
+264 |     counter: AtomicU64,
+    |     ^^^^^^^
+    |
+    = note: `ApprovalStateTracker` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+error: this `if` statement can be collapsed
+   --> crates/aisopod-tools/src/policy.rs:306:9
+    |
+306 | /         if self.global_policy.allow.is_some() {
+307 | |             if !self.global_policy.is_explicitly_allowed(tool_name) {
+308 | |                 return Err(format!(
+309 | |                     "Tool '{}' is not in the global allow list",
+...   |
+313 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+306 ~         if self.global_policy.allow.is_some()
+307 ~             && !self.global_policy.is_explicitly_allowed(tool_name) {
+308 |                 return Err(format!(
+...
+311 |                 ));
+312 ~             }
+    |
+
+error: unnecessary map of the identity function
+  --> crates/aisopod-tools/src/builtins/canvas.rs:77:37
+   |
+77 |                 canvases.into_iter().map(|(k, v)| (k, v)),
+   |                                     ^^^^^^^^^^^^^^^^^^^^^ help: remove the call to `map`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#map_identity
+   = note: `-D clippy::map-identity` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::map_identity)]`
+
+error: this expression creates a reference which is immediately dereferenced by the compiler
+   --> crates/aisopod-tools/src/builtins/file.rs:197:31
+    |
+197 |                 if glob_match(&pattern, relative_path) {
+    |                               ^^^^^^^^ help: change this to: `pattern`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#needless_borrow
+    = note: `-D clippy::needless-borrow` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::needless_borrow)]`
+
+error: casting to the same type is unnecessary (`u32` -> `u32`)
+   --> crates/aisopod-tools/src/builtins/file.rs:262:81
+    |
+262 | ...                   DateTime::<Utc>::from_timestamp(seconds as i64, nanos as u32)
+    |                                                                       ^^^^^^^^^^^^ help: try: `nanos`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#unnecessary_cast
+    = note: `-D clippy::unnecessary-cast` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::unnecessary_cast)]`
+
+error: casting to the same type is unnecessary (`u32` -> `u32`)
+   --> crates/aisopod-tools/src/builtins/file.rs:310:69
+    |
+310 |                     DateTime::<Utc>::from_timestamp(seconds as i64, nanos as u32)
+    |                                                                     ^^^^^^^^^^^^ help: try: `nanos`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#unnecessary_cast
+
+error: use of `default` to create a unit struct
+  --> crates/aisopod-tools/src/lib.rs:95:58
+   |
+95 |     registry.register(Arc::new(MessageTool::new(Arc::new(NoOpMessageSender::default()))));
+   |                                                          ^^^^^^^^^^^^^^^^^-----------
+   |                                                                           |
+   |                                                                           help: remove this call to `default`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#default_constructed_unit_structs
+   = note: `-D clippy::default-constructed-unit-structs` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::default_constructed_unit_structs)]`
+
+error: use of `default` to create a unit struct
+  --> crates/aisopod-tools/src/lib.rs:96:59
+   |
+96 |     registry.register(Arc::new(SubagentTool::new(Arc::new(NoOpAgentSpawner::default()), 3, None)));
+   |                                                           ^^^^^^^^^^^^^^^^-----------
+   |                                                                           |
+   |                                                                           help: remove this call to `default`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#default_constructed_unit_structs
+
+error: use of `default` to create a unit struct
+  --> crates/aisopod-tools/src/lib.rs:97:58
+   |
+97 |     registry.register(Arc::new(SessionTool::new(Arc::new(NoOpSessionManager::default()))));
+   |                                                          ^^^^^^^^^^^^^^^^^^-----------
+   |                                                                            |
+   |                                                                            help: remove this call to `default`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#default_constructed_unit_structs
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/agents.rs:64:1
+   |
+64 | / impl Default for AgentsConfig {
+65 | |     fn default() -> Self {
+66 | |         Self {
+67 | |             agents: Vec::new(),
+...  |
+71 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+   = note: `-D clippy::derivable-impls` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::derivable_impls)]`
+help: replace the manual implementation with a derive attribute
+   |
+ 5 + #[derive(Default)]
+ 6 | pub struct AgentsConfig {
+   |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/agents.rs:73:1
+   |
+73 | / impl Default for AgentDefaults {
+74 | |     fn default() -> Self {
+75 | |         Self {
+76 | |             model: String::new(),
+...  |
+81 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+52 + #[derive(Default)]
+53 | pub struct AgentDefaults {
+   |
+
+error: could not compile `aisopod-tools` (lib) due to 14 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/auth.rs:88:1
+   |
+88 | / impl Default for TokenCredential {
+89 | |     fn default() -> Self {
+90 | |         Self {
+91 | |             token: String::new(),
+...  |
+96 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+39 + #[derive(Default)]
+40 | pub struct TokenCredential {
+   |
+
+error: this `impl` can be derived
+   --> crates/aisopod-config/src/types/auth.rs:98:1
+    |
+ 98 | / impl Default for PasswordCredential {
+ 99 | |     fn default() -> Self {
+100 | |         Self {
+101 | |             username: String::new(),
+...   |
+107 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+    |
+ 51 + #[derive(Default)]
+ 52 | pub struct PasswordCredential {
+    |
+
+error: this `impl` can be derived
+   --> crates/aisopod-config/src/types/auth.rs:109:1
+    |
+109 | / impl Default for AuthProfile {
+110 | |     fn default() -> Self {
+111 | |         Self {
+112 | |             name: String::new(),
+...   |
+117 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+    |
+ 65 + #[derive(Default)]
+ 66 | pub struct AuthProfile {
+    |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/bindings.rs:15:1
+   |
+15 | / impl Default for AgentBinding {
+16 | |     fn default() -> Self {
+17 | |         Self {
+18 | |             agent_id: String::new(),
+...  |
+23 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+ 5 + #[derive(Default)]
+ 6 | pub struct AgentBinding {
+   |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/channels.rs:49:1
+   |
+49 | / impl Default for ChannelsConfig {
+50 | |     fn default() -> Self {
+51 | |         Self {
+52 | |             channels: Vec::new(),
+...  |
+56 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+ 5 + #[derive(Default)]
+ 6 | pub struct ChannelsConfig {
+   |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/channels.rs:58:1
+   |
+58 | / impl Default for Channel {
+59 | |     fn default() -> Self {
+60 | |         Self {
+61 | |             id: String::new(),
+...  |
+67 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+16 + #[derive(Default)]
+17 | pub struct Channel {
+   |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/channels.rs:69:1
+   |
+69 | / impl Default for ChannelConnection {
+70 | |     fn default() -> Self {
+71 | |         Self {
+72 | |             endpoint: String::new(),
+...  |
+76 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+32 + #[derive(Default)]
+33 | pub struct ChannelConnection {
+   |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/channels.rs:78:1
+   |
+78 | / impl Default for ChannelDefaults {
+79 | |     fn default() -> Self {
+80 | |         Self {
+81 | |             channel_type: String::new(),
+...  |
+84 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+43 + #[derive(Default)]
+44 | pub struct ChannelDefaults {
+   |
+
+error: use of deprecated associated function `aws_config::BehaviorVersion::v2024_03_28`: Superseded by v2025_01_17, which updates the default HTTPS client stack.
+  --> crates/aisopod-provider/src/providers/bedrock.rs:61:72
+   |
+61 |         let shared_config = aws_config::load_defaults(BehaviorVersion::v2024_03_28()).await;
+   |                                                                        ^^^^^^^^^^^
+   |
+   = note: `-D deprecated` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(deprecated)]`
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/env.rs:24:1
+   |
+24 | / impl Default for EnvConfig {
+25 | |     fn default() -> Self {
+26 | |         Self {
+27 | |             mappings: Vec::new(),
+...  |
+30 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+ 5 + #[derive(Default)]
+ 6 | pub struct EnvConfig {
+   |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/env.rs:32:1
+   |
+32 | / impl Default for EnvMapping {
+33 | |     fn default() -> Self {
+34 | |         Self {
+35 | |             name: String::new(),
+...  |
+40 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+13 + #[derive(Default)]
+14 | pub struct EnvMapping {
+   |
+
+error: this `impl` can be derived
+   --> crates/aisopod-config/src/types/gateway.rs:169:1
+    |
+169 | / impl Default for TlsConfig {
+170 | |     fn default() -> Self {
+171 | |         Self {
+172 | |             enabled: false,
+...   |
+177 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+    |
+ 53 + #[derive(Default)]
+ 54 | pub struct TlsConfig {
+    |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/memory.rs:46:1
+   |
+46 | / impl Default for MemoryConfig {
+47 | |     fn default() -> Self {
+48 | |         Self {
+49 | |             backend: MemoryBackend::default(),
+...  |
+53 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+ 5 + #[derive(Default)]
+ 6 | pub struct MemoryConfig {
+   |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/models.rs:56:1
+   |
+56 | / impl Default for ModelsConfig {
+57 | |     fn default() -> Self {
+58 | |         Self {
+59 | |             models: Vec::new(),
+...  |
+64 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+ 5 + #[derive(Default)]
+ 6 | pub struct ModelsConfig {
+   |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/models.rs:66:1
+   |
+66 | / impl Default for Model {
+67 | |     fn default() -> Self {
+68 | |         Self {
+69 | |             id: String::new(),
+...  |
+75 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+19 + #[derive(Default)]
+20 | pub struct Model {
+   |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/models.rs:77:1
+   |
+77 | / impl Default for ModelProvider {
+78 | |     fn default() -> Self {
+79 | |         Self {
+80 | |             name: String::new(),
+...  |
+85 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+35 + #[derive(Default)]
+36 | pub struct ModelProvider {
+   |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/models.rs:87:1
+   |
+87 | / impl Default for ModelFallback {
+88 | |     fn default() -> Self {
+89 | |         Self {
+90 | |             primary: String::new(),
+...  |
+94 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+48 + #[derive(Default)]
+49 | pub struct ModelFallback {
+   |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/plugins.rs:48:1
+   |
+48 | / impl Default for PluginsConfig {
+49 | |     fn default() -> Self {
+50 | |         Self {
+51 | |             registry: Vec::new(),
+...  |
+55 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+ 5 + #[derive(Default)]
+ 6 | pub struct PluginsConfig {
+   |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/session.rs:46:1
+   |
+46 | / impl Default for SessionConfig {
+47 | |     fn default() -> Self {
+48 | |         Self {
+49 | |             messages: MessageConfig::default(),
+...  |
+53 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+ 5 + #[derive(Default)]
+ 6 | pub struct SessionConfig {
+   |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/skills.rs:45:1
+   |
+45 | / impl Default for SkillsConfig {
+46 | |     fn default() -> Self {
+47 | |         Self {
+48 | |             modules: Vec::new(),
+...  |
+52 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+ 5 + #[derive(Default)]
+ 6 | pub struct SkillsConfig {
+   |
+
+error: this `impl` can be derived
+  --> crates/aisopod-config/src/types/tools.rs:60:1
+   |
+60 | / impl Default for ToolsConfig {
+61 | |     fn default() -> Self {
+62 | |         Self {
+63 | |             bash: BashToolConfig::default(),
+...  |
+68 | | }
+   | |_^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+   |
+ 5 + #[derive(Default)]
+ 6 | pub struct ToolsConfig {
+   |
+
+error: this `impl` can be derived
+   --> crates/aisopod-config/src/types/mod.rs:91:1
+    |
+ 91 | / impl Default for AisopodConfig {
+ 92 | |     fn default() -> Self {
+ 93 | |         Self {
+ 94 | |             meta: MetaConfig::default(),
+...   |
+109 | | }
+    | |_^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#derivable_impls
+help: replace the manual implementation with a derive attribute
+    |
+ 49 + #[derive(Default)]
+ 50 | pub struct AisopodConfig {
+    |
+
+error: redundant pattern matching, consider using `is_ok()`
+   --> crates/aisopod-config/src/watcher.rs:157:20
+    |
+157 |             if let Ok(_) = watcher.watch(parent, RecursiveMode::NonRecursive) {
+    |             -------^^^^^----------------------------------------------------- help: try: `if watcher.watch(parent, RecursiveMode::NonRecursive).is_ok()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#redundant_pattern_matching
+    = note: `-D clippy::redundant-pattern-matching` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::redundant_pattern_matching)]`
+
+error: could not compile `aisopod-config` (lib) due to 24 previous errors
+error: unused import: `StreamExt`
+  --> crates/aisopod-provider/src/helpers.rs:10:34
+   |
+10 | use futures_util::stream::{self, StreamExt};
+   |                                  ^^^^^^^^^
+
+error: unused import: `StreamExt`
+  --> crates/aisopod-provider/src/providers/bedrock.rs:14:45
+   |
+14 | use futures_util::stream::{self, BoxStream, StreamExt};
+   |                                             ^^^^^^^^^
+
+error: unused variable: `i`
+   --> crates/aisopod-provider/src/helpers.rs:112:18
+    |
+112 |             for (i, chunk) in chunks.into_iter().enumerate() {
+    |                  ^ help: if this is intentional, prefix it with an underscore: `_i`
+    |
+    = note: `-D unused-variables` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unused_variables)]`
+
+error: unreachable pattern
+   --> crates/aisopod-provider/src/providers/bedrock/api_types.rs:177:22
+    |
+170 |     #[serde(rename = "application/json")]
+    |                      ------------------ matches all the relevant values
+...
+177 |     #[serde(rename = "application/json")]
+    |                      ^^^^^^^^^^^^^^^^^^ no value can reach this
+    |
+    = note: `-D unreachable-patterns` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unreachable_patterns)]`
+
+error: unreachable pattern
+   --> crates/aisopod-provider/src/providers/bedrock/api_types.rs:184:22
+    |
+170 |     #[serde(rename = "application/json")]
+    |                      ------------------ matches all the relevant values
+...
+184 |     #[serde(rename = "application/json")]
+    |                      ^^^^^^^^^^^^^^^^^^ no value can reach this
+
+error: unreachable pattern
+   --> crates/aisopod-provider/src/providers/bedrock/api_types.rs:190:22
+    |
+170 |     #[serde(rename = "application/json")]
+    |                      ------------------ matches all the relevant values
+...
+190 |     #[serde(rename = "application/json")]
+    |                      ^^^^^^^^^^^^^^^^^^ no value can reach this
+
+error: unreachable pattern
+   --> crates/aisopod-provider/src/providers/bedrock/api_types.rs:196:22
+    |
+170 |     #[serde(rename = "application/json")]
+    |                      ------------------ matches all the relevant values
+...
+196 |     #[serde(rename = "application/json")]
+    |                      ^^^^^^^^^^^^^^^^^^ no value can reach this
+
+error: unreachable pattern
+   --> crates/aisopod-provider/src/providers/bedrock/api_types.rs:202:22
+    |
+170 |     #[serde(rename = "application/json")]
+    |                      ------------------ matches all the relevant values
+...
+202 |     #[serde(rename = "application/json")]
+    |                      ^^^^^^^^^^^^^^^^^^ no value can reach this
+
+error: unreachable pattern
+   --> crates/aisopod-provider/src/providers/bedrock/api_types.rs:208:22
+    |
+170 |     #[serde(rename = "application/json")]
+    |                      ------------------ matches all the relevant values
+...
+208 |     #[serde(rename = "application/json")]
+    |                      ^^^^^^^^^^^^^^^^^^ no value can reach this
+
+error: unreachable pattern
+   --> crates/aisopod-provider/src/providers/bedrock/api_types.rs:214:22
+    |
+170 |     #[serde(rename = "application/json")]
+    |                      ------------------ matches all the relevant values
+...
+214 |     #[serde(rename = "application/json")]
+    |                      ^^^^^^^^^^^^^^^^^^ no value can reach this
+
+error: unreachable pattern
+   --> crates/aisopod-provider/src/providers/bedrock/api_types.rs:220:22
+    |
+170 |     #[serde(rename = "application/json")]
+    |                      ------------------ matches all the relevant values
+...
+220 |     #[serde(rename = "application/json")]
+    |                      ^^^^^^^^^^^^^^^^^^ no value can reach this
+
+error: unreachable pattern
+   --> crates/aisopod-provider/src/providers/bedrock/api_types.rs:226:22
+    |
+170 |     #[serde(rename = "application/json")]
+    |                      ------------------ matches all the relevant values
+...
+226 |     #[serde(rename = "application/json")]
+    |                      ^^^^^^^^^^^^^^^^^^ no value can reach this
+
+error: unused variable: `event_type`
+   --> crates/aisopod-provider/src/providers/bedrock.rs:211:68
+    |
+211 |             BedrockStreamEvent::ContentBlockStart { content_block, event_type, .. } => {
+    |                                                                    ^^^^^^^^^^ help: try ignoring the field: `event_type: _`
+
+error: unused variable: `tool_use_id`
+   --> crates/aisopod-provider/src/providers/bedrock.rs:239:58
+    |
+239 |                 BedrockContentBlockDelta::ToolUseDelta { tool_use_id, input } => {
+    |                                                          ^^^^^^^^^^^ help: try ignoring the field: `tool_use_id: _`
+
+error: unused variable: `provider`
+   --> crates/aisopod-provider/src/registry.rs:176:27
+    |
+176 |         for (provider_id, provider) in &self.providers {
+    |                           ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_provider`
+
+error: field `default_model` is never read
+  --> crates/aisopod-provider/src/providers/anthropic.rs:28:5
+   |
+24 | pub struct AnthropicProvider {
+   |            ----------------- field in this struct
+...
+28 |     default_model: String,
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `-D dead-code` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(dead_code)]`
+
+error: field `default_model` is never read
+  --> crates/aisopod-provider/src/providers/bedrock.rs:35:5
+   |
+32 | pub struct BedrockProvider {
+   |            --------------- field in this struct
+...
+35 |     default_model: String,
+   |     ^^^^^^^^^^^^^
+
+error: method `get_api_key` is never used
+  --> crates/aisopod-provider/src/providers/bedrock.rs:89:8
+   |
+39 | impl BedrockProvider {
+   | -------------------- method in this implementation
+...
+89 |     fn get_api_key(&self) -> Option<String> {
+   |        ^^^^^^^^^^^
+
+error: method `extract_system_prompt` is never used
+   --> crates/aisopod-provider/src/providers/gemini.rs:132:8
+    |
+ 33 | impl GeminiProvider {
+    | ------------------- method in this implementation
+...
+132 |     fn extract_system_prompt(&self, messages: &[Message]) -> Option<String> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+error: this `map_or` can be simplified
+  --> crates/aisopod-provider/src/auth.rs:55:47
+   |
+55 |         self.status == ProfileStatus::Good && self.cooldown_until.map_or(true, |t| Instant::now() >= t)
+   |                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#unnecessary_map_or
+   = note: `-D clippy::unnecessary-map-or` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::unnecessary_map_or)]`
+help: use is_none_or instead
+   |
+55 -         self.status == ProfileStatus::Good && self.cooldown_until.map_or(true, |t| Instant::now() >= t)
+55 +         self.status == ProfileStatus::Good && self.cooldown_until.is_none_or(|t| Instant::now() >= t)
+   |
+
+error: use of `or_insert_with` to construct default value
+  --> crates/aisopod-provider/src/auth.rs:85:14
+   |
+85 |             .or_insert_with(Vec::new)
+   |              ^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `or_default()`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#unwrap_or_default
+   = note: `-D clippy::unwrap-or-default` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::unwrap_or_default)]`
+
+error: this `map_or` can be simplified
+   --> crates/aisopod-provider/src/auth.rs:104:16
+    |
+104 |             if profile.cooldown_until.map_or(false, |t| Instant::now() >= t) {
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#unnecessary_map_or
+help: use is_some_and instead
+    |
+104 -             if profile.cooldown_until.map_or(false, |t| Instant::now() >= t) {
+104 +             if profile.cooldown_until.is_some_and(|t| Instant::now() >= t) {
+    |
+
+error: this `map_or` can be simplified
+   --> crates/aisopod-provider/src/auth.rs:151:28
+    |
+151 |             .map(|profile| profile.cooldown_until.map_or(true, |t| Instant::now() >= t))
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#unnecessary_map_or
+help: use is_none_or instead
+    |
+151 -             .map(|profile| profile.cooldown_until.map_or(true, |t| Instant::now() >= t))
+151 +             .map(|profile| profile.cooldown_until.is_none_or(|t| Instant::now() >= t))
+    |
+
+error: this `map_or` can be simplified
+   --> crates/aisopod-provider/src/auth.rs:159:20
+    |
+159 |                 if profile.cooldown_until.map_or(true, |t| Instant::now() >= t) {
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#unnecessary_map_or
+help: use is_none_or instead
+    |
+159 -                 if profile.cooldown_until.map_or(true, |t| Instant::now() >= t) {
+159 +                 if profile.cooldown_until.is_none_or(|t| Instant::now() >= t) {
+    |
+
+error: this `MutexGuard` is held across an await point
+   --> crates/aisopod-provider/src/discovery.rs:97:13
+    |
+ 97 |         let cache = self.cache.read().unwrap();
+    |             ^^^^^
+    |
+    = help: consider using an async-aware `Mutex` type or ensuring the `MutexGuard` is dropped before calling `await`
+note: these are all the await points this lock is held through
+   --> crates/aisopod-provider/src/discovery.rs:106:28
+    |
+106 |             self.refresh().await?;
+    |                            ^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#await_holding_lock
+    = note: `-D clippy::await-holding-lock` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::await_holding_lock)]`
+
+error: this manual char comparison can be written more succinctly
+   --> crates/aisopod-provider/src/normalize.rs:429:38
+    |
+429 |         if let Some(end) = rest.find(|c: char| c == '"' || c == '\'' || c == ' ' || c == '\n') {
+    |                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider using an array of `char`: `['"', '\'', ' ', '\n']`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#manual_pattern_char_comparison
+    = note: `-D clippy::manual-pattern-char-comparison` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_pattern_char_comparison)]`
+
+error: redundant closure
+   --> crates/aisopod-provider/src/providers/anthropic.rs:145:20
+    |
+145 |         prompt.map(|p| serde_json::Value::String(p))
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: replace the closure with the tuple variant itself: `serde_json::Value::String`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#redundant_closure
+    = note: `-D clippy::redundant-closure` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::redundant_closure)]`
+
+error: using `Option.and_then(|x| Some(y))`, which is more succinctly expressed as `map(|x| y)`
+   --> crates/aisopod-provider/src/providers/anthropic.rs:239:37
+    |
+239 |                   let finish_reason = delta.stop_reason.as_ref().and_then(|s| match s {
+    |  _____________________________________^
+240 | |                     AnthropicStopReason::EndTurn => Some(FinishReason::Stop),
+241 | |                     AnthropicStopReason::MaxTokens => Some(FinishReason::Length),
+242 | |                     AnthropicStopReason::ToolUse => Some(FinishReason::ToolCall),
+243 | |                     AnthropicStopReason::StopSequence => Some(FinishReason::Stop),
+244 | |                 });
+    | |__________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#bind_instead_of_map
+    = note: `-D clippy::bind-instead-of-map` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::bind_instead_of_map)]`
+help: use `map` instead
+    |
+239 ~                 let finish_reason = delta.stop_reason.as_ref().map(|s| match s {
+240 ~                     AnthropicStopReason::EndTurn => FinishReason::Stop,
+241 ~                     AnthropicStopReason::MaxTokens => FinishReason::Length,
+242 ~                     AnthropicStopReason::ToolUse => FinishReason::ToolCall,
+243 ~                     AnthropicStopReason::StopSequence => FinishReason::Stop,
+    |
+
+error: struct pattern is not needed for a unit variant
+   --> crates/aisopod-provider/src/providers/anthropic.rs:261:43
+    |
+261 |             AnthropicSseEvent::MessageStop { .. } => None,
+    |                                           ^^^^^^^ help: remove the struct pattern
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#unneeded_struct_pattern
+    = note: `-D clippy::unneeded-struct-pattern` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::unneeded_struct_pattern)]`
+
+error: using `Option.and_then(|x| Some(y))`, which is more succinctly expressed as `map(|x| y)`
+   --> crates/aisopod-provider/src/providers/bedrock.rs:283:31
+    |
+283 |                           role: message.role.as_ref().and_then(|r| match r {
+    |  _______________________________^
+284 | |                             BedrockRole::User => Some(Role::User),
+285 | |                             BedrockRole::Assistant => Some(Role::Assistant),
+286 | |                         }),
+    | |__________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#bind_instead_of_map
+help: use `map` instead
+    |
+283 ~                         role: message.role.as_ref().map(|r| match r {
+284 ~                             BedrockRole::User => Role::User,
+285 ~                             BedrockRole::Assistant => Role::Assistant,
+    |
+
+error: this `.filter_map(..)` can be written more simply using `.map(..)`
+   --> crates/aisopod-provider/src/providers/gemini.rs:175:14
+    |
+175 |               .filter_map(|part| match part {
+    |  ______________^
+176 | |                 GeminiPart::Text { text } => Some(text.clone()),
+177 | |             })
+    | |______________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#unnecessary_filter_map
+    = note: `-D clippy::unnecessary-filter-map` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::unnecessary_filter_map)]`
+
+error: redundant closure
+   --> crates/aisopod-provider/src/providers/gemini.rs:338:45
+    |
+338 | ...                   first_chunk.map(|c| Ok(c))
+    |                                       ^^^^^^^^^ help: replace the closure with the tuple variant itself: `Ok`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.93.0/index.html#redundant_closure
+
+error: structure field `Supports` should have a snake case name
+   --> crates/aisopod-provider/src/providers/anthropic/api_types.rs:275:9
+    |
+275 |     pub Supports: Option<serde_json::Value>,
+    |         ^^^^^^^^ help: convert the identifier to snake case (notice the capitalization): `supports`
+    |
+    = note: `-D non-snake-case` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(non_snake_case)]`
+
+error: could not compile `aisopod-provider` (lib) due to 65 previous errors

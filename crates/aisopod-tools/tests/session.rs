@@ -322,15 +322,17 @@ async fn test_session_tool_execute_history_with_mock() {
     let tool = SessionTool::new(Arc::new(manager.clone()));
     let ctx = ToolContext::new("test_agent", "test_session");
 
-    // Add some history
-    let mut history = manager.history.lock().unwrap();
-    history.insert(
-        "session-history".to_string(),
-        vec![
-            json!({"type": "user", "content": "Hello"}),
-            json!({"type": "assistant", "content": "Hi there"}),
-        ],
-    );
+    // Add some history (scoped to release lock before calling tool.execute)
+    {
+        let mut history = manager.history.lock().unwrap();
+        history.insert(
+            "session-history".to_string(),
+            vec![
+                json!({"type": "user", "content": "Hello"}),
+                json!({"type": "assistant", "content": "Hi there"}),
+            ],
+        );
+    } // Lock is released here
 
     let result = tool
         .execute(

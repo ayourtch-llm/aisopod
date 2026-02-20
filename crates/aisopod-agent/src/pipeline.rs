@@ -10,6 +10,7 @@ use anyhow::Result;
 use tokio::sync::mpsc;
 use futures_util::StreamExt;
 
+use crate::abort::AbortHandle;
 use crate::resolution::{resolve_agent_config, resolve_agent_model, resolve_session_agent_id, ModelChain};
 use crate::types::{AgentEvent, AgentRunParams, AgentRunResult, ToolCallRecord, UsageReport};
 use crate::{failover, prompt, transcript, usage};
@@ -58,6 +59,8 @@ pub struct AgentPipeline {
     sessions: Arc<aisopod_session::SessionStore>,
     /// Optional usage tracker for recording token usage
     usage_tracker: Option<Arc<usage::UsageTracker>>,
+    /// Optional abort registry for tracking and cancelling active sessions
+    abort_registry: Option<Arc<crate::abort::AbortRegistry>>,
 }
 
 impl AgentPipeline {
@@ -74,6 +77,7 @@ impl AgentPipeline {
             tools,
             sessions,
             usage_tracker: None,
+            abort_registry: None,
         }
     }
 
@@ -91,6 +95,26 @@ impl AgentPipeline {
             tools,
             sessions,
             usage_tracker: Some(usage_tracker),
+            abort_registry: None,
+        }
+    }
+
+    /// Creates a new AgentPipeline with the given dependencies, usage tracker, and abort registry.
+    pub fn new_with_abort_registry(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        usage_tracker: Arc<usage::UsageTracker>,
+        abort_registry: Arc<crate::abort::AbortRegistry>,
+    ) -> Self {
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: Some(usage_tracker),
+            abort_registry: Some(abort_registry),
         }
     }
 
@@ -104,6 +128,11 @@ impl AgentPipeline {
         self.usage_tracker.as_ref()
     }
 
+    /// Gets the abort registry if enabled.
+    pub fn abort_registry(&self) -> Option<&Arc<crate::abort::AbortRegistry>> {
+        self.abort_registry.as_ref()
+    }
+
     /// Executes the full agent pipeline with the given parameters.
     ///
     /// This method:
@@ -113,8 +142,9 @@ impl AgentPipeline {
     /// 4. Prepares tool schemas for the agent
     /// 5. Builds the system prompt
     /// 6. Repairs the message transcript for the target provider
-    /// 7. Calls the model in a loop, handling tool calls
-    /// 8. Streams events to the provided sender
+    /// 7. Registers abort handle for cancellation support
+    /// 8. Calls the model in a loop, handling tool calls with cancellation checks
+    /// 9. Streams events to the provided sender
     ///
     /// # Arguments
     ///
@@ -155,8 +185,17 @@ impl AgentPipeline {
         let provider_kind = self.determine_provider_kind(&model_chain);
         let messages = transcript::repair_transcript(&params.messages, provider_kind);
 
-        // 7. Call model in a loop
-        self.execute_model_loop(
+        // 7. Register abort handle if registry is available
+        let abort_handle = if let Some(ref registry) = self.abort_registry {
+            let handle = AbortHandle::new(params.session_key.clone());
+            registry.insert(&params.session_key, handle.clone());
+            Some(handle)
+        } else {
+            None
+        };
+
+        // 8. Call model in a loop with cancellation support
+        let result = self.execute_model_loop(
             &agent_id,
             &model_chain,
             &system_prompt,
@@ -164,8 +203,16 @@ impl AgentPipeline {
             &tool_definitions,
             event_tx,
             params,
+            abort_handle.as_ref(),
         )
-        .await
+        .await;
+
+        // Clean up abort handle if we created one
+        if let (Some(ref registry), Some(ref handle)) = (self.abort_registry.as_ref(), abort_handle.as_ref()) {
+            registry.remove(handle.session_key());
+        }
+
+        result
     }
 
     /// Builds the system prompt from agent config and tool schemas.
@@ -219,6 +266,7 @@ impl AgentPipeline {
         tool_definitions: &[ToolDefinition],
         event_tx: &mpsc::Sender<AgentEvent>,
         params: &AgentRunParams,
+        abort_handle: Option<&AbortHandle>,
     ) -> Result<AgentRunResult> {
         // Create failover state for tracking model attempts
         let mut failover_state = failover::FailoverState::new(model_chain);
@@ -227,6 +275,16 @@ impl AgentPipeline {
         let usage_tracker = self.usage_tracker.clone();
 
         loop {
+            // Check for cancellation before each iteration
+            if let Some(handle) = abort_handle {
+                if handle.is_aborted() {
+                    let _ = event_tx.send(crate::types::AgentEvent::Error {
+                        message: "Agent execution cancelled".to_string(),
+                    }).await;
+                    return Err(anyhow::anyhow!("Agent execution cancelled for session: {}", params.session_key));
+                }
+            }
+
             // Get the current model ID for the request
             let current_model = failover_state.current_model().to_string();
 
@@ -252,40 +310,67 @@ impl AgentPipeline {
             };
             let request_clone = request.clone();
 
-            // Call model with failover support
-            let response_stream = failover::execute_with_failover(
-                &mut failover_state,
-                event_tx.clone(),
-                move |model_id: String| {
-                    let provider = provider.clone();
-                    let request = request_clone.clone();
-                    let current_model_clone = current_model.clone();
-                    async move {
-                        let request = aisopod_provider::ChatCompletionRequest {
-                            model: model_id,
-                            ..request.clone()
-                        };
-                        provider.chat_completion(request).await.map_err(|e| {
-                            // Convert anyhow::Error to ProviderError
-                            // Extract provider from current_model (format: "provider/model")
-                            let provider_name = current_model_clone.split('/').next().unwrap_or("unknown").to_string();
-                            aisopod_provider::normalize::ProviderError::Unknown {
-                                provider: provider_name,
-                                message: e.to_string(),
-                            }
-                        })
-                    }
-                },
-            )
-            .await?;
+            // Call model with failover support and cancellation check
+            let response_stream = {
+                // Create a future for the model call
+                let model_call = failover::execute_with_failover(
+                    &mut failover_state,
+                    event_tx.clone(),
+                    move |model_id: String| {
+                        let provider = provider.clone();
+                        let request = request_clone.clone();
+                        let current_model_clone = current_model.clone();
+                        async move {
+                            let request = aisopod_provider::ChatCompletionRequest {
+                                model: model_id,
+                                ..request.clone()
+                            };
+                            provider.chat_completion(request).await.map_err(|e| {
+                                // Convert anyhow::Error to ProviderError
+                                // Extract provider from current_model (format: "provider/model")
+                                let provider_name = current_model_clone.split('/').next().unwrap_or("unknown").to_string();
+                                aisopod_provider::normalize::ProviderError::Unknown {
+                                    provider: provider_name,
+                                    message: e.to_string(),
+                                }
+                            })
+                        }
+                    },
+                );
 
-            // Process streaming response and collect per-request usage
+                // Use tokio::select! to check for cancellation
+                if let Some(handle) = abort_handle {
+                    tokio::select! {
+                        result = model_call => result?,
+                        _ = handle.cancelled() => {
+                            let _ = event_tx.send(crate::types::AgentEvent::Error {
+                                message: "Agent execution cancelled during model call".to_string(),
+                            }).await;
+                            return Err(anyhow::anyhow!("Agent execution cancelled for session: {}", params.session_key));
+                        }
+                    }
+                } else {
+                    model_call.await?
+                }
+            };
+
+            // Process streaming response and collect per-request usage with cancellation check
             let mut response_text = String::new();
             let mut response_tool_calls: Vec<aisopod_provider::ToolCall> = Vec::new();
             let mut request_usage: Option<UsageReport> = None;
 
             let mut stream = response_stream;
             while let Some(chunk) = stream.next().await {
+                // Check for cancellation during stream processing
+                if let Some(handle) = abort_handle {
+                    if handle.is_aborted() {
+                        let _ = event_tx.send(crate::types::AgentEvent::Error {
+                            message: "Agent execution cancelled during streaming".to_string(),
+                        }).await;
+                        return Err(anyhow::anyhow!("Agent execution cancelled for session: {}", params.session_key));
+                    }
+                }
+
                 let chunk = chunk?;
 
                 // Emit text delta events

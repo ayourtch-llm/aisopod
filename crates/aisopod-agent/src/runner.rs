@@ -9,6 +9,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use tokio::sync::broadcast;
 
+use crate::abort::{AbortHandle, AbortRegistry};
 use crate::types::{AgentEvent, AgentRunParams, AgentRunResult};
 use crate::resolution;
 
@@ -31,6 +32,7 @@ pub trait SubagentRunnerExt {
 /// - Provider registry for model access
 /// - Tool registry for tool execution
 /// - Session store for conversation state
+/// - Abort registry for tracking and cancelling active sessions
 ///
 /// # Example
 ///
@@ -72,6 +74,8 @@ pub struct AgentRunner {
     sessions: Arc<aisopod_session::SessionStore>,
     /// Optional usage tracker for recording token usage.
     usage_tracker: Option<Arc<crate::usage::UsageTracker>>,
+    /// Registry for tracking active sessions and their abort handles
+    abort_registry: Arc<AbortRegistry>,
 }
 
 impl AgentRunner {
@@ -95,6 +99,7 @@ impl AgentRunner {
             tools,
             sessions,
             usage_tracker: None,
+            abort_registry: Arc::new(AbortRegistry::new()),
         }
     }
 
@@ -120,6 +125,7 @@ impl AgentRunner {
             tools,
             sessions,
             usage_tracker: Some(usage_tracker),
+            abort_registry: Arc::new(AbortRegistry::new()),
         }
     }
 
@@ -133,6 +139,40 @@ impl AgentRunner {
         self.usage_tracker.as_ref()
     }
 
+    /// Gets the abort registry.
+    pub fn abort_registry(&self) -> &Arc<AbortRegistry> {
+        &self.abort_registry
+    }
+
+    /// Registers an active session with its abort handle.
+    ///
+    /// # Arguments
+    ///
+    /// * `session_key` - The session key to register.
+    /// * `handle` - The abort handle for this session.
+    pub fn register_active_session(&self, session_key: &str, handle: AbortHandle) -> Option<AbortHandle> {
+        self.abort_registry.insert(session_key, handle)
+    }
+
+    /// Aborts the agent run for the given session.
+    ///
+    /// This will cancel the execution of the agent for the specified session.
+    ///
+    /// # Arguments
+    ///
+    /// * `session_key` - The session key to abort.
+    pub async fn abort(&self, session_key: &str) -> Result<()> {
+        if let Some(handle) = self.abort_registry.get(session_key) {
+            handle.abort();
+            Ok(())
+        } else {
+            // Session not found, still return Ok (idempotent)
+            Ok(())
+        }
+    }
+}
+
+impl AgentRunner {
     /// Gets the agent configuration.
     pub fn config(&self) -> &Arc<aisopod_config::AisopodConfig> {
         &self.config
@@ -237,17 +277,6 @@ impl AgentRunner {
         // For now, return a stub receiver
         let (_tx, rx) = broadcast::channel(1);
         rx
-    }
-
-    /// Aborts the agent run for the given session.
-    ///
-    /// # Arguments
-    ///
-    /// * `session_key` - The session key to abort.
-    pub async fn abort(&self, _session_key: &str) -> Result<()> {
-        // TODO: Implement actual abort mechanism
-        // For now, this is a stub
-        Ok(())
     }
 }
 

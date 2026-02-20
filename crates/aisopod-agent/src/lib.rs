@@ -2,6 +2,7 @@
 //!
 //! Core agent loop, orchestration logic, and agent lifecycle management.
 
+pub mod abort;
 pub mod binding;
 pub mod compaction;
 pub mod context_guard;
@@ -16,6 +17,7 @@ pub mod types;
 pub mod usage;
 
 // Re-export key types from crate root
+pub use abort::{AbortHandle, AbortRegistry, notify_abort};
 pub use binding::{AgentBinding, BindingMatch, PeerMatch};
 pub use compaction::{compact_messages, estimate_token_count, select_strategy, CompactionSeverity, CompactionStrategy};
 pub use context_guard::ContextWindowGuard;

@@ -21,3 +21,4 @@ regex.workspace = true
 chrono.workspace = true
 futures-core.workspace = true
 futures-util.workspace = true
+tokio-util = "0.7"
