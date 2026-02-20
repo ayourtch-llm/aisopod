@@ -10,7 +10,7 @@ use crate::types::SessionMetadata;
 /// Peer match rule for agent binding.
 ///
 /// This type defines how to match a session based on peer information.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PeerMatch {
     /// Match any peer (wildcard)
     Any,
@@ -60,7 +60,7 @@ pub struct BindingMatch {
     /// The account ID that matched
     pub account_id: Option<String>,
     /// The peer information that matched
-    pub peer: Option<String>,
+    pub peer: Option<PeerMatch>,
     /// The guild ID that matched
     pub guild_id: Option<String>,
 }
@@ -70,7 +70,7 @@ impl BindingMatch {
     pub fn new(
         channel: Option<String>,
         account_id: Option<String>,
-        peer: Option<String>,
+        peer: Option<PeerMatch>,
         guild_id: Option<String>,
     ) -> Self {
         Self {
@@ -99,7 +99,8 @@ impl BindingMatch {
 
         // Check peer if specified
         if let Some(ref expected_peer) = self.peer {
-            if session_metadata.peer != Some(expected_peer.clone()) {
+            let session_peer = session_metadata.peer.as_deref().unwrap_or("");
+            if !expected_peer.matches(session_peer) {
                 return false;
             }
         }
@@ -201,13 +202,13 @@ mod tests {
         let match_result = BindingMatch::new(
             Some("channel_1".to_string()),
             Some("account_1".to_string()),
-            Some("peer_1".to_string()),
+            Some(PeerMatch::id("peer_1")),
             Some("guild_1".to_string()),
         );
 
         assert_eq!(match_result.channel, Some("channel_1".to_string()));
         assert_eq!(match_result.account_id, Some("account_1".to_string()));
-        assert_eq!(match_result.peer, Some("peer_1".to_string()));
+        assert_eq!(match_result.peer, Some(PeerMatch::id("peer_1")));
         assert_eq!(match_result.guild_id, Some("guild_1".to_string()));
     }
 
@@ -216,7 +217,7 @@ mod tests {
         let match_result = BindingMatch::new(
             Some("channel_1".to_string()),
             Some("account_1".to_string()),
-            Some("peer_1".to_string()),
+            Some(PeerMatch::id("peer_1")),
             Some("guild_1".to_string()),
         );
 
@@ -236,7 +237,7 @@ mod tests {
         let match_result = BindingMatch::new(
             Some("channel_1".to_string()),
             None, // Not checking account_id
-            Some("peer_1".to_string()),
+            Some(PeerMatch::id("peer_1")),
             None, // Not checking guild_id
         );
 
@@ -316,7 +317,7 @@ mod tests {
 
     #[test]
     fn test_agent_binding_evaluate_with_peer_match() {
-        let match_rule = BindingMatch::new(None, None, Some("peer_123".to_string()), None);
+        let match_rule = BindingMatch::new(None, None, Some(PeerMatch::id("peer_123")), None);
         let binding = AgentBinding::new("agent_1", match_rule);
 
         let metadata = SessionMetadata {
