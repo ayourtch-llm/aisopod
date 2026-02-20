@@ -231,13 +231,13 @@ impl FileTool {
             match entries.next_entry().await {
                 Ok(Some(entry)) => {
                     let entry_path = entry.path();
-                    let file_type = entry.file_type().await.map_err(|e| {
-                        anyhow!("Failed to get file type for '{}': {}", entry_path.display(), e)
-                    })?;
-
-                    let metadata = entry.metadata().await.map_err(|e| {
-                        anyhow!("Failed to get metadata for '{}': {}", entry_path.display(), e)
-                    })?;
+                    
+                    // Get metadata - handle the case where the entry was deleted between read_dir and metadata
+                    let metadata = match entry.metadata().await {
+                        Ok(m) => m,
+                        Err(_) => continue, // Entry was deleted, skip it
+                    };
+                    let file_type = metadata.file_type();
 
                     // Apply glob filter if specified
                     if let Some(filter) = glob_filter {

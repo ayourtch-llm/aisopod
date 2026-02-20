@@ -221,6 +221,23 @@ pub trait ApprovalHandler: Send + Sync {
     ) -> Result<ApprovalResponse, ApprovalError>;
 }
 
+/// A no-op approval handler that always approves requests.
+///
+/// This implementation is useful for testing scenarios where actual
+/// approval is not needed.
+#[derive(Clone, Default)]
+pub struct NoOpApprovalHandler;
+
+#[async_trait]
+impl ApprovalHandler for NoOpApprovalHandler {
+    async fn request_approval(
+        &self,
+        _request: ApprovalRequest,
+    ) -> Result<ApprovalResponse, ApprovalError> {
+        Ok(ApprovalResponse::Approved)
+    }
+}
+
 /// Error type for approval-related failures.
 #[derive(Debug, thiserror::Error)]
 pub enum ApprovalError {
@@ -248,7 +265,7 @@ pub struct ApprovalStateTracker {
 }
 
 /// Current state of an approval request.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ApprovalState {
     /// The request is pending approval.
     Pending,
@@ -463,8 +480,18 @@ pub struct ApprovalSummary {
 /// assert!(!is_auto_approved("curl http://example.com"));
 /// ```
 pub fn is_auto_approved(command: &str) -> bool {
-    // Trim the command and get the first word (the command name)
+    // Trim the command
     let cmd = command.trim();
+    
+    // Check for dangerous shell operators that could chain commands
+    let dangerous_operators = ["&&", "||", "|", ";", "`", "$("];
+    for op in dangerous_operators {
+        if cmd.contains(op) {
+            return false;
+        }
+    }
+    
+    // Get the first word (the command name)
     let first_word = cmd.split_whitespace().next().unwrap_or("");
 
     // Safe informational commands

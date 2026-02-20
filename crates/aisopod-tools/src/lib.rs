@@ -80,7 +80,7 @@ pub use schema::{ToolDefinition, to_anthropic_batch, to_anthropic_format, to_gem
 pub mod approval;
 pub use approval::{
     is_auto_approved, ApprovalError, ApprovalHandler, ApprovalRequest, ApprovalResponse,
-    ApprovalState, ApprovalStateTracker, ApprovalSummary, RiskLevel,
+    ApprovalState, ApprovalStateTracker, ApprovalSummary, NoOpApprovalHandler, RiskLevel,
 };
 
 pub mod builtins;
