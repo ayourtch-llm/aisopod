@@ -249,6 +249,7 @@ where
                             emit_event(AgentEvent::ModelSwitch {
                                 from: model_id.clone(),
                                 to: state.current_model().to_string(),
+                                reason: "retry with next auth".to_string(),
                             });
                             current_attempts = 0;
                         } else {
@@ -271,6 +272,7 @@ where
                             emit_event(AgentEvent::ModelSwitch {
                                 from: model_id.clone(),
                                 to: state.current_model().to_string(),
+                                reason: "wait and retry".to_string(),
                             });
                             current_attempts = 0;
                         }
@@ -288,6 +290,7 @@ where
                             emit_event(AgentEvent::ModelSwitch {
                                 from: model_id.clone(),
                                 to: state.current_model().to_string(),
+                                reason: "failover to next model".to_string(),
                             });
                             current_attempts = 0;
                         } else {

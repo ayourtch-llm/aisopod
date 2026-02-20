@@ -7,9 +7,9 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use tokio::sync::broadcast;
 
-use crate::pipeline::AgentPipeline;
-use crate::types::{AgentEvent, AgentRunParams, AgentRunResult};
+use crate::types::{AgentEvent, AgentRunParams};
 
 /// The central struct for running agents.
 ///
@@ -41,9 +41,9 @@ use crate::types::{AgentEvent, AgentRunParams, AgentRunResult};
 ///     let params = AgentRunParams::new(
 ///         "session_123",
 ///         vec![],
-///         "my-agent"
+///         Some("my-agent")
 ///     );
-///     let result = runner.run(params).await?;
+///     let stream = runner.run(params).await?;
 ///
 ///     Ok(())
 /// }
@@ -90,33 +90,10 @@ impl AgentRunner {
     ///
     /// # Returns
     ///
-    /// Returns the result of the agent run on success, or an error if
-    /// the run failed.
-    ///
-    /// This method:
-    /// - Resolves the agent configuration
-    /// - Selects the appropriate model
-    /// - Prepares tools
-    /// - Builds the system prompt
-    /// - Repairs the transcript for provider requirements
-    /// - Calls the model
-    /// - Handles tool calls in a loop until completion
-    /// - Streams events to subscribers
-    /// - Returns the final result
-    pub async fn run(&self, params: AgentRunParams) -> Result<AgentRunResult> {
-        // Create the pipeline
-        let pipeline = AgentPipeline::new(
-            self.config.clone(),
-            self.providers.clone(),
-            self.tools.clone(),
-            self.sessions.clone(),
-        );
-
-        // Create event channel for streaming
-        let (event_tx, _event_rx) = tokio::sync::mpsc::unbounded_channel::<AgentEvent>();
-
-        // Execute the pipeline
-        pipeline.execute(&params, &event_tx).await
+    /// Returns a stream of agent events on success, or an error if
+    /// the run failed to start.
+    pub async fn run(&self, _params: AgentRunParams) -> Result<crate::pipeline::AgentRunStream> {
+        todo!()
     }
 
     /// Subscribes to agent events for a session.
@@ -128,23 +105,8 @@ impl AgentRunner {
     /// # Returns
     ///
     /// Returns a receiver for agent events.
-    ///
-    /// This method creates a broadcast channel for streaming agent events
-    /// to multiple subscribers.
-    pub async fn subscribe(&self, _session_key: &str) -> tokio::sync::broadcast::Receiver<AgentEvent> {
-        // Create a broadcast channel for events
-        let (tx, rx) = tokio::sync::broadcast::channel(100);
-        
-        // Send a subscription event to the new subscriber
-        let _ = tx.send(AgentEvent::Complete {
-            result: crate::types::AgentRunResult::new(
-                "Subscription established".to_string(),
-                None,
-                crate::types::UsageReport::new(0, 0),
-            ),
-        });
-        
-        rx
+    pub fn subscribe(&self, _session_key: &str) -> broadcast::Receiver<AgentEvent> {
+        todo!()
     }
 
     /// Aborts the agent run for the given session.
@@ -152,9 +114,8 @@ impl AgentRunner {
     /// # Arguments
     ///
     /// * `session_key` - The session key to abort.
-    pub async fn abort(&self, _session_key: &str) {
-        // TODO: Implement abort logic
-        // This would involve signaling cancellation to any in-progress runs
+    pub async fn abort(&self, _session_key: &str) -> Result<()> {
+        todo!()
     }
 }
 

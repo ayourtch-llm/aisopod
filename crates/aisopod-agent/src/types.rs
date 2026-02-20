@@ -70,9 +70,34 @@ impl SessionMetadata {
     }
 }
 
+/// Record of a tool call made during agent execution.
+///
+/// This type captures the essential information about a tool call
+/// including its identifier, name, and arguments.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolCallRecord {
+    /// The unique identifier for this tool call.
+    pub id: String,
+    /// The name of the tool being called.
+    pub name: String,
+    /// The JSON string arguments for the tool.
+    pub arguments: String,
+}
+
+impl ToolCallRecord {
+    /// Creates a new `ToolCallRecord` with the given id, name, and arguments.
+    pub fn new(id: impl Into<String>, name: impl Into<String>, arguments: impl Into<String>) -> Self {
+        Self {
+            id: id.into(),
+            name: name.into(),
+            arguments: arguments.into(),
+        }
+    }
+}
+
 /// Parameters for running an agent.
 ///
-/// Contains the session key, message history, and agent ID
+/// Contains the session key, message history, and optional agent ID
 /// needed to execute an agent run.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentRunParams {
@@ -80,17 +105,17 @@ pub struct AgentRunParams {
     pub session_key: String,
     /// The list of messages in the conversation.
     pub messages: Vec<aisopod_provider::Message>,
-    /// The unique identifier of the agent to run.
-    pub agent_id: String,
+    /// The unique identifier of the agent to run, if known.
+    pub agent_id: Option<String>,
 }
 
 impl AgentRunParams {
-    /// Creates a new `AgentRunParams` with the given session key, messages, and agent ID.
-    pub fn new(session_key: impl Into<String>, messages: Vec<aisopod_provider::Message>, agent_id: impl Into<String>) -> Self {
+    /// Creates a new `AgentRunParams` with the given session key, messages, and optional agent ID.
+    pub fn new(session_key: impl Into<String>, messages: Vec<aisopod_provider::Message>, agent_id: Option<impl Into<String>>) -> Self {
         Self {
             session_key: session_key.into(),
             messages,
-            agent_id: agent_id.into(),
+            agent_id: agent_id.map(|id| id.into()),
         }
     }
 }
@@ -102,8 +127,8 @@ impl AgentRunParams {
 pub struct AgentRunResult {
     /// The response content from the agent.
     pub response: String,
-    /// Optional list of tool calls that were made during the run.
-    pub tool_calls: Option<Vec<aisopod_provider::ToolCall>>,
+    /// List of tool calls that were made during the run.
+    pub tool_calls: Vec<ToolCallRecord>,
     /// Usage statistics for the run.
     pub usage: UsageReport,
 }
@@ -112,7 +137,7 @@ impl AgentRunResult {
     /// Creates a new `AgentRunResult` with the given response, tool calls, and usage.
     pub fn new(
         response: impl Into<String>,
-        tool_calls: Option<Vec<aisopod_provider::ToolCall>>,
+        tool_calls: Vec<ToolCallRecord>,
         usage: UsageReport,
     ) -> Self {
         Self {
@@ -129,14 +154,14 @@ impl AgentRunResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageReport {
     /// The number of input tokens (prompt tokens).
-    pub input_tokens: u32,
+    pub input_tokens: u64,
     /// The number of output tokens (completion tokens).
-    pub output_tokens: u32,
+    pub output_tokens: u64,
 }
 
 impl UsageReport {
     /// Creates a new `UsageReport` with the given token counts.
-    pub fn new(input_tokens: u32, output_tokens: u32) -> Self {
+    pub fn new(input_tokens: u64, output_tokens: u64) -> Self {
         Self {
             input_tokens,
             output_tokens,
@@ -144,7 +169,7 @@ impl UsageReport {
     }
 
     /// Returns the total number of tokens used.
-    pub fn total_tokens(&self) -> u32 {
+    pub fn total_tokens(&self) -> u64 {
         self.input_tokens + self.output_tokens
     }
 }
@@ -159,22 +184,26 @@ pub enum AgentEvent {
     /// A delta of text in the streaming response.
     TextDelta {
         /// The text delta content.
-        delta: String,
+        text: String,
         /// Optional index of the message in the stream.
         #[serde(default)]
         index: Option<usize>,
     },
     /// A tool call has started.
     ToolCallStart {
-        /// The tool call that started.
-        tool_call: aisopod_provider::ToolCall,
+        /// The tool name being called.
+        tool_name: String,
+        /// The unique identifier for this tool call.
+        call_id: String,
     },
     /// A tool call has completed with a result.
     ToolCallResult {
-        /// The tool call that completed.
-        tool_call: aisopod_provider::ToolCall,
+        /// The unique identifier of the tool call.
+        call_id: String,
         /// The result of the tool execution.
-        result: aisopod_tools::ToolResult,
+        result: String,
+        /// Whether the tool execution resulted in an error.
+        is_error: bool,
     },
     /// The model is switching to a different model.
     ModelSwitch {
@@ -182,6 +211,8 @@ pub enum AgentEvent {
         from: String,
         /// The new model ID.
         to: String,
+        /// The reason for the model switch.
+        reason: String,
     },
     /// An error occurred during agent execution.
     Error {

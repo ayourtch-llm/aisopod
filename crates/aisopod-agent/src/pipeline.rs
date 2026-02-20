@@ -71,10 +71,10 @@ impl AgentPipeline {
         event_tx: &mpsc::UnboundedSender<AgentEvent>,
     ) -> Result<AgentRunResult> {
         // Step 1: Resolve agent configuration
-        let agent_config = resolution::resolve_agent_config(&self.config, &params.agent_id)?;
+        let agent_config = resolution::resolve_agent_config(&self.config, params.agent_id.as_deref().ok_or_else(|| anyhow::anyhow!("Agent ID is required"))?)?;
 
         // Step 2: Resolve model chain
-        let model_chain = resolution::resolve_agent_model(&self.config, &params.agent_id)?;
+        let model_chain = resolution::resolve_agent_model(&self.config, params.agent_id.as_deref().ok_or_else(|| anyhow::anyhow!("Agent ID is required"))?)?;
 
         // Step 3: Resolve the primary model provider
         let (provider, model_id) = self
@@ -127,13 +127,13 @@ impl AgentPipeline {
                         // Send final response and complete event
                         for delta in response.split(' ') {
                             let _ = event_tx.send(AgentEvent::TextDelta {
-                                delta: format!("{} ", delta),
+                                text: format!("{} ", delta),
                                 index: None,
                             });
                         }
                         let result = AgentRunResult::new(
                             response,
-                            None,
+                            Vec::new(),
                             UsageReport::new(0, 0), // TODO: Extract actual usage
                         );
                         let _ = event_tx.send(AgentEvent::Complete { result: result.clone() });
@@ -145,7 +145,8 @@ impl AgentPipeline {
                     for tool_call in &tool_calls {
                         // Send tool call start event
                         let _ = event_tx.send(AgentEvent::ToolCallStart {
-                            tool_call: tool_call.clone(),
+                            tool_name: tool_call.name.clone(),
+                            call_id: tool_call.id.clone(),
                         });
 
                         // Execute tool
@@ -153,8 +154,9 @@ impl AgentPipeline {
 
                         // Send tool call result event
                         let _ = event_tx.send(AgentEvent::ToolCallResult {
-                            tool_call: tool_call.clone(),
-                            result: tool_result,
+                            call_id: tool_call.id.clone(),
+                            result: tool_result.content.clone(),
+                            is_error: tool_result.is_error,
                         });
 
                         all_tool_calls.push(tool_call.clone());
