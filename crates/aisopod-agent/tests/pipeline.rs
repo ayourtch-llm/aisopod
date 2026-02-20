@@ -140,6 +140,8 @@ async fn test_pipeline_text_only_response() {
     // Create provider registry and add mock provider
     let mut providers = aisopod_provider::ProviderRegistry::new();
     providers.register(mock_provider);
+    // Register alias for the mock model
+    providers.register_alias("mock/test-model", "mock", "mock/test-model");
     let providers = Arc::new(providers);
 
     // Create other dependencies
@@ -205,6 +207,8 @@ async fn test_pipeline_with_tool_call() {
     // Create provider registry and add mock provider
     let mut providers = aisopod_provider::ProviderRegistry::new();
     providers.register(mock_provider);
+    // Register alias for the mock model
+    providers.register_alias("mock/test-model", "mock", "mock/test-model");
     let providers = Arc::new(providers);
 
     // Create other dependencies
@@ -275,6 +279,8 @@ async fn test_pipeline_with_multiple_tool_calls() {
     // Create provider registry and add mock provider
     let mut providers = aisopod_provider::ProviderRegistry::new();
     providers.register(mock_provider);
+    // Register alias for the mock model
+    providers.register_alias("mock/test-model", "mock", "mock/test-model");
     let providers = Arc::new(providers);
 
     // Create other dependencies
@@ -332,6 +338,8 @@ async fn test_pipeline_event_order() {
     // Create provider registry and add mock provider
     let mut providers = aisopod_provider::ProviderRegistry::new();
     providers.register(mock_provider);
+    // Register alias for the mock model
+    providers.register_alias("mock/test-model", "mock", "mock/test-model");
     let providers = Arc::new(providers);
 
     // Create other dependencies
@@ -374,6 +382,8 @@ async fn test_pipeline_error_handling() {
     // Create provider registry and add mock provider
     let mut providers = aisopod_provider::ProviderRegistry::new();
     providers.register(mock_provider);
+    // Register alias for the mock model
+    providers.register_alias("mock/test-model", "mock", "mock/test-model");
     let providers = Arc::new(providers);
 
     // Create other dependencies
