@@ -107,6 +107,9 @@ pub struct AgentRunParams {
     pub messages: Vec<aisopod_provider::Message>,
     /// The unique identifier of the agent to run, if known.
     pub agent_id: Option<String>,
+    /// The current depth of agent spawning (for recursion limits).
+    #[serde(default)]
+    pub depth: usize,
 }
 
 impl AgentRunParams {
@@ -116,6 +119,22 @@ impl AgentRunParams {
             session_key: session_key.into(),
             messages,
             agent_id: agent_id.map(|id| id.into()),
+            depth: 0,
+        }
+    }
+
+    /// Creates a new `AgentRunParams` with the given session key, messages, agent ID, and depth.
+    pub fn with_depth(
+        session_key: impl Into<String>,
+        messages: Vec<aisopod_provider::Message>,
+        agent_id: Option<impl Into<String>>,
+        depth: usize,
+    ) -> Self {
+        Self {
+            session_key: session_key.into(),
+            messages,
+            agent_id: agent_id.map(|id| id.into()),
+            depth,
         }
     }
 }

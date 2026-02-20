@@ -10,6 +10,7 @@ pub mod pipeline;
 pub mod prompt;
 pub mod resolution;
 pub mod runner;
+pub mod subagent;
 pub mod transcript;
 pub mod types;
 
@@ -24,6 +25,7 @@ pub use resolution::{
     list_agent_ids, resolve_agent_config, resolve_agent_model, resolve_session_agent_id,
     ModelChain, ResolutionConfig,
 };
-pub use runner::AgentRunner;
+pub use runner::{AgentRunner, SubagentRunnerExt};
+pub use subagent::{spawn_subagent, ResourceBudget, SubagentSpawnParams};
 pub use transcript::{repair_transcript, ProviderKind};
 pub use types::{AgentEvent, AgentRunParams, AgentRunResult, SessionMetadata, UsageReport};

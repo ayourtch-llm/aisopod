@@ -157,6 +157,9 @@ mod tests {
                 workspace: "/workspace".to_string(),
                 sandbox: false,
                 subagents: vec![],
+                max_subagent_depth: 3,
+                subagent_allowed_models: None,
+                system_prompt: "Default system prompt".to_string(),
             },
             Agent {
                 id: "agent2".to_string(),
@@ -165,6 +168,9 @@ mod tests {
                 workspace: "/workspace".to_string(),
                 sandbox: false,
                 subagents: vec![],
+                max_subagent_depth: 3,
+                subagent_allowed_models: None,
+                system_prompt: "Default system prompt".to_string(),
             },
         ];
         let errors = config.validate().unwrap_err();

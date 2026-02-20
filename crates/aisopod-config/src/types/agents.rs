@@ -34,6 +34,17 @@ pub struct Agent {
     /// System prompt for this agent
     #[serde(default)]
     pub system_prompt: String,
+    /// Maximum depth for subagent spawning (default: 3)
+    #[serde(default = "default_max_subagent_depth")]
+    pub max_subagent_depth: usize,
+    /// Optional allowlist of models that subagents can use
+    #[serde(default)]
+    pub subagent_allowed_models: Option<Vec<String>>,
+}
+
+/// Default maximum depth for subagent spawning
+fn default_max_subagent_depth() -> usize {
+    3
 }
 
 /// Default agent configuration
@@ -79,6 +90,8 @@ impl Default for Agent {
             sandbox: false,
             subagents: Vec::new(),
             system_prompt: String::new(),
+            max_subagent_depth: default_max_subagent_depth(),
+            subagent_allowed_models: None,
         }
     }
 }
