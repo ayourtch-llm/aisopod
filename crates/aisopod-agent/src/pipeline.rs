@@ -1,45 +1,65 @@
-//! Agent execution pipeline for orchestrating agent runs.
+//! Agent execution pipeline for aisopod-agent.
 //!
-//! This module provides the `AgentPipeline` struct which implements
-//! the full agent execution loop: resolving agents, selecting models,
-//! preparing tools, building system prompts, repairing transcripts,
-//! calling models, handling tool calls, and streaming events.
+//! This module implements the core agent execution loop that ties together
+//! agent resolution, model selection, tool preparation, system prompt construction,
+//! transcript repair, model calling, tool call handling, and event streaming.
 
 use std::sync::Arc;
 
 use anyhow::Result;
-use futures_util::stream::StreamExt;
 use tokio::sync::mpsc;
+use futures_util::StreamExt;
 
-use crate::failover::{classify_error, execute_with_failover, FailoverAction, FailoverState};
-use crate::types::{AgentEvent, AgentRunParams, AgentRunResult, ToolSchema, UsageReport};
-use crate::{resolution, transcript, SystemPromptBuilder};
+use crate::resolution::{resolve_agent_config, resolve_agent_model, resolve_session_agent_id, ModelChain};
+use crate::types::{AgentEvent, AgentRunParams, AgentRunResult, ToolCallRecord, UsageReport};
+use crate::{prompt, transcript};
+use aisopod_provider::ToolDefinition;
 
-/// The core pipeline for agent execution.
+/// A stream of agent events from an agent run.
 ///
-/// `AgentPipeline` implements the full agent execution loop:
-/// - Resolve agent configuration
-/// - Select model from model chain
-/// - Prepare tools for the agent
-/// - Build system prompt
-/// - Repair transcript for provider requirements
-/// - Call model with messages and tools
-/// - Handle tool call responses
-/// - Stream events to subscribers
-/// - Return final result
+/// This is a wrapper around the `mpsc::Receiver<AgentEvent>` that provides
+/// an ergonomic interface for consumers of agent event streams.
+pub struct AgentRunStream {
+    receiver: mpsc::Receiver<AgentEvent>,
+}
+
+impl AgentRunStream {
+    /// Creates a new AgentRunStream from an mpsc receiver.
+    pub fn new(receiver: mpsc::Receiver<AgentEvent>) -> Self {
+        Self { receiver }
+    }
+
+    /// Returns the underlying receiver.
+    pub fn receiver(&self) -> &mpsc::Receiver<AgentEvent> {
+        &self.receiver
+    }
+
+    /// Consumes the stream and returns the receiver.
+    pub fn into_receiver(self) -> mpsc::Receiver<AgentEvent> {
+        self.receiver
+    }
+}
+
+/// The execution pipeline for running an agent.
+///
+/// This struct encapsulates the full pipeline of agent execution:
+/// - Agent ID resolution
+/// - Agent configuration resolution
+/// - Model chain resolution
+/// - Tool preparation
+/// - System prompt construction
+/// - Transcript repair
+/// - Model calling with tool call handling
+/// - Event streaming
 pub struct AgentPipeline {
-    /// The agent configuration.
     config: Arc<aisopod_config::AisopodConfig>,
-    /// The provider registry for model access.
     providers: Arc<aisopod_provider::ProviderRegistry>,
-    /// The tool registry for tool execution.
     tools: Arc<aisopod_tools::ToolRegistry>,
-    /// The session store for conversation state.
     sessions: Arc<aisopod_session::SessionStore>,
 }
 
 impl AgentPipeline {
-    /// Creates a new `AgentPipeline` with the given dependencies.
+    /// Creates a new AgentPipeline with the given dependencies.
     pub fn new(
         config: Arc<aisopod_config::AisopodConfig>,
         providers: Arc<aisopod_provider::ProviderRegistry>,
@@ -54,444 +74,251 @@ impl AgentPipeline {
         }
     }
 
-    /// Executes the full agent pipeline with the given parameters and event sender.
+    /// Executes the full agent pipeline with the given parameters.
+    ///
+    /// This method:
+    /// 1. Resolves the agent ID from the session
+    /// 2. Resolves the agent configuration
+    /// 3. Resolves the model chain (primary + fallbacks)
+    /// 4. Prepares tool schemas for the agent
+    /// 5. Builds the system prompt
+    /// 6. Repairs the message transcript for the target provider
+    /// 7. Calls the model in a loop, handling tool calls
+    /// 8. Streams events to the provided sender
     ///
     /// # Arguments
     ///
-    /// * `params` - The parameters for the agent run.
-    /// * `event_tx` - The sender for streaming events to subscribers.
+    /// * `params` - The agent run parameters
+    /// * `event_tx` - The channel sender for streaming events
     ///
     /// # Returns
     ///
-    /// Returns the result of the agent run on success, or an error if
-    /// the run failed.
+    /// Returns the final result of the agent run, or an error if execution failed.
     pub async fn execute(
         &self,
         params: &AgentRunParams,
-        event_tx: &mpsc::UnboundedSender<AgentEvent>,
+        event_tx: &mpsc::Sender<AgentEvent>,
     ) -> Result<AgentRunResult> {
-        // Step 1: Resolve agent configuration
-        let agent_config = resolution::resolve_agent_config(&self.config, params.agent_id.as_deref().ok_or_else(|| anyhow::anyhow!("Agent ID is required"))?)?;
+        // 1. Resolve agent ID
+        let agent_id = resolve_session_agent_id(&self.config, &params.session_key)?;
 
-        // Step 2: Resolve model chain
-        let model_chain = resolution::resolve_agent_model(&self.config, params.agent_id.as_deref().ok_or_else(|| anyhow::anyhow!("Agent ID is required"))?)?;
+        // 2. Resolve agent config
+        let agent_config = resolve_agent_config(&self.config, &agent_id)?;
 
-        // Step 3: Resolve the primary model provider
-        let (provider, model_id) = self
-            .providers
-            .resolve_model(model_chain.primary())
-            .ok_or_else(|| anyhow::anyhow!("Failed to resolve model: {}", model_chain.primary()))?;
+        // 3. Resolve model chain (primary + fallbacks)
+        let model_chain = resolve_agent_model(&self.config, &agent_id)?;
 
-        // Step 4: Get tools for the agent
-        let agent_tools = self.get_agent_tools()?;
-
-        // Step 5: Build system prompt
-        let system_prompt = self.build_system_prompt(&agent_config, &agent_tools)?;
-
-        // Step 6: Prepare message history with system prompt
-        let mut messages = self.prepare_messages(&params.messages, &system_prompt);
-
-        // Step 7: Repair transcript for provider requirements
-        let provider_kind = self.get_provider_kind(&provider);
-        messages = transcript::repair_transcript(&messages, provider_kind);
-
-        // Step 8: Initialize failover state
-        let mut failover_state = FailoverState::new(&model_chain);
-
-        // Step 9: Main execution loop with failover
-        loop {
-            // Call model with failover - we pass an async closure that calls call_model_async
-            let result = execute_with_failover(
-                &mut failover_state,
-                &mut |event| {
-                    let _ = event_tx.send(event);
-                },
-                |model_id| {
-                    let provider_clone = provider.clone();
-                    let tools = agent_tools.clone();
-                    let messages_clone = messages.clone();
-                    let model_id_clone = model_id.to_string();
-                    
-                    // Return an async block that will be awaited
-                    async move {
-                        Self::call_model_async(&provider_clone, &model_id_clone, &messages_clone, &tools).await
-                    }
-                },
-            )
-            .await;
-
-            match result {
-                Ok((response, tool_calls)) => {
-                    // Check if model returned text response (no tool calls)
-                    if tool_calls.is_empty() {
-                        // Send final response and complete event
-                        for delta in response.split(' ') {
-                            let _ = event_tx.send(AgentEvent::TextDelta {
-                                text: format!("{} ", delta),
-                                index: None,
-                            });
-                        }
-                        let result = AgentRunResult::new(
-                            response,
-                            Vec::new(),
-                            UsageReport::new(0, 0), // TODO: Extract actual usage
-                        );
-                        let _ = event_tx.send(AgentEvent::Complete { result: result.clone() });
-                        return Ok(result);
-                    }
-
-                    // Handle tool calls
-                    let mut all_tool_calls = Vec::new();
-                    for tool_call in &tool_calls {
-                        // Send tool call start event
-                        let _ = event_tx.send(AgentEvent::ToolCallStart {
-                            tool_name: tool_call.name.clone(),
-                            call_id: tool_call.id.clone(),
-                        });
-
-                        // Execute tool
-                        let tool_result = self.execute_tool(tool_call, &params.session_key).await?;
-
-                        // Send tool call result event
-                        let _ = event_tx.send(AgentEvent::ToolCallResult {
-                            call_id: tool_call.id.clone(),
-                            result: tool_result.content.clone(),
-                            is_error: tool_result.is_error,
-                        });
-
-                        all_tool_calls.push(tool_call.clone());
-                    }
-
-                    // Append tool results to message history
-                    messages.push(aisopod_provider::Message {
-                        role: aisopod_provider::Role::Assistant,
-                        content: aisopod_provider::MessageContent::Text(String::new()),
-                        tool_calls: Some(all_tool_calls.clone()),
-                        tool_call_id: None,
-                    });
-
-                    // Add tool results to messages
-                    for tool_call in &all_tool_calls {
-                        let tool_result = self.get_tool_result(tool_call, &params.session_key).await?;
-                        messages.push(aisopod_provider::Message {
-                            role: aisopod_provider::Role::Tool,
-                            content: aisopod_provider::MessageContent::Text(tool_result.content.clone()),
-                            tool_calls: None,
-                            tool_call_id: Some(tool_call.id.clone()),
-                        });
-                    }
-                }
-                Err(msg) => {
-                    // Handle failover errors
-                    if msg.contains("Context length exceeded") {
-                        // Compact messages and retry - for now, we'll just log and continue
-                        // In a full implementation, we'd implement message compaction
-                        let _ = event_tx.send(AgentEvent::Error {
-                            message: format!("Context length exceeded. Could not compact messages enough to retry. Last error: {}", msg),
-                        });
-                        return Err(anyhow::anyhow!("All models exhausted or failed"));
-                    } else {
-                        // Other error - return it
-                        let _ = event_tx.send(AgentEvent::Error {
-                            message: msg.clone(),
-                        });
-                        return Err(anyhow::anyhow!("{}", msg));
-                    }
-                }
-            }
-        }
-    }
-
-    /// Calls the model with messages and tools - async version for failover.
-    async fn call_model_async(
-        provider: &Arc<dyn aisopod_provider::trait_module::ModelProvider>,
-        model_id: &str,
-        messages: &[aisopod_provider::Message],
-        tools: &[ToolSchema],
-    ) -> Result<(String, Vec<aisopod_provider::ToolCall>), aisopod_provider::normalize::ProviderError> {
-        // Convert tool schemas to tool definitions
-        let tool_defs: Vec<aisopod_provider::ToolDefinition> = tools
-            .iter()
-            .map(|t| aisopod_provider::ToolDefinition {
-                name: t.name.clone(),
-                description: t.description.clone(),
-                parameters: t.parameters.clone(),
+        // 4. Prepare tool schemas for the agent - convert to ToolDefinition
+        let tool_definitions: Vec<ToolDefinition> = self.tools.schemas().iter()
+            .filter_map(|s| {
+                let name = s.get("name")?.as_str()?.to_string();
+                let description = s.get("description")?.as_str()?.to_string();
+                let parameters = s.get("parameters")?.clone();
+                Some(ToolDefinition::new(name, description, parameters))
             })
             .collect();
 
-        // Create completion request
-        let request = aisopod_provider::ChatCompletionRequest {
-            model: model_id.to_string(),
-            messages: messages.to_vec(),
-            tools: Some(tool_defs),
-            temperature: None,
-            max_tokens: None,
-            stop: None,
-            stream: true, // We need streaming for the full pipeline
-        };
+        // 5. Build system prompt
+        let system_prompt = self.build_system_prompt(&agent_config, &tool_definitions);
 
-        // Call the model - convert anyhow::Error to ProviderError
-        let stream_result = provider.chat_completion(request).await
-            .map_err(|e| aisopod_provider::normalize::ProviderError::Unknown {
-                provider: model_id.to_string(),
-                message: e.to_string(),
-            });
+        // 6. Repair message transcript
+        let provider_kind = self.determine_provider_kind(&model_chain);
+        let messages = transcript::repair_transcript(&params.messages, provider_kind);
 
-        let mut stream = stream_result?;
-
-        let mut full_response = String::new();
-        let mut tool_calls: Vec<aisopod_provider::ToolCall> = Vec::new();
-
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|e| aisopod_provider::normalize::ProviderError::Unknown {
-                provider: model_id.to_string(),
-                message: e.to_string(),
-            })?;
-
-            // Handle text deltas
-            if let Some(content) = &chunk.delta.content {
-                full_response.push_str(content);
-            }
-
-            // Handle tool calls
-            if let Some(ref chunk_tool_calls) = chunk.delta.tool_calls {
-                for tool_call in chunk_tool_calls {
-                    // Merge tool calls - check if we already have this tool call ID
-                    if let Some(existing) = tool_calls.iter_mut().find(|t| t.id == tool_call.id) {
-                        // Append arguments
-                        existing.arguments.push_str(&tool_call.arguments);
-                    } else {
-                        tool_calls.push(tool_call.clone());
-                    }
-                }
-            }
-
-            // Handle finish reason
-            if let Some(reason) = &chunk.finish_reason {
-                match reason {
-                    aisopod_provider::FinishReason::Stop => break,
-                    aisopod_provider::FinishReason::ToolCall => {
-                        // Model wants to make tool calls
-                        break;
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        Ok((full_response, tool_calls))
+        // 7. Call model in a loop
+        self.execute_model_loop(
+            &agent_id,
+            &model_chain,
+            &system_prompt,
+            messages,
+            &tool_definitions,
+            event_tx,
+            params,
+        )
+        .await
     }
 
-    /// Gets the tools configured for an agent.
-    fn get_agent_tools(&self) -> Result<Vec<ToolSchema>> {
-        let mut tools = Vec::new();
-
-        // Get all registered tools from the registry
-        for tool_name in self.tools.list() {
-            if let Some(tool) = self.tools.get(&tool_name) {
-                tools.push(ToolSchema::new(
-                    tool.name(),
-                    tool.description(),
-                    tool.parameters_schema(),
-                ));
-            }
-        }
-
-        Ok(tools)
-    }
-
-    /// Builds the system prompt for the agent.
+    /// Builds the system prompt from agent config and tool schemas.
     fn build_system_prompt(
         &self,
         agent_config: &aisopod_config::types::Agent,
-        tools: &[ToolSchema],
-    ) -> Result<String> {
-        let mut builder = SystemPromptBuilder::new();
+        tool_definitions: &[ToolDefinition],
+    ) -> String {
+        let builder = prompt::SystemPromptBuilder::new()
+            .with_base_prompt(&agent_config.system_prompt)
+            .with_dynamic_context();
 
-        // Add dynamic context
-        builder = builder.with_dynamic_context();
-
-        // Add tool descriptions
-        builder = builder.with_tool_descriptions(tools);
-
-        // Build the final prompt
-        Ok(builder.build())
-    }
-
-    /// Prepares the message history with the system prompt.
-    fn prepare_messages(
-        &self,
-        user_messages: &[aisopod_provider::Message],
-        system_prompt: &str,
-    ) -> Vec<aisopod_provider::Message> {
-        let mut messages = Vec::new();
-
-        // Add system message at the start
-        messages.push(aisopod_provider::Message {
-            role: aisopod_provider::Role::System,
-            content: aisopod_provider::MessageContent::Text(system_prompt.to_string()),
-            tool_calls: None,
-            tool_call_id: None,
-        });
-
-        // Add user messages
-        messages.extend(user_messages.to_vec());
-
-        messages
-    }
-
-    /// Gets the provider kind for transcript repair.
-    fn get_provider_kind(
-        &self,
-        provider: &Arc<dyn aisopod_provider::trait_module::ModelProvider>,
-    ) -> transcript::ProviderKind {
-        let provider_id = provider.id().to_lowercase();
-
-        match provider_id.as_str() {
-            "anthropic" | "claude" => transcript::ProviderKind::Anthropic,
-            "openai" | "gpt" => transcript::ProviderKind::OpenAI,
-            "google" | "gemini" => transcript::ProviderKind::Google,
-            _ => transcript::ProviderKind::Other,
-        }
-    }
-
-    /// Calls the model with messages and tools.
-    async fn call_model(
-        &self,
-        provider: &Arc<dyn aisopod_provider::trait_module::ModelProvider>,
-        model_id: &str,
-        messages: &[aisopod_provider::Message],
-        tools: &[ToolSchema],
-    ) -> Result<(String, Vec<aisopod_provider::ToolCall>)> {
-        // Convert tool schemas to tool definitions
-        let tool_defs: Vec<aisopod_provider::ToolDefinition> = tools
+        // Convert ToolDefinition to ToolSchema type for the builder
+        let schemas: Vec<crate::types::ToolSchema> = tool_definitions
             .iter()
-            .map(|t| aisopod_provider::ToolDefinition {
-                name: t.name.clone(),
-                description: t.description.clone(),
-                parameters: t.parameters.clone(),
+            .map(|tool| {
+                crate::types::ToolSchema::new(
+                    &tool.name,
+                    &tool.description,
+                    tool.parameters.clone()
+                )
             })
             .collect();
 
-        // Create completion request
-        let request = aisopod_provider::ChatCompletionRequest {
-            model: model_id.to_string(),
-            messages: messages.to_vec(),
-            tools: Some(tool_defs),
-            temperature: None,
-            max_tokens: None,
-            stop: None,
-            stream: true, // We need streaming for the full pipeline
-        };
+        builder.with_tool_descriptions(&schemas).build()
+    }
 
-        // Call the model - convert anyhow::Error to ProviderError
-        let stream_result = provider.chat_completion(request).await
-            .map_err(|e| aisopod_provider::normalize::ProviderError::Unknown {
-                provider: model_id.to_string(),
-                message: e.to_string(),
-            });
-
-        let mut stream = stream_result?;
-
-        let mut full_response = String::new();
-        let mut tool_calls: Vec<aisopod_provider::ToolCall> = Vec::new();
-
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|e| aisopod_provider::normalize::ProviderError::Unknown {
-                provider: model_id.to_string(),
-                message: e.to_string(),
-            })?;
-
-            // Handle text deltas
-            if let Some(content) = &chunk.delta.content {
-                full_response.push_str(content);
-            }
-
-            // Handle tool calls
-            if let Some(ref chunk_tool_calls) = chunk.delta.tool_calls {
-                for tool_call in chunk_tool_calls {
-                    // Merge tool calls - check if we already have this tool call ID
-                    if let Some(existing) = tool_calls.iter_mut().find(|t| t.id == tool_call.id) {
-                        // Append arguments
-                        existing.arguments.push_str(&tool_call.arguments);
-                    } else {
-                        tool_calls.push(tool_call.clone());
-                    }
-                }
-            }
-
-            // Handle finish reason
-            if let Some(reason) = &chunk.finish_reason {
-                match reason {
-                    aisopod_provider::FinishReason::Stop => break,
-                    aisopod_provider::FinishReason::ToolCall => {
-                        // Model wants to make tool calls
-                        break;
-                    }
-                    _ => {}
-                }
-            }
+    /// Determines the provider kind from the model chain.
+    fn determine_provider_kind(&self, model_chain: &ModelChain) -> transcript::ProviderKind {
+        // Extract provider from model ID (format: "provider/model")
+        let primary = model_chain.primary();
+        if primary.starts_with("anthropic/") {
+            transcript::ProviderKind::Anthropic
+        } else if primary.starts_with("openai/") {
+            transcript::ProviderKind::OpenAI
+        } else if primary.starts_with("google/") || primary.starts_with("gemini/") {
+            transcript::ProviderKind::Google
+        } else {
+            transcript::ProviderKind::Other
         }
+    }
 
-        Ok((full_response, tool_calls))
+    /// Executes the model call loop with tool call handling.
+    #[allow(clippy::too_many_arguments)]
+    async fn execute_model_loop(
+        &self,
+        agent_id: &str,
+        model_chain: &ModelChain,
+        system_prompt: &str,
+        mut messages: Vec<aisopod_provider::Message>,
+        tool_definitions: &[ToolDefinition],
+        event_tx: &mpsc::Sender<AgentEvent>,
+        params: &AgentRunParams,
+    ) -> Result<AgentRunResult> {
+        let mut usage = UsageReport::new(0, 0);
+        let mut tool_calls: Vec<ToolCallRecord> = Vec::new();
+
+        loop {
+            // Get the current provider and model
+            let (provider, model_id) = self
+                .providers
+                .resolve_model(&model_chain.primary())
+                .ok_or_else(|| anyhow::anyhow!("Model not found: {}", model_chain.primary()))?;
+
+            // Build the request
+            let request = aisopod_provider::ChatCompletionRequest {
+                model: model_id.clone(),
+                messages: messages.clone(),
+                tools: if tool_definitions.is_empty() {
+                    None
+                } else {
+                    Some(tool_definitions.to_vec())
+                },
+                temperature: None,
+                max_tokens: None,
+                stop: None,
+                stream: true,
+            };
+
+            // Call model - for now, use the provider directly
+            let response_stream = provider.chat_completion(request).await?;
+
+            // Process streaming response
+            let mut response_text = String::new();
+            let mut response_tool_calls: Vec<aisopod_provider::ToolCall> = Vec::new();
+
+            let mut stream = response_stream;
+            while let Some(chunk) = stream.next().await {
+                let chunk = chunk?;
+
+                // Emit text delta events
+                if let Some(ref content) = chunk.delta.content {
+                    let _ = event_tx.send(AgentEvent::TextDelta {
+                        text: content.clone(),
+                        index: None, // TODO: track message index
+                    }).await;
+                    response_text.push_str(content);
+                }
+
+                // Collect tool calls
+                if let Some(ref tool_calls_chunk) = chunk.delta.tool_calls {
+                    response_tool_calls.extend(tool_calls_chunk.clone());
+                }
+
+                // Aggregate usage
+                if let Some(ref u) = chunk.usage {
+                    usage = UsageReport::new(
+                        u.prompt_tokens as u64,
+                        u.completion_tokens as u64,
+                    );
+                }
+            }
+
+            // Check if there are tool calls
+            if response_tool_calls.is_empty() {
+                // No tool calls - we're done
+                let result = AgentRunResult::new(
+                    response_text.clone(),
+                    tool_calls.clone(),
+                    usage,
+                );
+                let _ = event_tx.send(AgentEvent::Complete { result: result.clone() }).await;
+                return Ok(result);
+            }
+
+            // Process tool calls
+            for tool_call in response_tool_calls {
+                let _ = event_tx.send(AgentEvent::ToolCallStart {
+                    tool_name: tool_call.name.clone(),
+                    call_id: tool_call.id.clone(),
+                }).await;
+
+                // Execute the tool
+                let tool_result = self.execute_tool(&tool_call, agent_id, &params.session_key).await?;
+
+                let result_content = tool_result.content.clone();
+                let _ = event_tx.send(AgentEvent::ToolCallResult {
+                    call_id: tool_call.id.clone(),
+                    result: tool_result.content,
+                    is_error: tool_result.is_error,
+                }).await;
+
+                // Add tool result to messages
+                messages.push(aisopod_provider::Message {
+                    role: aisopod_provider::Role::Assistant,
+                    content: aisopod_provider::MessageContent::Text(response_text.clone()),
+                    tool_calls: Some(vec![aisopod_provider::ToolCall {
+                        id: tool_call.id.clone(),
+                        name: tool_call.name.clone(),
+                        arguments: tool_call.arguments.clone(),
+                    }]),
+                    tool_call_id: None,
+                });
+
+                messages.push(aisopod_provider::Message {
+                    role: aisopod_provider::Role::Tool,
+                    content: aisopod_provider::MessageContent::Text(result_content),
+                    tool_calls: None,
+                    tool_call_id: Some(tool_call.id),
+                });
+            }
+
+            // Continue the loop with updated messages
+        }
     }
 
     /// Executes a tool and returns the result.
     async fn execute_tool(
         &self,
         tool_call: &aisopod_provider::ToolCall,
+        agent_id: &str,
         session_key: &str,
     ) -> Result<aisopod_tools::ToolResult> {
         let tool_name = &tool_call.name;
+        let params: serde_json::Value = serde_json::from_str(&tool_call.arguments)?;
 
-        // Parse arguments
-        let args: serde_json::Value = serde_json::from_str(&tool_call.arguments)
-            .map_err(|e| anyhow::anyhow!("Failed to parse tool arguments: {}", e))?;
-
-        // Get tool from registry
         let tool = self.tools.get(tool_name).ok_or_else(|| {
             anyhow::anyhow!("Tool not found: {}", tool_name)
         })?;
 
-        // Create tool context
-        let ctx = aisopod_tools::ToolContext::new("agent", session_key);
+        let ctx = aisopod_tools::ToolContext::new(agent_id, session_key);
 
-        // Execute the tool
-        tool.execute(args, &ctx).await
-    }
-
-    /// Gets the tool result for a tool call.
-    async fn get_tool_result(
-        &self,
-        _tool_call: &aisopod_provider::ToolCall,
-        _session_key: &str,
-    ) -> Result<aisopod_tools::ToolResult> {
-        // This is a placeholder - in a real implementation, we'd retrieve
-        // the result from a previous tool execution
-        Ok(aisopod_tools::ToolResult::success("Tool executed"))
-    }
-}
-
-/// A stream of agent events.
-///
-/// This type wraps the receiver end of the event channel and provides
-/// an async stream interface for consuming agent events.
-pub struct AgentRunStream {
-    rx: mpsc::UnboundedReceiver<AgentEvent>,
-}
-
-impl AgentRunStream {
-    /// Creates a new `AgentRunStream` from a receiver.
-    pub fn new(rx: mpsc::UnboundedReceiver<AgentEvent>) -> Self {
-        Self { rx }
-    }
-
-    /// Receives the next event from the stream.
-    ///
-    /// Returns `Some(AgentEvent)` if an event is available, or `None`
-    /// if the stream has been closed.
-    pub async fn next(&mut self) -> Option<AgentEvent> {
-        self.rx.recv().await
+        tool.execute(params, &ctx).await
     }
 }
 
@@ -500,15 +327,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_agent_pipeline_new() {
-        let config = Arc::new(aisopod_config::AisopodConfig::default());
-        let providers = Arc::new(aisopod_provider::ProviderRegistry::new());
-        let tools = Arc::new(aisopod_tools::ToolRegistry::new());
-        let sessions = Arc::new(aisopod_session::SessionStore::new());
+    fn test_agent_run_stream_new() {
+        let (tx, rx) = mpsc::channel(10);
+        let stream = AgentRunStream::new(rx);
+        // Capacity returns usize, not Option<usize>
+        assert!(stream.receiver().capacity() > 0);
+        drop(tx); // Clean up
+    }
 
-        let pipeline = AgentPipeline::new(config, providers, tools, sessions);
-
-        // Just verify it compiles - full tests will be added in subsequent issues
-        assert_eq!(pipeline.config.meta.version, "1.0");
+    #[test]
+    fn test_agent_run_stream_into_receiver() {
+        let (tx, rx) = mpsc::channel(10);
+        let stream = AgentRunStream::new(rx);
+        let mut receiver = stream.into_receiver();
+        assert!(receiver.try_recv().is_err());
+        drop(tx); // Clean up
     }
 }

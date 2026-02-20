@@ -92,8 +92,28 @@ impl AgentRunner {
     ///
     /// Returns a stream of agent events on success, or an error if
     /// the run failed to start.
-    pub async fn run(&self, _params: AgentRunParams) -> Result<crate::pipeline::AgentRunStream> {
-        todo!()
+    pub async fn run(&self, params: AgentRunParams) -> Result<crate::pipeline::AgentRunStream> {
+        // Create a channel for streaming events
+        let (event_tx, event_rx) = tokio::sync::mpsc::channel(100);
+
+        // Clone the pipeline dependencies
+        let config = self.config.clone();
+        let providers = self.providers.clone();
+        let tools = self.tools.clone();
+        let sessions = self.sessions.clone();
+
+        // Spawn the pipeline execution
+        tokio::spawn(async move {
+            let pipeline = crate::pipeline::AgentPipeline::new(config, providers, tools, sessions);
+            if let Err(e) = pipeline.execute(&params, &event_tx).await {
+                let _ = event_tx.send(crate::types::AgentEvent::Error {
+                    message: e.to_string(),
+                }).await;
+            }
+        });
+
+        // Return the stream
+        Ok(crate::pipeline::AgentRunStream::new(event_rx))
     }
 
     /// Subscribes to agent events for a session.
@@ -106,7 +126,10 @@ impl AgentRunner {
     ///
     /// Returns a receiver for agent events.
     pub fn subscribe(&self, _session_key: &str) -> broadcast::Receiver<AgentEvent> {
-        todo!()
+        // TODO: Implement actual subscription mechanism using broadcast channel
+        // For now, return a stub receiver
+        let (_tx, rx) = broadcast::channel(1);
+        rx
     }
 
     /// Aborts the agent run for the given session.
@@ -115,7 +138,9 @@ impl AgentRunner {
     ///
     /// * `session_key` - The session key to abort.
     pub async fn abort(&self, _session_key: &str) -> Result<()> {
-        todo!()
+        // TODO: Implement actual abort mechanism
+        // For now, this is a stub
+        Ok(())
     }
 }
 

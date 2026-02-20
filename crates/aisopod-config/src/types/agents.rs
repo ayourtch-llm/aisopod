@@ -31,6 +31,9 @@ pub struct Agent {
     /// Subagents
     #[serde(default)]
     pub subagents: Vec<String>,
+    /// System prompt for this agent
+    #[serde(default)]
+    pub system_prompt: String,
 }
 
 /// Default agent configuration
@@ -75,6 +78,7 @@ impl Default for Agent {
             workspace: String::new(),
             sandbox: false,
             subagents: Vec::new(),
+            system_prompt: String::new(),
         }
     }
 }

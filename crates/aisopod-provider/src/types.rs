@@ -69,6 +69,17 @@ pub struct ToolDefinition {
     pub parameters: serde_json::Value,
 }
 
+impl ToolDefinition {
+    /// Creates a new ToolDefinition with the given name, description, and parameters.
+    pub fn new(name: impl Into<String>, description: impl Into<String>, parameters: serde_json::Value) -> Self {
+        Self {
+            name: name.into(),
+            description: description.into(),
+            parameters,
+        }
+    }
+}
+
 /// A call to a tool made by the model.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolCall {
