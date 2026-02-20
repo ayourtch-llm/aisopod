@@ -88,13 +88,54 @@ Subagent spawning enables complex multi-agent workflows where specialized agents
 - Issue 055 (Subagent spawning tool — tool-side interface)
 
 ## Acceptance Criteria
-- [ ] Subagents can be spawned within a parent session.
-- [ ] Depth limit is enforced and configurable.
-- [ ] Model allowlist restricts which models subagents can use.
-- [ ] Thread ID propagates from parent to child.
-- [ ] Resource budgets are inherited and decremented.
-- [ ] Unit tests cover depth limits, allowlist, thread propagation, and budget enforcement.
-- [ ] `cargo check -p aisopod-agent` succeeds without errors.
+- [x] Subagents can be spawned within a parent session.
+- [x] Depth limit is enforced and configurable.
+- [x] Model allowlist restricts which models subagents can use.
+- [x] Thread ID propagates from parent to child.
+- [x] Resource budgets are inherited and decremented.
+- [x] Unit tests cover depth limits, allowlist, thread propagation, and budget enforcement.
+- [x] `cargo check -p aisopod-agent` succeeds without errors.
+
+## Resolution
+
+The subagent spawning system was implemented as specified:
+
+### Changes Made:
+1. **Created `crates/aisopod-agent/src/subagent.rs`**:
+   - `SubagentSpawnParams` struct with all required fields
+   - `ResourceBudget` struct with `new()`, `has_budget()`, `deduct()` methods
+   - `spawn_subagent()` async function:
+     - Depth limit enforcement (`depth + 1 <= max_subagent_depth`)
+     - Model allowlist validation
+     - Thread ID propagation from parent to child
+     - Resource budget inheritance and deduction
+     - Returns child's result as `(AgentRunResult, Option<ResourceBudget>)`
+
+2. **Updated `crates/aisopod-agent/src/types.rs`**:
+   - Added `depth` field to `AgentRunParams`
+   - Added `with_depth_and_thread_id()` constructor
+
+3. **Updated `crates/aisopod-agent/src/runner.rs`**:
+   - Added `SubagentRunnerExt` trait with:
+     - `get_max_subagent_depth()`
+     - `validate_model_allowlist()`
+     - `get_resource_budget()`
+   - Added `run_and_get_result()` method
+
+4. **Updated `aisopod-config`**:
+   - Added `max_subagent_depth` and `subagent_allowed_models` to `AgentConfig`
+
+5. **Updated `crates/aisopod-agent/src/lib.rs`**:
+   - Exported `spawn_subagent`, `ResourceBudget`, `SubagentSpawnParams`
+
+### Commits:
+- `4e1b24a`: Issue 069: Implement Subagent Spawning
+
+### Verification:
+- `cargo test -p aisopod-agent`: 112 tests passed
+- `cargo build` at top level: succeeded
+- `cargo check -p aisopod-agent`: clean
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-20*
