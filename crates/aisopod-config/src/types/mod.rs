@@ -38,6 +38,8 @@ pub use meta::MetaConfig;
 pub use memory::MemoryConfig;
 pub use models::ModelsConfig;
 pub use plugins::PluginsConfig;
+pub use session::CompactionConfig;
+pub use session::MessageConfig;
 pub use session::SessionConfig;
 pub use skills::SkillsConfig;
 pub use tools::ToolsConfig;
