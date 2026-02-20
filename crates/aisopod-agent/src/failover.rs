@@ -6,6 +6,8 @@
 use std::time::{Duration, Instant};
 
 use anyhow::Error;
+use std::any::Any;
+use std::error::Error as StdError;
 use tokio::sync::mpsc;
 
 use crate::types::AgentEvent;
@@ -187,11 +189,25 @@ pub fn classify_error(error: &ProviderError) -> FailoverAction {
     }
 }
 
+/// Classifies a generic error and determines the appropriate failover action.
+///
+/// This is a generic version that works with any error type by checking
+/// if it's a ProviderError or examining the error message.
+pub fn classify_error_generic<E: StdError + Send + Sync + 'static>(error: &E) -> FailoverAction {
+    // First, try to downcast to ProviderError
+    if let Some(provider_error) = (error as &dyn Any).downcast_ref::<ProviderError>() {
+        return classify_error(provider_error);
+    }
+    
+    // Fallback to message-based classification
+    classify_error_by_message(&error.to_string())
+}
+
 /// Executes a model call with intelligent failover.
 ///
 /// This function implements the failover logic:
 /// 1. Calls the model with the provided function
-/// 2. If an error occurs, classifies it using classify_error
+/// 2. If an error occurs, classifies it using classify_error_generic
 /// 3. Takes appropriate action based on the classification:
 ///    - RetryWithNextAuth: Switches credentials and retries
 ///    - WaitAndRetry: Waits for the specified duration, then retries
@@ -205,6 +221,7 @@ pub fn classify_error(error: &ProviderError) -> FailoverAction {
 ///
 /// * `F` - The closure type that performs the model call
 /// * `R` - The return type of the closure
+/// * `E` - The error type returned by the operation (must implement std::error::Error)
 ///
 /// # Arguments
 ///
@@ -216,14 +233,15 @@ pub fn classify_error(error: &ProviderError) -> FailoverAction {
 ///
 /// Returns Ok with the result if successful, or Err with an error message
 /// if all models are exhausted or failover should abort.
-pub async fn execute_with_failover<F, Fut, R>(
+pub async fn execute_with_failover<F, Fut, R, E>(
     state: &mut FailoverState,
     event_tx: mpsc::Sender<AgentEvent>,
     mut operation: F,
 ) -> Result<R, Error>
 where
     F: FnMut(String) -> Fut,
-    Fut: std::future::Future<Output = Result<R, ProviderError>> + Send,
+    Fut: std::future::Future<Output = Result<R, E>> + Send,
+    E: StdError + Send + Sync + 'static,
 {
     let mut current_attempts = 0;
     let max_attempts = state.max_attempts;
@@ -240,10 +258,13 @@ where
             }
             Err(error) => {
                 let duration = start_time.elapsed();
-                state.record_attempt(Some(error.clone()), duration);
+                state.record_attempt(Some(ProviderError::Unknown {
+                    provider: "unknown".to_string(),
+                    message: error.to_string(),
+                }), duration);
 
                 // Classify the error to determine the appropriate action
-                let action = classify_error(&error);
+                let action = classify_error_generic(&error);
 
                 match action {
                     FailoverAction::RetryWithNextAuth => {

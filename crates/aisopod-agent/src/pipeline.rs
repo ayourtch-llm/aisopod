@@ -228,12 +228,21 @@ impl AgentPipeline {
                 move |model_id: String| {
                     let provider = provider.clone();
                     let request = request_clone.clone();
+                    let current_model_clone = current_model.clone();
                     async move {
                         let request = aisopod_provider::ChatCompletionRequest {
                             model: model_id,
                             ..request.clone()
                         };
-                        provider.chat_completion(request).await.map_err(|e| e)
+                        provider.chat_completion(request).await.map_err(|e| {
+                            // Convert anyhow::Error to ProviderError
+                            // Extract provider from current_model (format: "provider/model")
+                            let provider_name = current_model_clone.split('/').next().unwrap_or("unknown").to_string();
+                            aisopod_provider::normalize::ProviderError::Unknown {
+                                provider: provider_name,
+                                message: e.to_string(),
+                            }
+                        })
                     }
                 },
             )
