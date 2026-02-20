@@ -216,15 +216,14 @@ pub fn classify_error(error: &ProviderError) -> FailoverAction {
 ///
 /// Returns Ok with the result if successful, or Err with an error message
 /// if all models are exhausted or failover should abort.
-pub async fn execute_with_failover<F, Fut, R, E>(
+pub async fn execute_with_failover<F, Fut, R>(
     state: &mut FailoverState,
     event_tx: mpsc::Sender<AgentEvent>,
     mut operation: F,
 ) -> Result<R, Error>
 where
     F: FnMut(String) -> Fut,
-    Fut: std::future::Future<Output = Result<R, E>> + Send,
-    E: std::fmt::Display + Send,
+    Fut: std::future::Future<Output = Result<R, ProviderError>> + Send,
 {
     let mut current_attempts = 0;
     let max_attempts = state.max_attempts;
@@ -241,12 +240,10 @@ where
             }
             Err(error) => {
                 let duration = start_time.elapsed();
-                let error_msg = error.to_string();
-                state.record_attempt(None, duration);
+                state.record_attempt(Some(error.clone()), duration);
 
-                // Try to classify the error by looking for known patterns
-                // First, try to parse as ProviderError if it contains known error markers
-                let action = classify_error_by_message(&error_msg);
+                // Classify the error to determine the appropriate action
+                let action = classify_error(&error);
 
                 match action {
                     FailoverAction::RetryWithNextAuth => {
