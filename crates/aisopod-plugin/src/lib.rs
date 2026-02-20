@@ -85,4 +85,4 @@ pub mod r#trait;
 
 pub use context::PluginContext;
 pub use meta::PluginMeta;
-pub use r#trait::{Plugin};
+pub use r#trait::Plugin;

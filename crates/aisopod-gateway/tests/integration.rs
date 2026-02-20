@@ -11,8 +11,8 @@
 #![deny(unused_must_use)]
 
 use aisopod_config::types::{AuthConfig, AuthMode, GatewayConfig, WebUiConfig};
-use aisopod_gateway::{run, server::run_with_config};
 use aisopod_gateway::middleware::RateLimitConfig;
+use aisopod_gateway::{run, server::run_with_config};
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use std::net::{SocketAddr, TcpListener};
 use std::sync::Arc;
@@ -21,8 +21,8 @@ use tokio::sync::oneshot;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
 // Import test-only reset methods
-use aisopod_gateway::middleware::rate_limit::RateLimiter;
 use aisopod_gateway::client::ClientRegistry;
+use aisopod_gateway::middleware::rate_limit::RateLimiter;
 
 /// Test configuration constants
 const TEST_TOKEN: &str = "test-auth-token";
@@ -49,7 +49,7 @@ fn wait_for_port_release(port: u16) {
     // Try to bind to the port to verify it's available
     let max_attempts = 100;
     let delay = Duration::from_millis(50);
-    
+
     for _ in 0..max_attempts {
         if TcpListener::bind(("127.0.0.1", port)).is_ok() {
             // Port is available, we can use it
@@ -64,7 +64,7 @@ fn wait_for_port_release(port: u16) {
 /// Uses a simple TCP connect check that bypasses rate limiting
 async fn wait_for_server_ready(addr: &str, max_attempts: u32, delay_ms: u64) {
     let delay = Duration::from_millis(delay_ms);
-    
+
     for attempt in 0..max_attempts {
         // Try to connect to the TCP port directly (bypasses rate limiting)
         let addr_clone = addr.to_string();
@@ -80,15 +80,21 @@ async fn wait_for_server_ready(addr: &str, max_attempts: u32, delay_ms: u64) {
                 // Connection failed, check if we should retry
                 if attempt + 1 >= max_attempts {
                     // Final attempt failed, panic with detailed info
-                    panic!("Server failed to start - TCP connection refused at {}", addr);
+                    panic!(
+                        "Server failed to start - TCP connection refused at {}",
+                        addr
+                    );
                 }
                 tokio::time::sleep(delay).await;
             }
         }
     }
-    
+
     // Should not reach here
-    panic!("Server failed to start and accept TCP connections at {}", addr);
+    panic!(
+        "Server failed to start and accept TCP connections at {}",
+        addr
+    );
 }
 
 /// Configuration builder for gateway tests
@@ -126,12 +132,10 @@ impl GatewayTestConfig {
             auth_config.tokens = self
                 .tokens
                 .iter()
-                .map(|token| {
-                    aisopod_config::types::TokenCredential {
-                        token: token.clone(),
-                        role: "operator".to_string(),
-                        scopes: vec!["chat:write".to_string()],
-                    }
+                .map(|token| aisopod_config::types::TokenCredential {
+                    token: token.clone(),
+                    role: "operator".to_string(),
+                    scopes: vec!["chat:write".to_string()],
                 })
                 .collect();
         }
@@ -140,14 +144,14 @@ impl GatewayTestConfig {
             auth_config.passwords = self
                 .passwords
                 .iter()
-                .map(|(username, password)| {
-                    aisopod_config::types::PasswordCredential {
+                .map(
+                    |(username, password)| aisopod_config::types::PasswordCredential {
                         username: username.clone(),
                         password: aisopod_config::sensitive::Sensitive::new(password.clone()),
                         role: "operator".to_string(),
                         scopes: vec!["chat:write".to_string()],
-                    }
-                })
+                    },
+                )
                 .collect();
         }
 
@@ -180,23 +184,25 @@ impl GatewayTestConfig {
 }
 
 /// Start the gateway server for integration tests
-async fn start_test_server_with_auth(config: GatewayConfig, auth_mode: AuthMode, tokens: Vec<String>) -> SocketAddr {
+async fn start_test_server_with_auth(
+    config: GatewayConfig,
+    auth_mode: AuthMode,
+    tokens: Vec<String>,
+) -> SocketAddr {
     let config_clone = config.clone();
-    
+
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
-    
+
     let server_task = tokio::spawn(async move {
         let auth_config = if auth_mode == AuthMode::Token {
             aisopod_config::types::AuthConfig {
                 gateway_mode: auth_mode,
                 tokens: tokens
                     .iter()
-                    .map(|token| {
-                        aisopod_config::types::TokenCredential {
-                            token: token.clone(),
-                            role: "operator".to_string(),
-                            scopes: vec!["chat:write".to_string()],
-                        }
+                    .map(|token| aisopod_config::types::TokenCredential {
+                        token: token.clone(),
+                        role: "operator".to_string(),
+                        scopes: vec!["chat:write".to_string()],
                     })
                     .collect(),
                 ..Default::default()
@@ -204,33 +210,31 @@ async fn start_test_server_with_auth(config: GatewayConfig, auth_mode: AuthMode,
         } else if auth_mode == AuthMode::Password {
             aisopod_config::types::AuthConfig {
                 gateway_mode: auth_mode,
-                passwords: vec![
-                    aisopod_config::types::PasswordCredential {
-                        username: TEST_USERNAME.to_string(),
-                        password: aisopod_config::sensitive::Sensitive::new(TEST_PASSWORD.to_string()),
-                        role: "operator".to_string(),
-                        scopes: vec!["chat:write".to_string()],
-                    }
-                ],
+                passwords: vec![aisopod_config::types::PasswordCredential {
+                    username: TEST_USERNAME.to_string(),
+                    password: aisopod_config::sensitive::Sensitive::new(TEST_PASSWORD.to_string()),
+                    role: "operator".to_string(),
+                    scopes: vec!["chat:write".to_string()],
+                }],
                 ..Default::default()
             }
         } else {
             aisopod_config::types::AuthConfig::default()
         };
-        
+
         let aisopod_config = aisopod_config::types::AisopodConfig {
             gateway: config_clone,
             auth: auth_config,
             ..Default::default()
         };
-        
+
         let _ = run_with_config(&aisopod_config).await;
     });
 
     // Wait for the port to be released before starting the next test
     // This prevents port conflicts in parallel test execution
     wait_for_port_release(config.server.port);
-    
+
     // Get the actual bound address
     let address: SocketAddr = format!("{}:{}", config.bind.address, config.server.port)
         .parse()
@@ -243,7 +247,7 @@ async fn start_test_server_with_auth(config: GatewayConfig, auth_mode: AuthMode,
     // Wait for server to be ready to accept connections
     let addr_str = format!("{}:{}", config.bind.address, config.server.port);
     wait_for_server_ready(&addr_str, 50, 100).await;
-    
+
     address
 }
 
@@ -262,11 +266,11 @@ async fn test_health_returns_200() {
     let addr = start_test_server(config).await;
 
     let url = format!("http://{}/health", addr);
-    
+
     let response = reqwest::get(&url).await.expect("Health request failed");
-    
+
     assert_eq!(response.status(), reqwest::StatusCode::OK);
-    
+
     let body = response.text().await.expect("Failed to read body");
     assert_eq!(body, r#"{"status":"ok"}"#);
 }
@@ -287,11 +291,14 @@ async fn test_stub_endpoints_return_501() {
     for endpoint in endpoints {
         let url = format!("http://{}{}", addr, endpoint);
         let response = reqwest::get(&url).await.expect("Request failed");
-        
+
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        eprintln!("Endpoint: {}, Status: {:?}, Body: {}", endpoint, status, body);
-        
+        eprintln!(
+            "Endpoint: {}, Status: {:?}, Body: {}",
+            endpoint, status, body
+        );
+
         assert_eq!(
             status,
             reqwest::StatusCode::NOT_IMPLEMENTED,
@@ -310,7 +317,7 @@ async fn test_static_file_fallback() {
     // Request an unknown path that should fall back to index.html
     let url = format!("http://{}/unknown/path", addr);
     let response = reqwest::get(&url).await.expect("Request failed");
-    
+
     // With static file serving disabled in test config, this will return 404
     // In production with static files enabled, it would return index.html
     // Since we disabled static files in the test config, we expect 404
@@ -326,11 +333,12 @@ async fn test_valid_token_accepted() {
     let mut config = GatewayTestConfig::default();
     config.auth_mode = AuthMode::Token;
     let config = config.into_gateway_config();
-    let addr = start_test_server_with_auth(config, AuthMode::Token, vec![TEST_TOKEN.to_string()]).await;
+    let addr =
+        start_test_server_with_auth(config, AuthMode::Token, vec![TEST_TOKEN.to_string()]).await;
 
     // Use an API endpoint that requires auth, not /health which is always allowed
     let url = format!("http://{}/v1/chat/completions", addr);
-    
+
     let client = reqwest::Client::new();
     let response = client
         .post(&url)
@@ -339,7 +347,7 @@ async fn test_valid_token_accepted() {
         .send()
         .await
         .expect("Request failed");
-    
+
     // Since the endpoint returns 501 (not implemented), we should get 501 with valid auth
     assert_eq!(response.status(), reqwest::StatusCode::NOT_IMPLEMENTED);
 }
@@ -349,11 +357,12 @@ async fn test_invalid_token_rejected() {
     let mut config = GatewayTestConfig::default();
     config.auth_mode = AuthMode::Token;
     let config = config.into_gateway_config();
-    let addr = start_test_server_with_auth(config, AuthMode::Token, vec![TEST_TOKEN.to_string()]).await;
+    let addr =
+        start_test_server_with_auth(config, AuthMode::Token, vec![TEST_TOKEN.to_string()]).await;
 
     // Use an API endpoint that requires auth, not /health which is always allowed
     let url = format!("http://{}/v1/chat/completions", addr);
-    
+
     let client = reqwest::Client::new();
     let response = client
         .post(&url)
@@ -362,7 +371,7 @@ async fn test_invalid_token_rejected() {
         .send()
         .await
         .expect("Request failed");
-    
+
     assert_eq!(response.status(), reqwest::StatusCode::UNAUTHORIZED);
 }
 
@@ -374,9 +383,9 @@ async fn test_no_auth_mode() {
     let addr = start_test_server(config).await;
 
     let url = format!("http://{}/health", addr);
-    
+
     let response = reqwest::get(&url).await.expect("Request failed");
-    
+
     assert_eq!(response.status(), reqwest::StatusCode::OK);
 }
 
@@ -388,10 +397,10 @@ async fn test_password_auth_success() {
     let addr = start_test_server_with_auth(config, AuthMode::Password, vec![]).await;
 
     let url = format!("http://{}/health", addr);
-    
+
     let credentials = format!("{}:{}", TEST_USERNAME, TEST_PASSWORD);
     let encoded = base64::encode(credentials);
-    
+
     let client = reqwest::Client::new();
     let response = client
         .get(&url)
@@ -399,7 +408,7 @@ async fn test_password_auth_success() {
         .send()
         .await
         .expect("Request failed");
-    
+
     assert_eq!(response.status(), reqwest::StatusCode::OK);
 }
 
@@ -412,10 +421,10 @@ async fn test_password_auth_rejected() {
 
     // Use an API endpoint that requires auth, not /health which is always allowed
     let url = format!("http://{}/v1/chat/completions", addr);
-    
+
     let credentials = format!("{}:wrongpassword", TEST_USERNAME);
     let encoded = base64::encode(credentials);
-    
+
     let client = reqwest::Client::new();
     let response = client
         .post(&url)
@@ -424,7 +433,7 @@ async fn test_password_auth_rejected() {
         .send()
         .await
         .expect("Request failed");
-    
+
     assert_eq!(response.status(), reqwest::StatusCode::UNAUTHORIZED);
 }
 
@@ -441,7 +450,7 @@ async fn test_under_limit_allowed() {
     let addr = start_test_server(config).await;
 
     let url = format!("http://{}/health", addr);
-    
+
     // Make requests under the limit
     let client = reqwest::Client::new();
     for _ in 0..5 {
@@ -459,9 +468,9 @@ async fn test_over_limit_returns_429() {
     let addr = start_test_server(config).await;
 
     let url = format!("http://{}/health", addr);
-    
+
     let client = reqwest::Client::new();
-    
+
     // Make requests up to the limit
     for i in 0..5 {
         let response = client.get(&url).send().await.expect("Request failed");
@@ -472,11 +481,11 @@ async fn test_over_limit_returns_429() {
             i + 1
         );
     }
-    
+
     // The 6th request should be rate limited
     let response = client.get(&url).send().await.expect("Request failed");
     assert_eq!(response.status(), reqwest::StatusCode::TOO_MANY_REQUESTS);
-    
+
     // Check Retry-After header
     let retry_after = response.headers().get("Retry-After");
     assert!(retry_after.is_some(), "Should have Retry-After header");
@@ -529,7 +538,11 @@ async fn test_ws_connect_and_ping() {
     }
 
     // Should receive a pong
-    assert!(matches!(msg, Message::Pong(_)), "Expected Pong message, got {:?}", msg);
+    assert!(
+        matches!(msg, Message::Pong(_)),
+        "Expected Pong message, got {:?}",
+        msg
+    );
 }
 
 #[tokio::test]
@@ -600,10 +613,10 @@ async fn test_valid_rpc_request() {
 
     if let Message::Text(text) = msg {
         let json: serde_json::Value = serde_json::from_str(&text).expect("Invalid JSON response");
-        
+
         assert_eq!(json["jsonrpc"], "2.0");
         assert_eq!(json["id"], 1);
-        
+
         // The method is not implemented, so we expect an error
         assert!(json["error"].is_object());
         let error = &json["error"];
@@ -653,11 +666,11 @@ async fn test_malformed_json_returns_parse_error() {
 
     if let Message::Text(text) = msg {
         let json: serde_json::Value = serde_json::from_str(&text).expect("Invalid JSON response");
-        
+
         assert_eq!(json["jsonrpc"], "2.0");
         assert!(json["error"].is_object());
         let error = &json["error"];
-        
+
         // Parse error code is -32700
         assert_eq!(error["code"], -32700);
         assert!(error["message"].as_str().unwrap().contains("parse"));
@@ -706,10 +719,10 @@ async fn test_unknown_method_returns_not_found() {
 
     if let Message::Text(text) = msg {
         let json: serde_json::Value = serde_json::from_str(&text).expect("Invalid JSON response");
-        
+
         assert_eq!(json["jsonrpc"], "2.0");
         assert_eq!(json["id"], 2);
-        
+
         let error = &json["error"];
         assert_eq!(error["code"], -32601); // Method not found
     } else {
@@ -743,24 +756,18 @@ async fn test_broadcast_event_received() {
     // Note: In a full implementation, the broadcast would be triggered
     // by the server when events occur (e.g., new connections).
     // For now, we just verify both clients can connect.
-    
+
     // Verify client 1 can receive messages
     ws1.send(Message::Ping(vec![]))
         .await
         .expect("Client 1 failed to send ping");
-    
-    let _ = ws1
-        .next()
-        .await
-        .expect("Client 1 connection closed");
+
+    let _ = ws1.next().await.expect("Client 1 connection closed");
 
     // Verify client 2 can receive messages
     ws2.send(Message::Ping(vec![]))
         .await
         .expect("Client 2 failed to send ping");
-    
-    let _ = ws2
-        .next()
-        .await
-        .expect("Client 2 connection closed");
+
+    let _ = ws2.next().await.expect("Client 2 connection closed");
 }

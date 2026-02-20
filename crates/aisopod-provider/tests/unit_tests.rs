@@ -9,19 +9,19 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use aisopod_provider::types::*;
-use aisopod_provider::trait_module::{ChatCompletionStream, ModelProvider};
 use aisopod_provider::auth::{AuthProfile, AuthProfileManager, ProfileStatus};
+use aisopod_provider::trait_module::{ChatCompletionStream, ModelProvider};
+use aisopod_provider::types::*;
 
 // Re-export providers for testing
-use aisopod_provider::providers::anthropic::{AnthropicProvider, api_types as anthropic_api};
-use aisopod_provider::providers::openai::{OpenAIProvider, api_types as openai_api};
-use aisopod_provider::providers::gemini::{GeminiProvider, api_types as gemini_api};
-use aisopod_provider::providers::bedrock::{BedrockProvider, api_types as bedrock_api};
-use aisopod_provider::providers::ollama::{OllamaProvider, api_types as ollama_api};
+use aisopod_provider::providers::anthropic::{api_types as anthropic_api, AnthropicProvider};
+use aisopod_provider::providers::bedrock::{api_types as bedrock_api, BedrockProvider};
+use aisopod_provider::providers::gemini::{api_types as gemini_api, GeminiProvider};
+use aisopod_provider::providers::ollama::{api_types as ollama_api, OllamaProvider};
+use aisopod_provider::providers::openai::{api_types as openai_api, OpenAIProvider};
 
 // Mock helper
-use aisopod_provider::helpers::{create_test_request, create_test_model, MockProvider};
+use aisopod_provider::helpers::{create_test_model, create_test_request, MockProvider};
 
 // ============================================================================
 // Anthropic Provider Tests
@@ -29,23 +29,13 @@ use aisopod_provider::helpers::{create_test_request, create_test_model, MockProv
 
 #[tokio::test]
 async fn test_anthropic_provider_id() {
-    let provider = AnthropicProvider::new(
-        "test-key".to_string(),
-        None,
-        None,
-        None,
-    );
+    let provider = AnthropicProvider::new("test-key".to_string(), None, None, None);
     assert_eq!(provider.id(), "anthropic");
 }
 
 #[tokio::test]
 async fn test_anthropic_provider_list_models() {
-    let provider = AnthropicProvider::new(
-        "test-key".to_string(),
-        None,
-        None,
-        None,
-    );
+    let provider = AnthropicProvider::new("test-key".to_string(), None, None, None);
     // This will fail in real execution but we're testing the structure
     // list_models now returns a hardcoded list, so we just verify it works
     let result = provider.list_models().await;
@@ -54,12 +44,7 @@ async fn test_anthropic_provider_list_models() {
 
 #[tokio::test]
 async fn test_anthropic_provider_health_check() {
-    let provider = AnthropicProvider::new(
-        "test-key".to_string(),
-        None,
-        None,
-        None,
-    );
+    let provider = AnthropicProvider::new("test-key".to_string(), None, None, None);
     // This will fail in real execution but we're testing the structure
     // health_check makes a real HTTP call, so it will return available=false without valid API
     let result = provider.health_check().await;
@@ -76,12 +61,7 @@ async fn test_anthropic_provider_health_check() {
 
 #[tokio::test]
 async fn test_openai_provider_id() {
-    let provider = OpenAIProvider::new(
-        "test-key".to_string(),
-        None,
-        None,
-        None,
-    );
+    let provider = OpenAIProvider::new("test-key".to_string(), None, None, None);
     assert_eq!(provider.id(), "openai");
 }
 
@@ -99,12 +79,7 @@ async fn test_openai_provider_with_base_url() {
 
 #[tokio::test]
 async fn test_openai_provider_list_models() {
-    let provider = OpenAIProvider::new(
-        "test-key".to_string(),
-        None,
-        None,
-        None,
-    );
+    let provider = OpenAIProvider::new("test-key".to_string(), None, None, None);
     let result = provider.list_models().await;
     assert!(result.is_err()); // Expected to fail without real API
 }
@@ -115,23 +90,13 @@ async fn test_openai_provider_list_models() {
 
 #[tokio::test]
 async fn test_gemini_provider_id() {
-    let provider = GeminiProvider::new(
-        Some("test-key".to_string()),
-        None,
-        None,
-        None,
-    );
+    let provider = GeminiProvider::new(Some("test-key".to_string()), None, None, None);
     assert_eq!(provider.id(), "gemini");
 }
 
 #[tokio::test]
 async fn test_gemini_provider_list_models() {
-    let provider = GeminiProvider::new(
-        Some("test-key".to_string()),
-        None,
-        None,
-        None,
-    );
+    let provider = GeminiProvider::new(Some("test-key".to_string()), None, None, None);
     let result = provider.list_models().await;
     assert!(result.is_err()); // Expected to fail without real API
 }
@@ -260,7 +225,7 @@ fn test_ollama_request_serialization() {
 #[test]
 fn test_anthropic_sse_event_deserialization() {
     let event_json = r#"{"type": "message_start", "message": {"id": "msg_123", "type": "message", "role": "assistant", "content": []}}"#;
-    
+
     let result: Result<anthropic_api::AnthropicSseEvent, _> = serde_json::from_str(event_json);
     // This should parse correctly if the type exists
     assert!(result.is_ok() || result.is_err()); // Either it works or the type doesn't match
@@ -470,12 +435,7 @@ fn test_auth_profile_manager_mark_good() {
 
 #[test]
 fn test_provider_registration() {
-    let provider = AnthropicProvider::new(
-        "test-key".to_string(),
-        None,
-        None,
-        None,
-    );
+    let provider = AnthropicProvider::new("test-key".to_string(), None, None, None);
 
     // Verify provider can be Arc'd and has correct ID
     let arc_provider = Arc::new(provider);
@@ -484,12 +444,7 @@ fn test_provider_registration() {
 
 #[test]
 fn test_provider_with_multiple_keys() {
-    let mut provider = AnthropicProvider::new(
-        "test-key-1".to_string(),
-        None,
-        None,
-        None,
-    );
+    let mut provider = AnthropicProvider::new("test-key-1".to_string(), None, None, None);
 
     provider.add_profile(AuthProfile::new(
         "profile_2".to_string(),

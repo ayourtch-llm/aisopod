@@ -7,11 +7,13 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use tokio::sync::mpsc;
 use futures_util::StreamExt;
+use tokio::sync::mpsc;
 
 use crate::abort::AbortHandle;
-use crate::resolution::{resolve_agent_config, resolve_agent_model, resolve_session_agent_id, ModelChain};
+use crate::resolution::{
+    resolve_agent_config, resolve_agent_model, resolve_session_agent_id, ModelChain,
+};
 use crate::types::{AgentEvent, AgentRunParams, AgentRunResult, ToolCallRecord, UsageReport};
 use crate::{failover, prompt, transcript, usage};
 use aisopod_provider::ToolDefinition;
@@ -133,6 +135,26 @@ impl AgentPipeline {
         self.abort_registry.as_ref()
     }
 
+    /// Gets the config.
+    pub fn config(&self) -> &Arc<aisopod_config::AisopodConfig> {
+        &self.config
+    }
+
+    /// Gets the providers.
+    pub fn providers(&self) -> &Arc<aisopod_provider::ProviderRegistry> {
+        &self.providers
+    }
+
+    /// Gets the tools.
+    pub fn tools(&self) -> &Arc<aisopod_tools::ToolRegistry> {
+        &self.tools
+    }
+
+    /// Gets the sessions.
+    pub fn sessions(&self) -> &Arc<aisopod_session::SessionStore> {
+        &self.sessions
+    }
+
     /// Executes the full agent pipeline with the given parameters.
     ///
     /// This method:
@@ -169,7 +191,10 @@ impl AgentPipeline {
         let model_chain = resolve_agent_model(&self.config, &agent_id)?;
 
         // 4. Prepare tool schemas for the agent - convert to ToolDefinition
-        let tool_definitions: Vec<ToolDefinition> = self.tools.schemas().iter()
+        let tool_definitions: Vec<ToolDefinition> = self
+            .tools
+            .schemas()
+            .iter()
             .filter_map(|s| {
                 let name = s.get("name")?.as_str()?.to_string();
                 let description = s.get("description")?.as_str()?.to_string();
@@ -195,20 +220,23 @@ impl AgentPipeline {
         };
 
         // 8. Call model in a loop with cancellation support
-        let result = self.execute_model_loop(
-            &agent_id,
-            &model_chain,
-            &system_prompt,
-            messages,
-            &tool_definitions,
-            event_tx,
-            params,
-            abort_handle.as_ref(),
-        )
-        .await;
+        let result = self
+            .execute_model_loop(
+                &agent_id,
+                &model_chain,
+                &system_prompt,
+                messages,
+                &tool_definitions,
+                event_tx,
+                params,
+                abort_handle.as_ref(),
+            )
+            .await;
 
         // Clean up abort handle if we created one
-        if let (Some(ref registry), Some(ref handle)) = (self.abort_registry.as_ref(), abort_handle.as_ref()) {
+        if let (Some(ref registry), Some(ref handle)) =
+            (self.abort_registry.as_ref(), abort_handle.as_ref())
+        {
             registry.remove(handle.session_key());
         }
 
@@ -232,7 +260,7 @@ impl AgentPipeline {
                 crate::types::ToolSchema::new(
                     &tool.name,
                     &tool.description,
-                    tool.parameters.clone()
+                    tool.parameters.clone(),
                 )
             })
             .collect();
@@ -278,10 +306,15 @@ impl AgentPipeline {
             // Check for cancellation before each iteration
             if let Some(handle) = abort_handle {
                 if handle.is_aborted() {
-                    let _ = event_tx.send(crate::types::AgentEvent::Error {
-                        message: "Agent execution cancelled".to_string(),
-                    }).await;
-                    return Err(anyhow::anyhow!("Agent execution cancelled for session: {}", params.session_key));
+                    let _ = event_tx
+                        .send(crate::types::AgentEvent::Error {
+                            message: "Agent execution cancelled".to_string(),
+                        })
+                        .await;
+                    return Err(anyhow::anyhow!(
+                        "Agent execution cancelled for session: {}",
+                        params.session_key
+                    ));
                 }
             }
 
@@ -328,7 +361,11 @@ impl AgentPipeline {
                             provider.chat_completion(request).await.map_err(|e| {
                                 // Convert anyhow::Error to ProviderError
                                 // Extract provider from current_model (format: "provider/model")
-                                let provider_name = current_model_clone.split('/').next().unwrap_or("unknown").to_string();
+                                let provider_name = current_model_clone
+                                    .split('/')
+                                    .next()
+                                    .unwrap_or("unknown")
+                                    .to_string();
                                 aisopod_provider::normalize::ProviderError::Unknown {
                                     provider: provider_name,
                                     message: e.to_string(),
@@ -364,10 +401,15 @@ impl AgentPipeline {
                 // Check for cancellation during stream processing
                 if let Some(handle) = abort_handle {
                     if handle.is_aborted() {
-                        let _ = event_tx.send(crate::types::AgentEvent::Error {
-                            message: "Agent execution cancelled during streaming".to_string(),
-                        }).await;
-                        return Err(anyhow::anyhow!("Agent execution cancelled for session: {}", params.session_key));
+                        let _ = event_tx
+                            .send(crate::types::AgentEvent::Error {
+                                message: "Agent execution cancelled during streaming".to_string(),
+                            })
+                            .await;
+                        return Err(anyhow::anyhow!(
+                            "Agent execution cancelled for session: {}",
+                            params.session_key
+                        ));
                     }
                 }
 
@@ -375,10 +417,12 @@ impl AgentPipeline {
 
                 // Emit text delta events
                 if let Some(ref content) = chunk.delta.content {
-                    let _ = event_tx.send(AgentEvent::TextDelta {
-                        text: content.clone(),
-                        index: None, // TODO: track message index
-                    }).await;
+                    let _ = event_tx
+                        .send(AgentEvent::TextDelta {
+                            text: content.clone(),
+                            index: None, // TODO: track message index
+                        })
+                        .await;
                     response_text.push_str(content);
                 }
 
@@ -405,11 +449,13 @@ impl AgentPipeline {
                         req_usage.input_tokens,
                         req_usage.output_tokens,
                     );
-                    
+
                     // Emit AgentEvent::Usage after each model call
-                    let _ = event_tx.send(AgentEvent::Usage {
-                        usage: req_usage.clone(),
-                    }).await;
+                    let _ = event_tx
+                        .send(AgentEvent::Usage {
+                            usage: req_usage.clone(),
+                        })
+                        .await;
                 }
             }
 
@@ -421,31 +467,38 @@ impl AgentPipeline {
             // Check if there are tool calls
             if response_tool_calls.is_empty() {
                 // No tool calls - we're done
-                let result = AgentRunResult::new(
-                    response_text.clone(),
-                    tool_calls.clone(),
-                    total_usage,
-                );
-                let _ = event_tx.send(AgentEvent::Complete { result: result.clone() }).await;
+                let result =
+                    AgentRunResult::new(response_text.clone(), tool_calls.clone(), total_usage);
+                let _ = event_tx
+                    .send(AgentEvent::Complete {
+                        result: result.clone(),
+                    })
+                    .await;
                 return Ok(result);
             }
 
             // Process tool calls
             for tool_call in response_tool_calls {
-                let _ = event_tx.send(AgentEvent::ToolCallStart {
-                    tool_name: tool_call.name.clone(),
-                    call_id: tool_call.id.clone(),
-                }).await;
+                let _ = event_tx
+                    .send(AgentEvent::ToolCallStart {
+                        tool_name: tool_call.name.clone(),
+                        call_id: tool_call.id.clone(),
+                    })
+                    .await;
 
                 // Execute the tool
-                let tool_result = self.execute_tool(&tool_call, agent_id, &params.session_key).await?;
+                let tool_result = self
+                    .execute_tool(&tool_call, agent_id, &params.session_key)
+                    .await?;
 
                 let result_content = tool_result.content.clone();
-                let _ = event_tx.send(AgentEvent::ToolCallResult {
-                    call_id: tool_call.id.clone(),
-                    result: tool_result.content,
-                    is_error: tool_result.is_error,
-                }).await;
+                let _ = event_tx
+                    .send(AgentEvent::ToolCallResult {
+                        call_id: tool_call.id.clone(),
+                        result: tool_result.content,
+                        is_error: tool_result.is_error,
+                    })
+                    .await;
 
                 // Add tool result to messages
                 messages.push(aisopod_provider::Message {
@@ -481,9 +534,10 @@ impl AgentPipeline {
         let tool_name = &tool_call.name;
         let params: serde_json::Value = serde_json::from_str(&tool_call.arguments)?;
 
-        let tool = self.tools.get(tool_name).ok_or_else(|| {
-            anyhow::anyhow!("Tool not found: {}", tool_name)
-        })?;
+        let tool = self
+            .tools
+            .get(tool_name)
+            .ok_or_else(|| anyhow::anyhow!("Tool not found: {}", tool_name))?;
 
         let ctx = aisopod_tools::ToolContext::new(agent_id, session_key);
 

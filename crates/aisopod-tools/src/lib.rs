@@ -75,7 +75,10 @@ pub mod registry;
 pub use registry::ToolRegistry;
 
 pub mod schema;
-pub use schema::{ToolDefinition, to_anthropic_batch, to_anthropic_format, to_gemini_batch, to_gemini_format, to_openai_batch, to_openai_format};
+pub use schema::{
+    to_anthropic_batch, to_anthropic_format, to_gemini_batch, to_gemini_format, to_openai_batch,
+    to_openai_format, ToolDefinition,
+};
 
 pub mod approval;
 pub use approval::{
@@ -84,7 +87,11 @@ pub use approval::{
 };
 
 pub mod builtins;
-pub use builtins::{BashTool, CanvasRenderer, CanvasTool, CronTool, FileTool, InMemoryCanvasRenderer, JobScheduler, MessageSender, MessageTool, NoOpAgentSpawner, NoOpJobScheduler, NoOpMessageSender, NoOpSessionManager, ScheduledJob, SessionManager, SessionTool, SubagentTool};
+pub use builtins::{
+    BashTool, CanvasRenderer, CanvasTool, CronTool, FileTool, InMemoryCanvasRenderer, JobScheduler,
+    MessageSender, MessageTool, NoOpAgentSpawner, NoOpJobScheduler, NoOpMessageSender,
+    NoOpSessionManager, ScheduledJob, SessionManager, SessionTool, SubagentTool,
+};
 
 /// Registers all built-in tools with the given registry.
 pub fn register_all_tools(registry: &mut ToolRegistry) {
@@ -92,9 +99,13 @@ pub fn register_all_tools(registry: &mut ToolRegistry) {
     registry.register(Arc::new(CanvasTool::with_in_memory()));
     registry.register(Arc::new(CronTool::with_noop_scheduler()));
     registry.register(Arc::new(FileTool::new()));
-    registry.register(Arc::new(MessageTool::new(Arc::new(NoOpMessageSender::default()))));
-    registry.register(Arc::new(SubagentTool::new(Arc::new(NoOpAgentSpawner::default()), 3, None)));
-    registry.register(Arc::new(SessionTool::new(Arc::new(NoOpSessionManager::default()))));
+    registry.register(Arc::new(MessageTool::new(Arc::new(NoOpMessageSender))));
+    registry.register(Arc::new(SubagentTool::new(
+        Arc::new(NoOpAgentSpawner),
+        3,
+        None,
+    )));
+    registry.register(Arc::new(SessionTool::new(Arc::new(NoOpSessionManager))));
 }
 
 /// Configuration for the sandbox environment in which tools may execute.
@@ -261,9 +272,5 @@ pub trait Tool: Send + Sync {
     ///
     /// A `Result` containing the `ToolResult` on success, or an error if
     /// the tool execution failed.
-    async fn execute(
-        &self,
-        params: serde_json::Value,
-        ctx: &ToolContext,
-    ) -> Result<ToolResult>;
+    async fn execute(&self, params: serde_json::Value, ctx: &ToolContext) -> Result<ToolResult>;
 }

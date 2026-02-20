@@ -10,7 +10,7 @@ use chrono::{DateTime, Utc};
 use cron::Schedule;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tracing::{debug, error};
+use tracing::debug;
 
 use crate::{Tool, ToolContext, ToolResult};
 
@@ -86,7 +86,10 @@ impl JobScheduler for NoOpJobScheduler {
             last_run: None,
         };
 
-        self.jobs.lock().unwrap().insert(id.to_string(), job.clone());
+        self.jobs
+            .lock()
+            .unwrap()
+            .insert(id.to_string(), job.clone());
         Ok(job)
     }
 
@@ -195,7 +198,10 @@ impl Tool for CronTool {
             "list" => self.execute_list().await,
             "run" => self.execute_run(params).await,
             "remove" => self.execute_remove(params).await,
-            _ => Err(anyhow!("Invalid operation '{}'. Must be one of: schedule, list, run, remove", operation)),
+            _ => Err(anyhow!(
+                "Invalid operation '{}'. Must be one of: schedule, list, run, remove",
+                operation
+            )),
         }
     }
 }
@@ -205,12 +211,16 @@ impl CronTool {
         let cron_expression = params
             .get("cron_expression")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow!("Missing required parameter 'cron_expression' for 'schedule' operation"))?;
+            .ok_or_else(|| {
+                anyhow!("Missing required parameter 'cron_expression' for 'schedule' operation")
+            })?;
 
         let command = params
             .get("command")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow!("Missing required parameter 'command' for 'schedule' operation"))?;
+            .ok_or_else(|| {
+                anyhow!("Missing required parameter 'command' for 'schedule' operation")
+            })?;
 
         // Validate cron expression
         self.validate_cron_expression(cron_expression)?;
@@ -221,7 +231,10 @@ impl CronTool {
             chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
         );
 
-        debug!("Scheduling job '{}' with expression '{}'", job_id, cron_expression);
+        debug!(
+            "Scheduling job '{}' with expression '{}'",
+            job_id, cron_expression
+        );
 
         let job = self
             .scheduler
@@ -291,10 +304,7 @@ impl CronTool {
                 job_id
             )))
         } else {
-            Ok(ToolResult::error(format!(
-                "Job '{}' not found.",
-                job_id
-            )))
+            Ok(ToolResult::error(format!("Job '{}' not found.", job_id)))
         }
     }
 }
@@ -313,7 +323,10 @@ mod tests {
     #[tokio::test]
     async fn test_cron_tool_description() {
         let tool = CronTool::with_noop_scheduler();
-        assert_eq!(tool.description(), "Schedule, list, run, and remove recurring tasks");
+        assert_eq!(
+            tool.description(),
+            "Schedule, list, run, and remove recurring tasks"
+        );
     }
 
     #[tokio::test]
@@ -327,7 +340,10 @@ mod tests {
             schema["properties"]["operation"]["enum"],
             json!(["schedule", "list", "run", "remove"])
         );
-        assert!(schema["required"].as_array().unwrap().contains(&json!("operation")));
+        assert!(schema["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("operation")));
     }
 
     #[tokio::test]
@@ -392,9 +408,7 @@ mod tests {
         .unwrap();
 
         // Then list jobs
-        let result = tool
-            .execute(json!({ "operation": "list" }), &ctx)
-            .await;
+        let result = tool.execute(json!({ "operation": "list" }), &ctx).await;
 
         assert!(result.is_ok());
         let output = result.unwrap();
@@ -424,7 +438,14 @@ mod tests {
 
         // Extract job_id from the schedule response
         let output = schedule_result.unwrap().content;
-        let job_id = output.split("Job '").nth(1).unwrap_or("").split("'").next().unwrap_or("").to_string();
+        let job_id = output
+            .split("Job '")
+            .nth(1)
+            .unwrap_or("")
+            .split("'")
+            .next()
+            .unwrap_or("")
+            .to_string();
 
         // Now run the job with the actual job_id
         let result = tool
@@ -467,7 +488,16 @@ mod tests {
             .lines()
             .find(|line| line.starts_with("- ID:"))
             .map(|line| line.trim_start_matches("- ID:").trim().to_string())
-            .unwrap_or_else(|| output.split("Job '").nth(1).unwrap_or("").split("'").next().unwrap_or("").to_string());
+            .unwrap_or_else(|| {
+                output
+                    .split("Job '")
+                    .nth(1)
+                    .unwrap_or("")
+                    .split("'")
+                    .next()
+                    .unwrap_or("")
+                    .to_string()
+            });
 
         // Now remove the job
         let result = tool
@@ -512,9 +542,7 @@ mod tests {
         let tool = CronTool::with_noop_scheduler();
         let ctx = ToolContext::new("test_agent", "test_session");
 
-        let result = tool
-            .execute(json!({}), &ctx)
-            .await;
+        let result = tool.execute(json!({}), &ctx).await;
 
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
@@ -543,7 +571,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_cron_expression_valid() {
         let tool = CronTool::with_noop_scheduler();
-        
+
         assert!(tool.validate_cron_expression("0 * * * * * *").is_ok());
         assert!(tool.validate_cron_expression("*/5 * * * * * *").is_ok());
         assert!(tool.validate_cron_expression("0 0 * * * * *").is_ok());
@@ -552,7 +580,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_cron_expression_invalid() {
         let tool = CronTool::with_noop_scheduler();
-        
+
         assert!(tool.validate_cron_expression("invalid").is_err());
         // A 7-field expression with too many fields is invalid
         assert!(tool.validate_cron_expression("* * * * * * * *").is_err());

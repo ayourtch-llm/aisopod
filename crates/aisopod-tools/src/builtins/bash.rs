@@ -9,8 +9,8 @@ use async_trait::async_trait;
 use serde_json::{json, Value};
 use tokio::process::Command;
 
-use crate::{Tool, ToolContext, ToolResult};
 use crate::approval::{is_auto_approved, ApprovalRequest, ApprovalResponse, RiskLevel};
+use crate::{Tool, ToolContext, ToolResult};
 
 /// A built-in tool that executes shell commands.
 ///
@@ -131,7 +131,9 @@ impl BashTool {
         // Execute the command
         let output = tokio::time::timeout(timeout, cmd.output())
             .await
-            .map_err(|_| anyhow::anyhow!("Command timed out after {} seconds", timeout.as_secs()))?;
+            .map_err(|_| {
+                anyhow::anyhow!("Command timed out after {} seconds", timeout.as_secs())
+            })?;
 
         let output = output.map_err(|e| anyhow::anyhow!("Command execution failed: {}", e))?;
 
@@ -245,9 +247,7 @@ impl Tool for BashTool {
             .with_timeout(Duration::from_secs(60));
 
             // Request approval
-            let response = approval_handler
-                .request_approval(request)
-                .await?;
+            let response = approval_handler.request_approval(request).await?;
 
             // Only proceed if approved
             match response {
@@ -261,7 +261,9 @@ impl Tool for BashTool {
                     )));
                 }
                 ApprovalResponse::TimedOut => {
-                    return Ok(ToolResult::error("Command execution timed out (approval timeout)"));
+                    return Ok(ToolResult::error(
+                        "Command execution timed out (approval timeout)",
+                    ));
                 }
             }
         } else {
@@ -458,7 +460,13 @@ mod tests {
 
         assert_eq!(schema["type"], "object");
         assert!(schema["properties"]["command"].is_object());
-        assert!(schema["properties"]["command"]["type"].as_str().unwrap().contains("string"));
-        assert!(schema["required"].as_array().unwrap().contains(&json!("command")));
+        assert!(schema["properties"]["command"]["type"]
+            .as_str()
+            .unwrap()
+            .contains("string"));
+        assert!(schema["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("command")));
     }
 }

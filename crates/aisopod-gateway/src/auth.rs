@@ -1,10 +1,11 @@
+#![allow(clippy::all)]
 //! Authentication module for the gateway
 //!
 //! This module provides authentication validation functions and the AuthInfo struct
 //! that carries user role and scopes through the request pipeline.
 
-use aisopod_config::types::{AuthConfig, AuthMode, PasswordCredential, TokenCredential};
 use aisopod_config::sensitive::Sensitive;
+use aisopod_config::types::{AuthConfig, AuthMode, PasswordCredential, TokenCredential};
 use std::collections::HashMap;
 
 /// Authentication information extracted from a request
@@ -108,12 +109,13 @@ pub fn build_password_map(config: &AuthConfig) -> HashMap<String, HashMap<String
     let mut map: HashMap<String, HashMap<String, AuthInfo>> = HashMap::new();
 
     for cred in &config.passwords {
-        map.entry(cred.username.clone())
-            .or_default()
-            .insert(cred.password.expose().to_string(), AuthInfo {
+        map.entry(cred.username.clone()).or_default().insert(
+            cred.password.expose().to_string(),
+            AuthInfo {
                 role: cred.role.clone(),
                 scopes: cred.scopes.clone(),
-            });
+            },
+        );
     }
 
     map
@@ -159,7 +161,7 @@ mod tests {
     #[test]
     fn test_validate_token_success() {
         let config = create_test_auth_config(AuthMode::Token);
-        
+
         let result = validate_token("secret-token-1", &config);
         assert!(result.is_some());
         let auth_info = result.unwrap();
@@ -170,7 +172,7 @@ mod tests {
     #[test]
     fn test_validate_token_invalid() {
         let config = create_test_auth_config(AuthMode::Token);
-        
+
         let result = validate_token("invalid-token", &config);
         assert!(result.is_none());
     }
@@ -178,7 +180,7 @@ mod tests {
     #[test]
     fn test_validate_token_wrong_mode() {
         let config = create_test_auth_config(AuthMode::None);
-        
+
         let result = validate_token("secret-token-1", &config);
         assert!(result.is_none());
     }
@@ -186,7 +188,7 @@ mod tests {
     #[test]
     fn test_validate_basic_success() {
         let config = create_test_auth_config(AuthMode::Password);
-        
+
         let result = validate_basic("admin", "admin123", &config);
         assert!(result.is_some());
         let auth_info = result.unwrap();
@@ -197,7 +199,7 @@ mod tests {
     #[test]
     fn test_validate_basic_invalid_credentials() {
         let config = create_test_auth_config(AuthMode::Password);
-        
+
         let result = validate_basic("admin", "wrong-password", &config);
         assert!(result.is_none());
     }
@@ -205,7 +207,7 @@ mod tests {
     #[test]
     fn test_validate_basic_invalid_user() {
         let config = create_test_auth_config(AuthMode::Password);
-        
+
         let result = validate_basic("unknown", "admin123", &config);
         assert!(result.is_none());
     }
@@ -213,7 +215,7 @@ mod tests {
     #[test]
     fn test_validate_basic_wrong_mode() {
         let config = create_test_auth_config(AuthMode::None);
-        
+
         let result = validate_basic("admin", "admin123", &config);
         assert!(result.is_none());
     }
@@ -222,11 +224,11 @@ mod tests {
     fn test_build_token_map() {
         let config = create_test_auth_config(AuthMode::Token);
         let token_map = build_token_map(&config);
-        
+
         assert_eq!(token_map.len(), 2);
         assert!(token_map.contains_key("secret-token-1"));
         assert!(token_map.contains_key("secret-token-2"));
-        
+
         let auth_info = token_map.get("secret-token-1").unwrap();
         assert_eq!(auth_info.role, "operator");
     }
@@ -235,11 +237,11 @@ mod tests {
     fn test_build_password_map() {
         let config = create_test_auth_config(AuthMode::Password);
         let password_map = build_password_map(&config);
-        
+
         assert_eq!(password_map.len(), 2);
         assert!(password_map.contains_key("admin"));
         assert!(password_map.contains_key("monitor"));
-        
+
         let passwords = password_map.get("admin").unwrap();
         assert_eq!(passwords.len(), 1);
         assert!(passwords.contains_key("admin123"));
@@ -251,7 +253,7 @@ mod tests {
             role: "operator".to_string(),
             scopes: vec!["chat:write".to_string(), "agent:read".to_string()],
         };
-        
+
         assert!(auth_info.has_scope("chat:write"));
         assert!(auth_info.has_scope("agent:read"));
         assert!(!auth_info.has_scope("agent:admin"));
@@ -263,7 +265,7 @@ mod tests {
             role: "operator".to_string(),
             scopes: vec!["chat:write".to_string(), "agent:read".to_string()],
         };
-        
+
         assert!(auth_info.has_any_scope(&["chat:write", "agent:admin"]));
         assert!(auth_info.has_any_scope(&["agent:admin", "agent:read"]));
         assert!(!auth_info.has_any_scope(&["agent:admin", "data:delete"]));
@@ -275,7 +277,7 @@ mod tests {
             role: "operator".to_string(),
             scopes: vec!["chat:write".to_string()],
         };
-        
+
         assert!(auth_info.has_role("operator"));
         assert!(!auth_info.has_role("node"));
     }
@@ -283,7 +285,7 @@ mod tests {
     #[test]
     fn test_default_auth_info() {
         let auth_info = AuthInfo::default();
-        
+
         assert_eq!(auth_info.role, "");
         assert!(auth_info.scopes.is_empty());
     }

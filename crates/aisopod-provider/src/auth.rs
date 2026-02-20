@@ -4,7 +4,7 @@
 //! per provider, supports round-robin key selection with cooldown tracking,
 //! and automatically rotates keys on rate-limit or authentication errors.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::time::Instant;
 
 /// Status of an authentication profile.
@@ -52,7 +52,8 @@ impl AuthProfile {
 
     /// Checks if this profile is currently available (not in cooldown).
     pub fn is_available(&self) -> bool {
-        self.status == ProfileStatus::Good && self.cooldown_until.map_or(true, |t| Instant::now() >= t)
+        self.status == ProfileStatus::Good
+            && self.cooldown_until.map_or(true, |t| Instant::now() >= t)
     }
 }
 
@@ -92,7 +93,10 @@ impl AuthProfileManager {
     /// skipping profiles that are in a cooldown period or failed.
     pub fn next_key(&mut self, provider_id: &str) -> Option<&AuthProfile> {
         let profiles = self.profiles.get_mut(provider_id)?;
-        let start_index = *self.current_index.entry(provider_id.to_string()).or_insert(0);
+        let start_index = *self
+            .current_index
+            .entry(provider_id.to_string())
+            .or_insert(0);
         let len = profiles.len();
 
         if len == 0 {
@@ -101,7 +105,10 @@ impl AuthProfileManager {
 
         // First, try to recover any profiles that have completed their cooldown
         for profile in profiles.iter_mut() {
-            if profile.cooldown_until.map_or(false, |t| Instant::now() >= t) {
+            if profile
+                .cooldown_until
+                .map_or(false, |t| Instant::now() >= t)
+            {
                 profile.status = ProfileStatus::Good;
                 profile.cooldown_until = None;
             }
@@ -111,14 +118,19 @@ impl AuthProfileManager {
         for i in 0..len {
             let idx = (start_index + i) % len;
             if profiles[idx].is_available() {
-                *self.current_index.entry(provider_id.to_string()).or_insert(0) =
-                    (idx + 1) % len;
+                *self
+                    .current_index
+                    .entry(provider_id.to_string())
+                    .or_insert(0) = (idx + 1) % len;
                 return Some(&profiles[idx]);
             }
         }
 
         // No available profiles found, reset index to 0 for next time
-        *self.current_index.entry(provider_id.to_string()).or_insert(0) = 0;
+        *self
+            .current_index
+            .entry(provider_id.to_string())
+            .or_insert(0) = 0;
         None
     }
 

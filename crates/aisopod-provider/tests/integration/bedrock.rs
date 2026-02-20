@@ -53,7 +53,10 @@ async fn test_bedrock_streaming_chat_completion() {
         }
     }
 
-    assert!(has_content, "Should receive content from streaming response");
+    assert!(
+        has_content,
+        "Should receive content from streaming response"
+    );
 }
 
 /// Test that list_models returns non-empty results
@@ -64,7 +67,10 @@ async fn test_bedrock_list_models() {
 
     let models = provider.list_models().await.unwrap();
 
-    assert!(!models.is_empty(), "list_models should return non-empty results");
+    assert!(
+        !models.is_empty(),
+        "list_models should return non-empty results"
+    );
     assert!(models.iter().any(|m| m.id.contains("claude")));
 }
 
@@ -76,7 +82,10 @@ async fn test_bedrock_health_check() {
 
     let health = provider.health_check().await.unwrap();
 
-    assert!(health.available, "Health check should return available=true");
+    assert!(
+        health.available,
+        "Health check should return available=true"
+    );
 }
 
 /// Test with a short message
@@ -117,7 +126,7 @@ async fn test_bedrock_with_custom_region() {
     // This test just verifies the provider can be created with a custom region
     // Actual API calls may fail if credentials are not configured
     let result = BedrockProvider::new(Some("us-west-2".to_string()), None, None).await;
-    
+
     // Provider creation may succeed or fail depending on credentials
     // Just verify it doesn't panic
     assert!(result.is_ok() || result.is_err());

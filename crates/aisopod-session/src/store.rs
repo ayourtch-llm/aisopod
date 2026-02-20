@@ -165,9 +165,9 @@ mod tests {
     fn test_insert_and_get_session() {
         let mut store = SessionStore::new();
         let session = Arc::new(Session::new("test_session"));
-        
+
         store.insert(Arc::clone(&session)).unwrap();
-        
+
         assert_eq!(store.len(), 1);
         assert!(store.get("test_session").is_some());
     }
@@ -182,7 +182,7 @@ mod tests {
     fn test_remove_session() {
         let mut store = SessionStore::new();
         let session = Arc::new(Session::new("removable"));
-        
+
         store.insert(Arc::clone(&session)).unwrap();
         assert!(store.remove("removable").is_some());
         assert!(store.is_empty());
@@ -192,7 +192,7 @@ mod tests {
     fn test_duplicate_insert_fails() {
         let mut store = SessionStore::new();
         let session = Arc::new(Session::new("duplicate"));
-        
+
         store.insert(Arc::clone(&session)).unwrap();
         assert!(store.insert(session).is_err());
     }

@@ -35,7 +35,7 @@ pub struct AuthConfig {
 }
 
 /// Token credential
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TokenCredential {
     /// The token value
     pub token: String,
@@ -47,7 +47,7 @@ pub struct TokenCredential {
 }
 
 /// Password credential
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PasswordCredential {
     /// Username
     pub username: String,
@@ -61,7 +61,7 @@ pub struct PasswordCredential {
 }
 
 /// Authentication profile
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AuthProfile {
     /// Profile name
     pub name: String,
@@ -81,37 +81,6 @@ impl Default for AuthConfig {
             gateway_mode: AuthMode::None,
             tokens: Vec::new(),
             passwords: Vec::new(),
-        }
-    }
-}
-
-impl Default for TokenCredential {
-    fn default() -> Self {
-        Self {
-            token: String::new(),
-            role: String::new(),
-            scopes: Vec::new(),
-        }
-    }
-}
-
-impl Default for PasswordCredential {
-    fn default() -> Self {
-        Self {
-            username: String::new(),
-            password: Sensitive::default(),
-            role: String::new(),
-            scopes: Vec::new(),
-        }
-    }
-}
-
-impl Default for AuthProfile {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            api_key: Sensitive::default(),
-            provider: String::new(),
         }
     }
 }

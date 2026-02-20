@@ -94,7 +94,10 @@ impl AbortRegistry {
     }
 
     /// Gets a reference to the abort handle for the given session key.
-    pub fn get(&self, session_key: &str) -> Option<dashmap::mapref::one::Ref<'_, String, AbortHandle>> {
+    pub fn get(
+        &self,
+        session_key: &str,
+    ) -> Option<dashmap::mapref::one::Ref<'_, String, AbortHandle>> {
         self.sessions.get(session_key)
     }
 

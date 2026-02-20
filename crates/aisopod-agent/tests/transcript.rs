@@ -158,14 +158,14 @@ fn test_openai_multiple_system_messages_deduplicated() {
 
     assert_eq!(repaired.len(), 2);
     assert_eq!(repaired[0].role, Role::System);
-    
+
     if let MessageContent::Text(ref content) = repaired[0].content {
         assert!(content.contains("First"));
         assert!(content.contains("Second"));
     } else {
         panic!("Expected text content");
     }
-    
+
     assert_eq!(repaired[1].role, Role::User);
 }
 

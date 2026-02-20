@@ -1,18 +1,13 @@
+#![allow(clippy::all)]
 //! Test helpers for provider testing.
 //!
 //! This module provides mock infrastructure for testing provider implementations
 //! without making real HTTP calls.
 
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use futures_core::Stream;
-use futures_util::stream::{self, StreamExt};
-use pin_project_lite::pin_project;
-use std::pin::Pin;
-
-use crate::types::*;
 use crate::trait_module::{ChatCompletionStream, ModelProvider};
+use crate::types::*;
 
 /// Alias for Result with default error type
 pub type Result<T, E = anyhow::Error> = std::result::Result<T, E>;
@@ -139,9 +134,10 @@ impl ModelProvider for MockProvider {
         _request: ChatCompletionRequest,
     ) -> Result<ChatCompletionStream> {
         if self.should_fail {
-            return Err(anyhow::anyhow!(
-                self.error_message.clone().unwrap_or_else(|| "Mock error".to_string()
-            )));
+            return Err(anyhow::anyhow!(self
+                .error_message
+                .clone()
+                .unwrap_or_else(|| "Mock error".to_string())));
         }
         Ok(self.create_stream())
     }
@@ -172,45 +168,6 @@ impl MockSseEvent {
     /// Converts the event to an SSE string format.
     pub fn to_sse_string(&self) -> String {
         format!("event: {}\ndata: {}\n\n", self.event_type, self.data)
-    }
-}
-
-/// A mock server for testing provider implementations.
-///
-/// This is a simple HTTP server that returns configurable responses.
-#[cfg(feature = "mock-server")]
-pub struct MockServer {
-    addr: std::net::SocketAddr,
-    server: Option<hyper::server::Server<hyper::server::Conn, _>>,
-}
-
-#[cfg(feature = "mock-server")]
-impl MockServer {
-    /// Starts a new mock server on a random port.
-    pub async fn start() -> Self {
-        let addr = ([127, 0, 0, 1], 0).into();
-        let make_svc = hyper::service::make_service_fn(|_conn| async {
-            Ok::<_, hyper::Error>(hyper::service::service_fn(|_req| async {
-                Ok::<_, hyper::Error>(hyper::Response::new(
-                    hyper::Body::from(r#"{"message": "ok"}"#),
-                ))
-            }))
-        });
-        let server = hyper::Server::bind(&addr).serve(make_svc);
-        let addr = server.local_addr();
-        
-        // Spawn server in background
-        tokio::spawn(server);
-        
-        Self {
-            addr,
-            server: None,
-        }
-    }
-
-    /// Returns the base URL for the mock server.
-    pub fn base_url(&self) -> String {
-        format!("http://{}", self.addr)
     }
 }
 

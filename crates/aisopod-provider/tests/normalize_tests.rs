@@ -6,8 +6,11 @@
 //! - Error mapping from HTTP to ProviderError works
 //! - Token usage aggregation works correctly
 
+use aisopod_provider::normalize::{
+    aggregate_usage, enforce_alternating_turns, extract_system_prompt, map_http_error,
+    ProviderError,
+};
 use aisopod_provider::types::*;
-use aisopod_provider::normalize::{enforce_alternating_turns, extract_system_prompt, aggregate_usage, map_http_error, ProviderError};
 
 // ============================================================================
 // Enforce Alternating Turns Tests
@@ -511,7 +514,9 @@ fn test_map_http_error_500() {
     let error = map_http_error("openai", 500, "");
 
     match error {
-        ProviderError::ServerError { provider, status, .. } => {
+        ProviderError::ServerError {
+            provider, status, ..
+        } => {
             assert_eq!(provider, "openai");
             assert_eq!(status, 500);
         }
@@ -537,14 +542,12 @@ fn test_map_http_error_unknown() {
 
 #[test]
 fn test_enforce_alternating_turns_single_message() {
-    let mut messages = vec![
-        Message {
-            role: Role::User,
-            content: MessageContent::Text("Single".to_string()),
-            tool_calls: None,
-            tool_call_id: None,
-        },
-    ];
+    let mut messages = vec![Message {
+        role: Role::User,
+        content: MessageContent::Text("Single".to_string()),
+        tool_calls: None,
+        tool_call_id: None,
+    }];
 
     enforce_alternating_turns(&mut messages);
 
@@ -562,14 +565,12 @@ fn test_enforce_alternating_turns_empty() {
 
 #[test]
 fn test_extract_system_prompt_only_system() {
-    let mut messages = vec![
-        Message {
-            role: Role::System,
-            content: MessageContent::Text("Only system".to_string()),
-            tool_calls: None,
-            tool_call_id: None,
-        },
-    ];
+    let mut messages = vec![Message {
+        role: Role::System,
+        content: MessageContent::Text("Only system".to_string()),
+        tool_calls: None,
+        tool_call_id: None,
+    }];
 
     let system = extract_system_prompt(&mut messages);
 
@@ -620,9 +621,9 @@ fn test_enforce_alternating_turns_with_parts() {
     let mut messages = vec![
         Message {
             role: Role::User,
-            content: MessageContent::Parts(vec![
-                ContentPart::Text { text: "First".to_string() },
-            ]),
+            content: MessageContent::Parts(vec![ContentPart::Text {
+                text: "First".to_string(),
+            }]),
             tool_calls: None,
             tool_call_id: None,
         },
@@ -655,9 +656,9 @@ fn test_extract_system_prompt_with_parts() {
     let mut messages = vec![
         Message {
             role: Role::System,
-            content: MessageContent::Parts(vec![
-                ContentPart::Text { text: "System".to_string() },
-            ]),
+            content: MessageContent::Parts(vec![ContentPart::Text {
+                text: "System".to_string(),
+            }]),
             tool_calls: None,
             tool_call_id: None,
         },

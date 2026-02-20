@@ -3,16 +3,20 @@
 //! This module provides mock infrastructure for testing agent engine
 //! implementations without making real HTTP calls or using actual external services.
 
-use std::sync::{Arc, Mutex};
 use anyhow::Result;
+use std::sync::{Arc, Mutex};
 
-use aisopod_agent::types::{SessionMetadata, AgentRunParams, AgentRunResult, ToolCallRecord, UsageReport, AgentEvent};
+use aisopod_agent::types::{
+    AgentEvent, AgentRunParams, AgentRunResult, SessionMetadata, ToolCallRecord, UsageReport,
+};
+use aisopod_agent::{AbortHandle, AbortRegistry};
 use aisopod_config::AisopodConfig;
-use aisopod_provider::{Message, MessageContent, Role, ToolDefinition, ChatCompletionRequest, ChatCompletionStream};
 use aisopod_provider::trait_module::ModelProvider;
+use aisopod_provider::{
+    ChatCompletionRequest, ChatCompletionStream, Message, MessageContent, Role, ToolDefinition,
+};
 use aisopod_session::SessionStore;
-use aisopod_tools::{Tool, ToolRegistry, ToolContext, ToolResult};
-use aisopod_agent::{AbortRegistry, AbortHandle};
+use aisopod_tools::{Tool, ToolContext, ToolRegistry, ToolResult};
 
 /// Alias for test results
 pub type TestResult<T = ()> = Result<T>;
@@ -22,7 +26,7 @@ pub type TestResult<T = ()> = Result<T>;
 // ============================================================================
 
 /// A mock provider implementation for testing without real HTTP calls.
-/// 
+///
 /// This provider simulates various behaviors through configuration:
 /// - Success responses with configurable text or tool calls
 /// - Error responses
@@ -67,7 +71,11 @@ impl MockProvider {
     }
 
     /// Creates a tool call with the given id, name, and arguments.
-    pub fn create_tool_call(id: impl Into<String>, name: impl Into<String>, arguments: impl Into<String>) -> aisopod_provider::ToolCall {
+    pub fn create_tool_call(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        arguments: impl Into<String>,
+    ) -> aisopod_provider::ToolCall {
         aisopod_provider::ToolCall {
             id: id.into(),
             name: name.into(),
@@ -83,16 +91,14 @@ impl ModelProvider for MockProvider {
     }
 
     async fn list_models(&self) -> Result<Vec<aisopod_provider::types::ModelInfo>> {
-        Ok(vec![
-            aisopod_provider::types::ModelInfo {
-                id: format!("{}/test-model", self.id),
-                name: "Test Model".to_string(),
-                provider: self.id.clone(),
-                context_window: 128000,
-                supports_vision: false,
-                supports_tools: !self.tool_calls.is_empty(),
-            }
-        ])
+        Ok(vec![aisopod_provider::types::ModelInfo {
+            id: format!("{}/test-model", self.id),
+            name: "Test Model".to_string(),
+            provider: self.id.clone(),
+            context_window: 128000,
+            supports_vision: false,
+            supports_tools: !self.tool_calls.is_empty(),
+        }])
     }
 
     async fn chat_completion(
@@ -100,17 +106,18 @@ impl ModelProvider for MockProvider {
         _request: ChatCompletionRequest,
     ) -> Result<ChatCompletionStream> {
         if self.should_fail {
-            return Err(anyhow::anyhow!(
-                self.error_message.clone().unwrap_or_else(|| "Mock error".to_string())
-            ));
+            return Err(anyhow::anyhow!(self
+                .error_message
+                .clone()
+                .unwrap_or_else(|| "Mock error".to_string())));
         }
 
         // Create a simple stream with the response
         let response_text = self.response_text.clone().unwrap_or_default();
         let tool_calls = self.tool_calls.clone();
-        
+
         let chunks = MockProvider::create_stream_chunks(&response_text, &tool_calls);
-        
+
         let stream = async_stream::stream! {
             for chunk in chunks {
                 yield Ok(chunk);
@@ -134,7 +141,7 @@ impl MockProvider {
         tool_calls: &[aisopod_provider::ToolCall],
     ) -> Vec<aisopod_provider::types::ChatCompletionChunk> {
         let mut chunks = Vec::new();
-        
+
         // Add content chunks for text response
         if !response_text.is_empty() {
             chunks.push(aisopod_provider::types::ChatCompletionChunk {
@@ -160,7 +167,7 @@ impl MockProvider {
                 },
             });
         }
-        
+
         // Add tool call chunks
         for (i, tool_call) in tool_calls.iter().enumerate() {
             chunks.push(aisopod_provider::types::ChatCompletionChunk {
@@ -174,7 +181,7 @@ impl MockProvider {
                 usage: None,
             });
         }
-        
+
         // Add final chunk with usage if there were tool calls
         if !tool_calls.is_empty() {
             chunks.push(aisopod_provider::types::ChatCompletionChunk {
@@ -192,7 +199,7 @@ impl MockProvider {
                 }),
             });
         }
-        
+
         chunks
     }
 }
@@ -243,11 +250,7 @@ impl Tool for MockTool {
         })
     }
 
-    async fn execute(
-        &self,
-        _params: serde_json::Value,
-        _ctx: &ToolContext,
-    ) -> Result<ToolResult> {
+    async fn execute(&self, _params: serde_json::Value, _ctx: &ToolContext) -> Result<ToolResult> {
         if let Some(ref error) = *self.error.lock().unwrap() {
             return Ok(ToolResult {
                 content: error.clone(),
@@ -255,7 +258,7 @@ impl Tool for MockTool {
                 metadata: None,
             });
         }
-        
+
         Ok(ToolResult {
             content: self.result.lock().unwrap().clone().unwrap_or_default(),
             is_error: false,
@@ -316,20 +319,16 @@ pub fn test_config() -> AisopodConfig {
         models: aisopod_config::types::ModelsConfig {
             models: vec![],
             providers: vec![],
-            fallbacks: vec![
-                aisopod_config::types::ModelFallback {
-                    primary: "mock/test-model".to_string(),
-                    fallbacks: vec!["mock/fallback-model".to_string()],
-                },
-            ],
+            fallbacks: vec![aisopod_config::types::ModelFallback {
+                primary: "mock/test-model".to_string(),
+                fallbacks: vec!["mock/fallback-model".to_string()],
+            }],
         },
-        bindings: vec![
-            aisopod_config::types::AgentBinding {
-                agent_id: "test-agent".to_string(),
-                channels: vec![],
-                priority: 100,
-            },
-        ],
+        bindings: vec![aisopod_config::types::AgentBinding {
+            agent_id: "test-agent".to_string(),
+            channels: vec![],
+            priority: 100,
+        }],
         ..Default::default()
     }
 }
@@ -337,31 +336,27 @@ pub fn test_config() -> AisopodConfig {
 /// Creates a test configuration with multiple models for failover testing.
 pub fn test_config_with_fallbacks() -> AisopodConfig {
     let mut config = test_config();
-    
-    config.models.fallbacks = vec![
-        aisopod_config::types::ModelFallback {
-            primary: "mock/test-model".to_string(),
-            fallbacks: vec![
-                "mock/fallback-model".to_string(),
-                "mock/another-model".to_string(),
-            ],
-        },
-    ];
-    
-    config.agents.agents.push(
-        aisopod_config::types::Agent {
-            id: "fallback-agent".to_string(),
-            name: String::new(),
-            model: "mock/fallback-model".to_string(),
-            workspace: String::new(),
-            sandbox: false,
-            subagents: Vec::new(),
-            system_prompt: "You are a fallback agent.".to_string(),
-            max_subagent_depth: 3,
-            subagent_allowed_models: None,
-        },
-    );
-    
+
+    config.models.fallbacks = vec![aisopod_config::types::ModelFallback {
+        primary: "mock/test-model".to_string(),
+        fallbacks: vec![
+            "mock/fallback-model".to_string(),
+            "mock/another-model".to_string(),
+        ],
+    }];
+
+    config.agents.agents.push(aisopod_config::types::Agent {
+        id: "fallback-agent".to_string(),
+        name: String::new(),
+        model: "mock/fallback-model".to_string(),
+        workspace: String::new(),
+        sandbox: false,
+        subagents: Vec::new(),
+        system_prompt: "You are a fallback agent.".to_string(),
+        max_subagent_depth: 3,
+        subagent_allowed_models: None,
+    });
+
     config
 }
 
@@ -381,11 +376,11 @@ pub fn test_session_store() -> Arc<SessionStore> {
 /// Creates a test tool registry with a mock calculator tool.
 pub fn test_tool_registry() -> Arc<ToolRegistry> {
     let mut registry = ToolRegistry::new();
-    
+
     let calculator = Arc::new(MockTool::new("calculator", "100"));
-    
+
     registry.register(calculator);
-    
+
     Arc::new(registry)
 }
 

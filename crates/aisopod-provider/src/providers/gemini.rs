@@ -2,12 +2,10 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use futures_core::Stream;
-use futures_util::stream::{self, BoxStream, StreamExt};
-use std::pin::Pin;
+use futures_util::stream::{BoxStream, StreamExt};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tracing::{debug, instrument, warn};
+use tracing::warn;
 
 use crate::auth::{AuthProfile, AuthProfileManager};
 use crate::trait_module::{ChatCompletionStream, ModelProvider};
@@ -49,10 +47,11 @@ impl GeminiProvider {
             client: reqwest::Client::new(),
             api_key,
             oauth_token,
-            base_url: base_url.unwrap_or_else(|| "https://generativelanguage.googleapis.com".to_string()),
-            profile_manager: Arc::new(Mutex::new(AuthProfileManager::new(
-                Duration::from_secs(cooldown_seconds.unwrap_or(60)),
-            ))),
+            base_url: base_url
+                .unwrap_or_else(|| "https://generativelanguage.googleapis.com".to_string()),
+            profile_manager: Arc::new(Mutex::new(AuthProfileManager::new(Duration::from_secs(
+                cooldown_seconds.unwrap_or(60),
+            )))),
         }
     }
 
@@ -65,9 +64,7 @@ impl GeminiProvider {
     /// Gets the next available API key for round-robin rotation.
     fn get_api_key(&self) -> Option<String> {
         let mut manager = self.profile_manager.lock().unwrap();
-        manager
-            .next_key("gemini")
-            .map(|p| p.api_key.clone())
+        manager.next_key("gemini").map(|p| p.api_key.clone())
     }
 
     /// Converts a core [`Message`] to a Gemini content.
@@ -189,11 +186,14 @@ impl GeminiProvider {
                 content: Some(text),
                 tool_calls: None,
             },
-            finish_reason: candidate.finish_reason.as_ref().and_then(|fc| match fc.as_str() {
-                "STOP" => Some(FinishReason::Stop),
-                "MAX_TOKENS" => Some(FinishReason::Length),
-                _ => None,
-            }),
+            finish_reason: candidate
+                .finish_reason
+                .as_ref()
+                .and_then(|fc| match fc.as_str() {
+                    "STOP" => Some(FinishReason::Stop),
+                    "MAX_TOKENS" => Some(FinishReason::Length),
+                    _ => None,
+                }),
             usage: candidate.token_usage.as_ref().map(|usage| TokenUsage {
                 prompt_tokens: usage.prompt_token_count.unwrap_or(0),
                 completion_tokens: usage.candidates_token_count.unwrap_or(0),
@@ -278,7 +278,10 @@ impl ModelProvider for GeminiProvider {
         let gemini_request = self.build_gemini_request(&request);
         let (headers, api_key) = self.build_auth();
 
-        let url = format!("{}/v1beta/models/{}:streamGenerateContent", self.base_url, model);
+        let url = format!(
+            "{}/v1beta/models/{}:streamGenerateContent",
+            self.base_url, model
+        );
 
         let mut req = self
             .client
@@ -304,7 +307,7 @@ impl ModelProvider for GeminiProvider {
         // Parse streaming response
         let stream = response.bytes_stream().map(move |chunk| {
             let chunk = chunk.map_err(|e| anyhow::anyhow!("Stream error: {}", e))?;
-            
+
             // Decode the chunk as UTF-8
             let text = String::from_utf8_lossy(&chunk);
 
@@ -348,7 +351,7 @@ impl ModelProvider for GeminiProvider {
 
     async fn health_check(&self) -> Result<ProviderHealth> {
         let start = std::time::Instant::now();
-        
+
         match self.list_models().await {
             Ok(models) => {
                 let latency = start.elapsed().as_millis() as u64;

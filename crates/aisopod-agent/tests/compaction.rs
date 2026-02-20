@@ -2,9 +2,11 @@
 //!
 //! This module tests message compaction strategies for managing context window size.
 
-use aisopod_agent::compaction::{compact_messages, estimate_token_count, select_strategy, CompactionSeverity, CompactionStrategy};
-use aisopod_provider::{Message, MessageContent, Role};
+use aisopod_agent::compaction::{
+    compact_messages, estimate_token_count, select_strategy, CompactionSeverity, CompactionStrategy,
+};
 use aisopod_agent::context_guard::ContextWindowGuard;
+use aisopod_provider::{Message, MessageContent, Role};
 
 fn text_message(role: Role, content: &str) -> Message {
     Message {
@@ -41,10 +43,22 @@ fn test_compaction_strategy_default() {
 
 #[test]
 fn test_compaction_strategy_enum() {
-    assert_eq!(CompactionStrategy::AdaptiveChunking, CompactionStrategy::AdaptiveChunking);
-    assert_eq!(CompactionStrategy::Summary { keep_recent: 10 }, CompactionStrategy::Summary { keep_recent: 10 });
-    assert_eq!(CompactionStrategy::HardClear { keep_recent: 5 }, CompactionStrategy::HardClear { keep_recent: 5 });
-    assert_eq!(CompactionStrategy::ToolResultTruncation { max_chars: 1000 }, CompactionStrategy::ToolResultTruncation { max_chars: 1000 });
+    assert_eq!(
+        CompactionStrategy::AdaptiveChunking,
+        CompactionStrategy::AdaptiveChunking
+    );
+    assert_eq!(
+        CompactionStrategy::Summary { keep_recent: 10 },
+        CompactionStrategy::Summary { keep_recent: 10 }
+    );
+    assert_eq!(
+        CompactionStrategy::HardClear { keep_recent: 5 },
+        CompactionStrategy::HardClear { keep_recent: 5 }
+    );
+    assert_eq!(
+        CompactionStrategy::ToolResultTruncation { max_chars: 1000 },
+        CompactionStrategy::ToolResultTruncation { max_chars: 1000 }
+    );
 }
 
 #[test]
@@ -56,8 +70,12 @@ fn test_hard_clear_truncates() {
     let result = compact_messages(&messages, CompactionStrategy::HardClear { keep_recent: 5 });
 
     assert_eq!(result.len(), 5);
-    assert!(result.iter().any(|m| message_to_text(m).contains("Message 19")));
-    assert!(result.iter().any(|m| message_to_text(m).contains("Message 15")));
+    assert!(result
+        .iter()
+        .any(|m| message_to_text(m).contains("Message 19")));
+    assert!(result
+        .iter()
+        .any(|m| message_to_text(m).contains("Message 15")));
 }
 
 #[test]
@@ -79,7 +97,10 @@ fn test_tool_result_truncation() {
         text_message(Role::Tool, &long_content),
     ];
 
-    let result = compact_messages(&messages, CompactionStrategy::ToolResultTruncation { max_chars: 1000 });
+    let result = compact_messages(
+        &messages,
+        CompactionStrategy::ToolResultTruncation { max_chars: 1000 },
+    );
 
     assert_eq!(result.len(), 2);
 
@@ -125,7 +146,9 @@ fn test_adaptive_chunking() {
 
     // Should chunk old messages and keep recent
     assert!(result.len() < 20);
-    assert!(result.iter().any(|m| message_to_text(m).contains("Previous")));
+    assert!(result
+        .iter()
+        .any(|m| message_to_text(m).contains("Previous")));
 }
 
 #[test]

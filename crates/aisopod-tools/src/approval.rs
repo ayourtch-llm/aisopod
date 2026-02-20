@@ -124,7 +124,7 @@ impl ApprovalRequest {
         // Convert inputs to String to avoid move issues
         let agent_id = agent_id.into();
         let operation = operation.into();
-        
+
         // Generate a unique ID using timestamp + atomic counter
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -261,6 +261,7 @@ pub struct ApprovalStateTracker {
     /// Map of request ID to its current state.
     states: std::sync::Arc<std::sync::RwLock<HashMap<String, ApprovalState>>>,
     /// Counter for generating sequential IDs.
+    #[allow(dead_code)]
     counter: AtomicU64,
 }
 
@@ -320,7 +321,11 @@ impl ApprovalStateTracker {
     ///
     /// * `request_id` - The ID of the approval request.
     /// * `reason` - The reason for denial.
-    pub fn record_denied(&self, request_id: impl Into<String>, reason: impl Into<String>) -> Result<()> {
+    pub fn record_denied(
+        &self,
+        request_id: impl Into<String>,
+        reason: impl Into<String>,
+    ) -> Result<()> {
         let mut states = self
             .states
             .write()
@@ -482,7 +487,7 @@ pub struct ApprovalSummary {
 pub fn is_auto_approved(command: &str) -> bool {
     // Trim the command
     let cmd = command.trim();
-    
+
     // Check for dangerous shell operators that could chain commands
     let dangerous_operators = ["&&", "||", "|", ";", "`", "$("];
     for op in dangerous_operators {
@@ -490,7 +495,7 @@ pub fn is_auto_approved(command: &str) -> bool {
             return false;
         }
     }
-    
+
     // Get the first word (the command name)
     let first_word = cmd.split_whitespace().next().unwrap_or("");
 
@@ -525,7 +530,10 @@ mod tests {
 
     #[test]
     fn test_risk_level_description() {
-        assert_eq!(RiskLevel::Low.description(), "Low risk - minimal potential for harm");
+        assert_eq!(
+            RiskLevel::Low.description(),
+            "Low risk - minimal potential for harm"
+        );
         assert_eq!(
             RiskLevel::Medium.description(),
             "Medium risk - potential for moderate harm"
@@ -552,9 +560,8 @@ mod tests {
 
     #[test]
     fn test_approval_request_with_timeout() {
-        let request =
-            ApprovalRequest::new("agent-1", "test operation", RiskLevel::Low)
-                .with_timeout(Duration::from_secs(60));
+        let request = ApprovalRequest::new("agent-1", "test operation", RiskLevel::Low)
+            .with_timeout(Duration::from_secs(60));
         assert_eq!(request.timeout, Duration::from_secs(60));
     }
 
@@ -628,7 +635,10 @@ mod tests {
         // Record denied
         tracker.record_pending("req-2").unwrap();
         tracker.record_denied("req-2", "Too dangerous").unwrap();
-        assert_eq!(tracker.list_denied().unwrap(), vec![("req-2".to_string(), "Too dangerous".to_string())]);
+        assert_eq!(
+            tracker.list_denied().unwrap(),
+            vec![("req-2".to_string(), "Too dangerous".to_string())]
+        );
 
         // Record timed out
         tracker.record_pending("req-3").unwrap();

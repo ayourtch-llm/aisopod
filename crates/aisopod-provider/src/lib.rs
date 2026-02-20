@@ -74,16 +74,16 @@ pub mod types;
 // Re-export the main trait and all types for convenience
 pub use crate::auth::{AuthProfile, AuthProfileManager, ProfileStatus};
 pub use crate::discovery::ModelCatalog;
-pub use crate::helpers::{create_test_model, create_test_request, create_test_tool, create_test_tool_call, MockProvider};
+pub use crate::helpers::{
+    create_test_model, create_test_request, create_test_tool, create_test_tool_call, MockProvider,
+};
 pub use crate::normalize::{
-    aggregate_usage, enforce_alternating_turns, extract_system_prompt, map_http_error, ProviderError,
+    aggregate_usage, enforce_alternating_turns, extract_system_prompt, map_http_error,
+    ProviderError,
 };
 pub use crate::registry::{ModelAlias, ProviderRegistry};
-pub use crate::trait_module::{
-    ChatCompletionStream, ModelProvider,
-};
+pub use crate::trait_module::{ChatCompletionStream, ModelProvider};
 pub use crate::types::{
-    ChatCompletionChunk, ChatCompletionRequest, ContentPart, FinishReason, Message,
-    MessageContent, MessageDelta, ModelInfo, ProviderHealth, Role, ToolCall, ToolDefinition,
-    TokenUsage,
+    ChatCompletionChunk, ChatCompletionRequest, ContentPart, FinishReason, Message, MessageContent,
+    MessageDelta, ModelInfo, ProviderHealth, Role, TokenUsage, ToolCall, ToolDefinition,
 };

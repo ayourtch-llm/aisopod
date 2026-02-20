@@ -120,14 +120,15 @@ mod tests {
     #[test]
     fn test_invalid_port_detected() {
         let mut config = AisopodConfig::default();
-        // Use u16::MAX to get a value > 65535, which will overflow to 65535
-        // So we need to use unsafe or cast from a larger type
-        // Actually, since port is u16, we can't set it to 99999 directly
-        // We'll just test with 0 which is also invalid
+        // Use 0 to test invalid port (port must be > 0)
+        // Note: Since port is u16, we can't set it to 99999 directly
+        // We'll test with 0 which is also invalid
         config.gateway.server.port = 0;
         let errors = config.validate().unwrap_err();
         assert!(errors.iter().any(|e| e.path == "gateway.server.port"));
-        assert!(errors.iter().any(|e| e.message.contains("Port must be between 1 and 65535")));
+        assert!(errors
+            .iter()
+            .any(|e| e.message.contains("Port must be between 1 and 65535")));
     }
 
     #[test]
@@ -174,7 +175,9 @@ mod tests {
             },
         ];
         let errors = config.validate().unwrap_err();
-        assert!(errors.iter().any(|e| e.message.contains("Duplicate agent name: agent1")));
+        assert!(errors
+            .iter()
+            .any(|e| e.message.contains("Duplicate agent name: agent1")));
     }
 
     #[test]

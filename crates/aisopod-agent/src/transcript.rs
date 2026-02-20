@@ -63,7 +63,7 @@ pub enum ProviderKind {
 /// ```
 pub fn repair_transcript(messages: &[Message], provider: ProviderKind) -> Vec<Message> {
     let mut result = messages.to_vec();
-    
+
     match provider {
         ProviderKind::Anthropic => repair_for_anthropic(&mut result),
         ProviderKind::OpenAI => repair_for_openai(&mut result),
@@ -72,7 +72,7 @@ pub fn repair_transcript(messages: &[Message], provider: ProviderKind) -> Vec<Me
             // No-op pass-through
         }
     }
-    
+
     result
 }
 
@@ -86,18 +86,18 @@ fn repair_for_anthropic(messages: &mut Vec<Message>) {
     if messages.is_empty() {
         return;
     }
-    
+
     // First, ensure the sequence starts with a user message
     if messages[0].role != Role::User {
         messages.insert(0, synthetic_user_message());
     }
-    
+
     // Now process the sequence to handle consecutive same-role messages
     let mut i = 0;
     while i < messages.len().saturating_sub(1) {
         let current_role = messages[i].role.clone();
         let next_role = messages[i + 1].role.clone();
-        
+
         if current_role == next_role {
             // Insert a synthetic message of the opposite role between them
             let synthetic = if current_role == Role::User {
@@ -122,10 +122,10 @@ fn repair_for_openai(messages: &mut Vec<Message>) {
     if messages.is_empty() {
         return;
     }
-    
+
     // Count system messages
     let system_count = messages.iter().filter(|m| m.role == Role::System).count();
-    
+
     if system_count > 0 {
         // Move all system messages to the beginning
         let mut system_messages: Vec<Message> = messages
@@ -133,30 +133,30 @@ fn repair_for_openai(messages: &mut Vec<Message>) {
             .filter(|m| m.role == Role::System)
             .cloned()
             .collect();
-        
+
         // Keep only the first system message and merge any additional ones
         // into it for better context
         if system_messages.len() > 1 {
             let first_system = system_messages.remove(0);
             let merged_content = merge_system_messages(&system_messages);
             let mut result = vec![first_system];
-            
+
             // Merge the content of additional system messages into the first one
             if let MessageContent::Text(ref text) = result[0].content {
                 let new_content = format!("{} {}", text, merged_content);
                 result[0].content = MessageContent::Text(new_content);
             }
-            
+
             system_messages = result;
         }
-        
+
         // Collect non-system messages
         let non_system: Vec<Message> = messages
             .iter()
             .filter(|m| m.role != Role::System)
             .cloned()
             .collect();
-        
+
         // Reassemble: system messages first, then non-system
         messages.clear();
         messages.extend(system_messages);
@@ -187,18 +187,18 @@ fn repair_for_google(messages: &mut Vec<Message>) {
     if messages.is_empty() {
         return;
     }
-    
+
     // Gemini typically expects user to start
     if messages[0].role != Role::User {
         messages.insert(0, synthetic_user_message());
     }
-    
+
     // Handle consecutive same-role messages
     let mut i = 0;
     while i < messages.len().saturating_sub(1) {
         let current_role = messages[i].role.clone();
         let next_role = messages[i + 1].role.clone();
-        
+
         if current_role == next_role {
             let synthetic = if current_role == Role::User {
                 synthetic_assistant_message()
@@ -236,9 +236,9 @@ fn synthetic_assistant_message() -> Message {
 #[cfg(test)]
 mod tests {
     use aisopod_provider::{ContentPart, Message, MessageContent, Role};
-    
+
     use super::{
-        repair_transcript, ProviderKind, synthetic_assistant_message, synthetic_user_message,
+        repair_transcript, synthetic_assistant_message, synthetic_user_message, ProviderKind,
     };
 
     /// Helper to create a simple text message

@@ -2,7 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 
 /// A wrapper that redacts its contents in Display and Debug output.
-/// 
+///
 /// This type is used to wrap sensitive values like API keys, tokens, and passwords
 /// to prevent accidental exposure in logs, error messages, and debug output.
 #[derive(Clone, Default)]
@@ -15,7 +15,7 @@ impl<T> Sensitive<T> {
     }
 
     /// Access the inner value.
-    /// 
+    ///
     /// Use sparingly and only when the actual value is needed (e.g., for making API calls).
     pub fn expose(&self) -> &T {
         &self.0

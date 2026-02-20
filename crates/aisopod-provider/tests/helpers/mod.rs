@@ -11,8 +11,8 @@ use futures_util::stream::{self, StreamExt};
 use pin_project_lite::pin_project;
 use std::pin::Pin;
 
-use aisopod_provider::types::*;
 use aisopod_provider::trait_module::{ChatCompletionStream, ModelProvider};
+use aisopod_provider::types::*;
 
 /// Alias for Result with default error type
 pub type Result<T, E = anyhow::Error> = std::result::Result<T, E>;
@@ -143,9 +143,10 @@ impl ModelProvider for MockProvider {
         _request: ChatCompletionRequest,
     ) -> Result<ChatCompletionStream> {
         if self.should_fail {
-            return Err(anyhow::anyhow!(
-                self.error_message.clone().unwrap_or_else(|| "Mock error".to_string())
-            ));
+            return Err(anyhow::anyhow!(self
+                .error_message
+                .clone()
+                .unwrap_or_else(|| "Mock error".to_string())));
         }
         Ok(self.create_stream())
     }
@@ -319,7 +320,8 @@ pub fn create_stream_with_failures(
 pub struct ConfigurableMockProvider {
     id: String,
     models: Vec<ModelInfo>,
-    on_chat_completion: Mutex<Option<Box<dyn Fn(ChatCompletionRequest) -> ChatCompletionStream + Send + Sync>>>,
+    on_chat_completion:
+        Mutex<Option<Box<dyn Fn(ChatCompletionRequest) -> ChatCompletionStream + Send + Sync>>>,
     on_list_models: Mutex<Option<Box<dyn Fn() -> Vec<ModelInfo> + Send + Sync>>>,
     on_health_check: Mutex<Option<Box<dyn Fn() -> ProviderHealth + Send + Sync>>>,
 }
@@ -364,7 +366,10 @@ impl ConfigurableMockProvider {
     }
 
     /// Creates a streaming response.
-    fn create_stream(&self, chunks: Vec<Result<ChatCompletionChunk, String>>) -> ChatCompletionStream {
+    fn create_stream(
+        &self,
+        chunks: Vec<Result<ChatCompletionChunk, String>>,
+    ) -> ChatCompletionStream {
         let stream = async_stream::stream! {
             for chunk in chunks {
                 yield chunk.map_err(|e| anyhow::anyhow!(e));
@@ -396,22 +401,20 @@ impl ModelProvider for ConfigurableMockProvider {
             Ok(handler(request))
         } else {
             // Default implementation
-            Ok(self.create_stream(vec![
-                Ok(ChatCompletionChunk {
-                    id: "chunk_1".to_string(),
-                    delta: MessageDelta {
-                        role: Some(Role::Assistant),
-                        content: Some("Default response".to_string()),
-                        tool_calls: None,
-                    },
-                    finish_reason: Some(FinishReason::Stop),
-                    usage: Some(TokenUsage {
-                        prompt_tokens: 1,
-                        completion_tokens: 2,
-                        total_tokens: 3,
-                    }),
+            Ok(self.create_stream(vec![Ok(ChatCompletionChunk {
+                id: "chunk_1".to_string(),
+                delta: MessageDelta {
+                    role: Some(Role::Assistant),
+                    content: Some("Default response".to_string()),
+                    tool_calls: None,
+                },
+                finish_reason: Some(FinishReason::Stop),
+                usage: Some(TokenUsage {
+                    prompt_tokens: 1,
+                    completion_tokens: 2,
+                    total_tokens: 3,
                 }),
-            ]))
+            })]))
         }
     }
 

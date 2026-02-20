@@ -7,14 +7,14 @@ pub struct MetaConfig {
     pub version: String,
 }
 
-fn default_version() -> String {
-    "1.0".to_string()
-}
-
 impl Default for MetaConfig {
     fn default() -> Self {
         Self {
             version: default_version(),
         }
     }
+}
+
+fn default_version() -> String {
+    "1.0".to_string()
 }

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Agents configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AgentsConfig {
     /// List of agents
     #[serde(default)]
@@ -48,7 +48,7 @@ fn default_max_subagent_depth() -> usize {
 }
 
 /// Default agent configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AgentDefaults {
     /// Default model
     #[serde(default)]
@@ -59,25 +59,6 @@ pub struct AgentDefaults {
     /// Default sandbox setting
     #[serde(default)]
     pub sandbox: bool,
-}
-
-impl Default for AgentsConfig {
-    fn default() -> Self {
-        Self {
-            agents: Vec::new(),
-            default: AgentDefaults::default(),
-        }
-    }
-}
-
-impl Default for AgentDefaults {
-    fn default() -> Self {
-        Self {
-            model: String::new(),
-            workspace: String::new(),
-            sandbox: false,
-        }
-    }
 }
 
 impl Default for Agent {

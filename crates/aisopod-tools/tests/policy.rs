@@ -20,7 +20,7 @@ async fn test_tool_policy_allow_list() {
     assert!(ToolPolicyEngine::with_global_policy(policy.clone())
         .is_allowed("agent-1", "list_files")
         .is_ok());
-    
+
     // Check that tools not in the allow list are denied
     assert!(ToolPolicyEngine::with_global_policy(policy)
         .is_allowed("agent-1", "bash")
@@ -38,7 +38,7 @@ async fn test_tool_policy_deny_list() {
     assert!(ToolPolicyEngine::with_global_policy(policy.clone())
         .is_allowed("agent-1", "python")
         .is_err());
-    
+
     // Tools not in deny list should be allowed
     assert!(ToolPolicyEngine::with_global_policy(policy)
         .is_allowed("agent-1", "read_file")
@@ -199,7 +199,7 @@ async fn test_agent_allow_message() {
 #[tokio::test]
 async fn test_multiple_agent_policies_independent() {
     let mut engine = ToolPolicyEngine::new();
-    
+
     // Set different policies for different agents
     engine.set_global_policy(ToolPolicy::deny_list(vec!["bash".to_string()]));
     engine.set_agent_policy(

@@ -8,7 +8,7 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use crate::registry::ProviderRegistry;
 use crate::types::ModelInfo;
@@ -95,7 +95,7 @@ impl ModelCatalog {
     /// Returns cached models, refreshing first if the cache is expired or empty.
     pub async fn list_all(&self) -> Result<Vec<ModelInfo>> {
         let cache = self.cache.read().unwrap();
-        
+
         let should_refresh = match cache.last_refresh {
             Some(last) => last.elapsed() > self.cache_ttl,
             None => true,
@@ -130,32 +130,38 @@ impl ModelCatalog {
         min_context: Option<u32>,
     ) -> Result<Vec<ModelInfo>> {
         let models = self.list_all().await?;
-        
-        Ok(models.into_iter().filter(|model| {
-            if let Some(v) = vision {
-                if model.supports_vision != v {
-                    return false;
+
+        Ok(models
+            .into_iter()
+            .filter(|model| {
+                if let Some(v) = vision {
+                    if model.supports_vision != v {
+                        return false;
+                    }
                 }
-            }
-            if let Some(t) = tools {
-                if model.supports_tools != t {
-                    return false;
+                if let Some(t) = tools {
+                    if model.supports_tools != t {
+                        return false;
+                    }
                 }
-            }
-            if let Some(min) = min_context {
-                if model.context_window < min {
-                    return false;
+                if let Some(min) = min_context {
+                    if model.context_window < min {
+                        return false;
+                    }
                 }
-            }
-            true
-        }).collect())
+                true
+            })
+            .collect())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ChatCompletionChunk, ChatCompletionRequest, ChatCompletionStream, ModelProvider, Message, MessageContent, MessageDelta, FinishReason, ProviderHealth, Role, TokenUsage};
+    use crate::{
+        ChatCompletionChunk, ChatCompletionRequest, ChatCompletionStream, FinishReason, Message,
+        MessageContent, MessageDelta, ModelProvider, ProviderHealth, Role, TokenUsage,
+    };
     use async_trait::async_trait;
     use futures_core::Stream;
     use futures_util::stream::{self, BoxStream};
@@ -217,37 +223,41 @@ mod tests {
 
     fn create_test_catalog() -> (ModelCatalog, Arc<RwLock<ProviderRegistry>>) {
         let registry = Arc::new(RwLock::new(ProviderRegistry::new()));
-        
+
         // Add mock providers
-        let provider1 = MockProvider::new("mock1", vec![
-            ModelInfo {
-                id: "model1".to_string(),
-                name: "Model 1".to_string(),
-                provider: "mock1".to_string(),
-                context_window: 100000,
-                supports_vision: true,
-                supports_tools: true,
-            },
-            ModelInfo {
-                id: "model2".to_string(),
-                name: "Model 2".to_string(),
-                provider: "mock1".to_string(),
-                context_window: 50000,
-                supports_vision: false,
-                supports_tools: true,
-            },
-        ]);
-        
-        let provider2 = MockProvider::new("mock2", vec![
-            ModelInfo {
+        let provider1 = MockProvider::new(
+            "mock1",
+            vec![
+                ModelInfo {
+                    id: "model1".to_string(),
+                    name: "Model 1".to_string(),
+                    provider: "mock1".to_string(),
+                    context_window: 100000,
+                    supports_vision: true,
+                    supports_tools: true,
+                },
+                ModelInfo {
+                    id: "model2".to_string(),
+                    name: "Model 2".to_string(),
+                    provider: "mock1".to_string(),
+                    context_window: 50000,
+                    supports_vision: false,
+                    supports_tools: true,
+                },
+            ],
+        );
+
+        let provider2 = MockProvider::new(
+            "mock2",
+            vec![ModelInfo {
                 id: "model3".to_string(),
                 name: "Model 3".to_string(),
                 provider: "mock2".to_string(),
                 context_window: 200000,
                 supports_vision: true,
                 supports_tools: false,
-            },
-        ]);
+            }],
+        );
 
         {
             let mut reg = registry.write().unwrap();
@@ -262,9 +272,9 @@ mod tests {
     #[tokio::test]
     async fn test_list_all_returns_models_from_all_providers() {
         let (catalog, _) = create_test_catalog();
-        
+
         let models = catalog.list_all().await.unwrap();
-        
+
         assert_eq!(models.len(), 3);
         assert!(models.iter().any(|m| m.id == "model1"));
         assert!(models.iter().any(|m| m.id == "model2"));
@@ -274,58 +284,59 @@ mod tests {
     #[tokio::test]
     async fn test_cache_is_respected_within_ttl() {
         let (catalog, _) = create_test_catalog();
-        
+
         // First call populates cache
         let _ = catalog.list_all().await.unwrap();
-        
+
         // Get the cached models
         let models1 = {
             let cache = catalog.cache.read().unwrap();
             cache.models.clone()
         };
-        
+
         // Second call should use cache
         let models2 = catalog.list_all().await.unwrap();
-        
+
         assert_eq!(models1, models2);
     }
 
     #[tokio::test]
     async fn test_refresh_forces_requery() {
         let (catalog, registry) = create_test_catalog();
-        
+
         // Initial refresh
         catalog.refresh().await.unwrap();
-        
+
         let models1 = {
             let cache = catalog.cache.read().unwrap();
             cache.models.clone()
         };
-        
+
         // Add a new provider after initial refresh
         {
-            let provider = MockProvider::new("mock3", vec![
-                ModelInfo {
+            let provider = MockProvider::new(
+                "mock3",
+                vec![ModelInfo {
                     id: "model4".to_string(),
                     name: "Model 4".to_string(),
                     provider: "mock3".to_string(),
                     context_window: 75000,
                     supports_vision: false,
                     supports_tools: false,
-                },
-            ]);
+                }],
+            );
             let mut reg = registry.write().unwrap();
             reg.register(Arc::new(provider));
         }
-        
+
         // Force refresh
         catalog.refresh().await.unwrap();
-        
+
         let models2 = {
             let cache = catalog.cache.read().unwrap();
             cache.models.clone()
         };
-        
+
         assert!(models2.len() > models1.len());
         assert!(models2.iter().any(|m| m.id == "model4"));
     }
@@ -333,11 +344,11 @@ mod tests {
     #[tokio::test]
     async fn test_get_model_by_id() {
         let (catalog, _) = create_test_catalog();
-        
+
         let model = catalog.get_model("model1").await.unwrap();
         assert!(model.is_some());
         assert_eq!(model.unwrap().id, "model1");
-        
+
         let model = catalog.get_model("nonexistent").await.unwrap();
         assert!(model.is_none());
     }
@@ -345,22 +356,31 @@ mod tests {
     #[tokio::test]
     async fn test_find_by_capability() {
         let (catalog, _) = create_test_catalog();
-        
+
         // Test vision filter
-        let models = catalog.find_by_capability(Some(true), None, None).await.unwrap();
+        let models = catalog
+            .find_by_capability(Some(true), None, None)
+            .await
+            .unwrap();
         assert_eq!(models.len(), 2);
         assert!(models.iter().all(|m| m.supports_vision));
-        
+
         // Test tools filter
-        let models = catalog.find_by_capability(None, Some(true), None).await.unwrap();
+        let models = catalog
+            .find_by_capability(None, Some(true), None)
+            .await
+            .unwrap();
         assert_eq!(models.len(), 2);
         assert!(models.iter().all(|m| m.supports_tools));
-        
+
         // Test min_context filter
-        let models = catalog.find_by_capability(None, None, Some(75000)).await.unwrap();
+        let models = catalog
+            .find_by_capability(None, None, Some(75000))
+            .await
+            .unwrap();
         assert_eq!(models.len(), 2);
         assert!(models.iter().all(|m| m.context_window >= 75000));
-        
+
         // Test combined filters
         let models = catalog
             .find_by_capability(Some(true), Some(true), None)
@@ -373,33 +393,34 @@ mod tests {
     #[tokio::test]
     async fn test_provider_error_during_refresh_is_handled() {
         let registry = Arc::new(RwLock::new(ProviderRegistry::new()));
-        
+
         // Add a working provider
-        let provider = MockProvider::new("working", vec![
-            ModelInfo {
+        let provider = MockProvider::new(
+            "working",
+            vec![ModelInfo {
                 id: "working_model".to_string(),
                 name: "Working Model".to_string(),
                 provider: "working".to_string(),
                 context_window: 100000,
                 supports_vision: true,
                 supports_tools: true,
-            },
-        ]);
-        
+            }],
+        );
+
         {
             let mut reg = registry.write().unwrap();
             reg.register(Arc::new(provider));
         }
-        
+
         // Add a failing provider (mocked to fail)
         let failing_provider = MockProvider::new("failing", vec![]);
         {
             let mut reg = registry.write().unwrap();
             reg.register(Arc::new(failing_provider));
         }
-        
+
         let catalog = ModelCatalog::new(registry, Duration::from_secs(60));
-        
+
         // This should complete despite one provider failing
         let models = catalog.list_all().await.unwrap();
         assert_eq!(models.len(), 1);

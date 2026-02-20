@@ -52,7 +52,7 @@ impl ContextWindowGuard {
         // Use reasonable defaults based on common model context windows
         // These values can be refined based on specific model capabilities
         let default_context_window = 128_000; // Common modern context window
-        
+
         Self {
             warn_threshold: 0.8, // Warn at 80%
             hard_limit: default_context_window,
@@ -69,7 +69,9 @@ impl ContextWindowGuard {
     /// # Returns
     ///
     /// A new ContextWindowGuard instance
-    pub fn from_compaction_config(compaction_config: &aisopod_config::types::CompactionConfig) -> Self {
+    pub fn from_compaction_config(
+        compaction_config: &aisopod_config::types::CompactionConfig,
+    ) -> Self {
         Self {
             warn_threshold: 0.8,
             hard_limit: compaction_config.min_messages.saturating_mul(100), // Estimate 100 tokens per message
@@ -118,7 +120,9 @@ impl ContextWindowGuard {
     ///
     /// * `current_tokens` - The current token count
     pub fn available_tokens(&self, current_tokens: usize) -> usize {
-        self.hard_limit.saturating_sub(current_tokens).saturating_sub(self.min_available)
+        self.hard_limit
+            .saturating_sub(current_tokens)
+            .saturating_sub(self.min_available)
     }
 
     /// Returns true if the token count is within safe limits.
@@ -147,7 +151,7 @@ mod tests {
     fn test_from_config_default_values() {
         let config = aisopod_config::types::Agent::default();
         let guard = ContextWindowGuard::from_config(&config);
-        
+
         assert_eq!(guard.warn_threshold, 0.8);
         assert_eq!(guard.hard_limit, 128_000);
         assert_eq!(guard.min_available, 4096);
@@ -156,7 +160,7 @@ mod tests {
     #[test]
     fn test_severity_none() {
         let guard = ContextWindowGuard::new(0.8, 10000, 1000);
-        
+
         // Below warning threshold (8000)
         assert_eq!(guard.severity(5000), CompactionSeverity::None);
     }
@@ -164,10 +168,10 @@ mod tests {
     #[test]
     fn test_severity_warn() {
         let guard = ContextWindowGuard::new(0.8, 10000, 1000);
-        
+
         // At warning threshold
         assert_eq!(guard.severity(8000), CompactionSeverity::Warn);
-        
+
         // Above warning threshold but below hard limit
         assert_eq!(guard.severity(9000), CompactionSeverity::Warn);
     }
@@ -175,10 +179,10 @@ mod tests {
     #[test]
     fn test_severity_critical() {
         let guard = ContextWindowGuard::new(0.8, 10000, 1000);
-        
+
         // At hard limit
         assert_eq!(guard.severity(10000), CompactionSeverity::Critical);
-        
+
         // Above hard limit
         assert_eq!(guard.severity(15000), CompactionSeverity::Critical);
     }
@@ -186,13 +190,13 @@ mod tests {
     #[test]
     fn test_needs_compaction() {
         let guard = ContextWindowGuard::new(0.8, 10000, 1000);
-        
+
         // Below warning threshold - no compaction needed
         assert!(!guard.needs_compaction(5000));
-        
+
         // At warning threshold - compaction needed
         assert!(guard.needs_compaction(8000));
-        
+
         // Above warning threshold - compaction needed
         assert!(guard.needs_compaction(9000));
     }
@@ -200,13 +204,13 @@ mod tests {
     #[test]
     fn test_available_tokens() {
         let guard = ContextWindowGuard::new(0.8, 10000, 1000);
-        
+
         // With 5000 tokens used: 10000 - 5000 - 1000 = 4000 available
         assert_eq!(guard.available_tokens(5000), 4000);
-        
+
         // With 9000 tokens used: 10000 - 9000 - 1000 = 0 available
         assert_eq!(guard.available_tokens(9000), 0);
-        
+
         // With over limit - saturates to 0
         assert_eq!(guard.available_tokens(12000), 0);
     }
@@ -214,7 +218,7 @@ mod tests {
     #[test]
     fn test_is_safe() {
         let guard = ContextWindowGuard::new(0.8, 10000, 1000);
-        
+
         assert!(guard.is_safe(5000));
         assert!(!guard.is_safe(9000));
         assert!(!guard.is_safe(10000));
@@ -227,9 +231,9 @@ mod tests {
             min_messages: 100,
             interval: 3600,
         };
-        
+
         let guard = ContextWindowGuard::from_compaction_config(&compaction_config);
-        
+
         assert_eq!(guard.warn_threshold, 0.8);
         // 100 messages * 100 tokens = 10000 hard limit
         assert_eq!(guard.hard_limit, 10000);

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Session configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SessionConfig {
     /// Message handling settings
     #[serde(default)]
@@ -12,7 +12,7 @@ pub struct SessionConfig {
 }
 
 /// Message handling configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MessageConfig {
     /// Maximum messages in session
     #[serde(default)]
@@ -26,7 +26,7 @@ pub struct MessageConfig {
 }
 
 /// Session compaction configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CompactionConfig {
     /// Enabled flag
     #[serde(default)]
@@ -41,33 +41,4 @@ pub struct CompactionConfig {
 
 fn default_interval() -> u64 {
     3600
-}
-
-impl Default for SessionConfig {
-    fn default() -> Self {
-        Self {
-            messages: MessageConfig::default(),
-            compaction: CompactionConfig::default(),
-        }
-    }
-}
-
-impl Default for MessageConfig {
-    fn default() -> Self {
-        Self {
-            max_messages: 1000,
-            retention: String::from("unlimited"),
-            format: String::from("standard"),
-        }
-    }
-}
-
-impl Default for CompactionConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            min_messages: 100,
-            interval: default_interval(),
-        }
-    }
 }

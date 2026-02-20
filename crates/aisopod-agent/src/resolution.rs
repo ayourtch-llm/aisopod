@@ -129,7 +129,7 @@ pub fn resolve_agent_model(
     agent_id: &str,
 ) -> Result<ModelChain> {
     let agent = resolve_agent_config(config, agent_id)?;
-    
+
     // Get the primary model for this agent
     let primary_model = if !agent.model.is_empty() {
         agent.model
@@ -185,10 +185,7 @@ impl ModelChain {
     }
 
     /// Creates a new ModelChain with primary and fallback models.
-    pub fn with_fallbacks(
-        primary: impl Into<String>,
-        fallbacks: Vec<String>,
-    ) -> Self {
+    pub fn with_fallbacks(primary: impl Into<String>, fallbacks: Vec<String>) -> Self {
         Self {
             primary: primary.into(),
             fallbacks,
@@ -274,10 +271,7 @@ mod tests {
 
     #[test]
     fn test_model_chain_all_models() {
-        let chain = ModelChain::with_fallbacks(
-            "gpt-4",
-            vec!["gpt-3.5-turbo".to_string()],
-        );
+        let chain = ModelChain::with_fallbacks("gpt-4", vec!["gpt-3.5-turbo".to_string()]);
 
         let all = chain.all_models();
         assert_eq!(all.len(), 2);

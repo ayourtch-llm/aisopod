@@ -428,11 +428,11 @@ fn test_recover_profile_false_if_not_needed() {
 
     // First mark it as failed
     manager.mark_failed("openai", "profile", ProfileStatus::RateLimited);
-    
+
     // Now the profile is failed with cooldown
     // Since cooldown is 60 seconds, it won't be recoverable yet
     assert!(!manager.recover_profile("openai", "profile"));
-    
+
     // After recovery (when cooldown expires), it should return true
     // This test documents the expected behavior
 }
@@ -541,6 +541,11 @@ fn test_high_frequency_rotation() {
 
     // Each profile should be used approximately 10 times
     for (key, count) in counts {
-        assert!(count >= 5, "Key {} was used {} times (expected ~10)", key, count);
+        assert!(
+            count >= 5,
+            "Key {} was used {} times (expected ~10)",
+            key,
+            count
+        );
     }
 }

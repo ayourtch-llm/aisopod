@@ -2,10 +2,8 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use futures_core::Stream;
-use futures_util::stream::{self, BoxStream, StreamExt};
-use std::pin::Pin;
-use tracing::{debug, instrument, warn};
+use futures_util::stream::{BoxStream, StreamExt};
+use tracing::{debug, warn};
 
 use crate::trait_module::{ChatCompletionStream, ModelProvider};
 use crate::types::*;
@@ -67,10 +65,7 @@ impl OllamaProvider {
             }
         };
 
-        OllamaMessage {
-            role,
-            content,
-        }
+        OllamaMessage { role, content }
     }
 
     /// Converts a core [`ToolDefinition`] to an Ollama function.
@@ -277,9 +272,9 @@ impl ModelProvider for OllamaProvider {
                 id: model.name.clone(),
                 name: model.name,
                 provider: "ollama".to_string(),
-                context_window: 8192, // Default Ollama context window
+                context_window: 8192,   // Default Ollama context window
                 supports_vision: false, // Ollama vision support varies by model
-                supports_tools: false, // Ollama tool support varies by model
+                supports_tools: false,  // Ollama tool support varies by model
             })
             .collect();
 
@@ -361,11 +356,7 @@ impl ModelProvider for OllamaProvider {
 
         let start = std::time::Instant::now();
 
-        let response = self
-            .client
-            .request(reqwest::Method::GET, &url)
-            .send()
-            .await;
+        let response = self.client.request(reqwest::Method::GET, &url).send().await;
 
         let latency_ms = start.elapsed().as_millis() as u64;
 
@@ -488,8 +479,12 @@ mod tests {
         let message = Message {
             role: Role::User,
             content: MessageContent::Parts(vec![
-                ContentPart::Text { text: "Line 1".to_string() },
-                ContentPart::Text { text: "Line 2".to_string() },
+                ContentPart::Text {
+                    text: "Line 1".to_string(),
+                },
+                ContentPart::Text {
+                    text: "Line 2".to_string(),
+                },
             ]),
             tool_calls: None,
             tool_call_id: None,
@@ -542,7 +537,7 @@ mod tests {
         // Debug: print the parsed Ollama chunk
         let parsed: Result<OllamaChatCompletionChunk, _> = serde_json::from_str(line);
         println!("Parsed Ollama chunk: {:?}", parsed);
-        
+
         let result = OllamaProvider::parse_ollama_chunk(line);
         println!("Parsed chat completion chunk: {:?}", result);
         assert!(result.is_some(), "Failed to parse Ollama chunk");
@@ -570,7 +565,7 @@ mod tests {
         // Debug: print the parsed Ollama chunk
         let parsed: Result<OllamaChatCompletionChunk, _> = serde_json::from_str(line);
         println!("Parsed Ollama chunk: {:?}", parsed);
-        
+
         let result = OllamaProvider::parse_ollama_chunk(line);
         println!("Parsed chat completion chunk: {:?}", result);
         assert!(result.is_some(), "Failed to parse Ollama chunk with done");

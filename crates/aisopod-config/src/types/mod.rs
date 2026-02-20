@@ -11,8 +11,8 @@ mod bindings;
 mod channels;
 mod env;
 mod gateway;
-mod meta;
 mod memory;
+mod meta;
 mod models;
 mod plugins;
 mod session;
@@ -20,8 +20,8 @@ mod skills;
 mod tools;
 
 pub use agents::Agent;
-pub use agents::AgentsConfig;
 pub use agents::AgentDefaults;
+pub use agents::AgentsConfig;
 pub use auth::AuthConfig;
 pub use auth::AuthMode;
 pub use auth::PasswordCredential;
@@ -35,10 +35,10 @@ pub use gateway::RateLimitConfig;
 pub use gateway::ServerConfig;
 pub use gateway::TlsConfig;
 pub use gateway::WebUiConfig;
-pub use meta::MetaConfig;
 pub use memory::MemoryConfig;
-pub use models::ModelsConfig;
+pub use meta::MetaConfig;
 pub use models::ModelFallback;
+pub use models::ModelsConfig;
 pub use plugins::PluginsConfig;
 pub use session::CompactionConfig;
 pub use session::MessageConfig;
@@ -47,7 +47,7 @@ pub use skills::SkillsConfig;
 pub use tools::ToolsConfig;
 
 /// Root configuration struct that composes all configuration types
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AisopodConfig {
     /// Metadata configuration
     #[serde(default)]
@@ -88,24 +88,4 @@ pub struct AisopodConfig {
     /// Gateway configuration
     #[serde(default)]
     pub gateway: GatewayConfig,
-}
-
-impl Default for AisopodConfig {
-    fn default() -> Self {
-        Self {
-            meta: MetaConfig::default(),
-            auth: AuthConfig::default(),
-            env: EnvConfig::default(),
-            agents: AgentsConfig::default(),
-            models: ModelsConfig::default(),
-            channels: ChannelsConfig::default(),
-            tools: ToolsConfig::default(),
-            skills: SkillsConfig::default(),
-            plugins: PluginsConfig::default(),
-            session: SessionConfig::default(),
-            bindings: Vec::new(),
-            memory: MemoryConfig::default(),
-            gateway: GatewayConfig::default(),
-        }
-    }
 }

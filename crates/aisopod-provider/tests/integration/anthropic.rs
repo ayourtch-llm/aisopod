@@ -55,7 +55,10 @@ async fn test_anthropic_streaming_chat_completion() {
         }
     }
 
-    assert!(has_content, "Should receive content from streaming response");
+    assert!(
+        has_content,
+        "Should receive content from streaming response"
+    );
 }
 
 /// Test that list_models returns non-empty results
@@ -68,7 +71,10 @@ async fn test_anthropic_list_models() {
 
     let models = provider.list_models().await.unwrap();
 
-    assert!(!models.is_empty(), "list_models should return non-empty results");
+    assert!(
+        !models.is_empty(),
+        "list_models should return non-empty results"
+    );
     assert!(models.iter().any(|m| m.id == "claude-3-5-sonnet-latest"));
 }
 
@@ -82,7 +88,10 @@ async fn test_anthropic_health_check() {
 
     let health = provider.health_check().await.unwrap();
 
-    assert!(health.available, "Health check should return available=true");
+    assert!(
+        health.available,
+        "Health check should return available=true"
+    );
 }
 
 /// Test with a short message that requires tool calls
@@ -122,12 +131,7 @@ async fn test_anthropic_with_short_message() {
 #[tokio::test]
 #[ignore = "requires ANTHROPIC_API_KEY environment variable"]
 async fn test_anthropic_invalid_api_key() {
-    let provider = AnthropicProvider::new(
-        "invalid-key".to_string(),
-        None,
-        None,
-        None,
-    );
+    let provider = AnthropicProvider::new("invalid-key".to_string(), None, None, None);
 
     let request = ChatCompletionRequest {
         model: "claude-3-5-sonnet-latest".to_string(),

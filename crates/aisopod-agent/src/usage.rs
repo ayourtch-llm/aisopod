@@ -70,13 +70,19 @@ impl UsageTracker {
     ) {
         // Update session usage
         {
-            let mut session_entry = self.session_usage.entry(session_key.to_string()).or_insert(UsageReport::default());
+            let mut session_entry = self
+                .session_usage
+                .entry(session_key.to_string())
+                .or_insert(UsageReport::default());
             session_entry.add(input_tokens, output_tokens);
         }
 
         // Update agent usage
         {
-            let mut agent_entry = self.agent_usage.entry(agent_id.to_string()).or_insert(UsageReport::default());
+            let mut agent_entry = self
+                .agent_usage
+                .entry(agent_id.to_string())
+                .or_insert(UsageReport::default());
             agent_entry.add(input_tokens, output_tokens);
         }
     }
@@ -130,7 +136,10 @@ impl UsageTracker {
     ///
     /// Returns a Vec of session keys.
     pub fn session_keys(&self) -> Vec<String> {
-        self.session_usage.iter().map(|entry| entry.key().clone()).collect()
+        self.session_usage
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
     }
 
     /// Gets all agent IDs with recorded usage.
@@ -139,7 +148,10 @@ impl UsageTracker {
     ///
     /// Returns a Vec of agent IDs.
     pub fn agent_keys(&self) -> Vec<String> {
-        self.agent_usage.iter().map(|entry| entry.key().clone()).collect()
+        self.agent_usage
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
     }
 }
 
@@ -179,13 +191,13 @@ mod tests {
     #[test]
     fn test_accumulation_across_requests() {
         let tracker = UsageTracker::new();
-        
+
         // First request
         tracker.record_request("session_1", "agent_1", 100, 50);
-        
+
         // Second request
         tracker.record_request("session_1", "agent_1", 200, 100);
-        
+
         // Third request
         tracker.record_request("session_1", "agent_1", 50, 25);
 
@@ -207,13 +219,13 @@ mod tests {
     #[test]
     fn test_per_agent_aggregation() {
         let tracker = UsageTracker::new();
-        
+
         // Session 1, Agent 1
         tracker.record_request("session_1", "agent_1", 100, 50);
-        
+
         // Session 2, Agent 1 (different session, same agent)
         tracker.record_request("session_2", "agent_1", 200, 100);
-        
+
         // Session 1, Agent 2 (same session, different agent)
         tracker.record_request("session_1", "agent_2", 50, 25);
 
@@ -242,17 +254,17 @@ mod tests {
     #[test]
     fn test_reset_session() {
         let tracker = UsageTracker::new();
-        
+
         // Record some requests
         tracker.record_request("session_1", "agent_1", 100, 50);
         tracker.record_request("session_1", "agent_1", 200, 100);
-        
+
         // Reset the session
         tracker.reset_session("session_1");
-        
+
         // Session usage should be cleared
         assert!(tracker.get_session_usage("session_1").is_none());
-        
+
         // Agent usage should still exist (reset only affects session)
         let agent_usage = tracker.get_agent_usage("agent_1").unwrap();
         assert_eq!(agent_usage.input_tokens, 300);
@@ -263,7 +275,7 @@ mod tests {
     #[test]
     fn test_nonexistent_session() {
         let tracker = UsageTracker::new();
-        
+
         assert!(tracker.get_session_usage("nonexistent").is_none());
         assert!(tracker.get_agent_usage("nonexistent").is_none());
     }
@@ -271,9 +283,9 @@ mod tests {
     #[test]
     fn test_concurrent_access() {
         use std::thread;
-        
+
         let tracker = Arc::new(UsageTracker::new());
-        
+
         // Spawn multiple threads to record requests concurrently
         let mut handles = Vec::new();
         for i in 0..10 {
@@ -287,21 +299,23 @@ mod tests {
             });
             handles.push(handle);
         }
-        
+
         // Wait for all threads to complete
         for handle in handles {
             handle.join().unwrap();
         }
-        
+
         // Verify usage - each session has 10 requests
         for i in 0..10 {
-            let session_usage = tracker.get_session_usage(&format!("session_{}", i)).unwrap();
+            let session_usage = tracker
+                .get_session_usage(&format!("session_{}", i))
+                .unwrap();
             assert_eq!(session_usage.input_tokens, 100); // 10 requests * 10 tokens
             assert_eq!(session_usage.output_tokens, 50);
             assert_eq!(session_usage.total_tokens, 150);
             assert_eq!(session_usage.request_count, 10);
         }
-        
+
         // Verify agent 0 usage (should have received requests from all sessions)
         // For each session: j % 3 = 0 when j = 0, 3, 6, 9 (4 requests)
         // 4 requests * 10 sessions * 10 tokens = 400 input tokens

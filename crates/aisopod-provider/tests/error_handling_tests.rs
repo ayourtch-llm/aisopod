@@ -11,12 +11,14 @@ use std::time::Duration;
 
 use aisopod_provider::auth::{AuthProfile, AuthProfileManager, ProfileStatus};
 use aisopod_provider::normalize::{map_http_error, ProviderError};
-use aisopod_provider::types::{ChatCompletionChunk, ChatCompletionRequest, Message, MessageContent, Role};
 use aisopod_provider::trait_module::ModelProvider;
+use aisopod_provider::types::{
+    ChatCompletionChunk, ChatCompletionRequest, Message, MessageContent, Role,
+};
 use futures_util::StreamExt;
 
 // Re-export the mock provider
-use aisopod_provider::helpers::{MockProvider, create_test_request};
+use aisopod_provider::helpers::{create_test_request, MockProvider};
 
 // ============================================================================
 // Authentication Error Tests
@@ -24,7 +26,11 @@ use aisopod_provider::helpers::{MockProvider, create_test_request};
 
 #[test]
 fn test_auth_error_401_mapping() {
-    let error = map_http_error("openai", 401, r#"{"error": {"message": "Invalid API key"}}"#);
+    let error = map_http_error(
+        "openai",
+        401,
+        r#"{"error": {"message": "Invalid API key"}}"#,
+    );
 
     match error {
         ProviderError::AuthenticationFailed { provider, message } => {
@@ -37,7 +43,11 @@ fn test_auth_error_401_mapping() {
 
 #[test]
 fn test_auth_error_403_mapping() {
-    let error = map_http_error("anthropic", 403, r#"{"error": {"type": "permission_error"}}"#);
+    let error = map_http_error(
+        "anthropic",
+        403,
+        r#"{"error": {"type": "permission_error"}}"#,
+    );
 
     match error {
         ProviderError::AuthenticationFailed { provider, message } => {
@@ -83,10 +93,17 @@ fn test_auth_error_provider_varies() {
 
 #[test]
 fn test_rate_limit_error_429_mapping() {
-    let error = map_http_error("openai", 429, r#"{"error": {"message": "Rate limit exceeded"}}"#);
+    let error = map_http_error(
+        "openai",
+        429,
+        r#"{"error": {"message": "Rate limit exceeded"}}"#,
+    );
 
     match error {
-        ProviderError::RateLimited { provider, retry_after } => {
+        ProviderError::RateLimited {
+            provider,
+            retry_after,
+        } => {
             assert_eq!(provider, "openai");
             // Retry-after should be None for basic 429 parsing
             assert!(retry_after.is_none());
@@ -97,10 +114,17 @@ fn test_rate_limit_error_429_mapping() {
 
 #[test]
 fn test_rate_limit_with_retry_after() {
-    let error = map_http_error("openai", 429, r#"{"error": {"message": "Rate limit", "retry_after": 60}}"#);
+    let error = map_http_error(
+        "openai",
+        429,
+        r#"{"error": {"message": "Rate limit", "retry_after": 60}}"#,
+    );
 
     match error {
-        ProviderError::RateLimited { provider, retry_after } => {
+        ProviderError::RateLimited {
+            provider,
+            retry_after,
+        } => {
             assert_eq!(provider, "openai");
             // The retry_after parsing depends on the actual implementation
             assert!(retry_after.is_some() || retry_after.is_none());
@@ -150,7 +174,11 @@ fn test_invalid_request_empty_message() {
 #[test]
 fn test_invalid_request_with_context_length() {
     // This would be handled by map_http_error or a specialized handler
-    let error = map_http_error("openai", 400, r#"{"error": {"message": "Too many tokens"}}"#);
+    let error = map_http_error(
+        "openai",
+        400,
+        r#"{"error": {"message": "Too many tokens"}}"#,
+    );
 
     match error {
         ProviderError::InvalidRequest { provider, .. } => {
@@ -166,7 +194,11 @@ fn test_invalid_request_with_context_length() {
 
 #[test]
 fn test_model_not_found_404_mapping() {
-    let error = map_http_error("openai", 404, r#"{"error": {"message": "Model gpt-5 not found"}}"#);
+    let error = map_http_error(
+        "openai",
+        404,
+        r#"{"error": {"message": "Model gpt-5 not found"}}"#,
+    );
 
     match error {
         ProviderError::ModelNotFound { provider, model } => {
@@ -185,7 +217,11 @@ fn test_model_not_found_404_mapping() {
 
 #[test]
 fn test_model_not_found_with_json_model_field() {
-    let error = map_http_error("openai", 404, r#"{"error": {"message": "Not found", "model": "gpt-5"}}"#);
+    let error = map_http_error(
+        "openai",
+        404,
+        r#"{"error": {"message": "Not found", "model": "gpt-5"}}"#,
+    );
 
     match error {
         ProviderError::ModelNotFound { provider, model } => {
@@ -198,7 +234,11 @@ fn test_model_not_found_with_json_model_field() {
 
 #[test]
 fn test_model_not_found_with_specific_model() {
-    let error = map_http_error("gemini", 404, r#"{"error": "Model gemini-5-ultra not found"}"#);
+    let error = map_http_error(
+        "gemini",
+        404,
+        r#"{"error": "Model gemini-5-ultra not found"}"#,
+    );
 
     match error {
         ProviderError::ModelNotFound { provider, model } => {
@@ -217,7 +257,10 @@ fn test_context_length_exceeded_413_mapping() {
     let error = map_http_error("openai", 413, r#"{"error": {"message": "Input too long"}}"#);
 
     match error {
-        ProviderError::ContextLengthExceeded { provider, max_tokens } => {
+        ProviderError::ContextLengthExceeded {
+            provider,
+            max_tokens,
+        } => {
             assert_eq!(provider, "openai");
             // max_tokens might be 0 if not parseable
             assert!(max_tokens == 0 || max_tokens > 0);
@@ -229,10 +272,17 @@ fn test_context_length_exceeded_413_mapping() {
 #[test]
 fn test_context_length_with_specific_value() {
     // This would require a specialized handler in the actual code
-    let error = map_http_error("openai", 413, r#"{"error": {"message": "Context exceeded max_tokens: 4096"}}"#);
+    let error = map_http_error(
+        "openai",
+        413,
+        r#"{"error": {"message": "Context exceeded max_tokens: 4096"}}"#,
+    );
 
     match error {
-        ProviderError::ContextLengthExceeded { provider, max_tokens } => {
+        ProviderError::ContextLengthExceeded {
+            provider,
+            max_tokens,
+        } => {
             assert_eq!(provider, "openai");
             assert!(max_tokens == 0 || max_tokens > 0);
         }
@@ -249,7 +299,11 @@ fn test_server_error_500_mapping() {
     let error = map_http_error("openai", 500, r#"{"error": {"message": "Internal error"}}"#);
 
     match error {
-        ProviderError::ServerError { provider, status, message } => {
+        ProviderError::ServerError {
+            provider,
+            status,
+            message,
+        } => {
             assert_eq!(provider, "openai");
             assert_eq!(status, 500);
             assert!(message.contains("Internal error"));
@@ -263,7 +317,9 @@ fn test_server_error_503_mapping() {
     let error = map_http_error("anthropic", 503, r#"{"error": "Service unavailable"}"#);
 
     match error {
-        ProviderError::ServerError { provider, status, .. } => {
+        ProviderError::ServerError {
+            provider, status, ..
+        } => {
             assert_eq!(provider, "anthropic");
             assert_eq!(status, 503);
         }
@@ -276,7 +332,9 @@ fn test_server_error_504_mapping() {
     let error = map_http_error("gemini", 504, r#"{"error": "Gateway timeout"}"#);
 
     match error {
-        ProviderError::ServerError { provider, status, .. } => {
+        ProviderError::ServerError {
+            provider, status, ..
+        } => {
             assert_eq!(provider, "gemini");
             assert_eq!(status, 504);
         }
@@ -319,8 +377,7 @@ fn test_unknown_error_empty_body() {
 
 #[tokio::test]
 async fn test_network_error_propagation() {
-    let provider = MockProvider::new("test")
-        .with_error("Connection refused");
+    let provider = MockProvider::new("test").with_error("Connection refused");
 
     let request = create_test_request("test-model", "Test");
     let result = provider.chat_completion(request).await;
@@ -333,8 +390,7 @@ async fn test_network_error_propagation() {
 #[tokio::test]
 async fn test_network_timeout_simulation() {
     // This simulates what would happen on a network timeout
-    let provider = MockProvider::new("test")
-        .with_error("Request timeout");
+    let provider = MockProvider::new("test").with_error("Request timeout");
 
     let request = create_test_request("test-model", "Test");
     let result = provider.chat_completion(request).await;
@@ -442,7 +498,7 @@ fn test_provider_error_display() {
 fn test_provider_error_chain() {
     // Create a chain of errors
     let source_error = anyhow::anyhow!("Network failure");
-    
+
     // Verify error chain is preserved
     assert!(source_error.to_string().contains("Network failure"));
 }
@@ -457,8 +513,7 @@ async fn test_stream_closed_error() {
 
     let chunks = vec![Err("Stream closed unexpectedly".to_string())];
 
-    let provider = MockProvider::new("test")
-        .with_chunks(chunks);
+    let provider = MockProvider::new("test").with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
     let mut stream = provider.chat_completion(request).await.unwrap();

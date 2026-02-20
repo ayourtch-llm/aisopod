@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Memory configuration for QMD memory system
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MemoryConfig {
     /// Memory backend configuration
     #[serde(default)]
@@ -12,7 +12,7 @@ pub struct MemoryConfig {
 }
 
 /// Memory backend configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MemoryBackend {
     /// Backend type
     #[serde(default)]
@@ -26,7 +26,7 @@ pub struct MemoryBackend {
 }
 
 /// Memory settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MemorySettings {
     /// Default memory limit in MB
     #[serde(default)]
@@ -41,33 +41,4 @@ pub struct MemorySettings {
 
 fn default_ttl() -> u64 {
     86400
-}
-
-impl Default for MemoryConfig {
-    fn default() -> Self {
-        Self {
-            backend: MemoryBackend::default(),
-            settings: MemorySettings::default(),
-        }
-    }
-}
-
-impl Default for MemoryBackend {
-    fn default() -> Self {
-        Self {
-            r#type: String::from("memory"),
-            connection: String::new(),
-            database: String::new(),
-        }
-    }
-}
-
-impl Default for MemorySettings {
-    fn default() -> Self {
-        Self {
-            memory_limit: 1024,
-            eviction_policy: String::from("lru"),
-            ttl: default_ttl(),
-        }
-    }
 }

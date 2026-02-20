@@ -2,12 +2,10 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use futures_core::Stream;
-use futures_util::stream::{self, BoxStream, StreamExt};
-use std::pin::Pin;
+use futures_util::stream::{BoxStream, StreamExt};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tracing::{debug, instrument, warn};
+use tracing::{debug, warn};
 
 use crate::auth::{AuthProfile, AuthProfileManager};
 use crate::trait_module::{ChatCompletionStream, ModelProvider};
@@ -49,9 +47,9 @@ impl OpenAIProvider {
             api_key,
             base_url: base_url.unwrap_or_else(|| "https://api.openai.com".to_string()),
             organization,
-            profile_manager: Arc::new(Mutex::new(AuthProfileManager::new(
-                Duration::from_secs(cooldown_seconds.unwrap_or(60)),
-            ))),
+            profile_manager: Arc::new(Mutex::new(AuthProfileManager::new(Duration::from_secs(
+                cooldown_seconds.unwrap_or(60),
+            )))),
         }
     }
 
@@ -76,9 +74,9 @@ impl OpenAIProvider {
             api_key,
             base_url,
             organization,
-            profile_manager: Arc::new(Mutex::new(AuthProfileManager::new(
-                Duration::from_secs(cooldown_seconds.unwrap_or(60)),
-            ))),
+            profile_manager: Arc::new(Mutex::new(AuthProfileManager::new(Duration::from_secs(
+                cooldown_seconds.unwrap_or(60),
+            )))),
         }
     }
 
@@ -91,9 +89,7 @@ impl OpenAIProvider {
     /// Gets the next available API key for round-robin rotation.
     fn get_api_key(&self) -> Option<String> {
         let mut manager = self.profile_manager.lock().unwrap();
-        manager
-            .next_key("openai")
-            .map(|p| p.api_key.clone())
+        manager.next_key("openai").map(|p| p.api_key.clone())
     }
 
     /// Converts a core [`Message`] to an OpenAI message.
@@ -111,9 +107,9 @@ impl OpenAIProvider {
                 let content_parts = parts
                     .iter()
                     .map(|part| match part {
-                        ContentPart::Text { text } => OpenAIContentPart::Text {
-                            text: text.clone(),
-                        },
+                        ContentPart::Text { text } => {
+                            OpenAIContentPart::Text { text: text.clone() }
+                        }
                         ContentPart::Image { media_type, data } => {
                             // Convert media type to URL format
                             // OpenAI supports base64 encoded images with data URLs
@@ -123,10 +119,7 @@ impl OpenAIProvider {
                                 data.clone()
                             };
                             OpenAIContentPart::ImageUrl {
-                                image_url: OpenAIImageUrl {
-                                    url,
-                                    detail: None,
-                                },
+                                image_url: OpenAIImageUrl { url, detail: None },
                             }
                         }
                     })
@@ -178,9 +171,10 @@ impl OpenAIProvider {
             .map(|message| self.convert_message(message))
             .collect();
 
-        let tools = request.tools.as_ref().map(|tools| {
-            tools.iter().map(|tool| self.convert_tool(tool)).collect()
-        });
+        let tools = request
+            .tools
+            .as_ref()
+            .map(|tools| tools.iter().map(|tool| self.convert_tool(tool)).collect());
 
         // Check if any message has parts with a hint for JSON mode
         // In a real implementation, this would be a more explicit flag
@@ -304,11 +298,7 @@ impl OpenAIProvider {
                     anyhow::anyhow!("OpenAI API error: {}", status)
                 }
             }
-            Err(_) => anyhow::anyhow!(
-                "OpenAI API error ({}): {}",
-                status,
-                body.trim()
-            ),
+            Err(_) => anyhow::anyhow!("OpenAI API error ({}): {}", status, body.trim()),
         }
     }
 
@@ -528,12 +518,7 @@ mod tests {
 
     #[test]
     fn test_convert_message_text() {
-        let provider = OpenAIProvider::new(
-            "test-key".to_string(),
-            None,
-            None,
-            Some(60),
-        );
+        let provider = OpenAIProvider::new("test-key".to_string(), None, None, Some(60));
 
         let message = Message {
             role: Role::User,
@@ -544,25 +529,21 @@ mod tests {
 
         let result = provider.convert_message(&message);
         assert_eq!(result.role, OpenAIRole::User);
-        assert_eq!(result.content, Some(OpenAIContent::Text("Hello".to_string())));
+        assert_eq!(
+            result.content,
+            Some(OpenAIContent::Text("Hello".to_string()))
+        );
     }
 
     #[test]
     fn test_convert_message_parts() {
-        let provider = OpenAIProvider::new(
-            "test-key".to_string(),
-            None,
-            None,
-            Some(60),
-        );
+        let provider = OpenAIProvider::new("test-key".to_string(), None, None, Some(60));
 
         let message = Message {
             role: Role::User,
-            content: MessageContent::Parts(vec![
-                ContentPart::Text {
-                    text: "Hello".to_string(),
-                },
-            ]),
+            content: MessageContent::Parts(vec![ContentPart::Text {
+                text: "Hello".to_string(),
+            }]),
             tool_calls: None,
             tool_call_id: None,
         };
@@ -582,12 +563,7 @@ mod tests {
 
     #[test]
     fn test_convert_tool() {
-        let provider = OpenAIProvider::new(
-            "test-key".to_string(),
-            None,
-            None,
-            Some(60),
-        );
+        let provider = OpenAIProvider::new("test-key".to_string(), None, None, Some(60));
 
         let tool = ToolDefinition {
             name: "calculator".to_string(),
@@ -608,12 +584,7 @@ mod tests {
 
     #[test]
     fn test_build_openai_request() {
-        let provider = OpenAIProvider::new(
-            "test-key".to_string(),
-            None,
-            None,
-            Some(60),
-        );
+        let provider = OpenAIProvider::new("test-key".to_string(), None, None, Some(60));
 
         let request = ChatCompletionRequest {
             model: "gpt-4".to_string(),
@@ -670,10 +641,19 @@ mod tests {
     #[test]
     fn test_estimate_context_window() {
         assert_eq!(OpenAIProvider::estimate_context_window("gpt-4o"), 128000);
-        assert_eq!(OpenAIProvider::estimate_context_window("gpt-4-turbo"), 128000);
+        assert_eq!(
+            OpenAIProvider::estimate_context_window("gpt-4-turbo"),
+            128000
+        );
         assert_eq!(OpenAIProvider::estimate_context_window("gpt-4"), 8192);
-        assert_eq!(OpenAIProvider::estimate_context_window("gpt-3.5-turbo"), 16385);
-        assert_eq!(OpenAIProvider::estimate_context_window("unknown-model"), 4096);
+        assert_eq!(
+            OpenAIProvider::estimate_context_window("gpt-3.5-turbo"),
+            16385
+        );
+        assert_eq!(
+            OpenAIProvider::estimate_context_window("unknown-model"),
+            4096
+        );
     }
 
     #[test]

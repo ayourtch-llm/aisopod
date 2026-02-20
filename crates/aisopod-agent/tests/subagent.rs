@@ -66,23 +66,14 @@ fn test_subagent_spawn_params_with_thread_id() {
 
 #[test]
 fn test_agent_run_params_with_depth() {
-    let params = AgentRunParams::with_depth(
-        "session_123",
-        vec![],
-        Some("agent_1"),
-        2,
-    );
+    let params = AgentRunParams::with_depth("session_123", vec![], Some("agent_1"), 2);
     assert_eq!(params.depth, 2);
     assert_eq!(params.agent_id, Some("agent_1".to_string()));
 }
 
 #[test]
 fn test_agent_run_params_default_depth() {
-    let params = AgentRunParams::new(
-        "session_123",
-        vec![],
-        Some("agent_1"),
-    );
+    let params = AgentRunParams::new("session_123", vec![], Some("agent_1"));
     assert_eq!(params.depth, 0);
 }
 
@@ -103,12 +94,7 @@ fn test_resource_budget_deduct_updates_remaining() {
 
 #[test]
 fn test_agent_run_params_with_depth_and_agent() {
-    let params = AgentRunParams::with_depth(
-        "session_xyz",
-        vec![],
-        Some("test_agent_1"),
-        5,
-    );
+    let params = AgentRunParams::with_depth("session_xyz", vec![], Some("test_agent_1"), 5);
     assert_eq!(params.depth, 5);
     assert_eq!(params.session_key, "session_xyz");
     assert_eq!(params.agent_id, Some("test_agent_1".to_string()));
@@ -156,13 +142,13 @@ fn test_resource_budget_exact_budget() {
 #[test]
 fn test_resource_budget_multiple_deductions() {
     let mut budget = ResourceBudget::new(1000, 1000);
-    
+
     budget.deduct(300).unwrap();
     assert_eq!(budget.remaining_tokens, 700);
-    
+
     budget.deduct(200).unwrap();
     assert_eq!(budget.remaining_tokens, 500);
-    
+
     budget.deduct(250).unwrap();
     assert_eq!(budget.remaining_tokens, 250);
 }
@@ -177,7 +163,7 @@ fn test_subagent_spawn_params_clone() {
         thread_id: None,
         resource_budget: None,
     };
-    
+
     let cloned = params.clone();
     assert_eq!(params.agent_id, cloned.agent_id);
     assert_eq!(params.parent_session_key, cloned.parent_session_key);
@@ -192,11 +178,6 @@ fn test_resource_budget_large_numbers() {
 
 #[test]
 fn test_agent_run_params_with_large_depth() {
-    let params = AgentRunParams::with_depth(
-        "session_123",
-        vec![],
-        Some("agent_1"),
-        100,
-    );
+    let params = AgentRunParams::with_depth("session_123", vec![], Some("agent_1"), 100);
     assert_eq!(params.depth, 100);
 }

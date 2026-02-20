@@ -8,12 +8,12 @@
 
 use std::time::Duration;
 
-use aisopod_provider::types::*;
 use aisopod_provider::trait_module::{ChatCompletionStream, ModelProvider};
+use aisopod_provider::types::*;
 use futures_util::StreamExt;
 
 // Re-export the mock provider
-use aisopod_provider::helpers::{MockProvider, create_test_request};
+use aisopod_provider::helpers::{create_test_request, MockProvider};
 
 // ============================================================================
 // Streaming Order Tests
@@ -58,8 +58,7 @@ async fn test_stream_chunks_arrive_in_order() {
         }),
     ];
 
-    let provider = MockProvider::new("test")
-        .with_chunks(chunks);
+    let provider = MockProvider::new("test").with_chunks(chunks);
 
     let request = create_test_request("test-model", "Hello");
     let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
@@ -104,8 +103,7 @@ async fn test_stream_finish_reason_on_last_chunk() {
         }),
     ];
 
-    let provider = MockProvider::new("test")
-        .with_chunks(chunks);
+    let provider = MockProvider::new("test").with_chunks(chunks);
 
     let request = create_test_request("test-model", "Hello");
     let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
@@ -153,8 +151,7 @@ async fn test_stream_terminates_correctly() {
         }),
     ];
 
-    let provider = MockProvider::new("test")
-        .with_chunks(chunks);
+    let provider = MockProvider::new("test").with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
     let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
@@ -205,8 +202,7 @@ async fn test_stream_with_tool_call_finish_reason() {
         }),
     ];
 
-    let provider = MockProvider::new("test")
-        .with_chunks(chunks);
+    let provider = MockProvider::new("test").with_chunks(chunks);
 
     let request = create_test_request("test-model", "Use a tool");
     let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
@@ -231,8 +227,7 @@ async fn test_stream_with_tool_call_finish_reason() {
 
 #[tokio::test]
 async fn test_empty_stream_handled_gracefully() {
-    let provider = MockProvider::new("test")
-        .with_chunks(vec![]);
+    let provider = MockProvider::new("test").with_chunks(vec![]);
 
     let request = create_test_request("test-model", "Test");
     let mut stream = provider.chat_completion(request).await.unwrap();
@@ -262,8 +257,7 @@ async fn test_stream_with_single_chunk() {
         }),
     })];
 
-    let provider = MockProvider::new("test")
-        .with_chunks(chunks);
+    let provider = MockProvider::new("test").with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
     let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
@@ -296,8 +290,7 @@ async fn test_stream_with_partial_failures() {
         Err("Network error".to_string()),
     ];
 
-    let provider = MockProvider::new("test")
-        .with_chunks(chunks);
+    let provider = MockProvider::new("test").with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
     let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
@@ -320,8 +313,7 @@ async fn test_stream_with_partial_failures() {
 async fn test_stream_first_chunk_failure() {
     let chunks = vec![Err("Initial error".to_string())];
 
-    let provider = MockProvider::new("test")
-        .with_chunks(chunks);
+    let provider = MockProvider::new("test").with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
     let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
@@ -394,7 +386,7 @@ async fn test_stream_with_delays() {
     }
 
     let elapsed = start.elapsed();
-    
+
     // Should take at least 20ms for 3 chunks with 10ms delay each
     assert!(elapsed >= Duration::from_millis(20));
     assert_eq!(count, 3);
@@ -437,8 +429,7 @@ async fn test_usage_accumulates_across_chunks() {
         }),
     ];
 
-    let provider = MockProvider::new("test")
-        .with_chunks(chunks);
+    let provider = MockProvider::new("test").with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
     let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
@@ -492,8 +483,7 @@ async fn test_chunk_ids_are_unique() {
         }),
     ];
 
-    let provider = MockProvider::new("test")
-        .with_chunks(chunks);
+    let provider = MockProvider::new("test").with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
     let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
@@ -527,8 +517,7 @@ async fn test_role_delta_on_first_chunk() {
         usage: None,
     })];
 
-    let provider = MockProvider::new("test")
-        .with_chunks(chunks);
+    let provider = MockProvider::new("test").with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
     let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();
@@ -564,8 +553,7 @@ async fn test_role_delta_not_repeated() {
         }),
     ];
 
-    let provider = MockProvider::new("test")
-        .with_chunks(chunks);
+    let provider = MockProvider::new("test").with_chunks(chunks);
 
     let request = create_test_request("test-model", "Test");
     let mut stream: ChatCompletionStream = provider.chat_completion(request).await.unwrap();

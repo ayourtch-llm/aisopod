@@ -25,12 +25,7 @@ pub trait AgentSpawner: Send + Sync {
     ///
     /// Returns Ok(String) with the result/output from the child agent,
     /// or an error if spawning failed.
-    async fn spawn(
-        &self,
-        agent_name: &str,
-        prompt: &str,
-        model: &str,
-    ) -> Result<String>;
+    async fn spawn(&self, agent_name: &str, prompt: &str, model: &str) -> Result<String>;
 }
 
 /// A built-in tool for spawning child agents to handle subtasks.
@@ -155,10 +150,7 @@ impl Tool for SubagentTool {
         }
 
         // Spawn the child agent
-        let result = self
-            .spawner
-            .spawn(agent_name, prompt, model)
-            .await?;
+        let result = self.spawner.spawn(agent_name, prompt, model).await?;
 
         Ok(ToolResult::success(result))
     }
@@ -173,12 +165,7 @@ pub struct NoOpAgentSpawner;
 
 #[async_trait]
 impl AgentSpawner for NoOpAgentSpawner {
-    async fn spawn(
-        &self,
-        agent_name: &str,
-        prompt: &str,
-        model: &str,
-    ) -> Result<String> {
+    async fn spawn(&self, agent_name: &str, prompt: &str, model: &str) -> Result<String> {
         // No-op: returns success with simulation message
         Ok(format!(
             "Agent '{}' (model: '{}') spawned with prompt: '{}'",
@@ -200,7 +187,10 @@ mod tests {
     #[test]
     fn test_subagent_tool_description() {
         let tool = SubagentTool::new(Arc::new(NoOpAgentSpawner::default()), 3, None);
-        assert_eq!(tool.description(), "Spawn a child agent to handle a subtask");
+        assert_eq!(
+            tool.description(),
+            "Spawn a child agent to handle a subtask"
+        );
     }
 
     #[test]
@@ -304,7 +294,7 @@ mod tests {
     #[tokio::test]
     async fn test_subagent_tool_depth_limit() {
         let tool = SubagentTool::new(Arc::new(NoOpAgentSpawner::default()), 2, None);
-        
+
         // Create context with spawn depth metadata
         let ctx = ToolContext::new("test_agent", "test_session");
         // Use private field access for testing
@@ -361,9 +351,15 @@ mod tests {
             .await;
 
         // The tool should return an Ok(ToolResult) with is_error=true for disallowed models
-        assert!(result.is_ok(), "execute should return Ok even for disallowed model");
+        assert!(
+            result.is_ok(),
+            "execute should return Ok even for disallowed model"
+        );
         let output = result.unwrap();
-        assert!(output.is_error, "ToolResult should have is_error=true for disallowed model");
+        assert!(
+            output.is_error,
+            "ToolResult should have is_error=true for disallowed model"
+        );
         assert!(output.content.contains("not in the allowlist"));
     }
 
@@ -371,9 +367,7 @@ mod tests {
     async fn test_noop_spawner() {
         let spawner = NoOpAgentSpawner::default();
 
-        let result = spawner
-            .spawn("test_agent", "Test prompt", "gpt-4")
-            .await;
+        let result = spawner.spawn("test_agent", "Test prompt", "gpt-4").await;
 
         assert!(result.is_ok());
         let output = result.unwrap();

@@ -97,10 +97,7 @@ pub fn get_cache_control(path: &str) -> &'static str {
 ///
 /// Serves static files from embedded assets or returns index.html for SPA fallback.
 /// API routes take precedence over static files.
-async fn static_handler_internal(
-    state: StaticFileState,
-    path: &str,
-) -> impl IntoResponse {
+async fn static_handler_internal(state: StaticFileState, path: &str) -> impl IntoResponse {
     // Check if static files are enabled
     let config = state.get_config().await;
     if !config.enabled {
@@ -117,11 +114,21 @@ async fn static_handler_internal(
         Some(file) => {
             let content_type = get_content_type(path);
             let cache_control = get_cache_control(path);
-            
+
             let mut headers = axum::http::HeaderMap::new();
-            headers.insert(header::CONTENT_TYPE, content_type.parse().unwrap());
-            headers.insert(header::CACHE_CONTROL, cache_control.parse().unwrap());
-            
+            headers.insert(
+                header::CONTENT_TYPE,
+                content_type
+                    .parse()
+                    .expect("content_type is a valid header value"),
+            );
+            headers.insert(
+                header::CACHE_CONTROL,
+                cache_control
+                    .parse()
+                    .expect("cache_control is a valid header value"),
+            );
+
             (headers, file.data).into_response()
         }
         None => {
@@ -130,11 +137,21 @@ async fn static_handler_internal(
                 if let Some(file) = Assets::get("index.html") {
                     let content_type = get_content_type("index.html");
                     let cache_control = get_cache_control("index.html");
-                    
+
                     let mut headers = axum::http::HeaderMap::new();
-                    headers.insert(header::CONTENT_TYPE, content_type.parse().unwrap());
-                    headers.insert(header::CACHE_CONTROL, cache_control.parse().unwrap());
-                    
+                    headers.insert(
+                        header::CONTENT_TYPE,
+                        content_type
+                            .parse()
+                            .expect("content_type is a valid header value"),
+                    );
+                    headers.insert(
+                        header::CACHE_CONTROL,
+                        cache_control
+                            .parse()
+                            .expect("cache_control is a valid header value"),
+                    );
+
                     (headers, file.data).into_response()
                 } else {
                     (StatusCode::INTERNAL_SERVER_ERROR, "index.html not found").into_response()
@@ -145,11 +162,21 @@ async fn static_handler_internal(
                 if let Some(file) = Assets::get("index.html") {
                     let content_type = get_content_type("index.html");
                     let cache_control = get_cache_control("index.html");
-                    
+
                     let mut headers = axum::http::HeaderMap::new();
-                    headers.insert(header::CONTENT_TYPE, content_type.parse().unwrap());
-                    headers.insert(header::CACHE_CONTROL, cache_control.parse().unwrap());
-                    
+                    headers.insert(
+                        header::CONTENT_TYPE,
+                        content_type
+                            .parse()
+                            .expect("content_type is a valid header value"),
+                    );
+                    headers.insert(
+                        header::CACHE_CONTROL,
+                        cache_control
+                            .parse()
+                            .expect("cache_control is a valid header value"),
+                    );
+
                     (headers, file.data).into_response()
                 } else {
                     (StatusCode::NOT_FOUND, "Not Found").into_response()
@@ -160,10 +187,7 @@ async fn static_handler_internal(
 }
 
 /// Static file handler for use with axum routing
-pub async fn static_handler(
-    State(state): State<StaticFileState>,
-    uri: Uri,
-) -> impl IntoResponse {
+pub async fn static_handler(State(state): State<StaticFileState>, uri: Uri) -> impl IntoResponse {
     let path = uri.path().trim_start_matches('/');
     static_handler_internal(state, path).await
 }

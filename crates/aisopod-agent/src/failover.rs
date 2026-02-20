@@ -10,8 +10,8 @@ use std::any::Any;
 use std::error::Error as StdError;
 use tokio::sync::mpsc;
 
-use crate::types::AgentEvent;
 use crate::resolution::ModelChain;
+use crate::types::AgentEvent;
 
 use aisopod_provider::normalize::ProviderError;
 
@@ -198,7 +198,7 @@ pub fn classify_error_generic<E: StdError + Send + Sync + 'static>(error: &E) ->
     if let Some(provider_error) = (error as &dyn Any).downcast_ref::<ProviderError>() {
         return classify_error(provider_error);
     }
-    
+
     // Fallback to message-based classification
     classify_error_by_message(&error.to_string())
 }
@@ -258,10 +258,13 @@ where
             }
             Err(error) => {
                 let duration = start_time.elapsed();
-                state.record_attempt(Some(ProviderError::Unknown {
-                    provider: "unknown".to_string(),
-                    message: error.to_string(),
-                }), duration);
+                state.record_attempt(
+                    Some(ProviderError::Unknown {
+                        provider: "unknown".to_string(),
+                        message: error.to_string(),
+                    }),
+                    duration,
+                );
 
                 // Classify the error to determine the appropriate action
                 let action = classify_error_generic(&error);
@@ -272,11 +275,13 @@ where
                         // multiple auth credentials to try
                         // In a full implementation, this would switch credentials
                         if state.advance().is_some() {
-                            let _ = event_tx.send(AgentEvent::ModelSwitch {
-                                from: model_id.clone(),
-                                to: state.current_model().to_string(),
-                                reason: "retry with next auth".to_string(),
-                            }).await;
+                            let _ = event_tx
+                                .send(AgentEvent::ModelSwitch {
+                                    from: model_id.clone(),
+                                    to: state.current_model().to_string(),
+                                    reason: "retry with next auth".to_string(),
+                                })
+                                .await;
                             current_attempts = 0;
                         } else {
                             // No more models to try
@@ -295,11 +300,13 @@ where
                             continue;
                         } else {
                             state.advance();
-                            let _ = event_tx.send(AgentEvent::ModelSwitch {
-                                from: model_id.clone(),
-                                to: state.current_model().to_string(),
-                                reason: "wait and retry".to_string(),
-                            }).await;
+                            let _ = event_tx
+                                .send(AgentEvent::ModelSwitch {
+                                    from: model_id.clone(),
+                                    to: state.current_model().to_string(),
+                                    reason: "wait and retry".to_string(),
+                                })
+                                .await;
                             current_attempts = 0;
                         }
                     }
@@ -313,11 +320,13 @@ where
                     }
                     FailoverAction::FailoverToNext => {
                         if state.advance().is_some() {
-                            let _ = event_tx.send(AgentEvent::ModelSwitch {
-                                from: model_id.clone(),
-                                to: state.current_model().to_string(),
-                                reason: "failover to next model".to_string(),
-                            }).await;
+                            let _ = event_tx
+                                .send(AgentEvent::ModelSwitch {
+                                    from: model_id.clone(),
+                                    to: state.current_model().to_string(),
+                                    reason: "failover to next model".to_string(),
+                                })
+                                .await;
                             current_attempts = 0;
                         } else {
                             // No more models to try
@@ -348,10 +357,10 @@ where
 /// examining the error message string for known patterns.
 pub fn classify_error_by_message(error_msg: &str) -> FailoverAction {
     // Check for authentication errors
-    if error_msg.contains("Authentication") 
+    if error_msg.contains("Authentication")
         || error_msg.contains("invalid API key")
         || error_msg.contains("Invalid API key")
-        || error_msg.contains("unauthorized") 
+        || error_msg.contains("unauthorized")
         || error_msg.contains("401")
         || error_msg.contains("403")
     {
@@ -406,9 +415,7 @@ pub fn classify_error_by_message(error_msg: &str) -> FailoverAction {
     }
 
     // Check for stream closed
-    if error_msg.contains("StreamClosed")
-        || error_msg.contains("stream closed")
-    {
+    if error_msg.contains("StreamClosed") || error_msg.contains("stream closed") {
         return FailoverAction::FailoverToNext;
     }
 
@@ -494,7 +501,10 @@ mod tests {
             retry_after: Some(Duration::from_secs(10)),
         };
         let action = classify_error(&error);
-        assert_eq!(action, FailoverAction::WaitAndRetry(Duration::from_secs(10)));
+        assert_eq!(
+            action,
+            FailoverAction::WaitAndRetry(Duration::from_secs(10))
+        );
     }
 
     #[test]
@@ -553,17 +563,13 @@ mod tests {
             }
         });
 
-        let result = execute_with_failover(
-            &mut state,
-            tx,
-            |model_id| {
-                let model_id_clone = model_id.clone();
-                async move {
-                    assert_eq!(model_id_clone, "gpt-4");
-                    Ok::<&str, ProviderError>("success")
-                }
-            },
-        )
+        let result = execute_with_failover(&mut state, tx, |model_id| {
+            let model_id_clone = model_id.clone();
+            async move {
+                assert_eq!(model_id_clone, "gpt-4");
+                Ok::<&str, ProviderError>("success")
+            }
+        })
         .await;
 
         // Wait for events to be received
@@ -597,23 +603,19 @@ mod tests {
         });
 
         // First model fails with auth error
-        let result = execute_with_failover(
-            &mut state,
-            tx,
-            |model_id| {
-                let model_id_clone = model_id.clone();
-                async move {
-                    if model_id_clone == "gpt-4" {
-                        Err::<&str, ProviderError>(ProviderError::AuthenticationFailed {
-                            provider: "openai".to_string(),
-                            message: "Invalid API key".to_string(),
-                        })
-                    } else {
-                        Ok::<&str, ProviderError>("success")
-                    }
+        let result = execute_with_failover(&mut state, tx, |model_id| {
+            let model_id_clone = model_id.clone();
+            async move {
+                if model_id_clone == "gpt-4" {
+                    Err::<&str, ProviderError>(ProviderError::AuthenticationFailed {
+                        provider: "openai".to_string(),
+                        message: "Invalid API key".to_string(),
+                    })
+                } else {
+                    Ok::<&str, ProviderError>("success")
                 }
-            },
-        )
+            }
+        })
         .await;
 
         // Wait for events to be received
@@ -635,10 +637,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_with_failover_all_models_exhausted() {
-        let chain = ModelChain::with_fallbacks(
-            "gpt-4",
-            vec!["gpt-3.5-turbo".to_string()],
-        );
+        let chain = ModelChain::with_fallbacks("gpt-4", vec!["gpt-3.5-turbo".to_string()]);
         let mut state = FailoverState::new(&chain);
         let (tx, mut rx) = tokio::sync::mpsc::channel(10);
         let mut events: Vec<AgentEvent> = Vec::new();
@@ -652,19 +651,14 @@ mod tests {
             }
         });
 
-        let result: Result<String, anyhow::Error> = execute_with_failover(
-            &mut state,
-            tx,
-            |_model_id| {
-                async move {
-                    Err::<String, ProviderError>(ProviderError::AuthenticationFailed {
-                        provider: "openai".to_string(),
-                        message: "Invalid API key".to_string(),
-                    })
-                }
-            },
-        )
-        .await;
+        let result: Result<String, anyhow::Error> =
+            execute_with_failover(&mut state, tx, |_model_id| async move {
+                Err::<String, ProviderError>(ProviderError::AuthenticationFailed {
+                    provider: "openai".to_string(),
+                    message: "Invalid API key".to_string(),
+                })
+            })
+            .await;
 
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
@@ -674,10 +668,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_with_failover_rate_limit_with_wait() {
-        let chain = ModelChain::with_fallbacks(
-            "gpt-4",
-            vec!["gpt-3.5-turbo".to_string()],
-        );
+        let chain = ModelChain::with_fallbacks("gpt-4", vec!["gpt-3.5-turbo".to_string()]);
         let mut state = FailoverState::new(&chain);
         let (tx, mut rx) = tokio::sync::mpsc::channel(10);
 
@@ -694,12 +685,11 @@ mod tests {
         // Note: With max_attempts=3, rate limit will retry same model 3 times before failing over
         let attempt_count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let attempt_count_clone = attempt_count.clone();
-        let result: Result<String, anyhow::Error> = execute_with_failover(
-            &mut state,
-            tx,
-            move |model_id| {
+        let result: Result<String, anyhow::Error> =
+            execute_with_failover(&mut state, tx, move |model_id| {
                 let model_id_clone = model_id.clone();
-                let count = attempt_count_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                let count =
+                    attempt_count_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
                 async move {
                     // First 3 attempts on gpt-4 fail with rate limit, 4th succeeds on gpt-3.5-turbo
                     if model_id_clone == "gpt-4" && count <= 3 {
@@ -712,9 +702,8 @@ mod tests {
                         Ok::<String, ProviderError>("success".to_string())
                     }
                 }
-            },
-        )
-        .await;
+            })
+            .await;
 
         receive_task.await.ok();
 
@@ -726,10 +715,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_with_failover_timeout_fails_over() {
-        let chain = ModelChain::with_fallbacks(
-            "gpt-4",
-            vec!["gpt-3.5-turbo".to_string()],
-        );
+        let chain = ModelChain::with_fallbacks("gpt-4", vec!["gpt-3.5-turbo".to_string()]);
         let mut state = FailoverState::new(&chain);
         let (tx, mut rx) = tokio::sync::mpsc::channel(10);
 
@@ -742,10 +728,8 @@ mod tests {
             }
         });
 
-        let result: Result<String, anyhow::Error> = execute_with_failover(
-            &mut state,
-            tx,
-            |model_id| {
+        let result: Result<String, anyhow::Error> =
+            execute_with_failover(&mut state, tx, |model_id| {
                 let model_id_clone = model_id.clone();
                 async move {
                     if model_id_clone == "gpt-4" {
@@ -758,9 +742,8 @@ mod tests {
                         Ok::<String, ProviderError>("success".to_string())
                     }
                 }
-            },
-        )
-        .await;
+            })
+            .await;
 
         receive_task.await.ok();
 

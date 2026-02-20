@@ -1,10 +1,11 @@
+#![allow(clippy::all)]
 use serde::{Deserialize, Serialize};
 
 /// JSON-RPC 2.0 request structure
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct RpcRequest {
     #[serde(default)]
-    pub jsonrpc: String,      // must be "2.0"
+    pub jsonrpc: String, // must be "2.0"
     #[serde(default)]
     pub method: String,
     #[serde(default)]
@@ -114,7 +115,10 @@ pub fn parse(raw: &str) -> Result<RpcRequest, RpcResponse> {
     if request.jsonrpc != "2.0" {
         let error = RpcError {
             code: error_codes::INVALID_REQUEST,
-            message: format!("Invalid jsonrpc version: expected '2.0', got '{}'", request.jsonrpc),
+            message: format!(
+                "Invalid jsonrpc version: expected '2.0', got '{}'",
+                request.jsonrpc
+            ),
             data: None,
         };
         return Err(RpcResponse {
@@ -169,7 +173,10 @@ mod tests {
         let request = result.unwrap();
         assert_eq!(request.method, "add");
         assert_eq!(request.params, Some(serde_json::json!([1, 2])));
-        assert_eq!(request.id, Some(serde_json::Value::String("req-1".to_string())));
+        assert_eq!(
+            request.id,
+            Some(serde_json::Value::String("req-1".to_string()))
+        );
     }
 
     #[test]
@@ -220,8 +227,11 @@ mod tests {
 
     #[test]
     fn test_rpc_response_success() {
-        let response = RpcResponse::success(Some(serde_json::Value::Number(1.into())), serde_json::json!("result"));
-        
+        let response = RpcResponse::success(
+            Some(serde_json::Value::Number(1.into())),
+            serde_json::json!("result"),
+        );
+
         assert_eq!(response.jsonrpc, "2.0");
         assert_eq!(response.result, Some(serde_json::json!("result")));
         assert!(response.error.is_none());
@@ -230,8 +240,12 @@ mod tests {
 
     #[test]
     fn test_rpc_response_error() {
-        let response = RpcResponse::error(Some(serde_json::Value::Number(1.into())), -32601, "Method not found");
-        
+        let response = RpcResponse::error(
+            Some(serde_json::Value::Number(1.into())),
+            -32601,
+            "Method not found",
+        );
+
         assert_eq!(response.jsonrpc, "2.0");
         assert!(response.result.is_none());
         assert!(response.error.is_some());
@@ -250,7 +264,7 @@ mod tests {
             "Method not found",
             Some(data.clone()),
         );
-        
+
         let err = response.error.as_ref().unwrap();
         assert_eq!(err.data, Some(data));
     }
@@ -293,9 +307,12 @@ mod tests {
 
     #[test]
     fn test_serialize_rpc_response_success() {
-        let response = RpcResponse::success(Some(serde_json::Value::Number(1.into())), serde_json::json!({"data": "value"}));
+        let response = RpcResponse::success(
+            Some(serde_json::Value::Number(1.into())),
+            serde_json::json!({"data": "value"}),
+        );
         let json = serde_json::to_string(&response).unwrap();
-        
+
         assert!(json.contains("\"jsonrpc\":\"2.0\""));
         assert!(json.contains("\"result\""));
         assert!(!json.contains("\"error\""));
@@ -303,9 +320,13 @@ mod tests {
 
     #[test]
     fn test_serialize_rpc_response_error() {
-        let response = RpcResponse::error(Some(serde_json::Value::Number(1.into())), -32601, "Not found");
+        let response = RpcResponse::error(
+            Some(serde_json::Value::Number(1.into())),
+            -32601,
+            "Not found",
+        );
         let json = serde_json::to_string(&response).unwrap();
-        
+
         assert!(json.contains("\"jsonrpc\":\"2.0\""));
         assert!(json.contains("\"error\""));
         assert!(json.contains("\"code\":-32601"));

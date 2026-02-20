@@ -7,9 +7,9 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{AgentRunParams, AgentRunResult, UsageReport};
-use crate::{AgentRunner, resolution};
 use crate::runner::SubagentRunnerExt;
+use crate::types::{AgentRunParams, AgentRunResult, UsageReport};
+use crate::{resolution, AgentRunner};
 
 /// Parameters for spawning a subagent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,7 +120,7 @@ pub async fn spawn_subagent(
     // Step 5: Deduct child usage from parent's budget if budget was provided
     let updated_budget = if let Some(mut budget) = params.resource_budget {
         let child_tokens = child_result.usage.total_tokens as usize;
-        
+
         // Check if we have enough budget before deducting
         if !budget.has_budget(child_tokens) {
             return Err(anyhow::anyhow!(
@@ -206,23 +206,14 @@ mod tests {
 
     #[test]
     fn test_agent_run_params_with_depth() {
-        let params = AgentRunParams::with_depth(
-            "session_123",
-            vec![],
-            Some("agent_1"),
-            2,
-        );
+        let params = AgentRunParams::with_depth("session_123", vec![], Some("agent_1"), 2);
         assert_eq!(params.depth, 2);
         assert_eq!(params.agent_id, Some("agent_1".to_string()));
     }
 
     #[test]
     fn test_agent_run_params_default_depth() {
-        let params = AgentRunParams::new(
-            "session_123",
-            vec![],
-            Some("agent_1"),
-        );
+        let params = AgentRunParams::new("session_123", vec![], Some("agent_1"));
         assert_eq!(params.depth, 0);
     }
 
@@ -243,12 +234,7 @@ mod tests {
 
     #[test]
     fn test_agent_run_params_with_depth_and_agent() {
-        let params = AgentRunParams::with_depth(
-            "session_xyz",
-            vec![],
-            Some("test_agent_1"),
-            5,
-        );
+        let params = AgentRunParams::with_depth("session_xyz", vec![], Some("test_agent_1"), 5);
         assert_eq!(params.depth, 5);
         assert_eq!(params.session_key, "session_xyz");
         assert_eq!(params.agent_id, Some("test_agent_1".to_string()));

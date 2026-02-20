@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Tools configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ToolsConfig {
     /// Bash tool settings
     #[serde(default)]
@@ -15,7 +15,7 @@ pub struct ToolsConfig {
 }
 
 /// Bash tool configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BashToolConfig {
     /// Enabled flag
     #[serde(default)]
@@ -29,7 +29,7 @@ pub struct BashToolConfig {
 }
 
 /// Exec tool configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ExecToolConfig {
     /// Enabled flag
     #[serde(default)]
@@ -40,7 +40,7 @@ pub struct ExecToolConfig {
 }
 
 /// File system tool configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FileSystemToolConfig {
     /// Enabled flag
     #[serde(default)]
@@ -55,43 +55,4 @@ pub struct FileSystemToolConfig {
 
 fn default_timeout() -> u64 {
     300
-}
-
-impl Default for ToolsConfig {
-    fn default() -> Self {
-        Self {
-            bash: BashToolConfig::default(),
-            exec: ExecToolConfig::default(),
-            filesystem: FileSystemToolConfig::default(),
-        }
-    }
-}
-
-impl Default for BashToolConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            working_dir: String::new(),
-            timeout: default_timeout(),
-        }
-    }
-}
-
-impl Default for ExecToolConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            allowed_commands: Vec::new(),
-        }
-    }
-}
-
-impl Default for FileSystemToolConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            root: String::new(),
-            operations: Vec::new(),
-        }
-    }
 }

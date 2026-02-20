@@ -1,9 +1,10 @@
+#![allow(clippy::all)]
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
-use crate::rpc::types;
 use crate::broadcast::Subscription;
+use crate::rpc::types;
 
 /// Request context for RPC method handlers
 #[derive(Clone)]
@@ -30,7 +31,8 @@ impl RequestContext {
 pub trait RpcMethod: Send + Sync {
     /// Handle an RPC request
     /// Returns an RpcResponse that will be sent back to the client
-    fn handle(&self, ctx: &RequestContext, params: Option<serde_json::Value>) -> types::RpcResponse;
+    fn handle(&self, ctx: &RequestContext, params: Option<serde_json::Value>)
+        -> types::RpcResponse;
 }
 
 /// Placeholder handler that returns "not implemented" error
@@ -48,7 +50,11 @@ impl PlaceholderHandler {
 }
 
 impl RpcMethod for PlaceholderHandler {
-    fn handle(&self, _ctx: &RequestContext, _params: Option<serde_json::Value>) -> types::RpcResponse {
+    fn handle(
+        &self,
+        _ctx: &RequestContext,
+        _params: Option<serde_json::Value>,
+    ) -> types::RpcResponse {
         types::RpcResponse::error(
             Some(serde_json::Value::Number(1.into())),
             types::error_codes::METHOD_NOT_FOUND,
@@ -118,7 +124,7 @@ impl Default for MethodRouter {
 /// plus gateway.subscribe for subscription management
 pub fn default_router() -> MethodRouter {
     let mut router = MethodRouter::new();
-    
+
     // Define all 24 method namespaces (grouped by category)
     let namespaces = vec![
         // Agent methods (4)
@@ -152,14 +158,14 @@ pub fn default_router() -> MethodRouter {
         "config.validate",
         "config.reload",
     ];
-    
+
     for namespace in namespaces {
         router.register(namespace, PlaceholderHandler::new(namespace));
     }
-    
+
     // Register gateway.subscribe for runtime subscription updates
     router.register("gateway.subscribe", GatewaySubscribeHandler);
-    
+
     router
 }
 
@@ -170,7 +176,11 @@ pub fn default_router() -> MethodRouter {
 pub struct GatewaySubscribeHandler;
 
 impl RpcMethod for GatewaySubscribeHandler {
-    fn handle(&self, _ctx: &RequestContext, params: Option<serde_json::Value>) -> types::RpcResponse {
+    fn handle(
+        &self,
+        _ctx: &RequestContext,
+        params: Option<serde_json::Value>,
+    ) -> types::RpcResponse {
         // Parse the subscription parameters
         let subscription: Subscription = match params {
             Some(p) => match serde_json::from_value(p) {
@@ -193,7 +203,7 @@ impl RpcMethod for GatewaySubscribeHandler {
                 );
             }
         };
-        
+
         // Create a response indicating the subscription was updated
         types::RpcResponse::success(
             None, // No id - this is a notification response
@@ -213,7 +223,7 @@ mod tests {
     fn test_request_context_creation() {
         let addr: SocketAddr = "127.0.0.1:8080".parse().unwrap();
         let ctx = RequestContext::new("conn-123".to_string(), addr);
-        
+
         assert_eq!(ctx.conn_id, "conn-123");
         assert_eq!(ctx.remote_addr, addr);
         assert_eq!(ctx.role, None);
@@ -224,19 +234,19 @@ mod tests {
     fn test_method_router_dispatch_known_method() {
         let router = MethodRouter::new();
         router.register("test.method", PlaceholderHandler::new("test.method"));
-        
+
         let addr: SocketAddr = "127.0.0.1:8080".parse().unwrap();
         let ctx = RequestContext::new("conn-1".to_string(), addr);
-        
+
         let req = types::RpcRequest {
             jsonrpc: "2.0".to_string(),
             method: "test.method".to_string(),
             params: None,
             id: Some(serde_json::Value::Number(1.into())),
         };
-        
+
         let response = router.dispatch(ctx, req);
-        
+
         // Placeholder returns METHOD_NOT_FOUND with id None (notification-style error)
         assert_eq!(response.jsonrpc, "2.0");
         assert!(response.error.is_some());
@@ -245,29 +255,34 @@ mod tests {
     #[test]
     fn test_method_router_dispatch_unknown_method() {
         let router = MethodRouter::new();
-        
+
         let addr: SocketAddr = "127.0.0.1:8080".parse().unwrap();
         let ctx = RequestContext::new("conn-1".to_string(), addr);
-        
+
         let req = types::RpcRequest {
             jsonrpc: "2.0".to_string(),
             method: "nonexistent.method".to_string(),
             params: None,
             id: Some(serde_json::Value::Number(1.into())),
         };
-        
+
         let response = router.dispatch(ctx, req);
-        
+
         assert_eq!(response.jsonrpc, "2.0");
         assert!(response.error.is_some());
         assert_eq!(response.error.as_ref().unwrap().code, -32601);
-        assert!(response.error.as_ref().unwrap().message.contains("not found"));
+        assert!(response
+            .error
+            .as_ref()
+            .unwrap()
+            .message
+            .contains("not found"));
     }
 
     #[test]
     fn test_default_router_method_count() {
         let router = default_router();
-        
+
         // Should have 25 methods registered (24 namespace handlers + gateway.subscribe)
         assert_eq!(router.method_count(), 25);
     }
@@ -275,12 +290,12 @@ mod tests {
     #[test]
     fn test_default_router_contains_agent_methods() {
         let router = default_router();
-        
+
         let addr: SocketAddr = "127.0.0.1:8080".parse().unwrap();
         let ctx = RequestContext::new("conn-1".to_string(), addr);
-        
+
         let methods = vec!["agent.create", "agent.update", "agent.delete", "agent.list"];
-        
+
         for method in methods {
             let req = types::RpcRequest {
                 jsonrpc: "2.0".to_string(),
@@ -288,9 +303,9 @@ mod tests {
                 params: None,
                 id: Some(serde_json::Value::Number(1.into())),
             };
-            
+
             let response = router.dispatch(ctx.clone(), req);
-            
+
             // All should return METHOD_NOT_FOUND
             assert_eq!(response.jsonrpc, "2.0");
             assert!(response.error.is_some());

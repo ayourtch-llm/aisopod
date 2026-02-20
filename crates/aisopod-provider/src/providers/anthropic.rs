@@ -2,12 +2,10 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use futures_core::Stream;
-use futures_util::stream::{self, BoxStream, StreamExt};
-use std::pin::Pin;
+use futures_util::stream::{BoxStream, StreamExt};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tracing::{debug, instrument, warn};
+use tracing::{debug, warn};
 
 use crate::auth::{AuthProfile, AuthProfileManager};
 use crate::trait_module::{ChatCompletionStream, ModelProvider};
@@ -49,9 +47,9 @@ impl AnthropicProvider {
             api_key,
             base_url: base_url.unwrap_or_else(|| "https://api.anthropic.com".to_string()),
             default_model: default_model.unwrap_or_else(|| "claude-3-5-sonnet-latest".to_string()),
-            profile_manager: Arc::new(Mutex::new(AuthProfileManager::new(
-                Duration::from_secs(cooldown_seconds.unwrap_or(60)),
-            ))),
+            profile_manager: Arc::new(Mutex::new(AuthProfileManager::new(Duration::from_secs(
+                cooldown_seconds.unwrap_or(60),
+            )))),
         }
     }
 
@@ -64,9 +62,7 @@ impl AnthropicProvider {
     /// Gets the next available API key for round-robin rotation.
     fn get_api_key(&self) -> Option<String> {
         let mut manager = self.profile_manager.lock().unwrap();
-        manager
-            .next_key("anthropic")
-            .map(|p| p.api_key.clone())
+        manager.next_key("anthropic").map(|p| p.api_key.clone())
     }
 
     /// Returns the base URL of the Anthropic API as an Option.
@@ -85,18 +81,14 @@ impl AnthropicProvider {
 
         let content = match &message.content {
             MessageContent::Text(text) => {
-                vec![AnthropicContentBlock::Text {
-                    text: text.clone(),
-                }]
+                vec![AnthropicContentBlock::Text { text: text.clone() }]
             }
             MessageContent::Parts(parts) => {
                 let mut content_blocks = Vec::new();
                 for part in parts {
                     match part {
                         ContentPart::Text { text } => {
-                            content_blocks.push(AnthropicContentBlock::Text {
-                                text: text.clone(),
-                            });
+                            content_blocks.push(AnthropicContentBlock::Text { text: text.clone() });
                         }
                         ContentPart::Image { media_type, data } => {
                             content_blocks.push(AnthropicContentBlock::Image {
@@ -113,10 +105,7 @@ impl AnthropicProvider {
             }
         };
 
-        Some(AnthropicMessage {
-            role,
-            content,
-        })
+        Some(AnthropicMessage { role, content })
     }
 
     /// Converts a core [`ToolDefinition`] to an Anthropic tool.
@@ -146,10 +135,7 @@ impl AnthropicProvider {
     }
 
     /// Builds the Anthropic request from a core request.
-    fn build_anthropic_request(
-        &self,
-        request: &ChatCompletionRequest,
-    ) -> AnthropicRequest {
+    fn build_anthropic_request(&self, request: &ChatCompletionRequest) -> AnthropicRequest {
         let system_prompt = self.extract_system_prompt(&request.messages);
         let system_value = Self::system_prompt_to_value(system_prompt);
 
@@ -163,9 +149,10 @@ impl AnthropicProvider {
             }
         }
 
-        let tools = request.tools.as_ref().map(|tools| {
-            tools.iter().map(|tool| self.convert_tool(tool)).collect()
-        });
+        let tools = request
+            .tools
+            .as_ref()
+            .map(|tools| tools.iter().map(|tool| self.convert_tool(tool)).collect());
 
         AnthropicRequest {
             model: request.model.clone(),
@@ -279,7 +266,7 @@ impl AnthropicProvider {
                 })
             }
             AnthropicSseEvent::Ping => None,
-           AnthropicSseEvent::Error { .. } => None,
+            AnthropicSseEvent::Error { .. } => None,
         }
     }
 
@@ -297,11 +284,7 @@ impl AnthropicProvider {
                     anyhow::anyhow!("Anthropic API error: {}", status)
                 }
             }
-            Err(_) => anyhow::anyhow!(
-                "Anthropic API error ({}): {}",
-                status,
-                body.trim()
-            ),
+            Err(_) => anyhow::anyhow!("Anthropic API error ({}): {}", status, body.trim()),
         }
     }
 }
@@ -480,12 +463,7 @@ mod tests {
 
     #[test]
     fn test_convert_message_text() {
-        let provider = AnthropicProvider::new(
-            "test-key".to_string(),
-            None,
-            None,
-            Some(60),
-        );
+        let provider = AnthropicProvider::new("test-key".to_string(), None, None, Some(60));
 
         let message = Message {
             role: Role::User,
@@ -510,12 +488,7 @@ mod tests {
 
     #[test]
     fn test_extract_system_prompt() {
-        let provider = AnthropicProvider::new(
-            "test-key".to_string(),
-            None,
-            None,
-            Some(60),
-        );
+        let provider = AnthropicProvider::new("test-key".to_string(), None, None, Some(60));
 
         let messages = vec![
             Message {
@@ -538,12 +511,7 @@ mod tests {
 
     #[test]
     fn test_build_anthropic_request() {
-        let provider = AnthropicProvider::new(
-            "test-key".to_string(),
-            None,
-            None,
-            Some(60),
-        );
+        let provider = AnthropicProvider::new("test-key".to_string(), None, None, Some(60));
 
         let request = ChatCompletionRequest {
             model: "claude-3-5-sonnet-latest".to_string(),
@@ -571,7 +539,10 @@ mod tests {
         let anthropic_request = provider.build_anthropic_request(&request);
 
         assert_eq!(anthropic_request.model, "claude-3-5-sonnet-latest");
-        assert_eq!(anthropic_request.system, Some(serde_json::Value::String("System prompt".to_string())));
+        assert_eq!(
+            anthropic_request.system,
+            Some(serde_json::Value::String("System prompt".to_string()))
+        );
         assert_eq!(anthropic_request.messages.len(), 1);
         assert_eq!(anthropic_request.temperature, Some(0.7));
         assert_eq!(anthropic_request.max_tokens, Some(1000));

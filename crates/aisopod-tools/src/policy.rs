@@ -230,6 +230,7 @@ impl ToolPolicyEngine {
     }
 
     /// Gets the effective policy for an agent (agent-specific or global).
+    #[allow(dead_code)]
     fn get_effective_policy(&self, agent_id: &str) -> &ToolPolicy {
         self.agent_policies
             .get(agent_id)
@@ -303,13 +304,13 @@ impl ToolPolicyEngine {
         }
 
         // Rule 4: Check global allow list
-        if self.global_policy.allow.is_some() {
-            if !self.global_policy.is_explicitly_allowed(tool_name) {
-                return Err(format!(
-                    "Tool '{}' is not in the global allow list",
-                    tool_name
-                ));
-            }
+        if self.global_policy.allow.is_some()
+            && !self.global_policy.is_explicitly_allowed(tool_name)
+        {
+            return Err(format!(
+                "Tool '{}' is not in the global allow list",
+                tool_name
+            ));
         }
 
         // Rule 5: Tool is allowed
@@ -336,7 +337,8 @@ mod tests {
 
     #[test]
     fn test_tool_policy_allow_list() {
-        let policy = ToolPolicy::allow_list(vec!["read_file".to_string(), "list_files".to_string()]);
+        let policy =
+            ToolPolicy::allow_list(vec!["read_file".to_string(), "list_files".to_string()]);
 
         assert!(policy.is_explicitly_allowed("read_file"));
         assert!(policy.is_explicitly_allowed("list_files"));

@@ -51,9 +51,7 @@ pub enum AnthropicContentBlock {
     #[serde(rename = "text")]
     Text { text: String },
     #[serde(rename = "image")]
-    Image {
-        source: AnthropicImageSource,
-    },
+    Image { source: AnthropicImageSource },
     #[serde(rename = "tool_use")]
     ToolUse {
         id: String,
@@ -113,9 +111,7 @@ pub struct AnthropicRequest {
 #[serde(tag = "type")]
 pub enum AnthropicSseEvent {
     #[serde(rename = "message_start")]
-    MessageStart {
-        message: AnthropicMessageEvent,
-    },
+    MessageStart { message: AnthropicMessageEvent },
     #[serde(rename = "content_block_start")]
     ContentBlockStart {
         content_block: AnthropicContentBlock,
@@ -127,9 +123,7 @@ pub enum AnthropicSseEvent {
         index: usize,
     },
     #[serde(rename = "content_block_stop")]
-    ContentBlockStop {
-        index: usize,
-    },
+    ContentBlockStop { index: usize },
     #[serde(rename = "message_delta")]
     MessageDelta {
         delta: AnthropicMessageDelta,
@@ -141,9 +135,7 @@ pub enum AnthropicSseEvent {
     #[serde(rename = "ping")]
     Ping,
     #[serde(rename = "error")]
-    Error {
-        error: AnthropicSseError,
-    },
+    Error { error: AnthropicSseError },
 }
 
 /// Error object in Anthropic SSE stream.
@@ -272,6 +264,7 @@ pub struct AnthropicModelInfo {
     #[serde(rename = "context_window")]
     pub context_window: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[allow(non_snake_case)]
     pub Supports: Option<serde_json::Value>,
 }
 

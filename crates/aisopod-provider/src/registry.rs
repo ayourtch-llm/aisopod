@@ -240,7 +240,13 @@ mod tests {
             &self,
             _request: crate::ChatCompletionRequest,
         ) -> Result<
-            Pin<Box<dyn futures_util::stream::Stream<Item = Result<crate::ChatCompletionChunk, anyhow::Error>> + Send>>,
+            Pin<
+                Box<
+                    dyn futures_util::stream::Stream<
+                            Item = Result<crate::ChatCompletionChunk, anyhow::Error>,
+                        > + Send,
+                >,
+            >,
             anyhow::Error,
         > {
             Ok(Box::pin(stream::empty()))
@@ -264,7 +270,8 @@ mod tests {
     #[test]
     fn test_register_provider() {
         let mut registry = ProviderRegistry::new();
-        let provider: Arc<dyn ModelProvider> = Arc::new(TestProvider::new("test-provider", vec!["model1", "model2"]));
+        let provider: Arc<dyn ModelProvider> =
+            Arc::new(TestProvider::new("test-provider", vec!["model1", "model2"]));
         registry.register(Arc::clone(&provider));
 
         assert_eq!(registry.providers.len(), 1);
@@ -274,7 +281,8 @@ mod tests {
     #[test]
     fn test_unregister_provider() {
         let mut registry = ProviderRegistry::new();
-        let provider: Arc<dyn ModelProvider> = Arc::new(TestProvider::new("test-provider", vec!["model1"]));
+        let provider: Arc<dyn ModelProvider> =
+            Arc::new(TestProvider::new("test-provider", vec!["model1"]));
         registry.register(Arc::clone(&provider));
 
         assert!(registry.get("test-provider").is_some());
@@ -286,7 +294,8 @@ mod tests {
     #[test]
     fn test_get_provider() {
         let mut registry = ProviderRegistry::new();
-        let provider: Arc<dyn ModelProvider> = Arc::new(TestProvider::new("provider-a", vec!["model1"]));
+        let provider: Arc<dyn ModelProvider> =
+            Arc::new(TestProvider::new("provider-a", vec!["model1"]));
         registry.register(Arc::clone(&provider));
 
         let retrieved = registry.get("provider-a").unwrap();
@@ -343,7 +352,8 @@ mod tests {
     #[test]
     fn test_resolve_model_direct() {
         let mut registry = ProviderRegistry::new();
-        let provider: Arc<dyn ModelProvider> = Arc::new(TestProvider::new("openai", vec!["gpt-4", "gpt-3.5-turbo"]));
+        let provider: Arc<dyn ModelProvider> =
+            Arc::new(TestProvider::new("openai", vec!["gpt-4", "gpt-3.5-turbo"]));
         registry.register(Arc::clone(&provider));
 
         let result = registry.resolve_model("openai");
@@ -356,7 +366,8 @@ mod tests {
     #[test]
     fn test_resolve_model_via_alias() {
         let mut registry = ProviderRegistry::new();
-        let provider: Arc<dyn ModelProvider> = Arc::new(TestProvider::new("anthropic", vec!["claude-3-5-sonnet"]));
+        let provider: Arc<dyn ModelProvider> =
+            Arc::new(TestProvider::new("anthropic", vec!["claude-3-5-sonnet"]));
         registry.register(Arc::clone(&provider));
         registry.register_alias("claude-sonnet", "anthropic", "claude-3-5-sonnet");
 

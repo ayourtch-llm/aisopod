@@ -1,20 +1,22 @@
+#![allow(clippy::all)]
 //! Rate limiting middleware for the gateway
 //!
 //! This module provides per-IP sliding-window rate limiting to prevent
 //! abusive or misconfigured clients from overwhelming the server.
 
-use std::net::{IpAddr, SocketAddr};
-use std::sync::Arc;
-use std::time::{Duration, Instant};
-use dashmap::DashMap;
-use tracing::{debug, warn};
 use axum::{
+    body::Body,
     extract::{ConnectInfo, Request},
     http::{header, StatusCode},
     response::IntoResponse,
-    Json, response::Response,
-    body::Body,
+    response::Response,
+    Json,
 };
+use dashmap::DashMap;
+use std::net::{IpAddr, SocketAddr};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tracing::{debug, warn};
 
 /// Rate limiter configuration
 #[derive(Debug, Clone)]
@@ -28,7 +30,10 @@ pub struct RateLimitConfig {
 impl RateLimitConfig {
     /// Create a new rate limit configuration
     pub fn new(max_requests: u64, window: Duration) -> Self {
-        Self { max_requests, window }
+        Self {
+            max_requests,
+            window,
+        }
     }
 
     /// Default configuration: 100 requests per minute
@@ -79,13 +84,14 @@ impl RateLimiter {
             }
             dashmap::mapref::entry::Entry::Occupied(mut entry) => {
                 let timestamps = entry.get_mut();
-                eprintln!("Rate limiter: Existing IP entry, timestamps.len() before cleanup = {}", timestamps.len());
-                
+                eprintln!(
+                    "Rate limiter: Existing IP entry, timestamps.len() before cleanup = {}",
+                    timestamps.len()
+                );
+
                 // Remove expired timestamps (older than window_start)
-                let expired_count = timestamps.iter()
-                    .take_while(|&&t| t < window_start)
-                    .count();
-                
+                let expired_count = timestamps.iter().take_while(|&&t| t < window_start).count();
+
                 if expired_count > 0 {
                     timestamps.drain(0..expired_count);
                 }
@@ -112,28 +118,27 @@ impl RateLimiter {
     pub async fn cleanup_loop(&self) {
         let window = self.window;
         let state = self.state.clone();
-        
+
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(window).await;
-                
+
                 // Clean up empty entries
                 state.retain(|_, timestamps| {
                     let now = Instant::now();
                     let window_start = now - window;
-                    
+
                     // Remove expired timestamps
-                    let expired_count = timestamps.iter()
-                        .take_while(|&&t| t < window_start)
-                        .count();
-                    
+                    let expired_count =
+                        timestamps.iter().take_while(|&&t| t < window_start).count();
+
                     if expired_count > 0 {
                         timestamps.drain(0..expired_count);
                     }
-                    
+
                     !timestamps.is_empty()
                 });
-                
+
                 debug!("Rate limiter cleanup completed");
             }
         });
@@ -163,16 +168,15 @@ pub async fn rate_limit_middleware(
     next: axum::middleware::Next,
 ) -> Response<Body> {
     eprintln!(">>> RATE LIMIT MIDDLEWARE CALLED <<<");
-    
+
     // Check for bypass header - allows tests to skip rate limiting during setup
-    let bypass = request.headers().get(RATE_LIMIT_BYPASS_HEADER)
-        .is_some();
-    
+    let bypass = request.headers().get(RATE_LIMIT_BYPASS_HEADER).is_some();
+
     if bypass {
         eprintln!("Rate limiting bypassed via header");
         return next.run(request).await;
     }
-    
+
     // Get the rate limiter from request extensions
     let limiter = match request.extensions().get::<Arc<RateLimiter>>().cloned() {
         Some(l) => l,
@@ -184,13 +188,15 @@ pub async fn rate_limit_middleware(
     };
 
     eprintln!("Got rate limiter from extensions");
-    
+
     // Get IP from ConnectInfo - for tests where ConnectInfo isn't available,
     // use 127.0.0.1 as a default (all test requests come from localhost anyway)
-    let ip = request.extensions().get::<ConnectInfo<SocketAddr>>()
+    let ip = request
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
         .map(|addr| addr.ip())
-        .unwrap_or_else(|| "127.0.0.1".parse().unwrap());
-    
+        .unwrap_or_else(|| "127.0.0.1".parse().expect("default IP address is valid"));
+
     eprintln!("Rate limiting IP: {}", ip);
     match limiter.check(ip) {
         Ok(()) => {
@@ -204,18 +210,22 @@ pub async fn rate_limit_middleware(
                 ip,
                 retry_after.as_secs()
             );
-            
+
             let json = Json(serde_json::json!({
                 "error": "rate_limit_exceeded",
                 "message": "Too many requests",
                 "retry_after": retry_after.as_secs()
             }));
-            
+
             let mut response = json.into_response();
             *response.status_mut() = StatusCode::TOO_MANY_REQUESTS;
             response.headers_mut().insert(
                 header::RETRY_AFTER,
-                retry_after.as_secs().to_string().parse().unwrap(),
+                retry_after
+                    .as_secs()
+                    .to_string()
+                    .parse()
+                    .expect("duration seconds should be parseable"),
             );
             response
         }
@@ -231,7 +241,9 @@ mod tests {
         let config = RateLimitConfig::new(5, Duration::from_secs(10));
         let limiter = RateLimiter::new(config);
 
-        let ip = "192.168.1.1".parse().unwrap();
+        let ip = "192.168.1.1"
+            .parse()
+            .expect("test IP address should be valid");
 
         // First 5 requests should all succeed
         for i in 1..=5 {
@@ -245,7 +257,9 @@ mod tests {
         let config = RateLimitConfig::new(3, Duration::from_secs(10));
         let limiter = RateLimiter::new(config);
 
-        let ip = "192.168.1.2".parse().unwrap();
+        let ip = "192.168.1.2"
+            .parse()
+            .expect("test IP address should be valid");
 
         // Make 3 requests (at the limit)
         for _ in 0..3 {
@@ -266,16 +280,18 @@ mod tests {
         let config = RateLimitConfig::new(2, Duration::from_secs(10));
         let limiter = RateLimiter::new(config);
 
-        let ip = "192.168.1.3".parse().unwrap();
+        let ip = "192.168.1.3"
+            .parse()
+            .expect("test IP address should be valid");
 
         // Make 2 requests (at the limit)
-        limiter.check(ip).unwrap();
-        limiter.check(ip).unwrap();
+        limiter.check(ip).expect("request should be allowed");
+        limiter.check(ip).expect("request should be allowed");
 
         // 3rd request should be rejected
         let result = limiter.check(ip);
         assert!(result.is_err(), "Over-limit request should fail");
-        
+
         // 4th request should also be rejected (same result)
         let result = limiter.check(ip);
         assert!(result.is_err(), "Over-limit request should still fail");
@@ -286,11 +302,13 @@ mod tests {
         let config = RateLimitConfig::new(2, Duration::from_millis(100));
         let limiter = RateLimiter::new(config);
 
-        let ip = "192.168.1.4".parse().unwrap();
+        let ip = "192.168.1.4"
+            .parse()
+            .expect("test IP address should be valid");
 
         // Make 2 requests (at the limit)
-        limiter.check(ip).unwrap();
-        limiter.check(ip).unwrap();
+        limiter.check(ip).expect("request should be allowed");
+        limiter.check(ip).expect("request should be allowed");
 
         // 3rd request should be rejected
         let result = limiter.check(ip);
@@ -306,11 +324,15 @@ mod tests {
         let config = RateLimitConfig::new(1, Duration::from_secs(10));
         let limiter = RateLimiter::new(config);
 
-        let ip1 = "192.168.1.1".parse().unwrap();
-        let ip2 = "192.168.1.2".parse().unwrap();
+        let ip1 = "192.168.1.1"
+            .parse()
+            .expect("test IP address should be valid");
+        let ip2 = "192.168.1.2"
+            .parse()
+            .expect("test IP address should be valid");
 
         // IP1 makes 1 request
-        limiter.check(ip1).unwrap();
+        limiter.check(ip1).expect("request should be allowed");
 
         // IP1 should be over limit
         let result = limiter.check(ip1);

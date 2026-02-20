@@ -5,8 +5,8 @@
 //! strategies for adaptive chunking, summary-based compaction, hard clearing,
 //! and oversized tool result truncation.
 
-use aisopod_provider::{Message, MessageContent};
 use crate::context_guard::ContextWindowGuard;
+use aisopod_provider::{Message, MessageContent};
 
 /// Severity level for compaction decisions.
 ///
@@ -138,11 +138,9 @@ fn message_to_text(msg: &Message) -> String {
         MessageContent::Text(text) => text.clone(),
         MessageContent::Parts(parts) => parts
             .iter()
-            .filter_map(|p| {
-                match p {
-                    aisopod_provider::ContentPart::Text { text } => Some(text.clone()),
-                    _ => None,
-                }
+            .filter_map(|p| match p {
+                aisopod_provider::ContentPart::Text { text } => Some(text.clone()),
+                _ => None,
             })
             .collect::<Vec<_>>()
             .join(" "),
@@ -321,8 +319,12 @@ mod tests {
 
         assert_eq!(result.len(), 5);
         // Should keep the most recent messages
-        assert!(result.iter().any(|m| message_to_text(m).contains("Message 19")));
-        assert!(result.iter().any(|m| message_to_text(m).contains("Message 15")));
+        assert!(result
+            .iter()
+            .any(|m| message_to_text(m).contains("Message 19")));
+        assert!(result
+            .iter()
+            .any(|m| message_to_text(m).contains("Message 15")));
     }
 
     #[test]
@@ -344,7 +346,10 @@ mod tests {
             text_message(aisopod_provider::Role::Tool, &long_content),
         ];
 
-        let result = compact_messages(&messages, CompactionStrategy::ToolResultTruncation { max_chars: 1000 });
+        let result = compact_messages(
+            &messages,
+            CompactionStrategy::ToolResultTruncation { max_chars: 1000 },
+        );
 
         assert_eq!(result.len(), 2);
 
@@ -390,7 +395,9 @@ mod tests {
 
         // Should chunk old messages and keep recent
         assert!(result.len() < 20);
-        assert!(result.iter().any(|m| message_to_text(m).contains("Previous")));
+        assert!(result
+            .iter()
+            .any(|m| message_to_text(m).contains("Previous")));
     }
 
     #[test]

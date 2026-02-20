@@ -16,14 +16,7 @@ pub mod usage;
 
 // Re-export common test utilities
 pub use helpers::{
-    test_agent_run_params,
-    test_agent_run_params_with_id,
-    test_agent_run_result,
-    collect_events,
-    test_config,
-    test_config_with_fallbacks,
-    test_session_store,
-    test_tool_registry,
-    test_abort_registry,
-    test_abort_handle,
+    collect_events, test_abort_handle, test_abort_registry, test_agent_run_params,
+    test_agent_run_params_with_id, test_agent_run_result, test_config, test_config_with_fallbacks,
+    test_session_store, test_tool_registry,
 };

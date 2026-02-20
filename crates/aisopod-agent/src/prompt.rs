@@ -59,7 +59,8 @@ impl SystemPromptBuilder {
     ///
     /// This should contain the primary instructions for the agent.
     pub fn with_base_prompt(mut self, prompt: &str) -> Self {
-        self.sections.push(PromptSection::new("Base Prompt", prompt.to_string()));
+        self.sections
+            .push(PromptSection::new("Base Prompt", prompt.to_string()));
         self
     }
 
@@ -71,16 +72,13 @@ impl SystemPromptBuilder {
     pub fn with_dynamic_context(mut self) -> Self {
         let now: DateTime<Utc> = Utc::now();
         let timestamp = now.format("%Y-%m-%d %H:%M:%S UTC").to_string();
-        
+
         let workspace_info = Self::get_workspace_info();
-        
-        let content = format!(
-            "Current UTC timestamp: {}\n\n{}",
-            timestamp,
-            workspace_info
-        );
-        
-        self.sections.push(PromptSection::new("Dynamic Context", content));
+
+        let content = format!("Current UTC timestamp: {}\n\n{}", timestamp, workspace_info);
+
+        self.sections
+            .push(PromptSection::new("Dynamic Context", content));
         self
     }
 
@@ -99,7 +97,10 @@ impl SystemPromptBuilder {
     /// Each tool description includes the tool name, description, and parameter schema.
     pub fn with_tool_descriptions(mut self, tools: &[ToolSchema]) -> Self {
         if tools.is_empty() {
-            self.sections.push(PromptSection::new("Tools", "No tools available.".to_string()));
+            self.sections.push(PromptSection::new(
+                "Tools",
+                "No tools available.".to_string(),
+            ));
             return self;
         }
 
@@ -111,7 +112,8 @@ impl SystemPromptBuilder {
                 "## {}\n{}\n\nParameters:\n```json\n{}\n```\n\n",
                 tool.name,
                 tool.description,
-                serde_json::to_string_pretty(&tool.parameters).unwrap_or_else(|_| "Invalid schema".to_string())
+                serde_json::to_string_pretty(&tool.parameters)
+                    .unwrap_or_else(|_| "Invalid schema".to_string())
             ));
         }
 
@@ -127,7 +129,10 @@ impl SystemPromptBuilder {
         content.push_str("Skill instructions:\n\n");
 
         for skill in skills {
-            content.push_str(&format!("## {}\n{}\n\n", skill, "Skill-specific instructions would go here."));
+            content.push_str(&format!(
+                "## {}\n{}\n\n",
+                skill, "Skill-specific instructions would go here."
+            ));
         }
 
         self.sections.push(PromptSection::new("Skills", content));
@@ -140,12 +145,10 @@ impl SystemPromptBuilder {
             return self;
         }
 
-        let content = format!(
-            "Relevant memory context:\n\n{}",
-            memory
-        );
+        let content = format!("Relevant memory context:\n\n{}", memory);
 
-        self.sections.push(PromptSection::new("Memory Context", content));
+        self.sections
+            .push(PromptSection::new("Memory Context", content));
         self
     }
 
@@ -179,9 +182,8 @@ mod tests {
 
     #[test]
     fn test_with_base_prompt() {
-        let builder = SystemPromptBuilder::new()
-            .with_base_prompt("You are a helpful assistant.");
-        
+        let builder = SystemPromptBuilder::new().with_base_prompt("You are a helpful assistant.");
+
         assert_eq!(builder.sections.len(), 1);
         assert_eq!(builder.sections[0].label, "Base Prompt");
         assert_eq!(builder.sections[0].content, "You are a helpful assistant.");
@@ -189,9 +191,8 @@ mod tests {
 
     #[test]
     fn test_build_with_only_base_prompt() {
-        let builder = SystemPromptBuilder::new()
-            .with_base_prompt("You are a helpful assistant.");
-        
+        let builder = SystemPromptBuilder::new().with_base_prompt("You are a helpful assistant.");
+
         let prompt = builder.build();
         assert!(prompt.contains("## Base Prompt"));
         assert!(prompt.contains("You are a helpful assistant."));
@@ -223,10 +224,7 @@ mod tests {
             },
         ];
 
-        let skills = vec![
-            "coding".to_string(),
-            "analysis".to_string(),
-        ];
+        let skills = vec!["coding".to_string(), "analysis".to_string()];
 
         let memory = "User prefers Python over JavaScript.";
 
@@ -257,23 +255,20 @@ mod tests {
 
     #[test]
     fn test_tool_descriptions_formatting() {
-        let tools = vec![
-            ToolSchema {
-                name: "test_tool".to_string(),
-                description: "A test tool".to_string(),
-                parameters: serde_json::json!({
-                    "type": "object",
-                    "properties": {
-                        "param1": {"type": "string"},
-                        "param2": {"type": "number"}
-                    },
-                    "required": ["param1"]
-                }),
-            },
-        ];
+        let tools = vec![ToolSchema {
+            name: "test_tool".to_string(),
+            description: "A test tool".to_string(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "param1": {"type": "string"},
+                    "param2": {"type": "number"}
+                },
+                "required": ["param1"]
+            }),
+        }];
 
-        let builder = SystemPromptBuilder::new()
-            .with_tool_descriptions(&tools);
+        let builder = SystemPromptBuilder::new().with_tool_descriptions(&tools);
 
         let prompt = builder.build();
 
@@ -292,8 +287,7 @@ mod tests {
     fn test_empty_tool_descriptions() {
         let tools: Vec<ToolSchema> = vec![];
 
-        let builder = SystemPromptBuilder::new()
-            .with_tool_descriptions(&tools);
+        let builder = SystemPromptBuilder::new().with_tool_descriptions(&tools);
 
         let prompt = builder.build();
 
@@ -303,8 +297,7 @@ mod tests {
 
     #[test]
     fn test_dynamic_context_timestamp() {
-        let builder = SystemPromptBuilder::new()
-            .with_dynamic_context();
+        let builder = SystemPromptBuilder::new().with_dynamic_context();
 
         let prompt = builder.build();
 
@@ -312,17 +305,18 @@ mod tests {
         assert!(prompt.contains("Current UTC timestamp:"));
         // Check timestamp format (YYYY-MM-DD HH:MM:SS UTC)
         let lines: Vec<&str> = prompt.lines().collect();
-        let timestamp_line = lines.iter().find(|line| line.contains("Current UTC timestamp:"));
+        let timestamp_line = lines
+            .iter()
+            .find(|line| line.contains("Current UTC timestamp:"));
         assert!(timestamp_line.is_some());
-        
+
         let timestamp = timestamp_line.unwrap();
         assert!(timestamp.contains("UTC"));
     }
 
     #[test]
     fn test_workspace_info_in_dynamic_context() {
-        let builder = SystemPromptBuilder::new()
-            .with_dynamic_context();
+        let builder = SystemPromptBuilder::new().with_dynamic_context();
 
         let prompt = builder.build();
 
@@ -335,8 +329,7 @@ mod tests {
     fn test_empty_skill_instructions() {
         let skills: Vec<String> = vec![];
 
-        let builder = SystemPromptBuilder::new()
-            .with_skill_instructions(&skills);
+        let builder = SystemPromptBuilder::new().with_skill_instructions(&skills);
 
         let prompt = builder.build();
 
@@ -348,8 +341,7 @@ mod tests {
     fn test_empty_memory_context() {
         let memory = "";
 
-        let builder = SystemPromptBuilder::new()
-            .with_memory_context(memory);
+        let builder = SystemPromptBuilder::new().with_memory_context(memory);
 
         let prompt = builder.build();
 

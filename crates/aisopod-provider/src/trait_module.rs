@@ -7,15 +7,13 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use futures_core::Stream;
-use futures_util::{stream, stream::StreamExt};
-use pin_project_lite::pin_project;
+use futures_util::StreamExt;
 use std::pin::Pin;
 
 use crate::types::*;
 
 /// A pinned stream of chat completion chunks.
-pub type ChatCompletionStream =
-    Pin<Box<dyn Stream<Item = Result<ChatCompletionChunk>> + Send>>;
+pub type ChatCompletionStream = Pin<Box<dyn Stream<Item = Result<ChatCompletionChunk>> + Send>>;
 
 /// The primary trait for AI model providers.
 ///
@@ -90,10 +88,8 @@ pub trait ModelProvider: Send + Sync {
     ///
     /// A pinned boxed stream of chat completion chunks:
     /// `Pin<Box<dyn Stream<Item = Result<ChatCompletionChunk>> + Send>>`
-    async fn chat_completion(
-        &self,
-        request: ChatCompletionRequest,
-    ) -> Result<ChatCompletionStream>;
+    async fn chat_completion(&self, request: ChatCompletionRequest)
+        -> Result<ChatCompletionStream>;
 
     /// Checks the health status of this provider.
     ///

@@ -109,7 +109,7 @@ impl ClientRegistry {
         let presence_key = client.presence_key.clone();
         let role = client.role.clone();
         self.clients.insert(client.conn_id.clone(), client);
-        
+
         tracing::info!(
             conn_id = %conn_id,
             presence_key = %presence_key,
@@ -126,7 +126,7 @@ impl ClientRegistry {
         if let Some((_, client)) = self.clients.remove(conn_id) {
             let presence_key = client.presence_key.clone();
             let role = client.role.clone();
-            
+
             tracing::info!(
                 conn_id = %conn_id,
                 presence_key = %presence_key,
@@ -140,13 +140,19 @@ impl ClientRegistry {
     }
 
     /// Get a client by connection ID
-    pub fn get(&self, conn_id: &str) -> Option<dashmap::mapref::one::Ref<'_, String, GatewayClient>> {
+    pub fn get(
+        &self,
+        conn_id: &str,
+    ) -> Option<dashmap::mapref::one::Ref<'_, String, GatewayClient>> {
         self.clients.get(conn_id)
     }
 
     /// Get all connected clients
     pub fn list(&self) -> Vec<GatewayClient> {
-        self.clients.iter().map(|entry| entry.value().clone()).collect()
+        self.clients
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect()
     }
 
     /// Get the current health snapshot
@@ -187,7 +193,8 @@ mod tests {
     use super::*;
     use std::net::SocketAddr;
 
-    fn create_test_sender() -> std::sync::Arc<tokio::sync::mpsc::Sender<axum::extract::ws::Message>> {
+    fn create_test_sender() -> std::sync::Arc<tokio::sync::mpsc::Sender<axum::extract::ws::Message>>
+    {
         // Create a channel with a small buffer for testing
         let (tx, _rx) = tokio::sync::mpsc::channel(16);
         std::sync::Arc::new(tx)
@@ -201,7 +208,9 @@ mod tests {
     }
 
     fn create_test_socket_addr() -> SocketAddr {
-        "127.0.0.1:8080".parse().unwrap()
+        "127.0.0.1:8080"
+            .parse()
+            .expect("test socket address should be valid")
     }
 
     #[test]
@@ -210,12 +219,7 @@ mod tests {
         let addr = create_test_socket_addr();
         let auth_info = create_test_auth_info();
 
-        let client = GatewayClient::from_auth_info(
-            "conn-123".to_string(),
-            sender,
-            addr,
-            auth_info,
-        );
+        let client = GatewayClient::from_auth_info("conn-123".to_string(), sender, addr, auth_info);
 
         assert_eq!(client.conn_id, "conn-123");
         assert_eq!(client.role, "operator");
@@ -260,12 +264,7 @@ mod tests {
         let addr = create_test_socket_addr();
         let auth_info = create_test_auth_info();
 
-        let client = GatewayClient::from_auth_info(
-            "conn-001".to_string(),
-            sender,
-            addr,
-            auth_info,
-        );
+        let client = GatewayClient::from_auth_info("conn-001".to_string(), sender, addr, auth_info);
 
         registry.on_connect(client);
 
@@ -275,7 +274,10 @@ mod tests {
         // Verify we can retrieve the client
         let retrieved = registry.get("conn-001");
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().conn_id, "conn-001");
+        assert_eq!(
+            retrieved.expect("client should be present").conn_id,
+            "conn-001"
+        );
     }
 
     #[test]
@@ -285,12 +287,7 @@ mod tests {
         let addr = create_test_socket_addr();
         let auth_info = create_test_auth_info();
 
-        let client = GatewayClient::from_auth_info(
-            "conn-002".to_string(),
-            sender,
-            addr,
-            auth_info,
-        );
+        let client = GatewayClient::from_auth_info("conn-002".to_string(), sender, addr, auth_info);
 
         registry.on_connect(client);
         assert_eq!(registry.len(), 1);
@@ -321,12 +318,8 @@ mod tests {
         for i in 0..3 {
             let sender = create_test_sender();
             let auth_info = create_test_auth_info();
-            let client = GatewayClient::from_auth_info(
-                format!("conn-{:03}", i),
-                sender,
-                addr,
-                auth_info,
-            );
+            let client =
+                GatewayClient::from_auth_info(format!("conn-{:03}", i), sender, addr, auth_info);
             registry.on_connect(client);
         }
 
@@ -367,12 +360,8 @@ mod tests {
                 role: "node".to_string(),
                 scopes: vec!["agent:read".to_string()],
             };
-            let client = GatewayClient::from_auth_info(
-                "node-000".to_string(),
-                sender,
-                addr,
-                auth_info,
-            );
+            let client =
+                GatewayClient::from_auth_info("node-000".to_string(), sender, addr, auth_info);
             registry.on_connect(client);
         }
 
@@ -383,12 +372,8 @@ mod tests {
                 role: "admin".to_string(),
                 scopes: vec!["admin:all".to_string()],
             };
-            let client = GatewayClient::from_auth_info(
-                "admin-000".to_string(),
-                sender,
-                addr,
-                auth_info,
-            );
+            let client =
+                GatewayClient::from_auth_info("admin-000".to_string(), sender, addr, auth_info);
             registry.on_connect(client);
         }
 
@@ -425,7 +410,9 @@ mod tests {
 
         // Wait for all tasks to complete
         for handle in handles {
-            handle.await.unwrap();
+            handle
+                .await
+                .expect("async client task should complete successfully");
         }
 
         assert_eq!(registry.len(), 10);

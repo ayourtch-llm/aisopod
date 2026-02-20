@@ -7,9 +7,11 @@
 //! - Error response handling
 //! - Provider-specific behavior
 
-use aisopod_provider::providers::anthropic::{AnthropicProvider, api_types as anthropic_api};
-use aisopod_provider::types::{ChatCompletionRequest, Message, MessageContent, Role, ToolDefinition, ToolCall, FinishReason};
+use aisopod_provider::providers::anthropic::{api_types as anthropic_api, AnthropicProvider};
 use aisopod_provider::trait_module::ModelProvider;
+use aisopod_provider::types::{
+    ChatCompletionRequest, FinishReason, Message, MessageContent, Role, ToolCall, ToolDefinition,
+};
 use serde_json::json;
 
 // ============================================================================
@@ -48,7 +50,7 @@ fn test_anthropic_message_to_anthropic_format() {
 
     let json = serde_json::to_string(&message).unwrap();
     let parsed: anthropic_api::AnthropicMessage = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.role, anthropic_api::AnthropicRole::User);
     assert_eq!(parsed.content.len(), 1);
     if let anthropic_api::AnthropicContentBlock::Text { text } = &parsed.content[0] {
@@ -67,7 +69,7 @@ fn test_anthropic_message_with_assistant_role() {
 
     let json = serde_json::to_string(&message).unwrap();
     let parsed: anthropic_api::AnthropicMessage = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.role, anthropic_api::AnthropicRole::Assistant);
 }
 
@@ -123,7 +125,7 @@ fn test_anthropic_tool_definition_serialization() {
 
     let json = serde_json::to_string(&tool).unwrap();
     let parsed: anthropic_api::AnthropicTool = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.name, "calculator");
     assert_eq!(parsed.description, "A calculator tool");
 }
@@ -138,7 +140,7 @@ fn test_anthropic_tool_use_response() {
 
     let json = serde_json::to_string(&response).unwrap();
     let parsed: anthropic_api::AnthropicToolUseResponse = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.id, "tool_1");
     assert_eq!(parsed.name, "calculator");
 }
@@ -154,7 +156,7 @@ fn test_anthropic_tool_result_response() {
 
     let json = serde_json::to_string(&response).unwrap();
     let parsed: anthropic_api::AnthropicToolResultResponse = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.id, "tool_1");
     assert_eq!(parsed.content.len(), 1);
 }
@@ -166,10 +168,10 @@ fn test_anthropic_tool_result_response() {
 #[test]
 fn test_anthropic_sse_message_start_event() {
     let event_json = r#"{"type": "message_start", "message": {"id": "msg_123", "type": "message", "role": "assistant", "content": []}}"#;
-    
+
     let result: Result<anthropic_api::AnthropicSseEvent, _> = serde_json::from_str(event_json);
     assert!(result.is_ok());
-    
+
     if let Ok(event) = result {
         if let anthropic_api::AnthropicSseEvent::MessageStart { message } = event {
             assert_eq!(message.id, "msg_123");
@@ -181,7 +183,7 @@ fn test_anthropic_sse_message_start_event() {
 #[test]
 fn test_anthropic_sse_content_block_start_event() {
     let event_json = r#"{"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}}"#;
-    
+
     let result: Result<anthropic_api::AnthropicSseEvent, _> = serde_json::from_str(event_json);
     assert!(result.is_ok());
 }
@@ -189,7 +191,7 @@ fn test_anthropic_sse_content_block_start_event() {
 #[test]
 fn test_anthropic_sse_content_block_delta_event() {
     let event_json = r#"{"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "Hello"}}"#;
-    
+
     let result: Result<anthropic_api::AnthropicSseEvent, _> = serde_json::from_str(event_json);
     eprintln!("ContentBlockDelta result: {:?}", result);
     assert!(result.is_ok());
@@ -197,8 +199,9 @@ fn test_anthropic_sse_content_block_delta_event() {
 
 #[test]
 fn test_anthropic_sse_message_delta_event() {
-    let event_json = r#"{"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": null}}"#;
-    
+    let event_json =
+        r#"{"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence": null}}"#;
+
     let result: Result<anthropic_api::AnthropicSseEvent, _> = serde_json::from_str(event_json);
     eprintln!("MessageDelta result: {:?}", result);
     assert!(result.is_ok());
@@ -207,15 +210,16 @@ fn test_anthropic_sse_message_delta_event() {
 #[test]
 fn test_anthropic_sse_message_stop_event() {
     let event_json = r#"{"type": "message_stop"}"#;
-    
+
     let result: Result<anthropic_api::AnthropicSseEvent, _> = serde_json::from_str(event_json);
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_anthropic_sse_error_event() {
-    let event_json = r#"{"type": "error", "error": {"type": "api_error", "message": "Something went wrong"}}"#;
-    
+    let event_json =
+        r#"{"type": "error", "error": {"type": "api_error", "message": "Something went wrong"}}"#;
+
     let result: Result<anthropic_api::AnthropicSseEvent, _> = serde_json::from_str(event_json);
     assert!(result.is_ok());
 }
@@ -228,14 +232,12 @@ fn test_anthropic_sse_error_event() {
 fn test_build_anthropic_request_basic() {
     let request = anthropic_api::AnthropicRequest {
         model: "claude-3-5-sonnet".to_string(),
-        messages: vec![
-            anthropic_api::AnthropicMessage {
-                role: anthropic_api::AnthropicRole::User,
-                content: vec![anthropic_api::AnthropicContentBlock::Text {
-                    text: "Hello".to_string(),
-                }],
-            },
-        ],
+        messages: vec![anthropic_api::AnthropicMessage {
+            role: anthropic_api::AnthropicRole::User,
+            content: vec![anthropic_api::AnthropicContentBlock::Text {
+                text: "Hello".to_string(),
+            }],
+        }],
         system: None,
         tools: None,
         max_tokens: Some(1000),
@@ -255,14 +257,12 @@ fn test_build_anthropic_request_basic() {
 fn test_build_anthropic_request_with_system_prompt() {
     let request = anthropic_api::AnthropicRequest {
         model: "claude-3-5-sonnet".to_string(),
-        messages: vec![
-            anthropic_api::AnthropicMessage {
-                role: anthropic_api::AnthropicRole::User,
-                content: vec![anthropic_api::AnthropicContentBlock::Text {
-                    text: "Hello".to_string(),
-                }],
-            },
-        ],
+        messages: vec![anthropic_api::AnthropicMessage {
+            role: anthropic_api::AnthropicRole::User,
+            content: vec![anthropic_api::AnthropicContentBlock::Text {
+                text: "Hello".to_string(),
+            }],
+        }],
         system: Some(json!([{
             "type": "text",
             "text": "You are a helpful assistant."
@@ -282,24 +282,20 @@ fn test_build_anthropic_request_with_system_prompt() {
 
 #[test]
 fn test_build_anthropic_request_with_tools() {
-    let tools = vec![
-        anthropic_api::AnthropicTool {
-            name: "calculator".to_string(),
-            description: "A calculator".to_string(),
-            input_schema: json!({"type": "object", "properties": {}}),
-        },
-    ];
+    let tools = vec![anthropic_api::AnthropicTool {
+        name: "calculator".to_string(),
+        description: "A calculator".to_string(),
+        input_schema: json!({"type": "object", "properties": {}}),
+    }];
 
     let request = anthropic_api::AnthropicRequest {
         model: "claude-3-5-sonnet".to_string(),
-        messages: vec![
-            anthropic_api::AnthropicMessage {
-                role: anthropic_api::AnthropicRole::User,
-                content: vec![anthropic_api::AnthropicContentBlock::Text {
-                    text: "Calculate 5+3".to_string(),
-                }],
-            },
-        ],
+        messages: vec![anthropic_api::AnthropicMessage {
+            role: anthropic_api::AnthropicRole::User,
+            content: vec![anthropic_api::AnthropicContentBlock::Text {
+                text: "Calculate 5+3".to_string(),
+            }],
+        }],
         system: None,
         tools: Some(tools),
         max_tokens: Some(1000),
@@ -318,14 +314,12 @@ fn test_build_anthropic_request_with_tools() {
 fn test_build_anthropic_request_with_stop_sequences() {
     let request = anthropic_api::AnthropicRequest {
         model: "claude-3-5-sonnet".to_string(),
-        messages: vec![
-            anthropic_api::AnthropicMessage {
-                role: anthropic_api::AnthropicRole::User,
-                content: vec![anthropic_api::AnthropicContentBlock::Text {
-                    text: "Hello".to_string(),
-                }],
-            },
-        ],
+        messages: vec![anthropic_api::AnthropicMessage {
+            role: anthropic_api::AnthropicRole::User,
+            content: vec![anthropic_api::AnthropicContentBlock::Text {
+                text: "Hello".to_string(),
+            }],
+        }],
         system: None,
         tools: None,
         max_tokens: Some(1000),
@@ -361,12 +355,15 @@ fn test_parse_anthropic_stream_response() {
 
     let result: Result<anthropic_api::AnthropicResponse, _> = serde_json::from_str(response_json);
     assert!(result.is_ok());
-    
+
     if let Ok(response) = result {
         assert_eq!(response.id, "msg_123");
         assert_eq!(response.role, anthropic_api::AnthropicRole::Assistant);
         assert_eq!(response.content.len(), 1);
-        assert_eq!(response.stop_reason, Some(anthropic_api::AnthropicStopReason::EndTurn));
+        assert_eq!(
+            response.stop_reason,
+            Some(anthropic_api::AnthropicStopReason::EndTurn)
+        );
         assert_eq!(response.usage.as_ref().map(|u| u.input_tokens), Some(10));
         assert_eq!(response.usage.as_ref().map(|u| u.output_tokens), Some(5));
     }
@@ -383,10 +380,20 @@ fn test_parse_anthropic_error_response() {
 
     let result: Result<anthropic_api::AnthropicErrorResponse, _> = serde_json::from_str(error_json);
     assert!(result.is_ok());
-    
+
     if let Ok(error) = result {
-        assert_eq!(error.error.as_ref().unwrap().r#type.as_ref().unwrap(), "invalid_request_error");
-        assert!(error.error.as_ref().unwrap().message.as_ref().unwrap().contains("Invalid API key"));
+        assert_eq!(
+            error.error.as_ref().unwrap().r#type.as_ref().unwrap(),
+            "invalid_request_error"
+        );
+        assert!(error
+            .error
+            .as_ref()
+            .unwrap()
+            .message
+            .as_ref()
+            .unwrap()
+            .contains("Invalid API key"));
     }
 }
 
@@ -398,7 +405,7 @@ fn test_parse_anthropic_error_response() {
 async fn test_anthropic_provider_list_models_returns_default() {
     // The provider has a hardcoded list of models for list_models
     let provider = AnthropicProvider::new("test-key".to_string(), None, None, None);
-    
+
     let result = provider.list_models().await;
     // Should return Ok with default models
     assert!(result.is_ok());
@@ -409,7 +416,7 @@ async fn test_anthropic_provider_list_models_returns_default() {
 #[tokio::test]
 async fn test_anthropic_provider_health_check_unavailable_without_api_key() {
     let provider = AnthropicProvider::new("invalid-key".to_string(), None, None, None);
-    
+
     let result = provider.health_check().await;
     // health_check returns a ProviderHealth, not an Err
     assert!(result.is_ok());
@@ -421,14 +428,14 @@ async fn test_anthropic_provider_health_check_unavailable_without_api_key() {
 #[tokio::test]
 async fn test_anthropic_provider_with_multiple_profiles() {
     let mut provider = AnthropicProvider::new("test-key-1".to_string(), None, None, None);
-    
+
     // Add multiple auth profiles
     provider.add_profile(aisopod_provider::AuthProfile::new(
         "profile_2".to_string(),
         "anthropic".to_string(),
         "sk-test-2".to_string(),
     ));
-    
+
     // Verify we can add profiles
     // The add_profile method exists and compiles
 }
@@ -450,7 +457,7 @@ fn test_anthropic_model_info_serialization() {
 
     let json = serde_json::to_string(&info).unwrap();
     let parsed: anthropic_api::AnthropicModelInfo = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.id, "claude-3-5-sonnet");
     assert_eq!(parsed.display_name, "Claude 3.5 Sonnet");
 }
@@ -482,14 +489,12 @@ fn test_anthropic_content_block_with_image() {
 fn test_anthropic_request_with_temperature() {
     let request = anthropic_api::AnthropicRequest {
         model: "claude-3-5-sonnet".to_string(),
-        messages: vec![
-            anthropic_api::AnthropicMessage {
-                role: anthropic_api::AnthropicRole::User,
-                content: vec![anthropic_api::AnthropicContentBlock::Text {
-                    text: "Hello".to_string(),
-                }],
-            },
-        ],
+        messages: vec![anthropic_api::AnthropicMessage {
+            role: anthropic_api::AnthropicRole::User,
+            content: vec![anthropic_api::AnthropicContentBlock::Text {
+                text: "Hello".to_string(),
+            }],
+        }],
         system: None,
         tools: None,
         max_tokens: Some(1000),
@@ -508,14 +513,12 @@ fn test_anthropic_request_with_temperature() {
 fn test_anthropic_request_with_top_p() {
     let request = anthropic_api::AnthropicRequest {
         model: "claude-3-5-sonnet".to_string(),
-        messages: vec![
-            anthropic_api::AnthropicMessage {
-                role: anthropic_api::AnthropicRole::User,
-                content: vec![anthropic_api::AnthropicContentBlock::Text {
-                    text: "Hello".to_string(),
-                }],
-            },
-        ],
+        messages: vec![anthropic_api::AnthropicMessage {
+            role: anthropic_api::AnthropicRole::User,
+            content: vec![anthropic_api::AnthropicContentBlock::Text {
+                text: "Hello".to_string(),
+            }],
+        }],
         system: None,
         tools: None,
         max_tokens: Some(1000),
@@ -544,7 +547,7 @@ fn test_anthropic_tool_call_response_roundtrip() {
 
     let json = serde_json::to_string(&tool_call).unwrap();
     let parsed: anthropic_api::AnthropicToolUse = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.id, "tool_1");
     assert_eq!(parsed.name, "calculator");
 }
@@ -587,14 +590,12 @@ fn test_anthropic_system_prompt_array() {
 fn test_anthropic_request_with_metadata() {
     let request = anthropic_api::AnthropicRequest {
         model: "claude-3-5-sonnet".to_string(),
-        messages: vec![
-            anthropic_api::AnthropicMessage {
-                role: anthropic_api::AnthropicRole::User,
-                content: vec![anthropic_api::AnthropicContentBlock::Text {
-                    text: "Hello".to_string(),
-                }],
-            },
-        ],
+        messages: vec![anthropic_api::AnthropicMessage {
+            role: anthropic_api::AnthropicRole::User,
+            content: vec![anthropic_api::AnthropicContentBlock::Text {
+                text: "Hello".to_string(),
+            }],
+        }],
         system: None,
         tools: None,
         max_tokens: Some(1000),
@@ -661,14 +662,12 @@ fn test_anthropic_multimodal_request() {
 fn test_anthropic_streaming_request() {
     let request = anthropic_api::AnthropicRequest {
         model: "claude-3-5-sonnet".to_string(),
-        messages: vec![
-            anthropic_api::AnthropicMessage {
-                role: anthropic_api::AnthropicRole::User,
-                content: vec![anthropic_api::AnthropicContentBlock::Text {
-                    text: "Hello".to_string(),
-                }],
-            },
-        ],
+        messages: vec![anthropic_api::AnthropicMessage {
+            role: anthropic_api::AnthropicRole::User,
+            content: vec![anthropic_api::AnthropicContentBlock::Text {
+                text: "Hello".to_string(),
+            }],
+        }],
         system: None,
         tools: None,
         max_tokens: Some(1000),
@@ -716,7 +715,7 @@ fn test_tool_definition_to_anthropic_tool() {
     // Verify we can serialize the tool definition
     let json = serde_json::to_string(&tool_def).unwrap();
     let parsed: ToolDefinition = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.name, "calculator");
     assert_eq!(parsed.description, "A calculator tool");
 }
@@ -735,7 +734,7 @@ fn test_tool_call_roundtrip() {
 
     let json = serde_json::to_string(&tool_call).unwrap();
     let parsed: ToolCall = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.id, "call_123");
     assert_eq!(parsed.name, "calculator");
     assert!(parsed.arguments.contains("5"));
@@ -780,7 +779,7 @@ fn test_token_usage_serialization() {
 
     let json = serde_json::to_string(&usage).unwrap();
     let parsed: aisopod_provider::TokenUsage = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.prompt_tokens, 100);
     assert_eq!(parsed.completion_tokens, 50);
     assert_eq!(parsed.total_tokens, 150);
@@ -800,7 +799,7 @@ fn test_message_delta_serialization() {
 
     let json = serde_json::to_string(&delta).unwrap();
     let parsed: aisopod_provider::MessageDelta = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.role, Some(aisopod_provider::Role::Assistant));
     assert_eq!(parsed.content, Some("Hello".to_string()));
 }
@@ -828,10 +827,13 @@ fn test_chat_completion_chunk_serialization() {
 
     let json = serde_json::to_string(&chunk).unwrap();
     let parsed: aisopod_provider::ChatCompletionChunk = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.id, "chunk_123");
     assert_eq!(parsed.delta.content, Some("Hello world!".to_string()));
-    assert_eq!(parsed.finish_reason, Some(aisopod_provider::FinishReason::Stop));
+    assert_eq!(
+        parsed.finish_reason,
+        Some(aisopod_provider::FinishReason::Stop)
+    );
 }
 
 // ============================================================================
@@ -849,7 +851,7 @@ fn test_message_text_serialization() {
 
     let json = serde_json::to_string(&message).unwrap();
     let parsed: aisopod_provider::Message = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.role, aisopod_provider::Role::User);
     assert!(matches!(parsed.content, aisopod_provider::MessageContent::Text(t) if t == "Hello"));
 }
@@ -862,7 +864,7 @@ fn test_message_content_part_serialization() {
 
     let json = serde_json::to_string(&part).unwrap();
     let parsed: aisopod_provider::ContentPart = serde_json::from_str(&json).unwrap();
-    
+
     assert!(matches!(parsed, aisopod_provider::ContentPart::Text { text } if text == "Hello"));
 }
 
@@ -874,14 +876,12 @@ fn test_message_content_part_serialization() {
 fn test_chat_completion_request_serialization() {
     let request = aisopod_provider::ChatCompletionRequest {
         model: "claude-3-5-sonnet".to_string(),
-        messages: vec![
-            aisopod_provider::Message {
-                role: aisopod_provider::Role::User,
-                content: aisopod_provider::MessageContent::Text("Hello".to_string()),
-                tool_calls: None,
-                tool_call_id: None,
-            },
-        ],
+        messages: vec![aisopod_provider::Message {
+            role: aisopod_provider::Role::User,
+            content: aisopod_provider::MessageContent::Text("Hello".to_string()),
+            tool_calls: None,
+            tool_call_id: None,
+        }],
         tools: None,
         temperature: None,
         max_tokens: None,
@@ -911,7 +911,7 @@ fn test_model_info_serialization() {
 
     let json = serde_json::to_string(&info).unwrap();
     let parsed: aisopod_provider::ModelInfo = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.id, "claude-3-5-sonnet");
     assert_eq!(parsed.name, "Claude 3.5 Sonnet");
     assert!(parsed.supports_vision);
@@ -956,7 +956,7 @@ fn test_provider_health_serialization() {
 
     let json = serde_json::to_string(&health).unwrap();
     let parsed: aisopod_provider::ProviderHealth = serde_json::from_str(&json).unwrap();
-    
+
     assert!(parsed.available);
     assert_eq!(parsed.latency_ms, Some(123));
 }
@@ -970,13 +970,11 @@ fn test_complex_message_with_tool_calls() {
     let message = aisopod_provider::Message {
         role: aisopod_provider::Role::Assistant,
         content: aisopod_provider::MessageContent::Text("I'll use the calculator".to_string()),
-        tool_calls: Some(vec![
-            aisopod_provider::ToolCall {
-                id: "call_1".to_string(),
-                name: "calculator".to_string(),
-                arguments: "{\"operation\":\"add\"}".to_string(),
-            },
-        ]),
+        tool_calls: Some(vec![aisopod_provider::ToolCall {
+            id: "call_1".to_string(),
+            name: "calculator".to_string(),
+            arguments: "{\"operation\":\"add\"}".to_string(),
+        }]),
         tool_call_id: None,
     };
 
@@ -1011,9 +1009,9 @@ async fn test_anthropic_provider_with_auth_profile() {
         "anthropic".to_string(),
         "sk-test-key".to_string(),
     );
-    
+
     let provider = AnthropicProvider::new("test-key".to_string(), None, None, None);
-    
+
     // Verify we can create a provider with an auth profile
     assert_eq!(provider.id(), "anthropic");
 }
@@ -1026,35 +1024,29 @@ async fn test_anthropic_provider_with_auth_profile() {
 fn test_full_anthropic_request_roundtrip() {
     let original = anthropic_api::AnthropicRequest {
         model: "claude-3-5-sonnet-latest".to_string(),
-        messages: vec![
-            anthropic_api::AnthropicMessage {
-                role: anthropic_api::AnthropicRole::User,
-                content: vec![
-                    anthropic_api::AnthropicContentBlock::Text {
-                        text: "Hello".to_string(),
-                    },
-                ],
-            },
-        ],
+        messages: vec![anthropic_api::AnthropicMessage {
+            role: anthropic_api::AnthropicRole::User,
+            content: vec![anthropic_api::AnthropicContentBlock::Text {
+                text: "Hello".to_string(),
+            }],
+        }],
         system: Some(json!([{
             "type": "text",
             "text": "You are a helpful assistant."
         }])),
-        tools: Some(vec![
-            anthropic_api::AnthropicTool {
-                name: "calculator".to_string(),
-                description: "A calculator tool".to_string(),
-                input_schema: json!({
-                    "type": "object",
-                    "properties": {
-                        "operation": {"type": "string"},
-                        "a": {"type": "number"},
-                        "b": {"type": "number"}
-                    },
-                    "required": ["operation", "a", "b"]
-                }),
-            },
-        ]),
+        tools: Some(vec![anthropic_api::AnthropicTool {
+            name: "calculator".to_string(),
+            description: "A calculator tool".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "operation": {"type": "string"},
+                    "a": {"type": "number"},
+                    "b": {"type": "number"}
+                },
+                "required": ["operation", "a", "b"]
+            }),
+        }]),
         max_tokens: Some(1000),
         temperature: Some(0.7),
         top_p: Some(0.9),
@@ -1067,7 +1059,7 @@ fn test_full_anthropic_request_roundtrip() {
 
     let json = serde_json::to_string(&original).unwrap();
     let parsed: anthropic_api::AnthropicRequest = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.model, original.model);
     assert_eq!(parsed.messages.len(), original.messages.len());
     assert!(parsed.system.is_some());
@@ -1095,7 +1087,7 @@ fn test_anthropic_tool_use_response_roundtrip() {
 
     let json = serde_json::to_string(&original).unwrap();
     let parsed: anthropic_api::AnthropicToolUseResponse = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.id, original.id);
     assert_eq!(parsed.name, original.name);
 }
@@ -1114,7 +1106,7 @@ fn test_anthropic_image_source_roundtrip() {
 
     let json = serde_json::to_string(&original).unwrap();
     let parsed: anthropic_api::AnthropicImageSource = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.r#type, "base64");
     assert_eq!(parsed.media_type, "image/jpeg");
     assert_eq!(parsed.data, "/9j/4AAQSkZJRgABAQE=");
@@ -1165,7 +1157,7 @@ fn test_anthropic_usage_stats_roundtrip() {
 
     let json = serde_json::to_string(&original).unwrap();
     let parsed: anthropic_api::AnthropicUsage = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.input_tokens, 100);
     assert_eq!(parsed.output_tokens, 50);
 }
@@ -1180,11 +1172,9 @@ fn test_anthropic_message_response_roundtrip() {
         id: "msg_123".to_string(),
         r#type: "message".to_string(),
         role: "assistant".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: "Hello world!".to_string(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: "Hello world!".to_string(),
+        }],
         model: "claude-3-5-sonnet".to_string(),
         stop_reason: Some(anthropic_api::AnthropicStopReason::EndTurn),
         stop_sequence: None,
@@ -1196,7 +1186,7 @@ fn test_anthropic_message_response_roundtrip() {
 
     let json = serde_json::to_string(&original).unwrap();
     let parsed: anthropic_api::AnthropicMessageResponse = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.id, original.id);
     assert_eq!(parsed.role, "assistant");
     assert_eq!(parsed.content.len(), original.content.len());
@@ -1218,9 +1208,19 @@ fn test_anthropic_error_response_roundtrip() {
 
     let json = serde_json::to_string(&original).unwrap();
     let parsed: anthropic_api::AnthropicErrorResponse = serde_json::from_str(&json).unwrap();
-    
-    assert_eq!(parsed.error.as_ref().unwrap().r#type.as_ref().unwrap(), "invalid_request_error");
-    assert!(parsed.error.as_ref().unwrap().message.as_ref().unwrap().contains("Invalid API key"));
+
+    assert_eq!(
+        parsed.error.as_ref().unwrap().r#type.as_ref().unwrap(),
+        "invalid_request_error"
+    );
+    assert!(parsed
+        .error
+        .as_ref()
+        .unwrap()
+        .message
+        .as_ref()
+        .unwrap()
+        .contains("Invalid API key"));
 }
 
 // ============================================================================
@@ -1229,15 +1229,13 @@ fn test_anthropic_error_response_roundtrip() {
 
 #[test]
 fn test_anthropic_tool_result_content_roundtrip() {
-    let original = vec![
-        anthropic_api::AnthropicContentBlock::Text {
-            text: "Result: 8".to_string(),
-        },
-    ];
+    let original = vec![anthropic_api::AnthropicContentBlock::Text {
+        text: "Result: 8".to_string(),
+    }];
 
     let json = serde_json::to_string(&original).unwrap();
     let parsed: Vec<anthropic_api::AnthropicContentBlock> = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.len(), original.len());
     if let anthropic_api::AnthropicContentBlock::Text { text } = &parsed[0] {
         assert_eq!(text, "Result: 8");
@@ -1252,16 +1250,14 @@ fn test_anthropic_tool_result_content_roundtrip() {
 fn test_anthropic_tool_result_response_roundtrip() {
     let original = anthropic_api::AnthropicToolResultResponse {
         id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: "Success".to_string(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: "Success".to_string(),
+        }],
     };
 
     let json = serde_json::to_string(&original).unwrap();
     let parsed: anthropic_api::AnthropicToolResultResponse = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.id, original.id);
     assert_eq!(parsed.content.len(), original.content.len());
 }
@@ -1306,7 +1302,7 @@ fn test_anthropic_streaming_message_delta() {
 
     let json = serde_json::to_string(&response).unwrap();
     let parsed: anthropic_api::AnthropicMessageDelta = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.stop_reason, response.stop_reason);
 }
 
@@ -1322,7 +1318,7 @@ fn test_anthropic_content_block_delta() {
 
     let json = serde_json::to_string(&delta).unwrap();
     let parsed: anthropic_api::AnthropicContentBlockDelta = serde_json::from_str(&json).unwrap();
-    
+
     if let anthropic_api::AnthropicContentBlockDelta::TextDelta { text } = parsed {
         assert_eq!(text, "Hello world!");
     }
@@ -1335,7 +1331,7 @@ fn test_anthropic_content_block_delta() {
 #[tokio::test]
 async fn test_anthropic_provider_end_to_end_structure() {
     let provider = AnthropicProvider::new("test-key".to_string(), None, None, None);
-    
+
     // Verify provider structure
     assert_eq!(provider.id(), "anthropic");
     assert!(provider.base_url().is_some());
@@ -1349,7 +1345,7 @@ async fn test_anthropic_provider_end_to_end_structure() {
 fn test_anthropic_base_url() {
     let provider = AnthropicProvider::new("test-key".to_string(), None, None, None);
     let base_url = provider.base_url();
-    
+
     // Base URL should be the Anthropic base URL
     assert!(base_url.is_some());
     let url = base_url.unwrap();
@@ -1363,7 +1359,7 @@ fn test_anthropic_base_url() {
 #[test]
 fn test_anthropic_default_model() {
     let provider = AnthropicProvider::new("test-key".to_string(), None, None, None);
-    
+
     // Verify the provider can be created
     assert_eq!(provider.id(), "anthropic");
 }
@@ -1375,19 +1371,19 @@ fn test_anthropic_default_model() {
 #[test]
 fn test_anthropic_provider_with_profiles() {
     use aisopod_provider::AuthProfile;
-    
+
     let profile1 = AuthProfile::new(
         "profile_1".to_string(),
         "anthropic".to_string(),
         "sk-test-1".to_string(),
     );
-    
+
     let profile2 = AuthProfile::new(
         "profile_2".to_string(),
         "anthropic".to_string(),
         "sk-test-2".to_string(),
     );
-    
+
     // Verify we can create profiles
     assert_eq!(profile1.api_key, "sk-test-1");
     assert_eq!(profile2.api_key, "sk-test-2");
@@ -1407,7 +1403,7 @@ fn test_anthropic_model_info_provider_field() {
         supports_vision: true,
         supports_tools: true,
     };
-    
+
     assert_eq!(info.provider, "anthropic");
 }
 
@@ -1422,7 +1418,7 @@ fn test_anthropic_tool_call_arguments_json() {
         "a": 5,
         "b": 3
     });
-    
+
     let json_str = serde_json::to_string(&args).unwrap();
     assert!(json_str.contains("\"operation\":\"add\""));
     assert!(json_str.contains("\"a\":5"));
@@ -1435,31 +1431,25 @@ fn test_anthropic_tool_call_arguments_json() {
 
 #[test]
 fn test_anthropic_streaming_request_with_tools() {
-    let tools = vec![
-        anthropic_api::AnthropicTool {
-            name: "calculator".to_string(),
-            description: "A calculator tool".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {
-                    "operation": {"type": "string"}
-                }
-            }),
-        },
-    ];
+    let tools = vec![anthropic_api::AnthropicTool {
+        name: "calculator".to_string(),
+        description: "A calculator tool".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "operation": {"type": "string"}
+            }
+        }),
+    }];
 
     let request = anthropic_api::AnthropicRequest {
         model: "claude-3-5-sonnet".to_string(),
-        messages: vec![
-            anthropic_api::AnthropicMessage {
-                role: anthropic_api::AnthropicRole::User,
-                content: vec![
-                    anthropic_api::AnthropicContentBlock::Text {
-                        text: "Calculate 5+3".to_string(),
-                    },
-                ],
-            },
-        ],
+        messages: vec![anthropic_api::AnthropicMessage {
+            role: anthropic_api::AnthropicRole::User,
+            content: vec![anthropic_api::AnthropicContentBlock::Text {
+                text: "Calculate 5+3".to_string(),
+            }],
+        }],
         system: None,
         tools: Some(tools),
         max_tokens: Some(1000),
@@ -1516,11 +1506,9 @@ fn test_anthropic_complex_tool_use() {
 fn test_anthropic_tool_result_error() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_1".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: "Error occurred".to_string(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: "Error occurred".to_string(),
+        }],
         is_error: Some(true),
     };
 
@@ -1620,7 +1608,7 @@ fn test_anthropic_streaming_delta_text() {
 fn test_anthropic_message_role_valid() {
     let user_role = anthropic_api::AnthropicRole::User;
     let assistant_role = anthropic_api::AnthropicRole::Assistant;
-    
+
     assert_eq!(user_role.to_string(), "user");
     assert_eq!(assistant_role.to_string(), "assistant");
 }
@@ -1642,7 +1630,7 @@ fn test_anthropic_system_prompt_array_format() {
 
     let json = serde_json::to_string(&system).unwrap();
     let parsed: Vec<anthropic_api::AnthropicContentBlock> = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.len(), 2);
 }
 
@@ -1688,7 +1676,7 @@ fn test_anthropic_message_content_array() {
 
     let json = serde_json::to_string(&content).unwrap();
     let parsed: Vec<anthropic_api::AnthropicContentBlock> = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(parsed.len(), 2);
     if let anthropic_api::AnthropicContentBlock::Text { text } = &parsed[0] {
         assert_eq!(text, "First");
@@ -1836,11 +1824,9 @@ fn test_anthropic_message_response_content() {
         id: "msg_123".to_string(),
         r#type: "message".to_string(),
         role: "assistant".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: "Hello world!".to_string(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: "Hello world!".to_string(),
+        }],
         model: "claude-3-5-sonnet".to_string(),
         stop_reason: Some(anthropic_api::AnthropicStopReason::EndTurn),
         stop_sequence: None,
@@ -1912,17 +1898,13 @@ fn test_anthropic_message_with_tool_call_response() {
 fn test_anthropic_tool_result_message() {
     let message = anthropic_api::AnthropicMessage {
         role: anthropic_api::AnthropicRole::User,
-        content: vec![
-            anthropic_api::AnthropicContentBlock::ToolResult {
-                tool_use_id: "tool_123".to_string(),
-                content: vec![
-                    anthropic_api::AnthropicContentBlock::Text {
-                        text: "Result: 8".to_string(),
-                    },
-                ],
-                is_error: Some(false),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::ToolResult {
+            tool_use_id: "tool_123".to_string(),
+            content: vec![anthropic_api::AnthropicContentBlock::Text {
+                text: "Result: 8".to_string(),
+            }],
+            is_error: Some(false),
+        }],
     };
 
     let json = serde_json::to_string(&message).unwrap();
@@ -1999,11 +1981,9 @@ fn test_anthropic_message_with_multiple_tools() {
 fn test_anthropic_tool_result_with_error() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: "Error: Something went wrong".to_string(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: "Error: Something went wrong".to_string(),
+        }],
         is_error: Some(true),
     };
 
@@ -2019,16 +1999,12 @@ fn test_anthropic_tool_result_with_error() {
 fn test_anthropic_request_with_system_prompt_array() {
     let request = anthropic_api::AnthropicRequest {
         model: "claude-3-5-sonnet".to_string(),
-        messages: vec![
-            anthropic_api::AnthropicMessage {
-                role: anthropic_api::AnthropicRole::User,
-                content: vec![
-                    anthropic_api::AnthropicContentBlock::Text {
-                        text: "Hello".to_string(),
-                    },
-                ],
-            },
-        ],
+        messages: vec![anthropic_api::AnthropicMessage {
+            role: anthropic_api::AnthropicRole::User,
+            content: vec![anthropic_api::AnthropicContentBlock::Text {
+                text: "Hello".to_string(),
+            }],
+        }],
         system: Some(json!([{
             "type": "text",
             "text": "System prompt 1"
@@ -2097,15 +2073,13 @@ fn test_anthropic_message_delta_stop_reasons() {
 
 #[test]
 fn test_anthropic_tool_result_content_with_image() {
-    let content = vec![
-        anthropic_api::AnthropicContentBlock::Image {
-            source: anthropic_api::AnthropicImageSource {
-                r#type: "base64".to_string(),
-                media_type: "image/png".to_string(),
-                data: "data".to_string(),
-            },
+    let content = vec![anthropic_api::AnthropicContentBlock::Image {
+        source: anthropic_api::AnthropicImageSource {
+            r#type: "base64".to_string(),
+            media_type: "image/png".to_string(),
+            data: "data".to_string(),
         },
-    ];
+    }];
 
     let json = serde_json::to_string(&content).unwrap();
     assert!(json.contains("\"image\""));
@@ -2153,17 +2127,13 @@ fn test_anthropic_tool_definition_with_properties() {
 fn test_anthropic_message_with_tool_call_id() {
     let message = anthropic_api::AnthropicMessage {
         role: anthropic_api::AnthropicRole::User,
-        content: vec![
-            anthropic_api::AnthropicContentBlock::ToolResult {
-                tool_use_id: "tool_123".to_string(),
-                content: vec![
-                    anthropic_api::AnthropicContentBlock::Text {
-                        text: "Result".to_string(),
-                    },
-                ],
-                is_error: Some(false),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::ToolResult {
+            tool_use_id: "tool_123".to_string(),
+            content: vec![anthropic_api::AnthropicContentBlock::Text {
+                text: "Result".to_string(),
+            }],
+            is_error: Some(false),
+        }],
     };
 
     let json = serde_json::to_string(&message).unwrap();
@@ -2223,11 +2193,9 @@ fn test_anthropic_message_with_multiple_content_types() {
             },
             anthropic_api::AnthropicContentBlock::ToolResult {
                 tool_use_id: "tool_123".to_string(),
-                content: vec![
-                    anthropic_api::AnthropicContentBlock::Text {
-                        text: "Tool result".to_string(),
-                    },
-                ],
+                content: vec![anthropic_api::AnthropicContentBlock::Text {
+                    text: "Tool result".to_string(),
+                }],
                 is_error: Some(false),
             },
         ],
@@ -2268,11 +2236,7 @@ fn test_anthropic_tool_definition_with_no_required() {
 
 #[test]
 fn test_anthropic_stop_sequences_array() {
-    let stop_sequences = vec![
-        "\n\n".to_string(),
-        "STOP".to_string(),
-        "END".to_string(),
-    ];
+    let stop_sequences = vec!["\n\n".to_string(), "STOP".to_string(), "END".to_string()];
 
     let json = serde_json::to_string(&stop_sequences).unwrap();
     assert!(json.contains("\"\\n\\n\""));
@@ -2362,11 +2326,9 @@ fn test_anthropic_message_with_empty_content_array() {
 fn test_anthropic_tool_result_with_is_error_true() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: "Error".to_string(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: "Error".to_string(),
+        }],
         is_error: Some(true),
     };
 
@@ -2467,27 +2429,21 @@ fn test_anthropic_tool_definition_with_all_fields() {
 fn test_anthropic_request_with_system_prompt_and_tools() {
     let request = anthropic_api::AnthropicRequest {
         model: "claude-3-5-sonnet".to_string(),
-        messages: vec![
-            anthropic_api::AnthropicMessage {
-                role: anthropic_api::AnthropicRole::User,
-                content: vec![
-                    anthropic_api::AnthropicContentBlock::Text {
-                        text: "Hello".to_string(),
-                    },
-                ],
-            },
-        ],
+        messages: vec![anthropic_api::AnthropicMessage {
+            role: anthropic_api::AnthropicRole::User,
+            content: vec![anthropic_api::AnthropicContentBlock::Text {
+                text: "Hello".to_string(),
+            }],
+        }],
         system: Some(json!([{
             "type": "text",
             "text": "System prompt"
         }])),
-        tools: Some(vec![
-            anthropic_api::AnthropicTool {
-                name: "calculator".to_string(),
-                description: "A calculator".to_string(),
-                input_schema: json!({"type": "object", "properties": {}}),
-            },
-        ]),
+        tools: Some(vec![anthropic_api::AnthropicTool {
+            name: "calculator".to_string(),
+            description: "A calculator".to_string(),
+            input_schema: json!({"type": "object", "properties": {}}),
+        }]),
         max_tokens: Some(1000),
         temperature: None,
         top_p: None,
@@ -2532,11 +2488,9 @@ fn test_anthropic_tool_use_response_with_complex_input() {
 fn test_anthropic_tool_result_with_nested_content() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({"result": 42})).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({"result": 42})).unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -2640,11 +2594,9 @@ fn test_anthropic_tool_use_with_string_input() {
 fn test_anthropic_tool_result_with_empty_string() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: "".to_string(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: "".to_string(),
+        }],
         is_error: Some(false),
     };
 
@@ -2743,11 +2695,9 @@ fn test_anthropic_tool_definition_with_special_characters() {
 
 #[test]
 fn test_anthropic_tool_result_content_with_html_like_content() {
-    let content = vec![
-        anthropic_api::AnthropicContentBlock::Text {
-            text: "<html><body>Result</body></html>".to_string(),
-        },
-    ];
+    let content = vec![anthropic_api::AnthropicContentBlock::Text {
+        text: "<html><body>Result</body></html>".to_string(),
+    }];
 
     let json = serde_json::to_string(&content).unwrap();
     assert!(json.contains("\"<html><body>Result</body></html>\""));
@@ -2781,11 +2731,9 @@ fn test_anthropic_tool_use_with_nested_arrays() {
 fn test_anthropic_tool_result_with_nested_array_content() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!([1, 2, 3])).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!([1, 2, 3])).unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -2870,20 +2818,16 @@ fn test_anthropic_message_with_multiple_tool_results() {
         content: vec![
             anthropic_api::AnthropicContentBlock::ToolResult {
                 tool_use_id: "tool_1".to_string(),
-                content: vec![
-                    anthropic_api::AnthropicContentBlock::Text {
-                        text: "Result 1".to_string(),
-                    },
-                ],
+                content: vec![anthropic_api::AnthropicContentBlock::Text {
+                    text: "Result 1".to_string(),
+                }],
                 is_error: Some(false),
             },
             anthropic_api::AnthropicContentBlock::ToolResult {
                 tool_use_id: "tool_2".to_string(),
-                content: vec![
-                    anthropic_api::AnthropicContentBlock::Text {
-                        text: "Result 2".to_string(),
-                    },
-                ],
+                content: vec![anthropic_api::AnthropicContentBlock::Text {
+                    text: "Result 2".to_string(),
+                }],
                 is_error: Some(false),
             },
         ],
@@ -2921,11 +2865,9 @@ fn test_anthropic_tool_definition_empty_description() {
 fn test_anthropic_tool_result_with_special_characters() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: "Result with 'quotes' and \"double quotes\"".to_string(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: "Result with 'quotes' and \"double quotes\"".to_string(),
+        }],
         is_error: Some(false),
     };
 
@@ -3012,7 +2954,8 @@ fn test_anthropic_tool_result_content_with_mixed_types() {
                 "value": 42,
                 "success": true,
                 "message": "Success"
-            })).unwrap(),
+            }))
+            .unwrap(),
         },
     ];
 
@@ -3047,11 +2990,9 @@ fn test_anthropic_tool_use_with_empty_object_input() {
 fn test_anthropic_tool_result_content_with_empty_object() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({})).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({})).unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -3086,19 +3027,18 @@ fn test_anthropic_tool_definition_with_empty_properties() {
 fn test_anthropic_tool_result_with_deeply_nested_content() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "level1": {
-                        "level2": {
-                            "level3": {
-                                "value": 42
-                            }
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "level1": {
+                    "level2": {
+                        "level3": {
+                            "value": 42
                         }
                     }
-                })).unwrap(),
-            },
-        ],
+                }
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -3144,11 +3084,9 @@ fn test_anthropic_tool_definition_with_empty_schema() {
 fn test_anthropic_tool_result_content_with_special_json_characters() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: "Result with \n newline \t tab \r carriage return".to_string(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: "Result with \n newline \t tab \r carriage return".to_string(),
+        }],
         is_error: Some(false),
     };
 
@@ -3182,11 +3120,9 @@ fn test_anthropic_tool_use_with_empty_array_input() {
 fn test_anthropic_tool_result_content_with_empty_array() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!([])).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!([])).unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -3250,11 +3186,9 @@ fn test_anthropic_tool_use_response_empty_input_object() {
 fn test_anthropic_tool_result_content_with_empty_string_in_array() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: "".to_string(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: "".to_string(),
+        }],
         is_error: Some(false),
     };
 
@@ -3293,11 +3227,9 @@ fn test_anthropic_tool_definition_with_default_values() {
 fn test_anthropic_tool_result_content_with_empty_object_in_array() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!([{}])).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!([{}])).unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -3329,11 +3261,9 @@ fn test_anthropic_tool_use_with_empty_string_value() {
 fn test_anthropic_tool_result_content_with_empty_string_in_nested_object() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({"value": ""})).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({"value": ""})).unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -3374,11 +3304,9 @@ fn test_anthropic_tool_definition_with_pattern_properties() {
 fn test_anthropic_tool_result_content_with_empty_array_in_object() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({"values": []})).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({"values": []})).unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -3411,11 +3339,9 @@ fn test_anthropic_tool_use_with_empty_array_in_object() {
 fn test_anthropic_tool_result_content_with_null_value() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({"value": null})).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({"value": null})).unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -3549,15 +3475,14 @@ fn test_anthropic_tool_definition_with_multiple_required_fields() {
 fn test_anthropic_tool_result_content_with_nested_empty_objects() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "level1": {
-                        "level2": {}
-                    }
-                })).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "level1": {
+                    "level2": {}
+                }
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -3602,15 +3527,9 @@ fn test_anthropic_tool_use_with_multiple_nested_objects() {
 fn test_anthropic_tool_result_content_with_multiple_nested_arrays() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!([
-                    [1, 2],
-                    [3, 4],
-                    [5, 6]
-                ])).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!([[1, 2], [3, 4], [5, 6]])).unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -3667,14 +3586,9 @@ fn test_anthropic_tool_definition_with_complex_nested_schema() {
 fn test_anthropic_tool_result_content_with_deeply_nested_arrays() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!([
-                    [[1, 2], [3, 4]],
-                    [[5, 6], [7, 8]]
-                ])).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])).unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -3740,11 +3654,9 @@ fn test_anthropic_tool_definition_with_mixed_type_arrays() {
 fn test_anthropic_tool_result_content_with_mixed_type_arrays() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!([1, "two", 3.0, true])).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!([1, "two", 3.0, true])).unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -3788,34 +3700,33 @@ fn test_anthropic_tool_use_with_mixed_type_objects() {
 fn test_anthropic_tool_result_content_with_complex_nested_structures() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "results": [
-                        {
-                            "id": 1,
-                            "value": "first",
-                            "options": {
-                                "enabled": true,
-                                "config": {
-                                    "precision": 2
-                                }
-                            }
-                        },
-                        {
-                            "id": 2,
-                            "value": "second",
-                            "options": {
-                                "enabled": false,
-                                "config": {
-                                    "precision": 4
-                                }
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "results": [
+                    {
+                        "id": 1,
+                        "value": "first",
+                        "options": {
+                            "enabled": true,
+                            "config": {
+                                "precision": 2
                             }
                         }
-                    ]
-                })).unwrap(),
-            },
-        ],
+                    },
+                    {
+                        "id": 2,
+                        "value": "second",
+                        "options": {
+                            "enabled": false,
+                            "config": {
+                                "precision": 4
+                            }
+                        }
+                    }
+                ]
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -3866,17 +3777,16 @@ fn test_anthropic_tool_definition_with_allof_schema() {
 fn test_anthropic_tool_result_content_with_circular_reference_simulation() {
     // Note: JSON cannot have circular references
     // This test documents that we should not create circular references
-    
+
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "id": 1,
-                    "parent": null
-                })).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "id": 1,
+                "parent": null
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -3915,16 +3825,15 @@ fn test_anthropic_tool_use_with_schema_validation() {
 fn test_anthropic_tool_result_content_with_schema_validation() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "result": {
-                        "value": 42,
-                        "type": "number"
-                    }
-                })).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "result": {
+                    "value": 42,
+                    "type": "number"
+                }
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -3968,22 +3877,21 @@ fn test_anthropic_tool_definition_with_schema_validation() {
 fn test_anthropic_tool_result_content_with_schema_validation_multiple_levels() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "level1": {
-                        "level2": {
-                            "level3": {
-                                "value": 42,
-                                "nested": {
-                                    "deep": "value"
-                                }
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "level1": {
+                    "level2": {
+                        "level3": {
+                            "value": 42,
+                            "nested": {
+                                "deep": "value"
                             }
                         }
                     }
-                })).unwrap(),
-            },
-        ],
+                }
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -4032,32 +3940,31 @@ fn test_anthropic_tool_use_with_schema_validation_deeply_nested() {
 fn test_anthropic_tool_result_content_with_schema_validation_complex_nested() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "results": [
-                        {
-                            "id": 1,
-                            "data": {
-                                "value": 42,
-                                "options": {
-                                    "enabled": true
-                                }
-                            }
-                        },
-                        {
-                            "id": 2,
-                            "data": {
-                                "value": 43,
-                                "options": {
-                                    "enabled": false
-                                }
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "results": [
+                    {
+                        "id": 1,
+                        "data": {
+                            "value": 42,
+                            "options": {
+                                "enabled": true
                             }
                         }
-                    ]
-                })).unwrap(),
-            },
-        ],
+                    },
+                    {
+                        "id": 2,
+                        "data": {
+                            "value": 43,
+                            "options": {
+                                "enabled": false
+                            }
+                        }
+                    }
+                ]
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -4111,19 +4018,18 @@ fn test_anthropic_tool_definition_with_schema_validation_all_required_fields() {
 fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "operation": "add",
-                    "a": 5,
-                    "b": 3,
-                    "options": {
-                        "precision": 2,
-                        "rounding": "half_up"
-                    }
-                })).unwrap(),
-            },
-        ],
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "operation": "add",
+                "a": 5,
+                "b": 3,
+                "options": {
+                    "precision": 2,
+                    "rounding": "half_up"
+                }
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -4170,25 +4076,24 @@ fn test_anthropic_tool_use_with_schema_validation_all_required_fields() {
 fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields_deep_nested() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "level1": {
-                        "level2": {
-                            "level3": {
-                                "operation": "add",
-                                "a": 5,
-                                "b": 3,
-                                "options": {
-                                    "precision": 2,
-                                    "rounding": "half_up"
-                                }
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "level1": {
+                    "level2": {
+                        "level3": {
+                            "operation": "add",
+                            "a": 5,
+                            "b": 3,
+                            "options": {
+                                "precision": 2,
+                                "rounding": "half_up"
                             }
                         }
                     }
-                })).unwrap(),
-            },
-        ],
+                }
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -4245,32 +4150,31 @@ fn test_anthropic_tool_definition_with_schema_validation_all_required_fields_dee
 fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields_complex() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "results": [
-                        {
-                            "operation": "add",
-                            "a": 5,
-                            "b": 3,
-                            "options": {
-                                "precision": 2,
-                                "rounding": "half_up"
-                            }
-                        },
-                        {
-                            "operation": "subtract",
-                            "a": 10,
-                            "b": 4,
-                            "options": {
-                                "precision": 4,
-                                "rounding": "down"
-                            }
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "results": [
+                    {
+                        "operation": "add",
+                        "a": 5,
+                        "b": 3,
+                        "options": {
+                            "precision": 2,
+                            "rounding": "half_up"
                         }
-                    ]
-                })).unwrap(),
-            },
-        ],
+                    },
+                    {
+                        "operation": "subtract",
+                        "a": 10,
+                        "b": 4,
+                        "options": {
+                            "precision": 4,
+                            "rounding": "down"
+                        }
+                    }
+                ]
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -4365,36 +4269,35 @@ fn test_anthropic_tool_definition_with_schema_validation_all_required_fields_com
 fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields_complex_nested() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "level1": {
-                        "level2": {
-                            "results": [
-                                {
-                                    "operation": "add",
-                                    "a": 5,
-                                    "b": 3,
-                                    "options": {
-                                        "precision": 2,
-                                        "rounding": "half_up"
-                                    }
-                                },
-                                {
-                                    "operation": "subtract",
-                                    "a": 10,
-                                    "b": 4,
-                                    "options": {
-                                        "precision": 4,
-                                        "rounding": "down"
-                                    }
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "level1": {
+                    "level2": {
+                        "results": [
+                            {
+                                "operation": "add",
+                                "a": 5,
+                                "b": 3,
+                                "options": {
+                                    "precision": 2,
+                                    "rounding": "half_up"
                                 }
-                            ]
-                        }
+                            },
+                            {
+                                "operation": "subtract",
+                                "a": 10,
+                                "b": 4,
+                                "options": {
+                                    "precision": 4,
+                                    "rounding": "down"
+                                }
+                            }
+                        ]
                     }
-                })).unwrap(),
-            },
-        ],
+                }
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -4496,38 +4399,37 @@ fn test_anthropic_tool_definition_with_schema_validation_all_required_fields_com
 fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields_very_complex() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "level1": {
-                        "level2": {
-                            "level3": {
-                                "results": [
-                                    {
-                                        "operation": "add",
-                                        "a": 5,
-                                        "b": 3,
-                                        "options": {
-                                            "precision": 2,
-                                            "rounding": "half_up"
-                                        }
-                                    },
-                                    {
-                                        "operation": "subtract",
-                                        "a": 10,
-                                        "b": 4,
-                                        "options": {
-                                            "precision": 4,
-                                            "rounding": "down"
-                                        }
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "level1": {
+                    "level2": {
+                        "level3": {
+                            "results": [
+                                {
+                                    "operation": "add",
+                                    "a": 5,
+                                    "b": 3,
+                                    "options": {
+                                        "precision": 2,
+                                        "rounding": "half_up"
                                     }
-                                ]
-                            }
+                                },
+                                {
+                                    "operation": "subtract",
+                                    "a": 10,
+                                    "b": 4,
+                                    "options": {
+                                        "precision": 4,
+                                        "rounding": "down"
+                                    }
+                                }
+                            ]
                         }
                     }
-                })).unwrap(),
-            },
-        ],
+                }
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -4631,43 +4533,43 @@ fn test_anthropic_tool_definition_with_schema_validation_all_required_fields_ver
 // ============================================================================
 
 #[test]
-fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields_extremely_complex() {
+fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields_extremely_complex()
+{
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "level1": {
-                        "level2": {
-                            "level3": {
-                                "level4": {
-                                    "results": [
-                                        {
-                                            "operation": "add",
-                                            "a": 5,
-                                            "b": 3,
-                                            "options": {
-                                                "precision": 2,
-                                                "rounding": "half_up"
-                                            }
-                                        },
-                                        {
-                                            "operation": "subtract",
-                                            "a": 10,
-                                            "b": 4,
-                                            "options": {
-                                                "precision": 4,
-                                                "rounding": "down"
-                                            }
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "level1": {
+                    "level2": {
+                        "level3": {
+                            "level4": {
+                                "results": [
+                                    {
+                                        "operation": "add",
+                                        "a": 5,
+                                        "b": 3,
+                                        "options": {
+                                            "precision": 2,
+                                            "rounding": "half_up"
                                         }
-                                    ]
-                                }
+                                    },
+                                    {
+                                        "operation": "subtract",
+                                        "a": 10,
+                                        "b": 4,
+                                        "options": {
+                                            "precision": 4,
+                                            "rounding": "down"
+                                        }
+                                    }
+                                ]
                             }
                         }
                     }
-                })).unwrap(),
-            },
-        ],
+                }
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -4774,45 +4676,45 @@ fn test_anthropic_tool_definition_with_schema_validation_all_required_fields_ext
 // ============================================================================
 
 #[test]
-fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields_insanely_complex() {
+fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields_insanely_complex()
+{
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "level1": {
-                        "level2": {
-                            "level3": {
-                                "level4": {
-                                    "level5": {
-                                        "results": [
-                                            {
-                                                "operation": "add",
-                                                "a": 5,
-                                                "b": 3,
-                                                "options": {
-                                                    "precision": 2,
-                                                    "rounding": "half_up"
-                                                }
-                                            },
-                                            {
-                                                "operation": "subtract",
-                                                "a": 10,
-                                                "b": 4,
-                                                "options": {
-                                                    "precision": 4,
-                                                    "rounding": "down"
-                                                }
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "level1": {
+                    "level2": {
+                        "level3": {
+                            "level4": {
+                                "level5": {
+                                    "results": [
+                                        {
+                                            "operation": "add",
+                                            "a": 5,
+                                            "b": 3,
+                                            "options": {
+                                                "precision": 2,
+                                                "rounding": "half_up"
                                             }
-                                        ]
-                                    }
+                                        },
+                                        {
+                                            "operation": "subtract",
+                                            "a": 10,
+                                            "b": 4,
+                                            "options": {
+                                                "precision": 4,
+                                                "rounding": "down"
+                                            }
+                                        }
+                                    ]
                                 }
                             }
                         }
                     }
-                })).unwrap(),
-            },
-        ],
+                }
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -4926,44 +4828,43 @@ fn test_anthropic_tool_definition_with_schema_validation_all_required_fields_ins
 fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields_max_complexity() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "level1": {
-                        "level2": {
-                            "level3": {
-                                "level4": {
-                                    "level5": {
-                                        "level6": {
-                                            "results": [
-                                                {
-                                                    "operation": "add",
-                                                    "a": 5,
-                                                    "b": 3,
-                                                    "options": {
-                                                        "precision": 2,
-                                                        "rounding": "half_up"
-                                                    }
-                                                },
-                                                {
-                                                    "operation": "subtract",
-                                                    "a": 10,
-                                                    "b": 4,
-                                                    "options": {
-                                                        "precision": 4,
-                                                        "rounding": "down"
-                                                    }
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "level1": {
+                    "level2": {
+                        "level3": {
+                            "level4": {
+                                "level5": {
+                                    "level6": {
+                                        "results": [
+                                            {
+                                                "operation": "add",
+                                                "a": 5,
+                                                "b": 3,
+                                                "options": {
+                                                    "precision": 2,
+                                                    "rounding": "half_up"
                                                 }
-                                            ]
-                                        }
+                                            },
+                                            {
+                                                "operation": "subtract",
+                                                "a": 10,
+                                                "b": 4,
+                                                "options": {
+                                                    "precision": 4,
+                                                    "rounding": "down"
+                                                }
+                                            }
+                                        ]
                                     }
                                 }
                             }
                         }
                     }
-                })).unwrap(),
-            },
-        ],
+                }
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 
@@ -5081,46 +4982,45 @@ fn test_anthropic_tool_definition_with_schema_validation_all_required_fields_max
 fn test_anthropic_tool_result_content_with_schema_validation_all_required_fields_ultimate() {
     let result = anthropic_api::AnthropicContentBlock::ToolResult {
         tool_use_id: "tool_123".to_string(),
-        content: vec![
-            anthropic_api::AnthropicContentBlock::Text {
-                text: serde_json::to_string(&json!({
-                    "level1": {
-                        "level2": {
-                            "level3": {
-                                "level4": {
-                                    "level5": {
-                                        "level6": {
-                                            "level7": {
-                                                "results": [
-                                                    {
-                                                        "operation": "add",
-                                                        "a": 5,
-                                                        "b": 3,
-                                                        "options": {
-                                                            "precision": 2,
-                                                            "rounding": "half_up"
-                                                        }
-                                                    },
-                                                    {
-                                                        "operation": "subtract",
-                                                        "a": 10,
-                                                        "b": 4,
-                                                        "options": {
-                                                            "precision": 4,
-                                                            "rounding": "down"
-                                                        }
+        content: vec![anthropic_api::AnthropicContentBlock::Text {
+            text: serde_json::to_string(&json!({
+                "level1": {
+                    "level2": {
+                        "level3": {
+                            "level4": {
+                                "level5": {
+                                    "level6": {
+                                        "level7": {
+                                            "results": [
+                                                {
+                                                    "operation": "add",
+                                                    "a": 5,
+                                                    "b": 3,
+                                                    "options": {
+                                                        "precision": 2,
+                                                        "rounding": "half_up"
                                                     }
-                                                ]
-                                            }
+                                                },
+                                                {
+                                                    "operation": "subtract",
+                                                    "a": 10,
+                                                    "b": 4,
+                                                    "options": {
+                                                        "precision": 4,
+                                                        "rounding": "down"
+                                                    }
+                                                }
+                                            ]
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                })).unwrap(),
-            },
-        ],
+                }
+            }))
+            .unwrap(),
+        }],
         is_error: Some(false),
     };
 

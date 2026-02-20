@@ -17,11 +17,15 @@ pub mod types;
 pub mod usage;
 
 // Re-export key types from crate root
-pub use abort::{AbortHandle, AbortRegistry, notify_abort};
+pub use abort::{notify_abort, AbortHandle, AbortRegistry};
 pub use binding::{AgentBinding, BindingMatch, PeerMatch};
-pub use compaction::{compact_messages, estimate_token_count, select_strategy, CompactionSeverity, CompactionStrategy};
+pub use compaction::{
+    compact_messages, estimate_token_count, select_strategy, CompactionSeverity, CompactionStrategy,
+};
 pub use context_guard::ContextWindowGuard;
-pub use failover::{classify_error, execute_with_failover, FailoverAction, FailoverState, ModelAttempt};
+pub use failover::{
+    classify_error, execute_with_failover, FailoverAction, FailoverState, ModelAttempt,
+};
 pub use pipeline::{AgentPipeline, AgentRunStream};
 pub use prompt::{PromptSection, SystemPromptBuilder};
 pub use resolution::{

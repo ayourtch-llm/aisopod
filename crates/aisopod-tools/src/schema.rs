@@ -264,7 +264,7 @@ mod tests {
     #[test]
     fn test_tool_definition_new() {
         let tool = ToolDefinition::new("test_tool", "A test tool", json!({"type": "object"}));
-        
+
         assert_eq!(tool.name, "test_tool");
         assert_eq!(tool.description, "A test tool");
         assert_eq!(tool.parameters, json!({"type": "object"}));
@@ -281,11 +281,11 @@ mod tests {
                     "operation": {"type": "string"},
                     "value": {"type": "number"}
                 }
-            })
+            }),
         );
-        
+
         let result = to_anthropic_format(&tool);
-        
+
         assert_eq!(result["name"], "calculator");
         assert_eq!(result["description"], "A simple calculator");
         assert_eq!(result["input_schema"]["type"], "object");
@@ -299,11 +299,11 @@ mod tests {
             json!({
                 "type": "object",
                 "properties": {}
-            })
+            }),
         );
-        
+
         let result = to_openai_format(&tool);
-        
+
         assert_eq!(result["type"], "function");
         assert_eq!(result["function"]["name"], "calculator");
         assert_eq!(result["function"]["description"], "A simple calculator");
@@ -318,11 +318,11 @@ mod tests {
             json!({
                 "type": "object",
                 "properties": {}
-            })
+            }),
         );
-        
+
         let result = to_gemini_format(&tool);
-        
+
         assert_eq!(result["name"], "calculator");
         assert_eq!(result["description"], "A simple calculator");
         assert_eq!(result["parameters"]["type"], "object");
@@ -334,9 +334,9 @@ mod tests {
             ToolDefinition::new("tool_a", "First tool", json!({})),
             ToolDefinition::new("tool_b", "Second tool", json!({})),
         ];
-        
+
         let result = to_anthropic_batch(&tools);
-        
+
         assert!(result.is_array());
         assert_eq!(result.as_array().unwrap().len(), 2);
         assert_eq!(result[0]["name"], "tool_a");
@@ -349,9 +349,9 @@ mod tests {
             ToolDefinition::new("tool_a", "First tool", json!({})),
             ToolDefinition::new("tool_b", "Second tool", json!({})),
         ];
-        
+
         let result = to_openai_batch(&tools);
-        
+
         assert!(result.is_array());
         assert_eq!(result.as_array().unwrap().len(), 2);
         assert_eq!(result[0]["type"], "function");
@@ -364,9 +364,9 @@ mod tests {
             ToolDefinition::new("tool_a", "First tool", json!({})),
             ToolDefinition::new("tool_b", "Second tool", json!({})),
         ];
-        
+
         let result = to_gemini_batch(&tools);
-        
+
         assert!(result.is_array());
         assert_eq!(result.as_array().unwrap().len(), 2);
         assert_eq!(result[0]["name"], "tool_a");
@@ -376,11 +376,11 @@ mod tests {
     #[test]
     fn test_empty_batch_conversion() {
         let tools: Vec<ToolDefinition> = vec![];
-        
+
         assert!(to_anthropic_batch(&tools).is_array());
         assert!(to_openai_batch(&tools).is_array());
         assert!(to_gemini_batch(&tools).is_array());
-        
+
         assert_eq!(to_anthropic_batch(&tools).as_array().unwrap().len(), 0);
         assert_eq!(to_openai_batch(&tools).as_array().unwrap().len(), 0);
         assert_eq!(to_gemini_batch(&tools).as_array().unwrap().len(), 0);

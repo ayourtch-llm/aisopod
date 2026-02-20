@@ -10,8 +10,8 @@ use anyhow::Result;
 use tokio::sync::broadcast;
 
 use crate::abort::{AbortHandle, AbortRegistry};
-use crate::types::{AgentEvent, AgentRunParams, AgentRunResult};
 use crate::resolution;
+use crate::types::{AgentEvent, AgentRunParams, AgentRunResult};
 
 /// Extension trait for AgentRunner to support subagent spawning.
 pub trait SubagentRunnerExt {
@@ -150,7 +150,11 @@ impl AgentRunner {
     ///
     /// * `session_key` - The session key to register.
     /// * `handle` - The abort handle for this session.
-    pub fn register_active_session(&self, session_key: &str, handle: AbortHandle) -> Option<AbortHandle> {
+    pub fn register_active_session(
+        &self,
+        session_key: &str,
+        handle: AbortHandle,
+    ) -> Option<AbortHandle> {
         self.abort_registry.insert(session_key, handle)
     }
 
@@ -253,9 +257,11 @@ impl AgentRunner {
         tokio::spawn(async move {
             let pipeline = crate::pipeline::AgentPipeline::new(config, providers, tools, sessions);
             if let Err(e) = pipeline.execute(&params, &event_tx).await {
-                let _ = event_tx.send(crate::types::AgentEvent::Error {
-                    message: e.to_string(),
-                }).await;
+                let _ = event_tx
+                    .send(crate::types::AgentEvent::Error {
+                        message: e.to_string(),
+                    })
+                    .await;
             }
         });
 

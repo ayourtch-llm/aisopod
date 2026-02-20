@@ -168,7 +168,7 @@ async fn test_message_tool_with_mock_sender() {
         .await;
 
     assert!(result.is_ok());
-    
+
     // Check the mock sender's messages directly
     let messages = mock_sender.get_messages();
     assert_eq!(messages.len(), 1);

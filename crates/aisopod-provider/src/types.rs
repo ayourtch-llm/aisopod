@@ -71,7 +71,11 @@ pub struct ToolDefinition {
 
 impl ToolDefinition {
     /// Creates a new ToolDefinition with the given name, description, and parameters.
-    pub fn new(name: impl Into<String>, description: impl Into<String>, parameters: serde_json::Value) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        description: impl Into<String>,
+        parameters: serde_json::Value,
+    ) -> Self {
         Self {
             name: name.into(),
             description: description.into(),

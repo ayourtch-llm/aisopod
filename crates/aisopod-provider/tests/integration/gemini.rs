@@ -55,7 +55,10 @@ async fn test_gemini_streaming_chat_completion() {
         }
     }
 
-    assert!(has_content, "Should receive content from streaming response");
+    assert!(
+        has_content,
+        "Should receive content from streaming response"
+    );
 }
 
 /// Test that list_models returns non-empty results
@@ -68,7 +71,10 @@ async fn test_gemini_list_models() {
 
     let models = provider.list_models().await.unwrap();
 
-    assert!(!models.is_empty(), "list_models should return non-empty results");
+    assert!(
+        !models.is_empty(),
+        "list_models should return non-empty results"
+    );
     assert!(models.iter().any(|m| m.id.contains("gemini")));
 }
 
@@ -82,7 +88,10 @@ async fn test_gemini_health_check() {
 
     let health = provider.health_check().await.unwrap();
 
-    assert!(health.available, "Health check should return available=true");
+    assert!(
+        health.available,
+        "Health check should return available=true"
+    );
 }
 
 /// Test with a short message

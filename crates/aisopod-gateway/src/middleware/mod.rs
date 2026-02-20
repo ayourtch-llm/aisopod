@@ -8,5 +8,5 @@ pub use auth::AuthConfigData;
 pub use auth::ExtractAuthInfo;
 pub use auth::AUTH_INFO_KEY;
 pub use rate_limit::rate_limit_middleware;
-pub use rate_limit::RateLimiter;
 pub use rate_limit::RateLimitConfig;
+pub use rate_limit::RateLimiter;

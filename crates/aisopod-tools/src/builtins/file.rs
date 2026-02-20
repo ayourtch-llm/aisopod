@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde_json::{json, Value};
 use tokio::fs;
-use tokio::fs::{create_dir_all, read_dir};
+use tokio::fs::create_dir_all;
 use walkdir::WalkDir;
 
 use crate::{Tool, ToolContext, ToolResult};
@@ -112,9 +112,13 @@ impl FileTool {
             });
 
         // Canonicalize the workspace path
-        let workspace_canonical = fs::canonicalize(workspace)
-            .await
-            .map_err(|e| anyhow!("Failed to canonicalize workspace '{}': {}", workspace.display(), e))?;
+        let workspace_canonical = fs::canonicalize(workspace).await.map_err(|e| {
+            anyhow!(
+                "Failed to canonicalize workspace '{}': {}",
+                workspace.display(),
+                e
+            )
+        })?;
 
         // Check if the normalized path starts with the workspace canonical path
         if !normalized.starts_with(&workspace_canonical) {
@@ -140,15 +144,24 @@ impl FileTool {
     }
 
     /// Writes content to a file, creating parent directories if needed.
-    async fn write_file(&self, path: &Path, content: &str, ctx: &ToolContext) -> Result<ToolResult> {
+    async fn write_file(
+        &self,
+        path: &Path,
+        content: &str,
+        ctx: &ToolContext,
+    ) -> Result<ToolResult> {
         let resolved_path = self.resolve_path(path, ctx).await?;
 
         // Create parent directories if they don't exist
         if let Some(parent) = resolved_path.parent() {
             if !parent.exists() {
-                create_dir_all(parent)
-                    .await
-                    .map_err(|e| anyhow!("Failed to create directories for '{}': {}", parent.display(), e))?;
+                create_dir_all(parent).await.map_err(|e| {
+                    anyhow!(
+                        "Failed to create directories for '{}': {}",
+                        parent.display(),
+                        e
+                    )
+                })?;
             }
         }
 
@@ -164,7 +177,12 @@ impl FileTool {
     }
 
     /// Searches for files matching a glob pattern.
-    async fn search_files(&self, path: &Path, pattern: &str, ctx: &ToolContext) -> Result<ToolResult> {
+    async fn search_files(
+        &self,
+        path: &Path,
+        pattern: &str,
+        ctx: &ToolContext,
+    ) -> Result<ToolResult> {
         let resolved_path = self.resolve_path(path, ctx).await?;
 
         // Build the glob pattern - if pattern contains no path separators, search recursively
@@ -174,7 +192,7 @@ impl FileTool {
             resolved_path.join("**").join(pattern)
         };
 
-        let glob_pattern = search_path.to_string_lossy();
+        let _glob_pattern = search_path.to_string_lossy();
 
         let mut results: Vec<String> = Vec::new();
 
@@ -187,14 +205,18 @@ impl FileTool {
 
             // Check if the path matches the glob pattern
             let entry_path_str = entry_path.to_string_lossy();
-            
+
             // Simple glob matching - check if the pattern matches
-            if let Some(relative_path) = entry_path_str.strip_prefix(&*resolved_path.to_string_lossy()) {
+            if let Some(relative_path) =
+                entry_path_str.strip_prefix(&*resolved_path.to_string_lossy())
+            {
                 // Remove leading separator
-                let relative_path = relative_path.trim_start_matches('/').trim_start_matches('\\');
-                
+                let relative_path = relative_path
+                    .trim_start_matches('/')
+                    .trim_start_matches('\\');
+
                 // Check if this relative path matches the pattern
-                if glob_match(&pattern, relative_path) {
+                if glob_match(pattern, relative_path) {
                     results.push(entry_path.display().to_string());
                 }
             }
@@ -218,12 +240,21 @@ impl FileTool {
     }
 
     /// Lists directory contents with details.
-    async fn list_directory(&self, path: &Path, glob_filter: Option<&str>, ctx: &ToolContext) -> Result<ToolResult> {
+    async fn list_directory(
+        &self,
+        path: &Path,
+        glob_filter: Option<&str>,
+        ctx: &ToolContext,
+    ) -> Result<ToolResult> {
         let resolved_path = self.resolve_path(path, ctx).await?;
 
-        let mut entries = fs::read_dir(&resolved_path)
-            .await
-            .map_err(|e| anyhow!("Failed to read directory '{}': {}", resolved_path.display(), e))?;
+        let mut entries = fs::read_dir(&resolved_path).await.map_err(|e| {
+            anyhow!(
+                "Failed to read directory '{}': {}",
+                resolved_path.display(),
+                e
+            )
+        })?;
 
         let mut results: Vec<Value> = Vec::new();
 
@@ -231,7 +262,7 @@ impl FileTool {
             match entries.next_entry().await {
                 Ok(Some(entry)) => {
                     let entry_path = entry.path();
-                    
+
                     // Get metadata - handle the case where the entry was deleted between read_dir and metadata
                     let metadata = match entry.metadata().await {
                         Ok(m) => m,
@@ -241,7 +272,10 @@ impl FileTool {
 
                     // Apply glob filter if specified
                     if let Some(filter) = glob_filter {
-                        let file_name = entry_path.file_name().map(|f| f.to_string_lossy()).unwrap_or_default();
+                        let file_name = entry_path
+                            .file_name()
+                            .map(|f| f.to_string_lossy())
+                            .unwrap_or_default();
                         if !glob_match(filter, &file_name) {
                             continue;
                         }
@@ -259,7 +293,7 @@ impl FileTool {
                             t.duration_since(std::time::UNIX_EPOCH).ok().map(|d| {
                                 let seconds = d.as_secs();
                                 let nanos = d.subsec_nanos();
-                                DateTime::<Utc>::from_timestamp(seconds as i64, nanos as u32)
+                                DateTime::<Utc>::from_timestamp(seconds as i64, nanos)
                                     .map(|dt| dt.to_rfc3339())
                                     .unwrap_or_default()
                             })
@@ -293,9 +327,13 @@ impl FileTool {
     async fn get_metadata(&self, path: &Path, ctx: &ToolContext) -> Result<ToolResult> {
         let resolved_path = self.resolve_path(path, ctx).await?;
 
-        let metadata = fs::metadata(&resolved_path)
-            .await
-            .map_err(|e| anyhow!("Failed to get metadata for '{}': {}", resolved_path.display(), e))?;
+        let metadata = fs::metadata(&resolved_path).await.map_err(|e| {
+            anyhow!(
+                "Failed to get metadata for '{}': {}",
+                resolved_path.display(),
+                e
+            )
+        })?;
 
         let file_type = metadata.file_type();
         let permissions = metadata.permissions();
@@ -307,7 +345,7 @@ impl FileTool {
                 t.duration_since(std::time::UNIX_EPOCH).ok().map(|d| {
                     let seconds = d.as_secs();
                     let nanos = d.subsec_nanos();
-                    DateTime::<Utc>::from_timestamp(seconds as i64, nanos as u32)
+                    DateTime::<Utc>::from_timestamp(seconds as i64, nanos)
                         .map(|dt| dt.to_rfc3339())
                         .unwrap_or_default()
                 })
@@ -349,7 +387,7 @@ impl FileTool {
 fn glob_match(pattern: &str, text: &str) -> bool {
     let pattern = pattern.to_string();
     let text = text.to_string();
-    
+
     // Handle ** for recursive matching
     if pattern == "**" {
         return true;
@@ -405,7 +443,8 @@ fn glob_to_regex(pattern: &str) -> String {
             c => {
                 // Escape regex special characters
                 match c {
-                    '.' | '\\' | '+' | '^' | '$' | '(' | ')' | '|' | '{' | '}' | '=' | '!' | '<' | '>' | ':' | '-' => {
+                    '.' | '\\' | '+' | '^' | '$' | '(' | ')' | '|' | '{' | '}' | '=' | '!'
+                    | '<' | '>' | ':' | '-' => {
                         regex.push('\\');
                     }
                     _ => {}
@@ -423,8 +462,8 @@ fn glob_to_regex(pattern: &str) -> String {
 fn glob_class_to_regex(class: &str) -> String {
     let inner: String = class[1..class.len() - 1].chars().collect();
     let mut result = String::from("[");
-    
-    let mut chars: Vec<char> = inner.chars().collect();
+
+    let chars: Vec<char> = inner.chars().collect();
     let mut i = 0;
 
     while i < chars.len() {
@@ -455,7 +494,7 @@ fn glob_class_to_regex(class: &str) -> String {
             }
         }
     }
-    
+
     result.push(']');
     result
 }
@@ -463,34 +502,46 @@ fn glob_class_to_regex(class: &str) -> String {
 /// Formats permissions in human-readable form (e.g., "rw-r--r--").
 fn format_permissions(mode: u32) -> String {
     let mut fmt = String::with_capacity(9);
-    
+
     // Owner permissions
     fmt.push(if mode & 0o400 > 0 { 'r' } else { '-' });
     fmt.push(if mode & 0o200 > 0 { 'w' } else { '-' });
     fmt.push(if mode & 0o100 > 0 {
-        if mode & 0o4000 > 0 { 's' } else { 'x' }
+        if mode & 0o4000 > 0 {
+            's'
+        } else {
+            'x'
+        }
     } else {
         '-'
     });
-    
+
     // Group permissions
     fmt.push(if mode & 0o040 > 0 { 'r' } else { '-' });
     fmt.push(if mode & 0o020 > 0 { 'w' } else { '-' });
     fmt.push(if mode & 0o010 > 0 {
-        if mode & 0o2000 > 0 { 's' } else { 'x' }
+        if mode & 0o2000 > 0 {
+            's'
+        } else {
+            'x'
+        }
     } else {
         '-'
     });
-    
+
     // Others permissions
     fmt.push(if mode & 0o004 > 0 { 'r' } else { '-' });
     fmt.push(if mode & 0o002 > 0 { 'w' } else { '-' });
     fmt.push(if mode & 0o001 > 0 {
-        if mode & 0o1000 > 0 { 't' } else { 'x' }
+        if mode & 0o1000 > 0 {
+            't'
+        } else {
+            'x'
+        }
     } else {
         '-'
     });
-    
+
     fmt
 }
 
@@ -586,9 +637,7 @@ impl Tool for FileTool {
                 self.search_files(path, pattern, ctx).await
             }
             "list" => {
-                let glob_filter = params
-                    .get("glob")
-                    .and_then(|v| v.as_str());
+                let glob_filter = params.get("glob").and_then(|v| v.as_str());
                 self.list_directory(path, glob_filter, ctx).await
             }
             "metadata" => self.get_metadata(path, ctx).await,
@@ -613,7 +662,10 @@ mod tests {
     #[tokio::test]
     async fn test_file_tool_description() {
         let tool = FileTool::new();
-        assert_eq!(tool.description(), "Read, write, search, list, and inspect files");
+        assert_eq!(
+            tool.description(),
+            "Read, write, search, list, and inspect files"
+        );
     }
 
     #[tokio::test]
@@ -623,22 +675,31 @@ mod tests {
 
         assert_eq!(schema["type"], "object");
         assert_eq!(schema["properties"]["operation"]["type"], "string");
-        assert_eq!(schema["properties"]["operation"]["enum"], json!(["read", "write", "search", "list", "metadata"]));
-        assert!(schema["required"].as_array().unwrap().contains(&json!("operation")));
-        assert!(schema["required"].as_array().unwrap().contains(&json!("path")));
+        assert_eq!(
+            schema["properties"]["operation"]["enum"],
+            json!(["read", "write", "search", "list", "metadata"])
+        );
+        assert!(schema["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("operation")));
+        assert!(schema["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("path")));
     }
 
     #[tokio::test]
     async fn test_file_tool_read() {
         let tool = FileTool::new();
-        
+
         // Create a temporary directory for testing
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.txt");
         fs::write(&test_file, "Hello, World!").unwrap();
 
-        let ctx = ToolContext::new("test_agent", "test_session")
-            .with_workspace_path(temp_dir.path());
+        let ctx =
+            ToolContext::new("test_agent", "test_session").with_workspace_path(temp_dir.path());
 
         let result = tool
             .execute(
@@ -659,10 +720,10 @@ mod tests {
     #[tokio::test]
     async fn test_file_tool_write() {
         let tool = FileTool::new();
-        
+
         let temp_dir = TempDir::new().unwrap();
-        let ctx = ToolContext::new("test_agent", "test_session")
-            .with_workspace_path(temp_dir.path());
+        let ctx =
+            ToolContext::new("test_agent", "test_session").with_workspace_path(temp_dir.path());
 
         let result = tool
             .execute(
@@ -689,10 +750,10 @@ mod tests {
     #[tokio::test]
     async fn test_file_tool_write_creates_parent_dirs() {
         let tool = FileTool::new();
-        
+
         let temp_dir = TempDir::new().unwrap();
-        let ctx = ToolContext::new("test_agent", "test_session")
-            .with_workspace_path(temp_dir.path());
+        let ctx =
+            ToolContext::new("test_agent", "test_session").with_workspace_path(temp_dir.path());
 
         let result = tool
             .execute(
@@ -717,13 +778,13 @@ mod tests {
     #[tokio::test]
     async fn test_file_tool_metadata() {
         let tool = FileTool::new();
-        
+
         let temp_dir = TempDir::new().unwrap();
         let test_file = temp_dir.path().join("test.txt");
         fs::write(&test_file, "test").unwrap();
 
-        let ctx = ToolContext::new("test_agent", "test_session")
-            .with_workspace_path(temp_dir.path());
+        let ctx =
+            ToolContext::new("test_agent", "test_session").with_workspace_path(temp_dir.path());
 
         let result = tool
             .execute(
@@ -745,14 +806,14 @@ mod tests {
     #[tokio::test]
     async fn test_file_tool_list() {
         let tool = FileTool::new();
-        
+
         let temp_dir = TempDir::new().unwrap();
         fs::write(temp_dir.path().join("file1.txt"), "content1").unwrap();
         fs::write(temp_dir.path().join("file2.txt"), "content2").unwrap();
         fs::create_dir(temp_dir.path().join("subdir")).unwrap();
 
-        let ctx = ToolContext::new("test_agent", "test_session")
-            .with_workspace_path(temp_dir.path());
+        let ctx =
+            ToolContext::new("test_agent", "test_session").with_workspace_path(temp_dir.path());
 
         let result = tool
             .execute(
@@ -775,14 +836,14 @@ mod tests {
     #[tokio::test]
     async fn test_file_tool_list_with_glob_filter() {
         let tool = FileTool::new();
-        
+
         let temp_dir = TempDir::new().unwrap();
         fs::write(temp_dir.path().join("file1.txt"), "content1").unwrap();
         fs::write(temp_dir.path().join("file2.rs"), "content2").unwrap();
         fs::write(temp_dir.path().join("file3.txt"), "content3").unwrap();
 
-        let ctx = ToolContext::new("test_agent", "test_session")
-            .with_workspace_path(temp_dir.path());
+        let ctx =
+            ToolContext::new("test_agent", "test_session").with_workspace_path(temp_dir.path());
 
         let result = tool
             .execute(
@@ -806,14 +867,14 @@ mod tests {
     #[tokio::test]
     async fn test_file_tool_search() {
         let tool = FileTool::new();
-        
+
         let temp_dir = TempDir::new().unwrap();
         fs::write(temp_dir.path().join("main.rs"), "fn main() {}").unwrap();
         fs::write(temp_dir.path().join("lib.rs"), "pub fn test() {}").unwrap();
         fs::write(temp_dir.path().join("readme.md"), "# Test").unwrap();
 
-        let ctx = ToolContext::new("test_agent", "test_session")
-            .with_workspace_path(temp_dir.path());
+        let ctx =
+            ToolContext::new("test_agent", "test_session").with_workspace_path(temp_dir.path());
 
         let result = tool
             .execute(
@@ -836,10 +897,10 @@ mod tests {
     #[tokio::test]
     async fn test_file_tool_escape_workspace() {
         let tool = FileTool::new();
-        
+
         let temp_dir = TempDir::new().unwrap();
-        let ctx = ToolContext::new("test_agent", "test_session")
-            .with_workspace_path(temp_dir.path());
+        let ctx =
+            ToolContext::new("test_agent", "test_session").with_workspace_path(temp_dir.path());
 
         // Try to access a file outside the workspace
         let result = tool
@@ -860,10 +921,10 @@ mod tests {
     #[tokio::test]
     async fn test_file_tool_missing_operation() {
         let tool = FileTool::new();
-        
+
         let temp_dir = TempDir::new().unwrap();
-        let ctx = ToolContext::new("test_agent", "test_session")
-            .with_workspace_path(temp_dir.path());
+        let ctx =
+            ToolContext::new("test_agent", "test_session").with_workspace_path(temp_dir.path());
 
         let result = tool
             .execute(
@@ -882,10 +943,10 @@ mod tests {
     #[tokio::test]
     async fn test_file_tool_invalid_operation() {
         let tool = FileTool::new();
-        
+
         let temp_dir = TempDir::new().unwrap();
-        let ctx = ToolContext::new("test_agent", "test_session")
-            .with_workspace_path(temp_dir.path());
+        let ctx =
+            ToolContext::new("test_agent", "test_session").with_workspace_path(temp_dir.path());
 
         let result = tool
             .execute(
@@ -905,7 +966,7 @@ mod tests {
     #[tokio::test]
     async fn test_file_tool_missing_path() {
         let tool = FileTool::new();
-        
+
         let ctx = ToolContext::new("test_agent", "test_session");
 
         let result = tool
@@ -925,10 +986,10 @@ mod tests {
     #[tokio::test]
     async fn test_file_tool_write_missing_content() {
         let tool = FileTool::new();
-        
+
         let temp_dir = TempDir::new().unwrap();
-        let ctx = ToolContext::new("test_agent", "test_session")
-            .with_workspace_path(temp_dir.path());
+        let ctx =
+            ToolContext::new("test_agent", "test_session").with_workspace_path(temp_dir.path());
 
         let result = tool
             .execute(
@@ -948,10 +1009,10 @@ mod tests {
     #[tokio::test]
     async fn test_file_tool_search_missing_pattern() {
         let tool = FileTool::new();
-        
+
         let temp_dir = TempDir::new().unwrap();
-        let ctx = ToolContext::new("test_agent", "test_session")
-            .with_workspace_path(temp_dir.path());
+        let ctx =
+            ToolContext::new("test_agent", "test_session").with_workspace_path(temp_dir.path());
 
         let result = tool
             .execute(

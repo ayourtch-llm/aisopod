@@ -22,9 +22,8 @@ fn test_system_prompt_builder_new() {
 
 #[test]
 fn test_system_prompt_builder_with_base_prompt() {
-    let builder = SystemPromptBuilder::new()
-        .with_base_prompt("You are a helpful assistant.");
-    
+    let builder = SystemPromptBuilder::new().with_base_prompt("You are a helpful assistant.");
+
     let prompt = builder.build();
     assert!(prompt.contains("## Base Prompt"));
     assert!(prompt.contains("You are a helpful assistant."));
@@ -32,9 +31,8 @@ fn test_system_prompt_builder_with_base_prompt() {
 
 #[test]
 fn test_system_prompt_builder_build() {
-    let builder = SystemPromptBuilder::new()
-        .with_base_prompt("Base content");
-    
+    let builder = SystemPromptBuilder::new().with_base_prompt("Base content");
+
     let prompt = builder.build();
     assert!(prompt.contains("## Base Prompt"));
     assert!(prompt.contains("Base content"));
@@ -47,7 +45,7 @@ fn test_system_prompt_builder_with_all_sections() {
         .with_dynamic_context();
 
     let prompt = builder.build();
-    
+
     assert!(prompt.contains("## Base Prompt"));
     assert!(prompt.contains("You are a helpful assistant."));
     assert!(prompt.contains("## Dynamic Context"));
@@ -58,38 +56,36 @@ fn test_system_prompt_builder_with_all_sections() {
 #[test]
 fn test_system_prompt_builder_empty_tool_descriptions() {
     let tools: Vec<ToolSchema> = vec![];
-    
+
     let builder = SystemPromptBuilder::new()
         .with_base_prompt("Base")
         .with_tool_descriptions(&tools);
-    
+
     let prompt = builder.build();
-    
+
     assert!(prompt.contains("## Tools"));
     assert!(prompt.contains("No tools available."));
 }
 
 #[test]
 fn test_system_prompt_builder_with_tool_descriptions() {
-    let tools = vec![
-        ToolSchema::new(
-            "calculator",
-            "A calculator tool",
-            serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "operation": {"type": "string"}
-                }
-            })
-        ),
-    ];
-    
+    let tools = vec![ToolSchema::new(
+        "calculator",
+        "A calculator tool",
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "operation": {"type": "string"}
+            }
+        }),
+    )];
+
     let builder = SystemPromptBuilder::new()
         .with_base_prompt("Base")
         .with_tool_descriptions(&tools);
-    
+
     let prompt = builder.build();
-    
+
     assert!(prompt.contains("## Tools"));
     assert!(prompt.contains("## calculator"));
     assert!(prompt.contains("A calculator tool"));
@@ -98,17 +94,14 @@ fn test_system_prompt_builder_with_tool_descriptions() {
 
 #[test]
 fn test_system_prompt_builder_with_skill_instructions() {
-    let skills = vec![
-        "coding".to_string(),
-        "analysis".to_string(),
-    ];
-    
+    let skills = vec!["coding".to_string(), "analysis".to_string()];
+
     let builder = SystemPromptBuilder::new()
         .with_base_prompt("Base")
         .with_skill_instructions(&skills);
-    
+
     let prompt = builder.build();
-    
+
     assert!(prompt.contains("## Skills"));
     assert!(prompt.contains("## coding"));
     assert!(prompt.contains("## analysis"));
@@ -117,13 +110,13 @@ fn test_system_prompt_builder_with_skill_instructions() {
 #[test]
 fn test_system_prompt_builder_with_memory_context() {
     let memory = "User prefers Python";
-    
+
     let builder = SystemPromptBuilder::new()
         .with_base_prompt("Base")
         .with_memory_context(memory);
-    
+
     let prompt = builder.build();
-    
+
     assert!(prompt.contains("## Memory Context"));
     assert!(prompt.contains("User prefers Python"));
 }
@@ -131,13 +124,13 @@ fn test_system_prompt_builder_with_memory_context() {
 #[test]
 fn test_system_prompt_builder_empty_memory_context() {
     let memory = "";
-    
+
     let builder = SystemPromptBuilder::new()
         .with_base_prompt("Base")
         .with_memory_context(memory);
-    
+
     let prompt = builder.build();
-    
+
     // Memory section should not be added if empty
     assert!(!prompt.contains("## Memory Context"));
 }
@@ -150,16 +143,16 @@ fn test_system_prompt_builder_section_order() {
         .with_tool_descriptions(&[])
         .with_skill_instructions(&[])
         .with_memory_context("Memory");
-    
+
     let prompt = builder.build();
-    
+
     // Check order
     let base_pos = prompt.find("## Base Prompt").unwrap();
     let dynamic_pos = prompt.find("## Dynamic Context").unwrap();
     let tools_pos = prompt.find("## Tools").unwrap();
     let skills_pos = prompt.find("## Skills").unwrap();
     let memory_pos = prompt.find("## Memory Context").unwrap();
-    
+
     assert!(base_pos < dynamic_pos);
     assert!(dynamic_pos < tools_pos);
     assert!(tools_pos < skills_pos);
@@ -171,9 +164,9 @@ fn test_system_prompt_builder_multiple_sections_concatenated() {
     let builder = SystemPromptBuilder::new()
         .with_base_prompt("First")
         .with_base_prompt("Second");
-    
+
     let prompt = builder.build();
-    
+
     // Both sections should be present
     assert!(prompt.contains("First"));
     assert!(prompt.contains("Second"));

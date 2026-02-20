@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use aisopod_tools::{NoOpAgentSpawner, SubagentTool, Tool, ToolContext, ToolResult};
 use aisopod_tools::builtins::AgentSpawner;
+use aisopod_tools::{NoOpAgentSpawner, SubagentTool, Tool, ToolContext, ToolResult};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::json;
@@ -28,12 +28,7 @@ impl MockSpawner {
 
 #[async_trait]
 impl AgentSpawner for MockSpawner {
-    async fn spawn(
-        &self,
-        _agent_name: &str,
-        _prompt: &str,
-        _model: &str,
-    ) -> Result<String> {
+    async fn spawn(&self, _agent_name: &str, _prompt: &str, _model: &str) -> Result<String> {
         *self.spawn_count.lock().unwrap() += 1;
         Ok("Task completed successfully".to_string())
     }
@@ -48,7 +43,10 @@ async fn test_subagent_tool_name() {
 #[tokio::test]
 async fn test_subagent_tool_description() {
     let tool = SubagentTool::new(Arc::new(NoOpAgentSpawner::default()), 3, None);
-    assert_eq!(tool.description(), "Spawn a child agent to handle a subtask");
+    assert_eq!(
+        tool.description(),
+        "Spawn a child agent to handle a subtask"
+    );
 }
 
 #[tokio::test]
@@ -173,7 +171,7 @@ async fn test_subagent_tool_with_mock_spawner() {
 #[tokio::test]
 async fn test_subagent_tool_depth_limit_enforcement() {
     let tool = SubagentTool::new(Arc::new(NoOpAgentSpawner::default()), 2, None);
-    
+
     // Create context with spawn depth metadata set to 2
     let mut ctx = ToolContext::new("test_agent", "test_session");
     let metadata = json!({
@@ -202,7 +200,7 @@ async fn test_subagent_tool_depth_limit_enforcement() {
 #[tokio::test]
 async fn test_subagent_tool_depth_limit_not_exceeded() {
     let tool = SubagentTool::new(Arc::new(NoOpAgentSpawner::default()), 5, None);
-    
+
     // Create context with spawn depth metadata set to 2 (below limit)
     let mut ctx = ToolContext::new("test_agent", "test_session");
     let metadata = json!({
@@ -277,10 +275,7 @@ async fn test_subagent_tool_model_allowlist_rejection() {
     let tool = SubagentTool::new(
         Arc::new(NoOpAgentSpawner::default()),
         3,
-        Some(vec![
-            "gpt-4".to_string(),
-            "claude-3-opus".to_string(),
-        ]),
+        Some(vec!["gpt-4".to_string(), "claude-3-opus".to_string()]),
     );
     let ctx = ToolContext::new("test_agent", "test_session");
 
@@ -338,11 +333,7 @@ async fn test_subagent_tool_model_allowlist_multiple_rejected() {
 #[tokio::test]
 async fn test_subagent_tool_with_empty_model_allowlist() {
     // Empty allowlist means no models are allowed
-    let tool = SubagentTool::new(
-        Arc::new(NoOpAgentSpawner::default()),
-        3,
-        Some(vec![]),
-    );
+    let tool = SubagentTool::new(Arc::new(NoOpAgentSpawner::default()), 3, Some(vec![]));
     let ctx = ToolContext::new("test_agent", "test_session");
 
     let result = tool
@@ -387,8 +378,8 @@ async fn test_subagent_tool_no_allowlist_allows_all() {
 #[tokio::test]
 async fn test_subagent_tool_with_workspace() {
     let tool = SubagentTool::new(Arc::new(NoOpAgentSpawner::default()), 3, None);
-    let ctx = ToolContext::new("test_agent", "test_session")
-        .with_workspace_path("/tmp/test_workspace");
+    let ctx =
+        ToolContext::new("test_agent", "test_session").with_workspace_path("/tmp/test_workspace");
 
     let result = tool
         .execute(

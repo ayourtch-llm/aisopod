@@ -1,5 +1,6 @@
+#![allow(clippy::all)]
 use axum::{
-    extract::{MatchedPath, ConnectInfo, WebSocketUpgrade},
+    extract::{ConnectInfo, MatchedPath, WebSocketUpgrade},
     http::Method,
     response::IntoResponse,
     routing::get,
@@ -19,16 +20,22 @@ pub async fn not_implemented(
         client_ip = %client_ip,
         "Request to unimplemented endpoint"
     );
-    
-    (axum::http::StatusCode::NOT_IMPLEMENTED, Json(json!({"error": "not implemented"})))
+
+    (
+        axum::http::StatusCode::NOT_IMPLEMENTED,
+        Json(json!({"error": "not implemented"})),
+    )
 }
 
 /// Build the API router with all REST endpoint stubs
 pub fn api_routes() -> Router {
     use axum::routing::{get, post};
-    
+
     Router::new()
-        .route("/v1/chat/completions", get(not_implemented).post(not_implemented))
+        .route(
+            "/v1/chat/completions",
+            get(not_implemented).post(not_implemented),
+        )
         .route("/v1/responses", get(not_implemented).post(not_implemented))
         .route("/hooks", get(not_implemented).post(not_implemented))
         .route("/tools/invoke", get(not_implemented).post(not_implemented))
@@ -37,8 +44,12 @@ pub fn api_routes() -> Router {
 
 /// Build WebSocket routes
 pub fn ws_routes(handshake_timeout: Option<u64>) -> Router {
-    Router::new()
-        .route("/ws", get(move |ws: WebSocketUpgrade, request: axum::extract::Request| {
-            crate::ws::ws_handler(ws, request, handshake_timeout)
-        }))
+    Router::new().route(
+        "/ws",
+        get(
+            move |ws: WebSocketUpgrade, request: axum::extract::Request| {
+                crate::ws::ws_handler(ws, request, handshake_timeout)
+            },
+        ),
+    )
 }

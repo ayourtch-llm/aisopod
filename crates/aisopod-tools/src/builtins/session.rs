@@ -185,9 +185,12 @@ impl Tool for SessionTool {
 
         match operation {
             "list" => {
-                let limit = params.get("limit").and_then(|v| v.as_u64()).map(|v| v as usize);
+                let limit = params
+                    .get("limit")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as usize);
                 let sessions = self.manager.list_sessions(limit).await?;
-                
+
                 let result = json!({
                     "sessions": sessions.iter().map(|s| {
                         json!({
@@ -198,7 +201,7 @@ impl Tool for SessionTool {
                         })
                     }).collect::<Vec<_>>()
                 });
-                
+
                 Ok(ToolResult::success(result.to_string()))
             }
 
@@ -206,12 +209,18 @@ impl Tool for SessionTool {
                 let session_id = params
                     .get("session_id")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("Missing required parameter 'session_id' for send operation"))?;
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Missing required parameter 'session_id' for send operation"
+                        )
+                    })?;
 
                 let message = params
                     .get("message")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("Missing required parameter 'message' for send operation"))?;
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Missing required parameter 'message' for send operation")
+                    })?;
 
                 self.manager.send_to_session(session_id, message).await?;
 
@@ -225,11 +234,17 @@ impl Tool for SessionTool {
                 let session_id = params
                     .get("session_id")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("Missing required parameter 'session_id' for patch operation"))?;
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Missing required parameter 'session_id' for patch operation"
+                        )
+                    })?;
 
                 let metadata = params
                     .get("metadata")
-                    .ok_or_else(|| anyhow::anyhow!("Missing required parameter 'metadata' for patch operation"))?
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Missing required parameter 'metadata' for patch operation")
+                    })?
                     .clone();
 
                 self.manager.patch_metadata(session_id, metadata).await?;
@@ -244,9 +259,16 @@ impl Tool for SessionTool {
                 let session_id = params
                     .get("session_id")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("Missing required parameter 'session_id' for history operation"))?;
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Missing required parameter 'session_id' for history operation"
+                        )
+                    })?;
 
-                let limit = params.get("limit").and_then(|v| v.as_u64()).map(|v| v as usize);
+                let limit = params
+                    .get("limit")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as usize);
                 let history = self.manager.get_history(session_id, limit).await?;
 
                 let result = json!({
@@ -256,12 +278,10 @@ impl Tool for SessionTool {
                 Ok(ToolResult::success(result.to_string()))
             }
 
-            _ => {
-                Err(anyhow::anyhow!(
-                    "Invalid operation '{}'. Must be one of: list, send, patch, history",
-                    operation
-                ))
-            }
+            _ => Err(anyhow::anyhow!(
+                "Invalid operation '{}'. Must be one of: list, send, patch, history",
+                operation
+            )),
         }
     }
 }
@@ -321,7 +341,10 @@ mod tests {
     #[test]
     fn test_session_tool_description() {
         let tool = SessionTool::new(Arc::new(NoOpSessionManager));
-        assert_eq!(tool.description(), "Manage and interact with agent sessions");
+        assert_eq!(
+            tool.description(),
+            "Manage and interact with agent sessions"
+        );
     }
 
     #[test]

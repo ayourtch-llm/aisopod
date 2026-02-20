@@ -25,7 +25,10 @@ async fn test_bash_tool_schema() {
     assert_eq!(schema["type"], "object");
     assert!(schema["properties"]["command"].is_object());
     assert_eq!(schema["properties"]["command"]["type"], "string");
-    assert!(schema["required"].as_array().unwrap().contains(&json!("command")));
+    assert!(schema["required"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("command")));
 }
 
 #[tokio::test]
@@ -243,8 +246,7 @@ async fn test_bash_tool_auto_approved_commands() {
 #[tokio::test]
 async fn test_bash_tool_with_workspace() {
     let tool = BashTool::default();
-    let ctx = ToolContext::new("test_agent", "test_session")
-        .with_workspace_path("/tmp");
+    let ctx = ToolContext::new("test_agent", "test_session").with_workspace_path("/tmp");
 
     let result = tool
         .execute(

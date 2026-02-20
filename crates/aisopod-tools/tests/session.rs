@@ -2,8 +2,10 @@
 
 use std::sync::Arc;
 
-use aisopod_tools::{NoOpSessionManager, SessionManager, SessionTool, Tool, ToolContext, ToolResult};
 use aisopod_tools::builtins::session::SessionInfo;
+use aisopod_tools::{
+    NoOpSessionManager, SessionManager, SessionTool, Tool, ToolContext, ToolResult,
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -72,12 +74,11 @@ impl SessionManager for MockSessionManager {
         let mut sessions = self.sessions.lock().unwrap();
         if let Some(session) = sessions.get_mut(session_id) {
             let mut current_metadata = session.metadata.clone().unwrap_or(json!({}));
-            
+
             // Merge metadata
-            if let (Some(current_obj), Some(new_obj)) = (
-                current_metadata.as_object_mut(),
-                metadata.as_object(),
-            ) {
+            if let (Some(current_obj), Some(new_obj)) =
+                (current_metadata.as_object_mut(), metadata.as_object())
+            {
                 for (k, v) in new_obj {
                     let k: String = k.clone();
                     let v: Value = v.clone();
@@ -109,7 +110,10 @@ async fn test_session_tool_name() {
 #[tokio::test]
 async fn test_session_tool_description() {
     let tool = SessionTool::new(Arc::new(NoOpSessionManager::default()));
-    assert_eq!(tool.description(), "Manage and interact with agent sessions");
+    assert_eq!(
+        tool.description(),
+        "Manage and interact with agent sessions"
+    );
 }
 
 #[tokio::test]
@@ -175,7 +179,7 @@ async fn test_session_tool_execute_list_with_mock() {
     let manager = MockSessionManager::new();
     manager.add_session("session-1", "agent-1");
     manager.add_session("session-2", "agent-2");
-    
+
     let tool = SessionTool::new(Arc::new(manager));
     let ctx = ToolContext::new("test_agent", "test_session");
 
@@ -235,7 +239,7 @@ async fn test_session_tool_execute_send_with_mock() {
         .await;
 
     assert!(result.is_ok());
-    
+
     let messages = manager.get_messages();
     assert_eq!(messages.len(), 1);
     assert!(messages[0].contains("session-456"));
@@ -284,12 +288,12 @@ async fn test_session_tool_execute_patch_with_mock() {
         .await;
 
     assert!(result.is_ok());
-    
+
     // Verify metadata was merged
     let sessions = manager.sessions.lock().unwrap();
     let session = sessions.get("session-789").unwrap();
     let metadata = session.metadata.as_ref().unwrap();
-    
+
     assert_eq!(metadata["new_key"], "new_value");
     assert_eq!(metadata["updated"], true);
     assert_eq!(metadata["type"], "test"); // Original metadata preserved
@@ -535,7 +539,7 @@ async fn test_session_tool_list_with_limit() {
     manager.add_session("session-1", "agent-1");
     manager.add_session("session-2", "agent-2");
     manager.add_session("session-3", "agent-3");
-    
+
     let tool = SessionTool::new(Arc::new(manager));
     let ctx = ToolContext::new("test_agent", "test_session");
 

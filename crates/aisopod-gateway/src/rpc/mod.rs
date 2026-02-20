@@ -3,5 +3,5 @@
 pub mod handler;
 pub mod types;
 
-pub use handler::{default_router, MethodRouter, PlaceholderHandler, RpcMethod, RequestContext};
-pub use types::{parse, error_codes, RpcError, RpcRequest, RpcResponse};
+pub use handler::{default_router, MethodRouter, PlaceholderHandler, RequestContext, RpcMethod};
+pub use types::{error_codes, parse, RpcError, RpcRequest, RpcResponse};

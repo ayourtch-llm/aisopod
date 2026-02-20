@@ -51,14 +51,19 @@ pub fn expand_env_vars(value: &mut Value) -> Result<()> {
         }
         Value::Array(arr) => {
             for (i, item) in arr.iter_mut().enumerate() {
-                expand_env_vars(item)
-                    .with_context(|| format!("Failed to expand env vars in array item at index {}", i))?;
+                expand_env_vars(item).with_context(|| {
+                    format!("Failed to expand env vars in array item at index {}", i)
+                })?;
             }
         }
         Value::Object(map) => {
             for (key, val) in map.iter_mut() {
-                expand_env_vars(val)
-                    .with_context(|| format!("Failed to expand env vars in object value for key '{}'", key))?;
+                expand_env_vars(val).with_context(|| {
+                    format!(
+                        "Failed to expand env vars in object value for key '{}'",
+                        key
+                    )
+                })?;
             }
         }
         _ => {} // numbers, bools, null — no substitution needed
@@ -79,7 +84,7 @@ fn expand_string(input: &str) -> Result<String> {
     // Iterate over all matches
     for cap in re.captures_iter(input) {
         let full_match = &cap[0]; // e.g., "${VAR:-default}"
-        let inner = &cap[1];      // e.g., "VAR:-default"
+        let inner = &cap[1]; // e.g., "VAR:-default"
 
         let (var_name, default_val) = if let Some(idx) = inner.find(":-") {
             (&inner[..idx], Some(&inner[idx + 2..]))
@@ -131,17 +136,20 @@ mod tests {
     fn test_error_on_unset_required() {
         // Clean environment first
         env::remove_var("REQUIRED_VAR");
-        
+
         let mut val = json!({"key": "${REQUIRED_VAR}"});
         let result = expand_env_vars(&mut val);
-        
+
         // Check that we got an error
-        assert!(result.is_err(), "Expected error for unset required variable");
-        
+        assert!(
+            result.is_err(),
+            "Expected error for unset required variable"
+        );
+
         // Traverse error chain to find the root cause
         let mut err = result.unwrap_err();
         let mut err_str = err.to_string();
-        
+
         // Check the current error
         if !err_str.contains("REQUIRED_VAR") {
             // Check error source if available
@@ -155,17 +163,20 @@ mod tests {
                 }
                 current = e.source();
             }
-            
+
             // If still not found, the error must be in the wrapping context
             if !found {
                 // The error must contain the original message somewhere in the chain
                 panic!("Error message '{}' does not contain 'REQUIRED_VAR'. Root cause should be from expand_string", err_str);
             }
         }
-        
+
         // Verify the error is about an unset variable
-        assert!(err_str.contains("REQUIRED_VAR"), 
-            "Error message '{}' should contain 'REQUIRED_VAR'", err_str);
+        assert!(
+            err_str.contains("REQUIRED_VAR"),
+            "Error message '{}' should contain 'REQUIRED_VAR'",
+            err_str
+        );
     }
 
     #[test]
@@ -216,7 +227,7 @@ mod tests {
         // Clean environment first to avoid test interference
         env::remove_var("MODE");
         env::remove_var("TEST_PORT_VAR");
-        
+
         // Set MODE but not TEST_PORT_VAR to test the default
         env::set_var("MODE", "production");
         let mut val = json!({

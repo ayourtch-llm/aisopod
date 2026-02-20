@@ -70,23 +70,25 @@ pub fn process_includes(
             for include_path_str in paths {
                 // Resolve path relative to base_path (directory of file containing @include)
                 let include_path = base_path.join(&include_path_str);
-                let canonical = include_path
-                    .canonicalize()
-                    .with_context(|| format!("Failed to resolve @include path: {}", include_path.display()))?;
+                let canonical = include_path.canonicalize().with_context(|| {
+                    format!(
+                        "Failed to resolve @include path: {}",
+                        include_path.display()
+                    )
+                })?;
 
                 // Check for circular includes
                 if !seen.insert(canonical.clone()) {
-                    bail!(
-                        "Circular @include detected: {}",
-                        canonical.display()
-                    );
+                    bail!("Circular @include detected: {}", canonical.display());
                 }
 
                 // Load and parse the included file
-                let contents = std::fs::read_to_string(&canonical)
-                    .with_context(|| format!("Failed to read included file: {}", canonical.display()))?;
-                let mut fragment: Value = json5::from_str(&contents)
-                    .with_context(|| format!("Failed to parse included file: {}", canonical.display()))?;
+                let contents = std::fs::read_to_string(&canonical).with_context(|| {
+                    format!("Failed to read included file: {}", canonical.display())
+                })?;
+                let mut fragment: Value = json5::from_str(&contents).with_context(|| {
+                    format!("Failed to parse included file: {}", canonical.display())
+                })?;
 
                 // Expand env vars in the fragment
                 crate::env::expand_env_vars(&mut fragment)?;
@@ -130,7 +132,7 @@ mod tests {
 
         // This should succeed with the fragment file present
         let result = process_includes(&mut config, &base_path, &mut seen);
-        
+
         // Check that @include was removed and fragment was merged
         assert!(result.is_ok(), "process_includes should succeed");
         assert!(!config.as_object().unwrap().contains_key("@include"));

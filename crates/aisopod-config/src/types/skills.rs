@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Skills configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SkillsConfig {
     /// Skill modules
     #[serde(default)]
@@ -12,7 +12,7 @@ pub struct SkillsConfig {
 }
 
 /// Skill module definition
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SkillModule {
     /// Module ID
     pub id: String,
@@ -28,7 +28,7 @@ pub struct SkillModule {
 }
 
 /// Skill settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SkillSettings {
     /// Default timeout in seconds
     #[serde(default = "default_timeout")]
@@ -40,33 +40,4 @@ pub struct SkillSettings {
 
 fn default_timeout() -> u64 {
     60
-}
-
-impl Default for SkillsConfig {
-    fn default() -> Self {
-        Self {
-            modules: Vec::new(),
-            settings: SkillSettings::default(),
-        }
-    }
-}
-
-impl Default for SkillModule {
-    fn default() -> Self {
-        Self {
-            id: String::new(),
-            name: String::new(),
-            path: String::new(),
-            enabled: true,
-        }
-    }
-}
-
-impl Default for SkillSettings {
-    fn default() -> Self {
-        Self {
-            timeout: default_timeout(),
-            max_executions: 100,
-        }
-    }
 }

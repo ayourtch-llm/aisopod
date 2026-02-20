@@ -3,8 +3,8 @@
 //! These tests verify that environment variables in configuration
 //! are properly expanded with various patterns and edge cases.
 
-use serde_json::json;
 use aisopod_config::env::expand_env_vars;
+use serde_json::json;
 use std::env;
 
 #[test]
@@ -28,16 +28,22 @@ fn test_expand_with_default() {
 fn test_error_on_unset_required() {
     // Clean environment first
     env::remove_var("REQUIRED_VAR");
-    
+
     let mut val = json!({"key": "${REQUIRED_VAR}"});
     let result = expand_env_vars(&mut val);
-    
-    assert!(result.is_err(), "Expected error for unset required variable");
+
+    assert!(
+        result.is_err(),
+        "Expected error for unset required variable"
+    );
     let err = result.unwrap_err();
     // Check that the error or its source mentions the variable
     let err_str = err.to_string();
-    let has_variable_name = err_str.contains("REQUIRED_VAR") || 
-        err.source().map(|e| e.to_string().contains("REQUIRED_VAR")).unwrap_or(false);
+    let has_variable_name = err_str.contains("REQUIRED_VAR")
+        || err
+            .source()
+            .map(|e| e.to_string().contains("REQUIRED_VAR"))
+            .unwrap_or(false);
     assert!(
         has_variable_name,
         "Error should mention the unset variable, got: {}",
@@ -144,7 +150,10 @@ fn test_deeply_nested_expansion() {
         }
     });
     expand_env_vars(&mut val).unwrap();
-    assert_eq!(val["level1"]["level2"]["level3"]["level4"]["value"], "found");
+    assert_eq!(
+        val["level1"]["level2"]["level3"]["level4"]["value"],
+        "found"
+    );
     env::remove_var("DEEP_VALUE");
 }
 

@@ -3,7 +3,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use aisopod_tools::{CanvasRenderer, InMemoryCanvasRenderer, CanvasTool, Tool, ToolContext, ToolResult};
+use aisopod_tools::{
+    CanvasRenderer, CanvasTool, InMemoryCanvasRenderer, Tool, ToolContext, ToolResult,
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::json;
@@ -48,10 +50,7 @@ impl CanvasRenderer for MockCanvasRenderer {
 
     async fn update(&self, canvas_id: &str, content: &str) -> Result<()> {
         if !self.canvases.lock().unwrap().contains_key(canvas_id) {
-            return Err(anyhow::anyhow!(
-                "Canvas with ID '{}' not found",
-                canvas_id
-            ));
+            return Err(anyhow::anyhow!("Canvas with ID '{}' not found", canvas_id));
         }
         self.canvases
             .lock()
@@ -79,7 +78,10 @@ async fn test_canvas_tool_name() {
 #[tokio::test]
 async fn test_canvas_tool_description() {
     let tool = CanvasTool::with_in_memory();
-    assert_eq!(tool.description(), "Generate and manage visual HTML/CSS/JS output");
+    assert_eq!(
+        tool.description(),
+        "Generate and manage visual HTML/CSS/JS output"
+    );
 }
 
 #[tokio::test]
@@ -270,7 +272,7 @@ async fn test_update_canvas() {
     let output = result.unwrap();
     assert!(!output.is_error);
     assert!(output.content.contains("updated successfully"));
-    
+
     // Verify the update by getting the canvas
     let get_result = tool
         .execute(
@@ -499,7 +501,7 @@ async fn test_mock_renderer_update() {
         .await;
 
     assert!(result.is_ok());
-    
+
     // Verify content was updated
     let content = renderer.get_canvas_content("update-mock");
     assert!(content.is_some());
@@ -512,8 +514,12 @@ async fn test_multiple_canvases() {
     let ctx = ToolContext::new("test_agent", "test_session");
 
     // Create multiple canvases
-    let canvas_ids = [concat!("canvas-", "1"), concat!("canvas-", "2"), concat!("canvas-", "3")];
-    
+    let canvas_ids = [
+        concat!("canvas-", "1"),
+        concat!("canvas-", "2"),
+        concat!("canvas-", "3"),
+    ];
+
     for canvas_id in canvas_ids.iter() {
         let result = tool
             .execute(
@@ -551,9 +557,7 @@ async fn test_in_memory_renderer_create() {
     let renderer = InMemoryCanvasRenderer::new();
 
     let canvas_id = String::from("test") + "-" + "canvas";
-    let result = renderer
-        .create(&canvas_id, "<html>Test</html>")
-        .await;
+    let result = renderer.create(&canvas_id, "<html>Test</html>").await;
 
     assert!(result.is_ok());
 }
@@ -564,12 +568,13 @@ async fn test_in_memory_renderer_create_duplicate() {
 
     // First create
     let canvas_id = concat!("unique-", "canvas");
-    renderer.create(canvas_id, "<html>Test</html>").await.unwrap();
+    renderer
+        .create(canvas_id, "<html>Test</html>")
+        .await
+        .unwrap();
 
     // Second create with same ID should fail
-    let result = renderer
-        .create(canvas_id, "<html>Test2</html>")
-        .await;
+    let result = renderer.create(canvas_id, "<html>Test2</html>").await;
 
     assert!(result.is_err());
 }
@@ -580,12 +585,13 @@ async fn test_in_memory_renderer_update() {
 
     // First create
     let canvas_id = concat!("update-", "canvas");
-    renderer.create(canvas_id, "<html>Original</html>").await.unwrap();
+    renderer
+        .create(canvas_id, "<html>Original</html>")
+        .await
+        .unwrap();
 
     // Then update
-    let result = renderer
-        .update(canvas_id, "<html>Updated</html>")
-        .await;
+    let result = renderer.update(canvas_id, "<html>Updated</html>").await;
 
     assert!(result.is_ok());
 }
@@ -594,9 +600,7 @@ async fn test_in_memory_renderer_update() {
 async fn test_in_memory_renderer_update_nonexistent() {
     let renderer = InMemoryCanvasRenderer::new();
 
-    let result = renderer
-        .update("nonexistent", "<html>Content</html>")
-        .await;
+    let result = renderer.update("nonexistent", "<html>Content</html>").await;
 
     assert!(result.is_err());
 }
@@ -639,7 +643,7 @@ async fn test_canvas_tool_with_special_characters() {
     // Store content in a variable - using JSON-compatible content
     // Avoid single quote which causes parsing issues
     let content = "<html><body>Special: !@#$%^&*()_+-=[]{}|;</body></html>";
-    
+
     let result = tool
         .execute(
             json!({
@@ -662,7 +666,7 @@ async fn test_canvas_tool_multiline_content() {
     // Build content using format! with newline character
     let content = format!("<!DOCTYPE html>{}<html>{}<head>{}  <title>Test</title>{} </head>{}<body>{}  <h1>Hello</h1>{} </body>{} </html>",
         '\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n');
-    
+
     let result = tool
         .execute(
             json!({

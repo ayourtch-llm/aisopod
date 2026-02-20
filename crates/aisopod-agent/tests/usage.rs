@@ -3,8 +3,8 @@
 //! This module tests the UsageTracker which tracks token usage
 //! at per-request, per-session, and per-agent levels.
 
-use std::sync::Arc;
 use aisopod_agent::usage::UsageTracker;
+use std::sync::Arc;
 
 #[test]
 fn test_new_tracker_has_empty_maps() {
@@ -36,13 +36,13 @@ fn test_record_single_request() {
 #[test]
 fn test_accumulation_across_requests() {
     let tracker = UsageTracker::new();
-    
+
     // First request
     tracker.record_request("session_1", "agent_1", 100, 50);
-    
+
     // Second request
     tracker.record_request("session_1", "agent_1", 200, 100);
-    
+
     // Third request
     tracker.record_request("session_1", "agent_1", 50, 25);
 
@@ -64,13 +64,13 @@ fn test_accumulation_across_requests() {
 #[test]
 fn test_per_agent_aggregation() {
     let tracker = UsageTracker::new();
-    
+
     // Session 1, Agent 1
     tracker.record_request("session_1", "agent_1", 100, 50);
-    
+
     // Session 2, Agent 1 (different session, same agent)
     tracker.record_request("session_2", "agent_1", 200, 100);
-    
+
     // Session 1, Agent 2 (same session, different agent)
     tracker.record_request("session_1", "agent_2", 50, 25);
 
@@ -99,17 +99,17 @@ fn test_per_agent_aggregation() {
 #[test]
 fn test_reset_session() {
     let tracker = UsageTracker::new();
-    
+
     // Record some requests
     tracker.record_request("session_1", "agent_1", 100, 50);
     tracker.record_request("session_1", "agent_1", 200, 100);
-    
+
     // Reset the session
     tracker.reset_session("session_1");
-    
+
     // Session usage should be cleared
     assert!(tracker.get_session_usage("session_1").is_none());
-    
+
     // Agent usage should still exist (reset only affects session)
     let agent_usage = tracker.get_agent_usage("agent_1").unwrap();
     assert_eq!(agent_usage.input_tokens, 300);
@@ -120,7 +120,7 @@ fn test_reset_session() {
 #[test]
 fn test_nonexistent_session() {
     let tracker = UsageTracker::new();
-    
+
     assert!(tracker.get_session_usage("nonexistent").is_none());
     assert!(tracker.get_agent_usage("nonexistent").is_none());
 }
@@ -146,11 +146,11 @@ fn test_usage_report_with_large_numbers() {
 #[test]
 fn test_session_keys_returns_all_keys() {
     let tracker = UsageTracker::new();
-    
+
     tracker.record_request("session_a", "agent_1", 10, 5);
     tracker.record_request("session_b", "agent_1", 20, 10);
     tracker.record_request("session_c", "agent_2", 30, 15);
-    
+
     let keys = tracker.session_keys();
     assert_eq!(keys.len(), 3);
     assert!(keys.contains(&"session_a".to_string()));
@@ -161,11 +161,11 @@ fn test_session_keys_returns_all_keys() {
 #[test]
 fn test_agent_keys_returns_all_keys() {
     let tracker = UsageTracker::new();
-    
+
     tracker.record_request("session_1", "agent_a", 10, 5);
     tracker.record_request("session_1", "agent_b", 20, 10);
     tracker.record_request("session_2", "agent_c", 30, 15);
-    
+
     let keys = tracker.agent_keys();
     assert_eq!(keys.len(), 3);
     assert!(keys.contains(&"agent_a".to_string()));
@@ -176,7 +176,7 @@ fn test_agent_keys_returns_all_keys() {
 #[test]
 fn test_concurrent_access() {
     let tracker = Arc::new(UsageTracker::new());
-    
+
     // Spawn multiple threads to record requests concurrently
     let mut handles = Vec::new();
     for i in 0..10 {
@@ -190,21 +190,23 @@ fn test_concurrent_access() {
         });
         handles.push(handle);
     }
-    
+
     // Wait for all threads to complete
     for handle in handles {
         handle.join().unwrap();
     }
-    
+
     // Verify usage - each session has 10 requests
     for i in 0..10 {
-        let session_usage = tracker.get_session_usage(&format!("session_{}", i)).unwrap();
+        let session_usage = tracker
+            .get_session_usage(&format!("session_{}", i))
+            .unwrap();
         assert_eq!(session_usage.input_tokens, 100); // 10 requests * 10 tokens
         assert_eq!(session_usage.output_tokens, 50);
         assert_eq!(session_usage.total_tokens, 150);
         assert_eq!(session_usage.request_count, 10);
     }
-    
+
     // Verify agent 0 usage (should have received requests from all sessions)
     // For each session: j % 3 = 0 when j = 0, 3, 6, 9 (4 requests)
     // 4 requests * 10 sessions * 10 tokens = 400 input tokens

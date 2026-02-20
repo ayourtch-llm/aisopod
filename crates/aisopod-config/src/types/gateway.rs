@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Gateway configuration for HTTP server
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GatewayConfig {
     /// HTTP server settings
     #[serde(default)]
@@ -24,7 +24,7 @@ pub struct GatewayConfig {
 }
 
 /// HTTP server configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ServerConfig {
     /// Server name
     #[serde(default)]
@@ -41,15 +41,28 @@ pub struct ServerConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BindConfig {
     /// IP address to bind to
-    #[serde(default)]
+    #[serde(default = "default_bind_address")]
     pub address: String,
     /// Enable IPv6
     #[serde(default)]
     pub ipv6: bool,
 }
 
+impl Default for BindConfig {
+    fn default() -> Self {
+        Self {
+            address: default_bind_address(),
+            ipv6: false,
+        }
+    }
+}
+
+fn default_bind_address() -> String {
+    "127.0.0.1".to_string()
+}
+
 /// TLS configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TlsConfig {
     /// Enable TLS
     #[serde(default)]
@@ -71,7 +84,7 @@ fn default_handshake_timeout() -> u64 {
 }
 
 /// Web UI configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct WebUiConfig {
     /// Enable static file serving for the web UI
     #[serde(default = "default_enabled")]
@@ -93,21 +106,14 @@ fn default_dist_path() -> String {
 }
 
 fn default_cors_origins() -> Vec<String> {
-    vec!["http://localhost:8080".to_string(), "http://localhost:5173".to_string()]
-}
-
-impl Default for WebUiConfig {
-    fn default() -> Self {
-        Self {
-            enabled: default_enabled(),
-            dist_path: default_dist_path(),
-            cors_origins: default_cors_origins(),
-        }
-    }
+    vec![
+        "http://localhost:8080".to_string(),
+        "http://localhost:5173".to_string(),
+    ]
 }
 
 /// Rate limiting configuration for the gateway
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RateLimitConfig {
     /// Maximum number of requests allowed in the window
     #[serde(default = "default_max_requests")]
@@ -123,55 +129,4 @@ fn default_max_requests() -> u64 {
 
 fn default_window() -> u64 {
     60
-}
-
-impl Default for RateLimitConfig {
-    fn default() -> Self {
-        Self {
-            max_requests: default_max_requests(),
-            window: default_window(),
-        }
-    }
-}
-
-impl Default for GatewayConfig {
-    fn default() -> Self {
-        Self {
-            server: ServerConfig::default(),
-            bind: BindConfig::default(),
-            tls: TlsConfig::default(),
-            web_ui: WebUiConfig::default(),
-            handshake_timeout: default_handshake_timeout(),
-            rate_limit: RateLimitConfig::default(),
-        }
-    }
-}
-
-impl Default for ServerConfig {
-    fn default() -> Self {
-        Self {
-            name: String::from("aisopod-gateway"),
-            port: default_port(),
-            graceful_shutdown: true,
-        }
-    }
-}
-
-impl Default for BindConfig {
-    fn default() -> Self {
-        Self {
-            address: String::from("0.0.0.0"),
-            ipv6: false,
-        }
-    }
-}
-
-impl Default for TlsConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            cert_path: String::new(),
-            key_path: String::new(),
-        }
-    }
 }

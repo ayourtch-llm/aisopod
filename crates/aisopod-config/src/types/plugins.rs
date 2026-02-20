@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Plugins configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PluginsConfig {
     /// Plugin registry
     #[serde(default)]
@@ -12,7 +12,7 @@ pub struct PluginsConfig {
 }
 
 /// Plugin registry entry
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PluginEntry {
     /// Plugin ID
     pub id: String,
@@ -28,7 +28,7 @@ pub struct PluginEntry {
 }
 
 /// Plugin settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PluginSettings {
     /// Auto-load plugins
     #[serde(default)]
@@ -43,34 +43,4 @@ pub struct PluginSettings {
 
 fn default_timeout() -> u64 {
     30
-}
-
-impl Default for PluginsConfig {
-    fn default() -> Self {
-        Self {
-            registry: Vec::new(),
-            settings: PluginSettings::default(),
-        }
-    }
-}
-
-impl Default for PluginEntry {
-    fn default() -> Self {
-        Self {
-            id: String::new(),
-            name: String::new(),
-            version: String::new(),
-            enabled: true,
-        }
-    }
-}
-
-impl Default for PluginSettings {
-    fn default() -> Self {
-        Self {
-            auto_load: false,
-            plugin_dir: String::new(),
-            load_timeout: default_timeout(),
-        }
-    }
 }

@@ -3,7 +3,7 @@
 //! This module tests the abort handle and registry functionality
 //! for cancelling agent executions.
 
-use aisopod_agent::{AbortHandle, AbortRegistry, notify_abort};
+use aisopod_agent::{notify_abort, AbortHandle, AbortRegistry};
 use tokio::sync::mpsc;
 
 #[test]
@@ -31,7 +31,7 @@ fn test_abort_handle_token() {
     let handle = AbortHandle::new("test_session".to_string());
     let token = handle.token();
     assert!(!token.is_cancelled());
-    
+
     handle.abort();
     assert!(token.is_cancelled());
 }
@@ -71,15 +71,15 @@ fn test_abort_registry_insert_duplicate() {
 #[test]
 fn test_abort_registry_multiple_sessions() {
     let registry = AbortRegistry::new();
-    
+
     let handle1 = AbortHandle::new("session_1".to_string());
     let handle2 = AbortHandle::new("session_2".to_string());
     let handle3 = AbortHandle::new("session_3".to_string());
-    
+
     registry.insert("session_1", handle1);
     registry.insert("session_2", handle2);
     registry.insert("session_3", handle3);
-    
+
     assert_eq!(registry.len(), 3);
     assert!(registry.get("session_1").is_some());
     assert!(registry.get("session_2").is_some());
@@ -89,9 +89,9 @@ fn test_abort_registry_multiple_sessions() {
 #[test]
 fn test_abort_registry_contains_key() {
     let registry = AbortRegistry::new();
-    
+
     registry.insert("test_session", AbortHandle::new("test_session".to_string()));
-    
+
     assert!(registry.contains_key("test_session"));
     assert!(!registry.contains_key("nonexistent"));
 }
@@ -99,7 +99,7 @@ fn test_abort_registry_contains_key() {
 #[test]
 fn test_abort_registry_remove_nonexistent() {
     let registry = AbortRegistry::new();
-    
+
     let removed = registry.remove("nonexistent");
     assert!(removed.is_none());
     assert!(registry.is_empty());
@@ -108,10 +108,10 @@ fn test_abort_registry_remove_nonexistent() {
 #[test]
 fn test_abort_registry_len_is_empty() {
     let registry = AbortRegistry::new();
-    
+
     assert!(registry.is_empty());
     assert_eq!(registry.len(), 0);
-    
+
     registry.insert("session_1", AbortHandle::new("session_1".to_string()));
     assert!(!registry.is_empty());
     assert_eq!(registry.len(), 1);
@@ -120,15 +120,15 @@ fn test_abort_registry_len_is_empty() {
 #[test]
 fn test_abort_registry_replace_handle() {
     let registry = AbortRegistry::new();
-    
+
     let handle1 = AbortHandle::new("session_1".to_string());
     let handle2 = AbortHandle::new("session_1".to_string());
-    
+
     // First insert
     let replaced = registry.insert("session_1", handle1.clone());
     assert!(replaced.is_none());
     assert!(!handle1.is_aborted());
-    
+
     // Second insert should abort the first
     let replaced = registry.insert("session_1", handle2.clone());
     assert!(replaced.is_some());
@@ -139,11 +139,11 @@ fn test_abort_registry_replace_handle() {
 #[tokio::test]
 async fn test_notify_abort() {
     let (tx, mut rx) = mpsc::channel::<aisopod_agent::AgentEvent>(10);
-    
+
     notify_abort(&tx, "test_session").await;
-    
+
     let event = rx.recv().await.expect("Expected an event");
-    
+
     match event {
         aisopod_agent::AgentEvent::Error { message } => {
             assert!(message.contains("test_session"));
@@ -157,10 +157,10 @@ async fn test_notify_abort() {
 fn test_abort_handle_clone() {
     let handle = AbortHandle::new("test_session".to_string());
     let cloned = handle.clone();
-    
+
     assert_eq!(handle.session_key(), cloned.session_key());
     assert!(!cloned.is_aborted());
-    
+
     cloned.abort();
     assert!(handle.is_aborted());
 }
@@ -168,7 +168,7 @@ fn test_abort_handle_clone() {
 #[tokio::test]
 async fn test_abort_handle_cancelled_future() {
     let handle = AbortHandle::new("test_session".to_string());
-    
+
     // Test that cancelled() returns immediately after abort
     handle.abort();
     handle.cancelled().await;
@@ -178,18 +178,18 @@ async fn test_abort_handle_cancelled_future() {
 #[test]
 fn test_abort_registry_clear_all() {
     let registry = AbortRegistry::new();
-    
+
     registry.insert("session_1", AbortHandle::new("session_1".to_string()));
     registry.insert("session_2", AbortHandle::new("session_2".to_string()));
     registry.insert("session_3", AbortHandle::new("session_3".to_string()));
-    
+
     assert_eq!(registry.len(), 3);
-    
+
     // Remove all
     registry.remove("session_1");
     registry.remove("session_2");
     registry.remove("session_3");
-    
+
     assert!(registry.is_empty());
     assert_eq!(registry.len(), 0);
 }

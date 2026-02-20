@@ -2,7 +2,9 @@
 
 use std::sync::Arc;
 
-use aisopod_tools::{CronTool, JobScheduler, NoOpJobScheduler, ScheduledJob, Tool, ToolContext, ToolResult};
+use aisopod_tools::{
+    CronTool, JobScheduler, NoOpJobScheduler, ScheduledJob, Tool, ToolContext, ToolResult,
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use cron::Schedule;
@@ -54,7 +56,10 @@ impl JobScheduler for MockJobScheduler {
             last_run: None,
         };
 
-        self.jobs.lock().unwrap().insert(id.to_string(), job.clone());
+        self.jobs
+            .lock()
+            .unwrap()
+            .insert(id.to_string(), job.clone());
         Ok(job)
     }
 
@@ -85,7 +90,10 @@ async fn test_cron_tool_name() {
 #[tokio::test]
 async fn test_cron_tool_description() {
     let tool = CronTool::with_noop_scheduler();
-    assert_eq!(tool.description(), "Schedule, list, run, and remove recurring tasks");
+    assert_eq!(
+        tool.description(),
+        "Schedule, list, run, and remove recurring tasks"
+    );
 }
 
 #[tokio::test]
@@ -169,9 +177,7 @@ async fn test_list_jobs() {
     .unwrap();
 
     // Then list jobs
-    let result = tool
-        .execute(json!({ "operation": "list" }), &ctx)
-        .await;
+    let result = tool.execute(json!({ "operation": "list" }), &ctx).await;
 
     assert!(result.is_ok());
     let output = result.unwrap();
@@ -185,9 +191,7 @@ async fn test_list_jobs_empty() {
     let tool = CronTool::with_noop_scheduler();
     let ctx = ToolContext::new("test_agent", "test_session");
 
-    let result = tool
-        .execute(json!({ "operation": "list" }), &ctx)
-        .await;
+    let result = tool.execute(json!({ "operation": "list" }), &ctx).await;
 
     assert!(result.is_ok());
     let output = result.unwrap();
@@ -220,7 +224,16 @@ async fn test_run_job() {
         .lines()
         .find(|line| line.starts_with("- ID:"))
         .map(|line| line.trim_start_matches("- ID:").trim().to_string())
-        .unwrap_or_else(|| output.split("Job '").nth(1).unwrap_or("").split("'").next().unwrap_or("").to_string());
+        .unwrap_or_else(|| {
+            output
+                .split("Job '")
+                .nth(1)
+                .unwrap_or("")
+                .split("'")
+                .next()
+                .unwrap_or("")
+                .to_string()
+        });
 
     // Now run the job
     let result = tool
@@ -263,7 +276,16 @@ async fn test_remove_job() {
         .lines()
         .find(|line| line.starts_with("- ID:"))
         .map(|line| line.trim_start_matches("- ID:").trim().to_string())
-        .unwrap_or_else(|| output.split("Job '").nth(1).unwrap_or("").split("'").next().unwrap_or("").to_string());
+        .unwrap_or_else(|| {
+            output
+                .split("Job '")
+                .nth(1)
+                .unwrap_or("")
+                .split("'")
+                .next()
+                .unwrap_or("")
+                .to_string()
+        });
 
     // Now remove the job
     let result = tool
@@ -308,9 +330,7 @@ async fn test_missing_operation() {
     let tool = CronTool::with_noop_scheduler();
     let ctx = ToolContext::new("test_agent", "test_session");
 
-    let result = tool
-        .execute(json!({}), &ctx)
-        .await;
+    let result = tool.execute(json!({}), &ctx).await;
 
     assert!(result.is_err());
     let err = result.unwrap_err().to_string();
@@ -339,18 +359,20 @@ async fn test_invalid_operation() {
 #[tokio::test]
 async fn test_validate_cron_expression_valid() {
     let tool = CronTool::with_noop_scheduler();
-    
+
     assert!(tool.validate_cron_expression("0 * * * * * *").is_ok());
     assert!(tool.validate_cron_expression("*/5 * * * * * *").is_ok());
     assert!(tool.validate_cron_expression("0 0 * * * * *").is_ok());
     assert!(tool.validate_cron_expression("0 0/30 * * * ? *").is_ok());
-    assert!(tool.validate_cron_expression("0 0 12 ? * MON-FRI *").is_ok());
+    assert!(tool
+        .validate_cron_expression("0 0 12 ? * MON-FRI *")
+        .is_ok());
 }
 
 #[tokio::test]
 async fn test_validate_cron_expression_invalid() {
     let tool = CronTool::with_noop_scheduler();
-    
+
     assert!(tool.validate_cron_expression("invalid").is_err());
     assert!(tool.validate_cron_expression("* * * * * * * *").is_err()); // Too many fields
     assert!(tool.validate_cron_expression("not a cron").is_err());
@@ -466,13 +488,11 @@ async fn test_list_with_mock_scheduler() {
         .schedule("job-2", "0 */5 * * * * *", "echo job2")
         .await
         .unwrap();
-    
+
     let tool = CronTool::new(Arc::new(scheduler.clone()));
     let ctx = ToolContext::new("test_agent", "test_session");
 
-    let result = tool
-        .execute(json!({ "operation": "list" }), &ctx)
-        .await;
+    let result = tool.execute(json!({ "operation": "list" }), &ctx).await;
 
     assert!(result.is_ok());
     let output = result.unwrap();
@@ -488,7 +508,7 @@ async fn test_run_with_mock_scheduler() {
         .schedule("test-job", "0 * * * * * *", "echo test_command")
         .await
         .unwrap();
-    
+
     let tool = CronTool::new(Arc::new(scheduler.clone()));
     let ctx = ToolContext::new("test_agent", "test_session");
 
@@ -516,7 +536,7 @@ async fn test_remove_with_mock_scheduler() {
         .await
         .unwrap();
     assert_eq!(scheduler.get_job_ids().len(), 1);
-    
+
     let tool = CronTool::new(Arc::new(scheduler.clone()));
     let ctx = ToolContext::new("test_agent", "test_session");
 
@@ -569,9 +589,7 @@ async fn test_multiple_operations_sequence() {
     assert_eq!(scheduler.get_job_ids().len(), 2);
 
     // List jobs
-    let result = tool
-        .execute(json!({ "operation": "list" }), &ctx)
-        .await;
+    let result = tool.execute(json!({ "operation": "list" }), &ctx).await;
     assert!(result.is_ok());
 
     // Remove first job
@@ -596,10 +614,10 @@ async fn test_cron_expression_various_formats() {
     let ctx = ToolContext::new("test_agent", "test_session");
 
     let cron_expressions = vec![
-        "0 0 12 * * ? *",        // Every day at 12:00 PM
-        "0 0/15 * * * ? *",      // Every 15 minutes
-        "0 0 12 ? * MON-FRI *",  // Every weekday at 12:00 PM
-        "0 0 0 1 * ? *",         // First day of every month at midnight
+        "0 0 12 * * ? *",       // Every day at 12:00 PM
+        "0 0/15 * * * ? *",     // Every 15 minutes
+        "0 0 12 ? * MON-FRI *", // Every weekday at 12:00 PM
+        "0 0 0 1 * ? *",        // First day of every month at midnight
     ];
 
     for expr in cron_expressions {
@@ -614,7 +632,12 @@ async fn test_cron_expression_various_formats() {
             )
             .await;
 
-        assert!(result.is_ok(), "Expression '{}' should be valid: {:?}", expr, result);
+        assert!(
+            result.is_ok(),
+            "Expression '{}' should be valid: {:?}",
+            expr,
+            result
+        );
     }
 }
 

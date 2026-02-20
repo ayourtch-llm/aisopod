@@ -121,14 +121,10 @@ impl Tool for MessageTool {
             .ok_or_else(|| anyhow::anyhow!("Missing required parameter 'content'"))?;
 
         // Extract optional account parameter
-        let account = params
-            .get("account")
-            .and_then(|v| v.as_str());
+        let account = params.get("account").and_then(|v| v.as_str());
 
         // Extract optional peer parameter
-        let peer = params
-            .get("peer")
-            .and_then(|v| v.as_str());
+        let peer = params.get("peer").and_then(|v| v.as_str());
 
         // Send the message
         self.sender

@@ -125,7 +125,7 @@ impl ConfigWatcher {
                 match res {
                     Ok(event) => {
                         debug!("File watch event received: {:?}", event.kind);
-                        
+
                         // Only trigger on write/modify events
                         let should_reload = match &event.kind {
                             EventKind::Modify(notify::event::ModifyKind::Data(_)) => true,
@@ -140,7 +140,10 @@ impl ConfigWatcher {
                         };
 
                         if should_reload {
-                            debug!("Triggering config reload for: {}", config_path_for_watcher.display());
+                            debug!(
+                                "Triggering config reload for: {}",
+                                config_path_for_watcher.display()
+                            );
                             let _ = trigger_sender_for_watcher.try_send(());
                         }
                     }
@@ -154,7 +157,7 @@ impl ConfigWatcher {
         watcher.watch(config_path, RecursiveMode::NonRecursive)?;
         // Also watch the parent directory to catch file moves/renames
         if let Some(parent) = config_path.parent() {
-            if let Ok(_) = watcher.watch(parent, RecursiveMode::NonRecursive) {
+            if watcher.watch(parent, RecursiveMode::NonRecursive).is_ok() {
                 // Successfully watching parent directory
             }
         }
@@ -188,8 +191,14 @@ impl Drop for ConfigWatcher {
 }
 
 /// Async function to reload config and send via channel
-async fn reload_and_send(config_path: &Path, tx: &tokio::sync::Mutex<watch::Sender<AisopodConfig>>) {
-    debug!("Attempting to reload config from: {}", config_path.display());
+async fn reload_and_send(
+    config_path: &Path,
+    tx: &tokio::sync::Mutex<watch::Sender<AisopodConfig>>,
+) {
+    debug!(
+        "Attempting to reload config from: {}",
+        config_path.display()
+    );
 
     match load_config(config_path) {
         Ok(new_config) => {
@@ -198,7 +207,10 @@ async fn reload_and_send(config_path: &Path, tx: &tokio::sync::Mutex<watch::Send
             if tx_guard.send(new_config).is_err() {
                 warn!("Config receiver dropped, stopping watcher");
             } else {
-                info!("Successfully reloaded and sent config from: {}", config_path.display());
+                info!(
+                    "Successfully reloaded and sent config from: {}",
+                    config_path.display()
+                );
             }
         }
         Err(e) => {
@@ -292,11 +304,7 @@ mod tests {
         let mut rx = watcher.receiver.clone();
 
         // Modify the file
-        std::fs::write(
-            file.path(),
-            r#"{ meta: { version: "2.0" } }"#,
-        )
-        .unwrap();
+        std::fs::write(file.path(), r#"{ meta: { version: "2.0" } }"#).unwrap();
 
         // Wait for the change to be detected and processed
         tokio::time::sleep(Duration::from_millis(400)).await;
@@ -318,11 +326,7 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(100)).await;
 
         // Write an invalid config (empty version)
-        std::fs::write(
-            file.path(),
-            r#"{ meta: { version: "" } }"#,
-        )
-        .unwrap();
+        std::fs::write(file.path(), r#"{ meta: { version: "" } }"#).unwrap();
 
         // Wait for the change attempt
         tokio::time::sleep(Duration::from_millis(400)).await;

@@ -13,7 +13,7 @@ use aisopod_provider::types::{ChatCompletionRequest, Message, MessageContent, Ro
 fn test_gemini_provider_initialization() {
     // Test that GeminiProvider can be created with no API key
     let provider = GeminiProvider::new(None, None, None, None);
-    
+
     // Provider should be created successfully (GeminiProvider::new returns Self, not Result)
     let _ = provider;
 }
@@ -22,7 +22,7 @@ fn test_gemini_provider_initialization() {
 fn test_gemini_provider_with_api_key() {
     // Test that GeminiProvider can be created with an API key
     let provider = GeminiProvider::new(Some("test-key".to_string()), None, None, None);
-    
+
     let _ = provider;
 }
 
@@ -30,12 +30,12 @@ fn test_gemini_provider_with_api_key() {
 fn test_gemini_provider_with_custom_model() {
     // Test that GeminiProvider can be created with a custom model
     let provider = GeminiProvider::new(
-        Some("test-key".to_string()), 
-        Some("gemini-1.5-pro".to_string()), 
-        None, 
-        None
+        Some("test-key".to_string()),
+        Some("gemini-1.5-pro".to_string()),
+        None,
+        None,
     );
-    
+
     let _ = provider;
 }
 
@@ -149,7 +149,10 @@ fn test_gemini_request_with_stop_sequences() {
         stream: false,
     };
 
-    assert_eq!(request.stop, Some(vec!["\n".to_string(), "stop".to_string()]));
+    assert_eq!(
+        request.stop,
+        Some(vec!["\n".to_string(), "stop".to_string()])
+    );
 }
 
 #[test]
@@ -179,7 +182,7 @@ fn test_gemini_request_with_streaming() {
 #[test]
 fn test_message_content_text() {
     let content = MessageContent::Text("Hello".to_string());
-    
+
     match content {
         MessageContent::Text(text) => assert_eq!(text, "Hello"),
         _ => panic!("Expected Text content"),
@@ -188,12 +191,10 @@ fn test_message_content_text() {
 
 #[test]
 fn test_message_content_parts() {
-    let content = MessageContent::Parts(vec![
-        aisopod_provider::types::ContentPart::Text { 
-            text: "Hello".to_string() 
-        },
-    ]);
-    
+    let content = MessageContent::Parts(vec![aisopod_provider::types::ContentPart::Text {
+        text: "Hello".to_string(),
+    }]);
+
     match content {
         MessageContent::Parts(parts) => assert!(!parts.is_empty()),
         _ => panic!("Expected Parts content"),
@@ -227,6 +228,6 @@ fn test_role_system() {
 fn test_gemini_provider_error_handling() {
     // Test that the provider handles errors gracefully
     let provider = GeminiProvider::new(Some("invalid".to_string()), None, None, None);
-    
+
     let _ = provider;
 }

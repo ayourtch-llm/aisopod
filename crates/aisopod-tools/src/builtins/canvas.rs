@@ -73,9 +73,7 @@ impl InMemoryCanvasRenderer {
     /// Creates a new InMemoryCanvasRenderer with pre-populated data.
     pub fn with_canvases(canvases: HashMap<String, String>) -> Self {
         Self {
-            canvases: Arc::new(DashMap::from_iter(
-                canvases.into_iter().map(|(k, v)| (k, v)),
-            )),
+            canvases: Arc::new(DashMap::from_iter(canvases)),
         }
     }
 
@@ -99,18 +97,17 @@ impl CanvasRenderer for InMemoryCanvasRenderer {
                 canvas_id
             ));
         }
-        self.canvases.insert(canvas_id.to_string(), content.to_string());
+        self.canvases
+            .insert(canvas_id.to_string(), content.to_string());
         Ok(())
     }
 
     async fn update(&self, canvas_id: &str, content: &str) -> Result<()> {
         if !self.canvases.contains_key(canvas_id) {
-            return Err(anyhow::anyhow!(
-                "Canvas with ID '{}' not found",
-                canvas_id
-            ));
+            return Err(anyhow::anyhow!("Canvas with ID '{}' not found", canvas_id));
         }
-        self.canvases.insert(canvas_id.to_string(), content.to_string());
+        self.canvases
+            .insert(canvas_id.to_string(), content.to_string());
         Ok(())
     }
 
@@ -215,7 +212,9 @@ impl Tool for CanvasTool {
                 let content = params
                     .get("content")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("Missing required parameter 'content' for create operation"))?;
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Missing required parameter 'content' for create operation")
+                    })?;
 
                 match self.renderer.create(canvas_id, content).await {
                     Ok(()) => Ok(ToolResult::success(format!(
@@ -230,7 +229,9 @@ impl Tool for CanvasTool {
                 let content = params
                     .get("content")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("Missing required parameter 'content' for update operation"))?;
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Missing required parameter 'content' for update operation")
+                    })?;
 
                 match self.renderer.update(canvas_id, content).await {
                     Ok(()) => Ok(ToolResult::success(format!(
@@ -240,12 +241,10 @@ impl Tool for CanvasTool {
                     Err(e) => Ok(ToolResult::error(e.to_string())),
                 }
             }
-            "get" => {
-                match self.renderer.get(canvas_id).await {
-                    Ok(content) => Ok(ToolResult::success(content)),
-                    Err(e) => Ok(ToolResult::error(e.to_string())),
-                }
-            }
+            "get" => match self.renderer.get(canvas_id).await {
+                Ok(content) => Ok(ToolResult::success(content)),
+                Err(e) => Ok(ToolResult::error(e.to_string())),
+            },
             _ => Ok(ToolResult::error(format!(
                 "Invalid operation '{}'. Must be one of: create, update, get",
                 operation
@@ -267,7 +266,10 @@ mod tests {
     #[test]
     fn test_canvas_tool_description() {
         let tool = CanvasTool::with_in_memory();
-        assert_eq!(tool.description(), "Generate and manage visual HTML/CSS/JS output");
+        assert_eq!(
+            tool.description(),
+            "Generate and manage visual HTML/CSS/JS output"
+        );
     }
 
     #[test]
@@ -280,7 +282,9 @@ mod tests {
         assert!(schema["properties"]["canvas_id"].is_object());
         assert!(schema["properties"]["content"].is_object());
 
-        let operation_enum = schema["properties"]["operation"]["enum"].as_array().unwrap();
+        let operation_enum = schema["properties"]["operation"]["enum"]
+            .as_array()
+            .unwrap();
         assert!(operation_enum.contains(&json!("create")));
         assert!(operation_enum.contains(&json!("update")));
         assert!(operation_enum.contains(&json!("get")));
@@ -309,7 +313,9 @@ mod tests {
         assert!(result.is_ok());
         let output = result.unwrap();
         assert!(!output.is_error);
-        assert!(output.content.contains("Canvas 'my_visualization' created successfully"));
+        assert!(output
+            .content
+            .contains("Canvas 'my_visualization' created successfully"));
     }
 
     #[tokio::test]
@@ -344,7 +350,9 @@ mod tests {
         assert!(result.is_ok());
         let output = result.unwrap();
         assert!(!output.is_error);
-        assert!(output.content.contains("Canvas 'my_visualization' updated successfully"));
+        assert!(output
+            .content
+            .contains("Canvas 'my_visualization' updated successfully"));
     }
 
     #[tokio::test]
@@ -575,15 +583,9 @@ mod tests {
     async fn test_in_memory_renderer_update() {
         let renderer = InMemoryCanvasRenderer::new();
 
-        renderer
-            .create("test_canvas", "initial")
-            .await
-            .unwrap();
+        renderer.create("test_canvas", "initial").await.unwrap();
 
-        renderer
-            .update("test_canvas", "updated")
-            .await
-            .unwrap();
+        renderer.update("test_canvas", "updated").await.unwrap();
 
         let content = renderer.get("test_canvas").await.unwrap();
         assert_eq!(content, "updated");
@@ -605,15 +607,9 @@ mod tests {
 
         assert_eq!(renderer.len(), 0);
 
-        renderer
-            .create("canvas1", "content1")
-            .await
-            .unwrap();
+        renderer.create("canvas1", "content1").await.unwrap();
 
-        renderer
-            .create("canvas2", "content2")
-            .await
-            .unwrap();
+        renderer.create("canvas2", "content2").await.unwrap();
 
         assert_eq!(renderer.len(), 2);
     }
@@ -624,10 +620,7 @@ mod tests {
 
         assert!(renderer.is_empty());
 
-        renderer
-            .create("canvas1", "content1")
-            .await
-            .unwrap();
+        renderer.create("canvas1", "content1").await.unwrap();
 
         assert!(!renderer.is_empty());
     }

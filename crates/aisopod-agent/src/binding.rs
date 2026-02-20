@@ -4,8 +4,8 @@
 //! based on configurable binding rules. It supports matching by channel,
 //! account ID, peer, and guild ID.
 
-use serde::{Deserialize, Serialize};
 use crate::types::SessionMetadata;
+use serde::{Deserialize, Serialize};
 
 /// Peer match rule for agent binding.
 ///
@@ -41,11 +41,9 @@ impl PeerMatch {
         match self {
             PeerMatch::Any => true,
             PeerMatch::Id(expected) => peer_id == expected,
-            PeerMatch::Pattern(pattern) => {
-                regex::Regex::new(pattern)
-                    .map(|re| re.is_match(peer_id))
-                    .unwrap_or(false)
-            }
+            PeerMatch::Pattern(pattern) => regex::Regex::new(pattern)
+                .map(|re| re.is_match(peer_id))
+                .unwrap_or(false),
         }
     }
 }
@@ -254,12 +252,7 @@ mod tests {
 
     #[test]
     fn test_binding_match_no_match() {
-        let match_result = BindingMatch::new(
-            Some("channel_1".to_string()),
-            None,
-            None,
-            None,
-        );
+        let match_result = BindingMatch::new(Some("channel_1".to_string()), None, None, None);
 
         let metadata = SessionMetadata {
             channel: Some("channel_2".to_string()), // Different channel

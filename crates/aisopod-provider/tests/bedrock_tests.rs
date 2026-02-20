@@ -13,7 +13,7 @@ use aisopod_provider::types::{ChatCompletionRequest, Message, MessageContent, Ro
 async fn test_bedrock_provider_initialization() {
     // Test that BedrockProvider can be created with default settings
     let result = BedrockProvider::new(None, None, None).await;
-    
+
     // Provider should be created successfully (may fail if AWS credentials are missing,
     // but it should not panic)
     assert!(result.is_ok() || result.is_err());
@@ -23,7 +23,7 @@ async fn test_bedrock_provider_initialization() {
 async fn test_bedrock_provider_with_custom_region() {
     // Test that BedrockProvider can be created with a custom region
     let result = BedrockProvider::new(Some("us-west-2".to_string()), None, None).await;
-    
+
     // Provider creation may succeed or fail depending on credentials
     // Just verify it doesn't panic
     assert!(result.is_ok() || result.is_err());
@@ -33,11 +33,12 @@ async fn test_bedrock_provider_with_custom_region() {
 async fn test_bedrock_provider_with_custom_endpoint() {
     // Test that BedrockProvider can be created with a custom endpoint
     let result = BedrockProvider::new(
-        Some("us-west-2".to_string()), 
-        Some("http://localhost:4566".to_string()), 
-        None
-    ).await;
-    
+        Some("us-west-2".to_string()),
+        Some("http://localhost:4566".to_string()),
+        None,
+    )
+    .await;
+
     // Provider creation may succeed or fail depending on credentials
     assert!(result.is_ok() || result.is_err());
 }
@@ -152,7 +153,10 @@ fn test_bedrock_request_with_stop_sequences() {
         stream: false,
     };
 
-    assert_eq!(request.stop, Some(vec!["\n".to_string(), "stop".to_string()]));
+    assert_eq!(
+        request.stop,
+        Some(vec!["\n".to_string(), "stop".to_string()])
+    );
 }
 
 #[test]
@@ -182,7 +186,7 @@ fn test_bedrock_request_with_streaming() {
 #[test]
 fn test_message_content_text() {
     let content = MessageContent::Text("Hello".to_string());
-    
+
     match content {
         MessageContent::Text(text) => assert_eq!(text, "Hello"),
         _ => panic!("Expected Text content"),
@@ -191,12 +195,10 @@ fn test_message_content_text() {
 
 #[test]
 fn test_message_content_parts() {
-    let content = MessageContent::Parts(vec![
-        aisopod_provider::types::ContentPart::Text { 
-            text: "Hello".to_string() 
-        },
-    ]);
-    
+    let content = MessageContent::Parts(vec![aisopod_provider::types::ContentPart::Text {
+        text: "Hello".to_string(),
+    }]);
+
     match content {
         MessageContent::Parts(parts) => assert!(!parts.is_empty()),
         _ => panic!("Expected Parts content"),
@@ -230,7 +232,7 @@ fn test_role_system() {
 async fn test_bedrock_provider_error_handling() {
     // Test that the provider handles errors gracefully
     let result = BedrockProvider::new(Some("invalid-region".to_string()), None, None).await;
-    
+
     // Provider may fail due to invalid region or missing credentials
     // Just verify it doesn't panic and returns an error result
     assert!(result.is_err() || result.is_ok());

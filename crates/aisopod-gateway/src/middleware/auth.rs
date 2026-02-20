@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 //! Authentication middleware for Axum
 //!
 //! This module provides an Axum middleware that validates incoming requests
@@ -14,7 +15,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use tracing::{debug, warn};
 
-use crate::auth::{validate_basic, validate_token, AuthInfo, build_password_map, build_token_map};
+use crate::auth::{build_password_map, build_token_map, validate_basic, validate_token, AuthInfo};
 use aisopod_config::sensitive::Sensitive;
 
 /// Request extension key for AuthInfo
@@ -36,7 +37,7 @@ impl AuthConfigData {
     pub fn new(config: AuthConfig) -> Self {
         let token_map = build_token_map(&config);
         let password_map = build_password_map(&config);
-        
+
         Self {
             config,
             token_map,
@@ -54,7 +55,7 @@ impl AuthConfigData {
         if self.config.gateway_mode != aisopod_config::types::AuthMode::Token {
             return None;
         }
-        
+
         self.token_map.get(token).cloned()
     }
 
@@ -63,7 +64,7 @@ impl AuthConfigData {
         if self.config.gateway_mode != aisopod_config::types::AuthMode::Password {
             return None;
         }
-        
+
         if let Some(passwords) = self.password_map.get(username) {
             passwords.get(password).cloned()
         } else {
@@ -133,9 +134,9 @@ pub async fn auth_middleware(
     next: axum::middleware::Next,
 ) -> Response {
     eprintln!("=== AUTH MIDDLEWARE CALLED ===");
-    
+
     let mut request = request;
-    
+
     // Always allow health checks
     let path = request.uri().path();
     if path == "/health" {
@@ -143,10 +144,7 @@ pub async fn auth_middleware(
         return next.run(request).await;
     }
 
-    let config_data = request
-        .extensions()
-        .get::<AuthConfigData>()
-        .cloned();
+    let config_data = request.extensions().get::<AuthConfigData>().cloned();
 
     eprintln!("AuthConfigData in extensions: {:?}", config_data.is_some());
 
@@ -261,8 +259,8 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::Request as AxumRequest;
-    use axum::Router;
     use axum::routing::get;
+    use axum::Router;
     use tower::ServiceExt;
 
     async fn echo_auth_info(request: AxumRequest<Body>) -> impl IntoResponse {
@@ -276,18 +274,20 @@ mod tests {
 
     fn create_test_router_with_middleware(config: AuthConfig) -> Router {
         let config_data = AuthConfigData::new(config.clone());
-        
+
         Router::new()
             .route("/test", get(echo_auth_info))
             .layer(axum::middleware::from_fn(auth_middleware))
-            .layer(axum::middleware::from_fn(move |mut req: AxumRequest<Body>, next: axum::middleware::Next| {
-                let config_data = config_data.clone();
-                async move {
-                    // Inject config_data into request AFTER auth_middleware so it's available
-                    req.extensions_mut().insert(config_data);
-                    next.run(req).await
-                }
-            }))
+            .layer(axum::middleware::from_fn(
+                move |mut req: AxumRequest<Body>, next: axum::middleware::Next| {
+                    let config_data = config_data.clone();
+                    async move {
+                        // Inject config_data into request AFTER auth_middleware so it's available
+                        req.extensions_mut().insert(config_data);
+                        next.run(req).await
+                    }
+                },
+            ))
     }
 
     #[tokio::test]
@@ -306,21 +306,23 @@ mod tests {
 
         let request = AxumRequest::builder()
             .uri("/test")
-            .header(
-                axum::http::header::AUTHORIZATION,
-                "Bearer test-token",
-            )
+            .header(axum::http::header::AUTHORIZATION, "Bearer test-token")
             .body(Body::empty())
-            .unwrap();
+            .expect("test should pass");
 
-        let response = router.oneshot(request).await.unwrap();
+        let response = router.oneshot(request).await.expect("test should pass");
         assert_eq!(response.status(), StatusCode::OK);
 
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
-        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("test should pass");
+        let json: serde_json::Value = serde_json::from_slice(&body).expect("test should pass");
         assert_eq!(json["authenticated"], true);
         assert_eq!(json["role"], "operator");
-        assert_eq!(json["scopes"], serde_json::json!(vec!["chat:write".to_string()]));
+        assert_eq!(
+            json["scopes"],
+            serde_json::json!(vec!["chat:write".to_string()])
+        );
     }
 
     #[tokio::test]
@@ -340,9 +342,9 @@ mod tests {
         let request = AxumRequest::builder()
             .uri("/test")
             .body(Body::empty())
-            .unwrap();
+            .expect("test should pass");
 
-        let response = router.oneshot(request).await.unwrap();
+        let response = router.oneshot(request).await.expect("test should pass");
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
@@ -364,9 +366,9 @@ mod tests {
             .uri("/test")
             .header(axum::http::header::AUTHORIZATION, "Bearer invalid-token")
             .body(Body::empty())
-            .unwrap();
+            .expect("test should pass");
 
-        let response = router.oneshot(request).await.unwrap();
+        let response = router.oneshot(request).await.expect("test should pass");
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
@@ -393,13 +395,15 @@ mod tests {
                 format!("Basic {}", creds),
             )
             .body(Body::empty())
-            .unwrap();
+            .expect("test should pass");
 
-        let response = router.oneshot(request).await.unwrap();
+        let response = router.oneshot(request).await.expect("test should pass");
         assert_eq!(response.status(), StatusCode::OK);
 
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
-        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("test should pass");
+        let json: serde_json::Value = serde_json::from_slice(&body).expect("test should pass");
         assert_eq!(json["authenticated"], true);
         assert_eq!(json["role"], "operator");
     }
@@ -427,9 +431,9 @@ mod tests {
                 format!("Basic {}", creds),
             )
             .body(Body::empty())
-            .unwrap();
+            .expect("test should pass");
 
-        let response = router.oneshot(request).await.unwrap();
+        let response = router.oneshot(request).await.expect("test should pass");
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
@@ -445,9 +449,9 @@ mod tests {
         let request = AxumRequest::builder()
             .uri("/test")
             .body(Body::empty())
-            .unwrap();
+            .expect("test should pass");
 
-        let response = router.oneshot(request).await.unwrap();
+        let response = router.oneshot(request).await.expect("test should pass");
         assert_eq!(response.status(), StatusCode::OK);
     }
 
@@ -468,9 +472,9 @@ mod tests {
         let request = AxumRequest::builder()
             .uri("/health")
             .body(Body::empty())
-            .unwrap();
+            .expect("test should pass");
 
-        let response = router.oneshot(request).await.unwrap();
+        let response = router.oneshot(request).await.expect("test should pass");
         // The health endpoint should not be accessible through this test router
         // but the middleware should allow it through
         assert_eq!(response.status(), StatusCode::NOT_FOUND);

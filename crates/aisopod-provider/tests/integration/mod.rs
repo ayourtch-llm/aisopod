@@ -15,4 +15,3 @@ pub mod bedrock;
 
 #[cfg(test)]
 pub mod ollama;
-

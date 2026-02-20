@@ -33,10 +33,7 @@ use crate::AisopodConfig;
 /// - The file content cannot be parsed
 /// - The parsed content doesn't match the expected configuration structure
 pub fn load_config(path: &Path) -> Result<AisopodConfig> {
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("");
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
     match ext {
         "json" | "json5" => load_config_json5(path),
         "toml" => load_config_toml(path),
@@ -67,20 +64,30 @@ pub fn load_config_toml(path: &Path) -> Result<AisopodConfig> {
         .with_context(|| format!("Failed to read config file: {}", path.display()))?;
     let mut value: serde_json::Value = toml::from_str(&contents)
         .with_context(|| format!("Failed to parse TOML config: {}", path.display()))?;
-    crate::env::expand_env_vars(&mut value)
-        .with_context(|| format!("Failed to expand environment variables in TOML config: {}", path.display()))?;
-    
+    crate::env::expand_env_vars(&mut value).with_context(|| {
+        format!(
+            "Failed to expand environment variables in TOML config: {}",
+            path.display()
+        )
+    })?;
+
     // Process @include directives
     let canonical = path.canonicalize()?;
-    let base_dir = canonical.parent().unwrap();
+    let base_dir = canonical
+        .parent()
+        .ok_or_else(|| anyhow!("Canonicalized config path has no parent directory"))?;
     let mut seen = HashSet::new();
     seen.insert(canonical.clone());
-    crate::includes::process_includes(&mut value, base_dir, &mut seen)
-        .with_context(|| format!("Failed to process @include directives in TOML config: {}", path.display()))?;
-    
+    crate::includes::process_includes(&mut value, base_dir, &mut seen).with_context(|| {
+        format!(
+            "Failed to process @include directives in TOML config: {}",
+            path.display()
+        )
+    })?;
+
     let config: AisopodConfig = serde_json::from_value(value)
         .with_context(|| format!("Failed to deserialize TOML config: {}", path.display()))?;
-    
+
     // Validate the configuration
     config.validate().map_err(|errs| {
         let messages: Vec<String> = errs.iter().map(|e| e.to_string()).collect();
@@ -89,7 +96,7 @@ pub fn load_config_toml(path: &Path) -> Result<AisopodConfig> {
             messages.join("\n  ")
         )
     })?;
-    
+
     Ok(config)
 }
 
@@ -105,14 +112,14 @@ pub fn load_config_toml(path: &Path) -> Result<AisopodConfig> {
 ///
 /// * `Result<AisopodConfig>` - The parsed configuration or an error
 pub fn load_config_json5_str(content: &str) -> Result<AisopodConfig> {
-    let mut value: serde_json::Value = json5::from_str(content)
-        .with_context(|| "Failed to parse JSON5 content")?;
+    let mut value: serde_json::Value =
+        json5::from_str(content).with_context(|| "Failed to parse JSON5 content")?;
     crate::env::expand_env_vars(&mut value)
         .with_context(|| "Failed to expand environment variables in JSON5 content")?;
-    
-    let config: AisopodConfig = serde_json::from_value(value)
-        .with_context(|| "Failed to deserialize JSON5 config")?;
-    
+
+    let config: AisopodConfig =
+        serde_json::from_value(value).with_context(|| "Failed to deserialize JSON5 config")?;
+
     config.validate().map_err(|errs| {
         let messages: Vec<String> = errs.iter().map(|e| e.to_string()).collect();
         anyhow!(
@@ -120,7 +127,7 @@ pub fn load_config_json5_str(content: &str) -> Result<AisopodConfig> {
             messages.join("\n  ")
         )
     })?;
-    
+
     Ok(config)
 }
 
@@ -136,12 +143,12 @@ pub fn load_config_json5_str(content: &str) -> Result<AisopodConfig> {
 ///
 /// * `Result<AisopodConfig>` - The parsed configuration or an error
 pub fn load_config_toml_str(content: &str) -> Result<AisopodConfig> {
-    let value: serde_json::Value = toml::from_str(content)
-        .with_context(|| "Failed to parse TOML content")?;
-    
-    let config: AisopodConfig = serde_json::from_value(value)
-        .with_context(|| "Failed to deserialize TOML config")?;
-    
+    let value: serde_json::Value =
+        toml::from_str(content).with_context(|| "Failed to parse TOML content")?;
+
+    let config: AisopodConfig =
+        serde_json::from_value(value).with_context(|| "Failed to deserialize TOML config")?;
+
     config.validate().map_err(|errs| {
         let messages: Vec<String> = errs.iter().map(|e| e.to_string()).collect();
         anyhow!(
@@ -149,7 +156,7 @@ pub fn load_config_toml_str(content: &str) -> Result<AisopodConfig> {
             messages.join("\n  ")
         )
     })?;
-    
+
     Ok(config)
 }
 
@@ -158,29 +165,36 @@ pub fn load_config_json5(path: &Path) -> Result<AisopodConfig> {
         .with_context(|| format!("Failed to read config file: {}", path.display()))?;
     let mut value: serde_json::Value = json5::from_str(&contents)
         .with_context(|| format!("Failed to parse JSON5 config: {}", path.display()))?;
-    crate::env::expand_env_vars(&mut value)
-        .with_context(|| format!("Failed to expand environment variables in config: {}", path.display()))?;
-    
+    crate::env::expand_env_vars(&mut value).with_context(|| {
+        format!(
+            "Failed to expand environment variables in config: {}",
+            path.display()
+        )
+    })?;
+
     // Process @include directives
     let canonical = path.canonicalize()?;
-    let base_dir = canonical.parent().unwrap();
+    let base_dir = canonical
+        .parent()
+        .ok_or_else(|| anyhow!("Canonicalized config path has no parent directory"))?;
     let mut seen = HashSet::new();
     seen.insert(canonical.clone());
-    crate::includes::process_includes(&mut value, base_dir, &mut seen)
-        .with_context(|| format!("Failed to process @include directives in config: {}", path.display()))?;
-    
+    crate::includes::process_includes(&mut value, base_dir, &mut seen).with_context(|| {
+        format!(
+            "Failed to process @include directives in config: {}",
+            path.display()
+        )
+    })?;
+
     let config: AisopodConfig = serde_json::from_value(value)
         .with_context(|| format!("Failed to deserialize config: {}", path.display()))?;
-    
+
     // Validate the configuration
     config.validate().map_err(|errs| {
         let messages: Vec<String> = errs.iter().map(|e| e.to_string()).collect();
-        anyhow!(
-            "Config validation failed:\n  {}",
-            messages.join("\n  ")
-        )
+        anyhow!("Config validation failed:\n  {}", messages.join("\n  "))
     })?;
-    
+
     Ok(config)
 }
 
@@ -255,7 +269,9 @@ mod tests {
         let result = load_config(&config_path);
         assert!(result.is_err());
         let err_msg = result.expect_err("Expected error for unsupported extension");
-        assert!(err_msg.to_string().contains("Unsupported config file extension"));
+        assert!(err_msg
+            .to_string()
+            .contains("Unsupported config file extension"));
     }
 
     #[test]
@@ -304,7 +320,9 @@ mod tests {
 
         assert!(result.is_err());
         let err_msg = result.expect_err("Expected error for non-existent file");
-        assert!(err_msg.to_string().contains("/nonexistent/path/config.json5"));
+        assert!(err_msg
+            .to_string()
+            .contains("/nonexistent/path/config.json5"));
     }
 
     #[test]
@@ -318,6 +336,8 @@ mod tests {
         let result = load_config_json5(&config_path);
         assert!(result.is_err());
         let err_msg = result.expect_err("Expected error for invalid JSON5");
-        assert!(err_msg.to_string().contains(&config_path.display().to_string()));
+        assert!(err_msg
+            .to_string()
+            .contains(&config_path.display().to_string()));
     }
 }

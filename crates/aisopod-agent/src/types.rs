@@ -86,7 +86,11 @@ pub struct ToolCallRecord {
 
 impl ToolCallRecord {
     /// Creates a new `ToolCallRecord` with the given id, name, and arguments.
-    pub fn new(id: impl Into<String>, name: impl Into<String>, arguments: impl Into<String>) -> Self {
+    pub fn new(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        arguments: impl Into<String>,
+    ) -> Self {
         Self {
             id: id.into(),
             name: name.into(),
@@ -117,7 +121,11 @@ pub struct AgentRunParams {
 
 impl AgentRunParams {
     /// Creates a new `AgentRunParams` with the given session key, messages, and optional agent ID.
-    pub fn new(session_key: impl Into<String>, messages: Vec<aisopod_provider::Message>, agent_id: Option<impl Into<String>>) -> Self {
+    pub fn new(
+        session_key: impl Into<String>,
+        messages: Vec<aisopod_provider::Message>,
+        agent_id: Option<impl Into<String>>,
+    ) -> Self {
         Self {
             session_key: session_key.into(),
             messages,

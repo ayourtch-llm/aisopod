@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Models configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ModelsConfig {
     /// Model definitions
     #[serde(default)]
@@ -15,7 +15,7 @@ pub struct ModelsConfig {
 }
 
 /// Model definition
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Model {
     /// Model ID
     pub id: String,
@@ -31,7 +31,7 @@ pub struct Model {
 }
 
 /// Model provider configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ModelProvider {
     /// Provider name
     pub name: String,
@@ -44,51 +44,11 @@ pub struct ModelProvider {
 }
 
 /// Model fallback configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ModelFallback {
     /// Primary model
     pub primary: String,
     /// Fallback models in order
     #[serde(default)]
     pub fallbacks: Vec<String>,
-}
-
-impl Default for ModelsConfig {
-    fn default() -> Self {
-        Self {
-            models: Vec::new(),
-            providers: Vec::new(),
-            fallbacks: Vec::new(),
-        }
-    }
-}
-
-impl Default for Model {
-    fn default() -> Self {
-        Self {
-            id: String::new(),
-            name: String::new(),
-            provider: String::new(),
-            capabilities: Vec::new(),
-        }
-    }
-}
-
-impl Default for ModelProvider {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            endpoint: String::new(),
-            api_key: String::new(),
-        }
-    }
-}
-
-impl Default for ModelFallback {
-    fn default() -> Self {
-        Self {
-            primary: String::new(),
-            fallbacks: Vec::new(),
-        }
-    }
 }

@@ -55,7 +55,10 @@ async fn test_openai_streaming_chat_completion() {
         }
     }
 
-    assert!(has_content, "Should receive content from streaming response");
+    assert!(
+        has_content,
+        "Should receive content from streaming response"
+    );
 }
 
 /// Test that list_models returns non-empty results
@@ -68,7 +71,10 @@ async fn test_openai_list_models() {
 
     let models = provider.list_models().await.unwrap();
 
-    assert!(!models.is_empty(), "list_models should return non-empty results");
+    assert!(
+        !models.is_empty(),
+        "list_models should return non-empty results"
+    );
     assert!(models.iter().any(|m| m.id.contains("gpt-")));
 }
 
@@ -82,7 +88,10 @@ async fn test_openai_health_check() {
 
     let health = provider.health_check().await.unwrap();
 
-    assert!(health.available, "Health check should return available=true");
+    assert!(
+        health.available,
+        "Health check should return available=true"
+    );
 }
 
 /// Test with custom base URL
@@ -91,12 +100,8 @@ async fn test_openai_health_check() {
 async fn test_openai_with_custom_base_url() {
     let api_key = get_api_key().expect("OPENAI_API_KEY must be set to run this test");
 
-    let provider = OpenAIProvider::with_base_url(
-        api_key,
-        "https://api.openai.com/v1".to_string(),
-        None,
-        None,
-    );
+    let provider =
+        OpenAIProvider::with_base_url(api_key, "https://api.openai.com/v1".to_string(), None, None);
 
     let request = ChatCompletionRequest {
         model: "gpt-4o".to_string(),
@@ -123,12 +128,7 @@ async fn test_openai_with_custom_base_url() {
 #[tokio::test]
 #[ignore = "requires OPENAI_API_KEY environment variable"]
 async fn test_openai_invalid_api_key() {
-    let provider = OpenAIProvider::new(
-        "invalid-key".to_string(),
-        None,
-        None,
-        None,
-    );
+    let provider = OpenAIProvider::new("invalid-key".to_string(), None, None, None);
 
     let request = ChatCompletionRequest {
         model: "gpt-4o".to_string(),

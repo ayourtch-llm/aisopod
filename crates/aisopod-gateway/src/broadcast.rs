@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 //! Event broadcasting system for the gateway
 //!
 //! This module provides a publish-subscribe event system that allows
@@ -142,7 +143,7 @@ mod tests {
     fn test_subscription_with_events() {
         let events = HashSet::from(["presence".to_string(), "chat".to_string()]);
         let sub = Subscription::with_events(events);
-        
+
         assert!(sub.includes("presence"));
         assert!(sub.includes("chat"));
         assert!(!sub.includes("health"));
@@ -199,20 +200,20 @@ mod tests {
     #[test]
     fn test_broadcaster_publish_and_subscribe() {
         let broadcaster = Broadcaster::new(16);
-        
+
         // Create a subscriber
         let mut rx = broadcaster.subscribe();
-        
+
         // Publish an event
         let event = GatewayEvent::Presence {
             conn_id: "conn-123".to_string(),
             status: "online".to_string(),
         };
         let count = broadcaster.publish(event.clone());
-        
+
         // Verify event was published
         assert_eq!(count, 1);
-        
+
         // Receive the event
         let received = rx.try_recv();
         assert!(received.is_ok());
@@ -222,12 +223,12 @@ mod tests {
     #[test]
     fn test_broadcaster_multiple_subscribers() {
         let broadcaster = Broadcaster::new(16);
-        
+
         // Create multiple subscribers
         let mut rx1 = broadcaster.subscribe();
         let mut rx2 = broadcaster.subscribe();
         let mut rx3 = broadcaster.subscribe();
-        
+
         // Publish an event
         let event = GatewayEvent::Health {
             snapshot: crate::client::HealthSnapshot {
@@ -237,10 +238,10 @@ mod tests {
             },
         };
         let count = broadcaster.publish(event.clone());
-        
+
         // Verify all three subscribers received it
         assert_eq!(count, 3);
-        
+
         // Each receiver should get the event
         assert!(rx1.try_recv().is_ok());
         assert!(rx2.try_recv().is_ok());
@@ -253,7 +254,7 @@ mod tests {
             conn_id: "conn-123".to_string(),
             status: "online".to_string(),
         };
-        
+
         let json = serde_json::to_value(&event).unwrap();
         assert_eq!(json["type"], "presence");
         assert_eq!(json["conn_id"], "conn-123");

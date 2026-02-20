@@ -18,10 +18,7 @@ use crate::types::*;
 pub enum ProviderError {
     /// Authentication failed with the provider.
     #[error("Authentication failed for provider '{provider}': {message}")]
-    AuthenticationFailed {
-        provider: String,
-        message: String,
-    },
+    AuthenticationFailed { provider: String, message: String },
 
     /// Rate limit exceeded with the provider.
     #[error("Rate limit exceeded for provider '{provider}'")]
@@ -32,24 +29,15 @@ pub enum ProviderError {
 
     /// Invalid request sent to the provider.
     #[error("Invalid request for provider '{provider}': {message}")]
-    InvalidRequest {
-        provider: String,
-        message: String,
-    },
+    InvalidRequest { provider: String, message: String },
 
     /// Requested model not found at the provider.
     #[error("Model '{model}' not found for provider '{provider}'")]
-    ModelNotFound {
-        provider: String,
-        model: String,
-    },
+    ModelNotFound { provider: String, model: String },
 
     /// Request exceeds the context length limit.
     #[error("Context length exceeded for provider '{provider}' (max tokens: {max_tokens})")]
-    ContextLengthExceeded {
-        provider: String,
-        max_tokens: u32,
-    },
+    ContextLengthExceeded { provider: String, max_tokens: u32 },
 
     /// Server-side error from the provider.
     #[error("Server error from provider '{provider}' (status {status}): {message}")]
@@ -61,10 +49,7 @@ pub enum ProviderError {
 
     /// Network error occurred during communication.
     #[error("Network error: {message}")]
-    NetworkError {
-        provider: String,
-        message: String,
-    },
+    NetworkError { provider: String, message: String },
 
     /// Stream was closed unexpectedly.
     #[error("Stream closed unexpectedly")]
@@ -72,40 +57,95 @@ pub enum ProviderError {
 
     /// Unknown or unexpected error.
     #[error("Unknown error from provider '{provider}': {message}")]
-    Unknown {
-        provider: String,
-        message: String,
-    },
+    Unknown { provider: String, message: String },
 }
 
 impl PartialEq for ProviderError {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::AuthenticationFailed { provider: p1, message: m1 }, Self::AuthenticationFailed { provider: p2, message: m2 }) => {
-                p1 == p2 && m1 == m2
-            }
-            (Self::RateLimited { provider: p1, retry_after: r1 }, Self::RateLimited { provider: p2, retry_after: r2 }) => {
-                p1 == p2 && r1 == r2
-            }
-            (Self::InvalidRequest { provider: p1, message: m1 }, Self::InvalidRequest { provider: p2, message: m2 }) => {
-                p1 == p2 && m1 == m2
-            }
-            (Self::ModelNotFound { provider: p1, model: m1 }, Self::ModelNotFound { provider: p2, model: m2 }) => {
-                p1 == p2 && m1 == m2
-            }
-            (Self::ContextLengthExceeded { provider: p1, max_tokens: m1 }, Self::ContextLengthExceeded { provider: p2, max_tokens: m2 }) => {
-                p1 == p2 && m1 == m2
-            }
-            (Self::ServerError { provider: p1, status: s1, message: m1 }, Self::ServerError { provider: p2, status: s2, message: m2 }) => {
-                p1 == p2 && s1 == s2 && m1 == m2
-            }
-            (Self::NetworkError { provider: p1, message: m1 }, Self::NetworkError { provider: p2, message: m2 }) => {
-                p1 == p2 && m1 == m2
-            }
+            (
+                Self::AuthenticationFailed {
+                    provider: p1,
+                    message: m1,
+                },
+                Self::AuthenticationFailed {
+                    provider: p2,
+                    message: m2,
+                },
+            ) => p1 == p2 && m1 == m2,
+            (
+                Self::RateLimited {
+                    provider: p1,
+                    retry_after: r1,
+                },
+                Self::RateLimited {
+                    provider: p2,
+                    retry_after: r2,
+                },
+            ) => p1 == p2 && r1 == r2,
+            (
+                Self::InvalidRequest {
+                    provider: p1,
+                    message: m1,
+                },
+                Self::InvalidRequest {
+                    provider: p2,
+                    message: m2,
+                },
+            ) => p1 == p2 && m1 == m2,
+            (
+                Self::ModelNotFound {
+                    provider: p1,
+                    model: m1,
+                },
+                Self::ModelNotFound {
+                    provider: p2,
+                    model: m2,
+                },
+            ) => p1 == p2 && m1 == m2,
+            (
+                Self::ContextLengthExceeded {
+                    provider: p1,
+                    max_tokens: m1,
+                },
+                Self::ContextLengthExceeded {
+                    provider: p2,
+                    max_tokens: m2,
+                },
+            ) => p1 == p2 && m1 == m2,
+            (
+                Self::ServerError {
+                    provider: p1,
+                    status: s1,
+                    message: m1,
+                },
+                Self::ServerError {
+                    provider: p2,
+                    status: s2,
+                    message: m2,
+                },
+            ) => p1 == p2 && s1 == s2 && m1 == m2,
+            (
+                Self::NetworkError {
+                    provider: p1,
+                    message: m1,
+                },
+                Self::NetworkError {
+                    provider: p2,
+                    message: m2,
+                },
+            ) => p1 == p2 && m1 == m2,
             (Self::StreamClosed, Self::StreamClosed) => true,
-            (Self::Unknown { provider: p1, message: m1 }, Self::Unknown { provider: p2, message: m2 }) => {
-                p1 == p2 && m1 == m2
-            }
+            (
+                Self::Unknown {
+                    provider: p1,
+                    message: m1,
+                },
+                Self::Unknown {
+                    provider: p2,
+                    message: m2,
+                },
+            ) => p1 == p2 && m1 == m2,
             _ => false,
         }
     }
@@ -178,12 +218,10 @@ pub fn map_http_error(provider: &str, status: u16, body: &str) -> ProviderError 
                 message,
             }
         }
-        _ => {
-            ProviderError::Unknown {
-                provider: provider.to_string(),
-                message: body.to_string(),
-            }
-        }
+        _ => ProviderError::Unknown {
+            provider: provider.to_string(),
+            message: body.to_string(),
+        },
     }
 }
 
@@ -226,7 +264,7 @@ pub fn enforce_alternating_turns(messages: &mut Vec<Message>) {
         if current_role == next_role {
             // Merge the next message into the current one
             let next_content = messages.remove(i + 1).content;
-            
+
             // Merge content - if both are Text, concatenate; otherwise use Parts
             match (&mut messages[i].content, next_content) {
                 (MessageContent::Text(current_text), MessageContent::Text(next_text)) => {
@@ -245,9 +283,8 @@ pub fn enforce_alternating_turns(messages: &mut Vec<Message>) {
                         if !remaining_parts.is_empty() {
                             // Replace content with a new Parts variant
                             let old_text = std::mem::take(current_text);
-                            messages[i].content = MessageContent::Parts(vec![
-                                ContentPart::Text { text: old_text },
-                            ]);
+                            messages[i].content =
+                                MessageContent::Parts(vec![ContentPart::Text { text: old_text }]);
                             // Now extend with remaining parts
                             if let MessageContent::Parts(ref mut parts) = messages[i].content {
                                 parts.extend(remaining_parts);
@@ -518,7 +555,11 @@ mod tests {
 
     #[test]
     fn test_map_http_error_authentication_401() {
-        let error = map_http_error("openai", 401, "{\"error\": {\"message\": \"Invalid API key\"}}");
+        let error = map_http_error(
+            "openai",
+            401,
+            "{\"error\": {\"message\": \"Invalid API key\"}}",
+        );
         match error {
             ProviderError::AuthenticationFailed { provider, message } => {
                 assert_eq!(provider, "openai");
@@ -542,9 +583,16 @@ mod tests {
 
     #[test]
     fn test_map_http_error_rate_limited_429() {
-        let error = map_http_error("openai", 429, "{\"error\": {\"type\": \"rate_limit_error\"}}");
+        let error = map_http_error(
+            "openai",
+            429,
+            "{\"error\": {\"type\": \"rate_limit_error\"}}",
+        );
         match error {
-            ProviderError::RateLimited { provider, retry_after } => {
+            ProviderError::RateLimited {
+                provider,
+                retry_after,
+            } => {
                 assert_eq!(provider, "openai");
                 assert!(retry_after.is_none());
             }
@@ -554,7 +602,11 @@ mod tests {
 
     #[test]
     fn test_map_http_error_invalid_request_400() {
-        let error = map_http_error("openai", 400, "{\"error\": {\"message\": \"Invalid model\"}}");
+        let error = map_http_error(
+            "openai",
+            400,
+            "{\"error\": {\"message\": \"Invalid model\"}}",
+        );
         match error {
             ProviderError::InvalidRequest { provider, message } => {
                 assert_eq!(provider, "openai");
@@ -566,7 +618,11 @@ mod tests {
 
     #[test]
     fn test_map_http_error_model_not_found_404() {
-        let error = map_http_error("openai", 404, "{\"error\": {\"type\": \"not_found_error\", \"model\": \"gpt-5\"}}");
+        let error = map_http_error(
+            "openai",
+            404,
+            "{\"error\": {\"type\": \"not_found_error\", \"model\": \"gpt-5\"}}",
+        );
         match error {
             ProviderError::ModelNotFound { provider, model } => {
                 assert_eq!(provider, "openai");
@@ -580,7 +636,10 @@ mod tests {
     fn test_map_http_error_context_length_exceeded_413() {
         let error = map_http_error("openai", 413, "{\"error\": {\"max_tokens\": 8192}}");
         match error {
-            ProviderError::ContextLengthExceeded { provider, max_tokens } => {
+            ProviderError::ContextLengthExceeded {
+                provider,
+                max_tokens,
+            } => {
                 assert_eq!(provider, "openai");
                 assert_eq!(max_tokens, 8192);
             }
@@ -592,7 +651,11 @@ mod tests {
     fn test_map_http_error_server_error_500() {
         let error = map_http_error("openai", 500, "Internal Server Error");
         match error {
-            ProviderError::ServerError { provider, status, message } => {
+            ProviderError::ServerError {
+                provider,
+                status,
+                message,
+            } => {
                 assert_eq!(provider, "openai");
                 assert_eq!(status, 500);
                 assert_eq!(message, "Internal Server Error");
@@ -626,9 +689,15 @@ mod tests {
 
         assert_eq!(messages.len(), 2);
         assert_eq!(messages[0].role, Role::User);
-        assert_eq!(messages[0].content, MessageContent::Text("First Second".to_string()));
+        assert_eq!(
+            messages[0].content,
+            MessageContent::Text("First Second".to_string())
+        );
         assert_eq!(messages[1].role, Role::Assistant);
-        assert_eq!(messages[1].content, MessageContent::Text("Response More".to_string()));
+        assert_eq!(
+            messages[1].content,
+            MessageContent::Text("Response More".to_string())
+        );
     }
 
     #[test]
@@ -642,9 +711,18 @@ mod tests {
         enforce_alternating_turns(&mut messages);
 
         assert_eq!(messages.len(), 3);
-        assert_eq!(messages[0].content, MessageContent::Text("First".to_string()));
-        assert_eq!(messages[1].content, MessageContent::Text("Response".to_string()));
-        assert_eq!(messages[2].content, MessageContent::Text("Second".to_string()));
+        assert_eq!(
+            messages[0].content,
+            MessageContent::Text("First".to_string())
+        );
+        assert_eq!(
+            messages[1].content,
+            MessageContent::Text("Response".to_string())
+        );
+        assert_eq!(
+            messages[2].content,
+            MessageContent::Text("Second".to_string())
+        );
     }
 
     #[test]
@@ -654,7 +732,10 @@ mod tests {
         enforce_alternating_turns(&mut messages);
 
         assert_eq!(messages.len(), 1);
-        assert_eq!(messages[0].content, MessageContent::Text("Only one".to_string()));
+        assert_eq!(
+            messages[0].content,
+            MessageContent::Text("Only one".to_string())
+        );
     }
 
     #[test]
@@ -677,7 +758,10 @@ mod tests {
         enforce_alternating_turns(&mut messages);
 
         assert_eq!(messages.len(), 1);
-        assert_eq!(messages[0].content, MessageContent::Text("First Second Third".to_string()));
+        assert_eq!(
+            messages[0].content,
+            MessageContent::Text("First Second Third".to_string())
+        );
     }
 
     #[test]
@@ -696,10 +780,7 @@ mod tests {
 
     #[test]
     fn test_extract_system_prompt_no_system() {
-        let mut messages = vec![
-            msg(Role::User, "Hello"),
-            msg(Role::Assistant, "Hi there"),
-        ];
+        let mut messages = vec![msg(Role::User, "Hello"), msg(Role::Assistant, "Hi there")];
 
         let system = extract_system_prompt(&mut messages);
 
@@ -737,8 +818,12 @@ mod tests {
             Message {
                 role: Role::System,
                 content: MessageContent::Parts(vec![
-                    ContentPart::Text { text: "System".to_string() },
-                    ContentPart::Text { text: "prompt".to_string() },
+                    ContentPart::Text {
+                        text: "System".to_string(),
+                    },
+                    ContentPart::Text {
+                        text: "prompt".to_string(),
+                    },
                 ]),
                 tool_calls: None,
                 tool_call_id: None,
@@ -825,9 +910,9 @@ mod tests {
         let usage = aggregate_usage(&chunks);
 
         // Should sum all chunk usages
-        assert_eq!(usage.prompt_tokens, 30);  // 5 + 10 + 15
-        assert_eq!(usage.completion_tokens, 10);  // 2 + 3 + 5
-        assert_eq!(usage.total_tokens, 40);  // 7 + 13 + 20
+        assert_eq!(usage.prompt_tokens, 30); // 5 + 10 + 15
+        assert_eq!(usage.completion_tokens, 10); // 2 + 3 + 5
+        assert_eq!(usage.total_tokens, 40); // 7 + 13 + 20
     }
 
     #[test]
@@ -846,7 +931,7 @@ mod tests {
     #[test]
     fn test_provider_error_is_error() {
         let error: ProviderError = map_http_error("openai", 401, "Unauthorized");
-        
+
         // Should implement std::error::Error
         let _: &dyn std::error::Error = &error;
     }

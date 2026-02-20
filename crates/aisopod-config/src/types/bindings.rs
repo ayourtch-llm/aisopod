@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Agent binding for routing agents to channels
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AgentBinding {
     /// Agent ID
     pub agent_id: String,
@@ -10,14 +10,4 @@ pub struct AgentBinding {
     /// Priority for this binding
     #[serde(default)]
     pub priority: u32,
-}
-
-impl Default for AgentBinding {
-    fn default() -> Self {
-        Self {
-            agent_id: String::new(),
-            channels: Vec::new(),
-            priority: 0,
-        }
-    }
 }

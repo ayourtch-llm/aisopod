@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 //! Bedrock-specific request/response types.
 //!
 //! This module defines types used to serialize/deserialize requests and
@@ -166,7 +167,10 @@ pub struct BedrockInferenceConfig {
 #[serde(tag = "contentType")]
 pub enum BedrockStreamEvent {
     #[serde(rename = "application/vnd.amazon.eventstream")]
-    EventStream { header: serde_json::Value, payload: serde_json::Value },
+    EventStream {
+        header: serde_json::Value,
+        payload: serde_json::Value,
+    },
     #[serde(rename = "application/json")]
     ContentBlockStart {
         content_block_index: usize,
@@ -254,10 +258,7 @@ pub enum BedrockContentBlockDelta {
     #[serde(rename = "text")]
     TextDelta { text: String },
     #[serde(rename = "tool_use")]
-    ToolUseDelta {
-        tool_use_id: String,
-        input: String,
-    },
+    ToolUseDelta { tool_use_id: String, input: String },
 }
 
 /// Usage statistics in Bedrock API response.
