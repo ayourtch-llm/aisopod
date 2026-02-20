@@ -219,23 +219,18 @@ impl AgentPipeline {
                 stop: None,
                 stream: true,
             };
+            let request_clone = request.clone();
 
             // Call model with failover support
             let response_stream = failover::execute_with_failover(
                 &mut failover_state,
-                &mut |event| {
-                    // Clone the sender and spawn an async task to send the event
-                    let tx = event_tx.clone();
-                    let _ = tokio::spawn(async move {
-                        let _ = tx.send(event).await;
-                    });
-                },
-                |model_id| {
+                event_tx.clone(),
+                move |model_id: String| {
                     let provider = provider.clone();
-                    let request = request.clone();
+                    let request = request_clone.clone();
                     async move {
                         let request = aisopod_provider::ChatCompletionRequest {
-                            model: model_id.to_string(),
+                            model: model_id,
                             ..request.clone()
                         };
                         provider.chat_completion(request).await.map_err(|e| e)

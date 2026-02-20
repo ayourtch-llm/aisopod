@@ -5,6 +5,9 @@
 
 use std::time::{Duration, Instant};
 
+use anyhow::Error;
+use tokio::sync::mpsc;
+
 use crate::types::AgentEvent;
 use crate::resolution::ModelChain;
 
@@ -206,21 +209,22 @@ pub fn classify_error(error: &ProviderError) -> FailoverAction {
 /// # Arguments
 ///
 /// * `state` - The FailoverState tracking attempts
-/// * `emit_event` - A closure that emits AgentEvents
+/// * `event_tx` - Channel to send AgentEvents
 /// * `operation` - The closure that performs the model call
 ///
 /// # Returns
 ///
 /// Returns Ok with the result if successful, or Err with an error message
 /// if all models are exhausted or failover should abort.
-pub async fn execute_with_failover<F, Fut, R>(
+pub async fn execute_with_failover<F, Fut, R, E>(
     state: &mut FailoverState,
-    emit_event: &mut dyn FnMut(AgentEvent),
+    event_tx: mpsc::Sender<AgentEvent>,
     mut operation: F,
-) -> Result<R, String>
+) -> Result<R, Error>
 where
-    F: FnMut(&str) -> Fut,
-    Fut: std::future::Future<Output = Result<R, ProviderError>>,
+    F: FnMut(String) -> Fut,
+    Fut: std::future::Future<Output = Result<R, E>> + Send,
+    E: std::fmt::Display + Send,
 {
     let mut current_attempts = 0;
     let max_attempts = state.max_attempts;
@@ -229,7 +233,7 @@ where
         let model_id = state.current_model().to_string();
         let start_time = Instant::now();
 
-        match operation(&model_id).await {
+        match operation(model_id.clone()).await {
             Ok(result) => {
                 let duration = start_time.elapsed();
                 state.record_attempt(None, duration);
@@ -237,9 +241,12 @@ where
             }
             Err(error) => {
                 let duration = start_time.elapsed();
-                state.record_attempt(Some(error.clone()), duration);
+                let error_msg = error.to_string();
+                state.record_attempt(None, duration);
 
-                let action = classify_error(&error);
+                // Try to classify the error by looking for known patterns
+                // First, try to parse as ProviderError if it contains known error markers
+                let action = classify_error_by_message(&error_msg);
 
                 match action {
                     FailoverAction::RetryWithNextAuth => {
@@ -247,15 +254,15 @@ where
                         // multiple auth credentials to try
                         // In a full implementation, this would switch credentials
                         if state.advance().is_some() {
-                            emit_event(AgentEvent::ModelSwitch {
+                            let _ = event_tx.send(AgentEvent::ModelSwitch {
                                 from: model_id.clone(),
                                 to: state.current_model().to_string(),
                                 reason: "retry with next auth".to_string(),
-                            });
+                            }).await;
                             current_attempts = 0;
                         } else {
                             // No more models to try
-                            return Err(format!(
+                            return Err(anyhow::anyhow!(
                                 "All models exhausted. Last error: {}",
                                 error
                             ));
@@ -270,51 +277,125 @@ where
                             continue;
                         } else {
                             state.advance();
-                            emit_event(AgentEvent::ModelSwitch {
+                            let _ = event_tx.send(AgentEvent::ModelSwitch {
                                 from: model_id.clone(),
                                 to: state.current_model().to_string(),
                                 reason: "wait and retry".to_string(),
-                            });
+                            }).await;
                             current_attempts = 0;
                         }
                     }
                     FailoverAction::CompactAndRetry => {
                         // Signal caller to compact messages and retry
                         // We return the error so the caller can decide how to handle it
-                        return Err(format!(
+                        return Err(anyhow::anyhow!(
                             "Context length exceeded - compact messages and retry: {}",
                             error
                         ));
                     }
                     FailoverAction::FailoverToNext => {
                         if state.advance().is_some() {
-                            emit_event(AgentEvent::ModelSwitch {
+                            let _ = event_tx.send(AgentEvent::ModelSwitch {
                                 from: model_id.clone(),
                                 to: state.current_model().to_string(),
                                 reason: "failover to next model".to_string(),
-                            });
+                            }).await;
                             current_attempts = 0;
                         } else {
                             // No more models to try
-                            return Err(format!(
+                            return Err(anyhow::anyhow!(
                                 "All models exhausted. Last error: {}",
                                 error
                             ));
                         }
                     }
                     FailoverAction::Abort => {
-                        return Err(format!("Aborting due to error: {}", error));
+                        return Err(anyhow::anyhow!("Aborting due to error: {}", error));
                     }
                 }
             }
         }
     }
 
-    Err(format!(
+    Err(anyhow::anyhow!(
         "All models exhausted after {} attempts. Last model: {}",
         state.total_models(),
         state.current_model()
     ))
+}
+
+/// Classifies an error by examining its message content.
+///
+/// This is a fallback version that works with any error type by
+/// examining the error message string for known patterns.
+pub fn classify_error_by_message(error_msg: &str) -> FailoverAction {
+    // Check for authentication errors
+    if error_msg.contains("Authentication") 
+        || error_msg.contains("invalid API key")
+        || error_msg.contains("Invalid API key")
+        || error_msg.contains("unauthorized") 
+        || error_msg.contains("401")
+        || error_msg.contains("403")
+    {
+        return FailoverAction::RetryWithNextAuth;
+    }
+
+    // Check for rate limit errors
+    if error_msg.contains("RateLimited")
+        || error_msg.contains("rate limit")
+        || error_msg.contains("429")
+        || error_msg.contains("too many requests")
+    {
+        // Default to 5 second wait if no specific retry_after found
+        return FailoverAction::WaitAndRetry(Duration::from_secs(5));
+    }
+
+    // Check for context length errors
+    if error_msg.contains("ContextLengthExceeded")
+        || error_msg.contains("context length")
+        || error_msg.contains("maximum context length")
+        || error_msg.contains("413")
+    {
+        return FailoverAction::CompactAndRetry;
+    }
+
+    // Check for model not found
+    if error_msg.contains("ModelNotFound")
+        || error_msg.contains("model not found")
+        || error_msg.contains("404")
+    {
+        return FailoverAction::FailoverToNext;
+    }
+
+    // Check for server errors
+    if error_msg.contains("ServerError")
+        || error_msg.contains("server error")
+        || error_msg.contains("500")
+        || error_msg.contains("502")
+        || error_msg.contains("503")
+        || error_msg.contains("504")
+    {
+        return FailoverAction::FailoverToNext;
+    }
+
+    // Check for network errors
+    if error_msg.contains("NetworkError")
+        || error_msg.contains("network")
+        || error_msg.contains("connection")
+        || error_msg.contains("timeout")
+    {
+        return FailoverAction::RetryWithNextAuth;
+    }
+
+    // Check for stream closed
+    if error_msg.contains("StreamClosed")
+        || error_msg.contains("stream closed")
+    {
+        return FailoverAction::FailoverToNext;
+    }
+
+    // Default to Abort for unknown errors
+    FailoverAction::Abort
 }
 
 #[cfg(test)]
@@ -352,9 +433,9 @@ mod tests {
         let mut state = FailoverState::new(&chain);
 
         assert_eq!(state.current_model(), "gpt-4");
-        assert_eq!(state.advance(), Some("gpt-3.5-turbo".to_string()));
+        assert_eq!(state.advance(), Some("gpt-3.5-turbo"));
         assert_eq!(state.current_model(), "gpt-3.5-turbo");
-        assert_eq!(state.advance(), Some("claude-3-opus".to_string()));
+        assert_eq!(state.advance(), Some("claude-3-opus"));
         assert_eq!(state.current_model(), "claude-3-opus");
         assert_eq!(state.advance(), None);
     }
@@ -443,20 +524,34 @@ mod tests {
     async fn test_execute_with_failover_success_first_attempt() {
         let chain = ModelChain::new("gpt-4");
         let mut state = FailoverState::new(&chain);
-        let mut events: Vec<AgentEvent> = Vec::new();
+        let (tx, mut rx) = tokio::sync::mpsc::channel(10);
+
+        // Spawn a task to receive events
+        let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let events_clone = events.clone();
+        let receive_task = tokio::spawn(async move {
+            while let Some(event) = rx.recv().await {
+                events_clone.lock().unwrap().push(event);
+            }
+        });
 
         let result = execute_with_failover(
             &mut state,
-            &mut |event| events.push(event),
+            tx,
             |model_id| {
-                let model_id_clone = model_id.to_string();
+                let model_id_clone = model_id.clone();
                 async move {
                     assert_eq!(model_id_clone, "gpt-4");
-                    Ok("success".to_string())
+                    Ok::<&str, ProviderError>("success")
                 }
             },
         )
         .await;
+
+        // Wait for events to be received
+        receive_task.await.ok();
+
+        let events = events.lock().unwrap();
 
         assert_eq!(result.unwrap(), "success");
         assert_eq!(state.attempted_models.len(), 1);
@@ -471,34 +566,49 @@ mod tests {
             vec!["gpt-3.5-turbo".to_string(), "claude-3-opus".to_string()],
         );
         let mut state = FailoverState::new(&chain);
+        let (tx, mut rx) = tokio::sync::mpsc::channel(10);
         let mut events: Vec<AgentEvent> = Vec::new();
+
+        // Spawn a task to receive events
+        let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let events_clone = events.clone();
+        let receive_task = tokio::spawn(async move {
+            while let Some(event) = rx.recv().await {
+                events_clone.lock().unwrap().push(event);
+            }
+        });
 
         // First model fails with auth error
         let result = execute_with_failover(
             &mut state,
-            &mut |event| events.push(event),
+            tx,
             |model_id| {
-                let model_id_clone = model_id.to_string();
+                let model_id_clone = model_id.clone();
                 async move {
                     if model_id_clone == "gpt-4" {
-                        Err(ProviderError::AuthenticationFailed {
+                        Err::<&str, ProviderError>(ProviderError::AuthenticationFailed {
                             provider: "openai".to_string(),
                             message: "Invalid API key".to_string(),
                         })
                     } else {
-                        Ok("success".to_string())
+                        Ok::<&str, ProviderError>("success")
                     }
                 }
             },
         )
         .await;
 
+        // Wait for events to be received
+        receive_task.await.ok();
+
+        let events_guard = events.lock().unwrap();
+
         assert_eq!(result.unwrap(), "success");
         assert_eq!(state.attempted_models.len(), 2);
         assert_eq!(state.current_model(), "gpt-3.5-turbo");
 
         // Check that ModelSwitch event was emitted
-        let model_switch_events: Vec<&AgentEvent> = events
+        let model_switch_events: Vec<&AgentEvent> = events_guard
             .iter()
             .filter(|e| matches!(e, AgentEvent::ModelSwitch { .. }))
             .collect();
@@ -512,14 +622,24 @@ mod tests {
             vec!["gpt-3.5-turbo".to_string()],
         );
         let mut state = FailoverState::new(&chain);
+        let (tx, mut rx) = tokio::sync::mpsc::channel(10);
         let mut events: Vec<AgentEvent> = Vec::new();
 
-        let result: Result<String, String> = execute_with_failover(
+        // Spawn a task to receive events
+        let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let events_clone = events.clone();
+        let receive_task = tokio::spawn(async move {
+            while let Some(event) = rx.recv().await {
+                events_clone.lock().unwrap().push(event);
+            }
+        });
+
+        let result: Result<String, anyhow::Error> = execute_with_failover(
             &mut state,
-            &mut |event| events.push(event),
+            tx,
             |_model_id| {
                 async move {
-                    Err(ProviderError::AuthenticationFailed {
+                    Err::<String, ProviderError>(ProviderError::AuthenticationFailed {
                         provider: "openai".to_string(),
                         message: "Invalid API key".to_string(),
                     })
@@ -529,7 +649,8 @@ mod tests {
         .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("All models exhausted"));
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("All models exhausted"));
         assert_eq!(state.attempted_models.len(), 2); // Both models attempted
     }
 }
