@@ -69,12 +69,50 @@ Without transcript repair, the agent will encounter API errors from providers th
 - Issue 038 (ModelProvider trait and core types — provides provider kind information)
 
 ## Acceptance Criteria
-- [ ] `repair_transcript()` function exists and handles Anthropic, OpenAI, and Gemini providers.
-- [ ] Anthropic repair enforces alternating user/assistant turns.
-- [ ] Synthetic messages are inserted where needed with recognizable markers.
-- [ ] Valid sequences pass through unchanged.
-- [ ] Unit tests cover all repair strategies and edge cases.
-- [ ] `cargo check -p aisopod-agent` succeeds without errors.
+- [x] `repair_transcript()` function exists and handles Anthropic, OpenAI, and Gemini providers.
+- [x] Anthropic repair enforces alternating user/assistant turns.
+- [x] Synthetic messages are inserted where needed with recognizable markers.
+- [x] Valid sequences pass through unchanged.
+- [x] Unit tests cover all repair strategies and edge cases.
+- [x] `cargo check -p aisopod-agent` succeeds without errors.
+
+## Resolution
+
+### Changes Made
+
+**File: `crates/aisopod-agent/src/transcript.rs`**
+- Created complete `repair_transcript()` function that takes a message slice and target provider
+- Implemented `ProviderKind` enum with variants: `Anthropic`, `OpenAI`, `Google`, `Other`
+- Implemented `repair_for_anthropic()` - ensures strictly alternating user/assistant turns
+  - Prepends synthetic user message if sequence starts with assistant
+  - Inserts synthetic assistant message between consecutive user messages
+  - Inserts synthetic user message between consecutive assistant messages
+- Implemented `repair_for_openai()` - handles OpenAI's more flexible requirements
+  - Ensures system messages are at the start
+  - Merges multiple system messages into one with combined content
+- Implemented `repair_for_google()` - similar to Anthropic for Gemini requirements
+- Implemented helper functions: `synthetic_user_message()` and `synthetic_assistant_message()`
+  - Both create messages with `"[continued]"` text marker for easy identification
+- Implemented comprehensive unit tests (16 test cases) covering all scenarios
+
+**File: `crates/aisopod-agent/src/lib.rs`**
+- Added `pub mod transcript;`
+- Exported `repair_transcript` and `ProviderKind` from crate root
+
+### Test Results
+All 108 tests in `aisopod-agent` crate pass, including 16 new transcript repair tests covering:
+- Anthropic: consecutive messages, start/end edge cases, valid sequences, empty sequences
+- OpenAI: system message ordering, multiple system message deduplication
+- Gemini: similar to Anthropic with proper user/model alternation
+- Other provider: pass-through behavior
+
+### Verification
+```bash
+$ RUSTFLAGS=-Awarnings cargo build
+$ RUSTFLAGS=-Awarnings cargo test -p aisopod-agent
+$ cargo test -p aisopod-agent transcript::tests  # 16 passed
+```
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-20*
