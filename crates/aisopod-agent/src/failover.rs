@@ -47,6 +47,8 @@ pub struct FailoverState {
     pub max_attempts: usize,
     /// The model chain to iterate through
     model_chain: ModelChain,
+    /// All models in the chain (primary + fallbacks)
+    all_models: Vec<String>,
 }
 
 impl FailoverState {
@@ -57,26 +59,25 @@ impl FailoverState {
             current_model_index: 0,
             max_attempts: 3, // Default max attempts per model
             model_chain: model_chain.clone(),
+            all_models: model_chain.all_models(),
         }
     }
 
     /// Gets the current model ID being attempted.
-    pub fn current_model(&self) -> String {
-        // Get all models first, then index into it
-        let all_models = self.model_chain.all_models();
-        if self.current_model_index < all_models.len() {
-            all_models[self.current_model_index].clone()
+    pub fn current_model(&self) -> &str {
+        if self.current_model_index < self.all_models.len() {
+            &self.all_models[self.current_model_index]
         } else {
             // Fallback - should not happen in normal operation
-            self.model_chain.primary().to_string()
+            self.model_chain.primary()
         }
     }
 
     /// Advances to the next model in the chain.
     /// Returns Some(model_id) if there are more models, None if exhausted.
-    pub fn advance(&mut self) -> Option<String> {
+    pub fn advance(&mut self) -> Option<&str> {
         self.current_model_index += 1;
-        if self.current_model_index < self.model_chain.all_models().len() {
+        if self.current_model_index < self.all_models.len() {
             Some(self.current_model())
         } else {
             None
@@ -101,7 +102,7 @@ impl FailoverState {
 
     /// Returns whether we can still retry with the current model.
     pub fn can_retry_current_model(&self) -> bool {
-        let model_id = self.current_model().to_string();
+        let model_id = self.current_model();
         let attempts_for_current = self
             .attempted_models
             .iter()

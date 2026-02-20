@@ -12,7 +12,7 @@ use futures_util::StreamExt;
 
 use crate::resolution::{resolve_agent_config, resolve_agent_model, resolve_session_agent_id, ModelChain};
 use crate::types::{AgentEvent, AgentRunParams, AgentRunResult, ToolCallRecord, UsageReport};
-use crate::{prompt, transcript};
+use crate::{failover, prompt, transcript};
 use aisopod_provider::ToolDefinition;
 
 /// A stream of agent events from an agent run.
@@ -190,19 +190,24 @@ impl AgentPipeline {
         event_tx: &mpsc::Sender<AgentEvent>,
         params: &AgentRunParams,
     ) -> Result<AgentRunResult> {
+        // Create failover state for tracking model attempts
+        let mut failover_state = failover::FailoverState::new(model_chain);
         let mut usage = UsageReport::new(0, 0);
         let mut tool_calls: Vec<ToolCallRecord> = Vec::new();
 
         loop {
+            // Get the current model ID for the request
+            let current_model = failover_state.current_model().to_string();
+
             // Get the current provider and model
-            let (provider, model_id) = self
+            let (provider, _) = self
                 .providers
-                .resolve_model(&model_chain.primary())
-                .ok_or_else(|| anyhow::anyhow!("Model not found: {}", model_chain.primary()))?;
+                .resolve_model(&current_model)
+                .ok_or_else(|| anyhow::anyhow!("Model not found: {}", current_model))?;
 
             // Build the request
             let request = aisopod_provider::ChatCompletionRequest {
-                model: model_id.clone(),
+                model: current_model.clone(),
                 messages: messages.clone(),
                 tools: if tool_definitions.is_empty() {
                     None
@@ -215,8 +220,29 @@ impl AgentPipeline {
                 stream: true,
             };
 
-            // Call model - for now, use the provider directly
-            let response_stream = provider.chat_completion(request).await?;
+            // Call model with failover support
+            let response_stream = failover::execute_with_failover(
+                &mut failover_state,
+                &mut |event| {
+                    // Clone the sender and spawn an async task to send the event
+                    let tx = event_tx.clone();
+                    let _ = tokio::spawn(async move {
+                        let _ = tx.send(event).await;
+                    });
+                },
+                |model_id| {
+                    let provider = provider.clone();
+                    let request = request.clone();
+                    async move {
+                        let request = aisopod_provider::ChatCompletionRequest {
+                            model: model_id.to_string(),
+                            ..request.clone()
+                        };
+                        provider.chat_completion(request).await.map_err(|e| e)
+                    }
+                },
+            )
+            .await?;
 
             // Process streaming response
             let mut response_text = String::new();
