@@ -75,13 +75,50 @@ Agent resolution is the first step in the execution pipeline. Without it, the sy
 - Issue 016 (Core configuration types — provides agent config structures)
 
 ## Acceptance Criteria
-- [ ] `AgentBinding` and `BindingMatch` types are defined with matching logic.
-- [ ] `resolve_session_agent_id()` maps session keys to agent IDs via binding evaluation.
-- [ ] `resolve_agent_config()` retrieves agent configuration by ID.
-- [ ] `resolve_agent_model()` returns the primary model and fallback chain.
-- [ ] `list_agent_ids()` enumerates all configured agents.
-- [ ] Unit tests verify correct binding evaluation and resolution behavior.
-- [ ] `cargo check -p aisopod-agent` succeeds without errors.
+- [x] `AgentBinding` and `BindingMatch` types are defined with matching logic.
+- [x] `resolve_session_agent_id()` maps session keys to agent IDs via binding evaluation.
+- [x] `resolve_agent_config()` retrieves agent configuration by ID.
+- [x] `resolve_agent_model()` returns the primary model and fallback chain.
+- [x] `list_agent_ids()` enumerates all configured agents.
+- [x] Unit tests verify correct binding evaluation and resolution behavior.
+- [x] `cargo check -p aisopod-agent` succeeds without errors.
+
+## Resolution
+
+The agent resolution and binding system was implemented as specified:
+
+### Changes Made:
+1. **Created `crates/aisopod-agent/src/binding.rs`**:
+   - `AgentBinding` struct with `agent_id` and `match_rule` fields
+   - `BindingMatch` struct with `channel`, `account_id`, `peer` (Option<PeerMatch>), and `guild_id` fields
+   - `PeerMatch` enum with `Any`, `Id`, and `Pattern` variants (with Serialize/Deserialize)
+   - `BindingMatch::matches()` method implementing matching logic with wildcard support
+   - `AgentBinding::evaluate()` method returning agent_id on match
+
+2. **Created `crates/aisopod-agent/src/resolution.rs`**:
+   - `resolve_session_agent_id()` - parses session key, iterates bindings, returns matching agent_id or default
+   - `resolve_agent_config()` - retrieves agent config by ID from configuration
+   - `resolve_agent_model()` - returns ModelChain with primary model and fallback chain
+   - `list_agent_ids()` - returns all configured agent IDs
+
+3. **Updated `crates/aisopod-agent/src/lib.rs`**:
+   - Added `pub mod resolution;` and `pub mod binding;`
+
+4. **Unit tests** in each module:
+   - Binding match tests for various field combinations
+   - Resolution tests for multiple bindings (first match wins)
+   - Default agent fallback when no binding matches
+   - Model chain construction tests
+
+### Commits:
+- `27dcfec`: Initial implementation of issue 063
+- `6fb2851`: Fix BindingMatch.peer to use PeerMatch type
+
+### Verification:
+- `cargo test -p aisopod-agent`: 108 tests passed
+- `cargo build` at top level: succeeded
+- `cargo check -p aisopod-agent`: clean
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-20*
