@@ -75,12 +75,54 @@ Usage tracking is essential for cost monitoring, budget enforcement, and observa
 - Issue 066 (Streaming agent execution pipeline — integration point for recording usage)
 
 ## Acceptance Criteria
-- [ ] `UsageTracker` records per-request, per-session, and per-agent token usage.
-- [ ] `AgentEvent::Usage` events are emitted after each model call.
-- [ ] Session and agent usage can be queried via `get_session_usage()` and `get_agent_usage()`.
-- [ ] Concurrent access is safe (no data races).
-- [ ] Unit tests verify accumulation, aggregation, and reset behavior.
-- [ ] `cargo check -p aisopod-agent` succeeds without errors.
+- [x] `UsageTracker` records per-request, per-session, and per-agent token usage.
+- [x] `AgentEvent::Usage` events are emitted after each model call.
+- [x] Session and agent usage can be queried via `get_session_usage()` and `get_agent_usage()`.
+- [x] Concurrent access is safe (no data races).
+- [x] Unit tests verify accumulation, aggregation, and reset behavior.
+- [x] `cargo check -p aisopod-agent` succeeds without errors.
+
+## Resolution
+
+The usage tracking system was implemented as specified:
+
+### Changes Made:
+1. **Created `crates/aisopod-agent/src/usage.rs`**:
+   - `UsageTracker` struct with `session_usage` and `agent_usage` `DashMap` fields
+   - `UsageReport` struct with `input_tokens`, `output_tokens`, `total_tokens`, `request_count`
+   - Methods:
+     - `UsageTracker::new()` - creates empty tracker
+     - `record_request()` - adds to session and agent usage
+     - `get_session_usage()` - returns cumulative usage for a session
+     - `get_agent_usage()` - returns cumulative usage for an agent
+     - `reset_session()` - clears usage for a session
+
+2. **Updated `crates/aisopod-agent/src/types.rs`**:
+   - Extended `UsageReport` with `total_tokens` and `request_count` fields
+
+3. **Integrated into `runner.rs` and `pipeline.rs`**:
+   - Added `usage_tracker: Option<Arc<UsageTracker>>`
+   - Records usage after each model call
+
+4. **Emission of `AgentEvent::Usage`**:
+   - Emitted after each model call with per-request token counts
+
+5. **Unit tests**:
+   - `test_new_tracker_has_empty_maps`
+   - `test_accumulation_across_requests`
+   - `test_record_single_request`
+   - `test_per_agent_aggregation`
+   - `test_reset_session`
+   - `test_concurrent_access`
+
+### Commits:
+- `4c1c093`: Issue 070: Implement Usage Tracking
+
+### Verification:
+- `cargo test -p aisopod-agent`: 112 tests passed (9 usage-specific tests)
+- `cargo build` at top level: succeeded
+- `cargo check -p aisopod-agent`: clean
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-20*
