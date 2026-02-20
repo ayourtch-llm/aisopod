@@ -22,3 +22,7 @@ chrono.workspace = true
 futures-core.workspace = true
 futures-util.workspace = true
 tokio-util = "0.7"
+
+[dev-dependencies]
+async-trait = "0.1"
+async-stream = "0.3"

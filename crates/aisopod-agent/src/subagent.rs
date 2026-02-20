@@ -73,7 +73,7 @@ impl ResourceBudget {
 /// 3. Creates child AgentRunParams with incremented depth and inherited thread ID
 /// 4. Calls runner.run_and_get_result() with the child params (returns final result)
 /// 5. Deducts child usage from the parent's resource budget
-/// 6. Returns the child's result
+/// 6. Returns the child's result and the updated budget
 ///
 /// # Arguments
 ///
@@ -82,11 +82,11 @@ impl ResourceBudget {
 ///
 /// # Returns
 ///
-/// Returns the result of the subagent run, or an error if spawning failed.
+/// Returns a tuple of (child result, optional updated budget), or an error if spawning failed.
 pub async fn spawn_subagent(
     runner: &AgentRunner,
     params: SubagentSpawnParams,
-) -> Result<AgentRunResult> {
+) -> Result<(AgentRunResult, Option<ResourceBudget>)> {
     // Step 1: Check depth limit
     let max_depth = runner.get_max_subagent_depth();
     if params.parent_depth + 1 > max_depth {
@@ -105,18 +105,20 @@ pub async fn spawn_subagent(
     runner.validate_model_allowlist(&params.agent_id, &model)?;
 
     // Step 3: Create child AgentRunParams with incremented depth
-    let child_params = AgentRunParams::with_depth(
+    // Propagate thread_id from parent to child for context sharing
+    let child_params = AgentRunParams::with_depth_and_thread_id(
         params.parent_session_key,
         params.messages,
         Some(params.agent_id.clone()),
         params.parent_depth + 1,
+        params.thread_id,
     );
 
     // Step 4: Run the subagent and get result directly
     let child_result = runner.run_and_get_result(child_params).await?;
 
     // Step 5: Deduct child usage from parent's budget if budget was provided
-    if let Some(mut budget) = params.resource_budget {
+    let updated_budget = if let Some(mut budget) = params.resource_budget {
         let child_tokens = child_result.usage.total_tokens as usize;
         
         // Check if we have enough budget before deducting
@@ -128,12 +130,15 @@ pub async fn spawn_subagent(
             ));
         }
 
-        // Deduct the usage
+        // Deduct the usage and return the updated budget
         budget.deduct(child_tokens)?;
-    }
+        Some(budget)
+    } else {
+        None
+    };
 
-    // Step 6: Return the child's result
-    Ok(child_result)
+    // Step 6: Return the child's result and updated budget
+    Ok((child_result, updated_budget))
 }
 
 #[cfg(test)]
@@ -247,5 +252,31 @@ mod tests {
         assert_eq!(params.depth, 5);
         assert_eq!(params.session_key, "session_xyz");
         assert_eq!(params.agent_id, Some("test_agent_1".to_string()));
+    }
+
+    #[test]
+    fn test_agent_run_params_with_thread_id() {
+        let params = AgentRunParams::with_depth_and_thread_id(
+            "session_123",
+            vec![],
+            Some("agent_1"),
+            2,
+            Some("thread_xyz"),
+        );
+        assert_eq!(params.depth, 2);
+        assert_eq!(params.thread_id, Some("thread_xyz".to_string()));
+    }
+
+    #[test]
+    fn test_agent_run_params_with_thread_id_none() {
+        let params = AgentRunParams::with_depth_and_thread_id_str(
+            "session_123",
+            vec![],
+            Some("agent_1"),
+            1,
+            None,
+        );
+        assert_eq!(params.depth, 1);
+        assert_eq!(params.thread_id, None);
     }
 }

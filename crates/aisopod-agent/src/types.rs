@@ -110,6 +110,9 @@ pub struct AgentRunParams {
     /// The current depth of agent spawning (for recursion limits).
     #[serde(default)]
     pub depth: usize,
+    /// Optional thread ID from parent for context sharing.
+    #[serde(default)]
+    pub thread_id: Option<String>,
 }
 
 impl AgentRunParams {
@@ -120,6 +123,7 @@ impl AgentRunParams {
             messages,
             agent_id: agent_id.map(|id| id.into()),
             depth: 0,
+            thread_id: None,
         }
     }
 
@@ -135,6 +139,41 @@ impl AgentRunParams {
             messages,
             agent_id: agent_id.map(|id| id.into()),
             depth,
+            thread_id: None,
+        }
+    }
+
+    /// Creates a new `AgentRunParams` with the given session key, messages, agent ID, depth, and thread_id.
+    pub fn with_depth_and_thread_id(
+        session_key: impl Into<String>,
+        messages: Vec<aisopod_provider::Message>,
+        agent_id: Option<impl Into<String>>,
+        depth: usize,
+        thread_id: Option<impl Into<String>>,
+    ) -> Self {
+        Self {
+            session_key: session_key.into(),
+            messages,
+            agent_id: agent_id.map(|id| id.into()),
+            depth,
+            thread_id: thread_id.map(|id| id.into()),
+        }
+    }
+
+    /// Creates a new `AgentRunParams` with the given session key, messages, agent ID, depth, and thread_id (with explicit type).
+    pub fn with_depth_and_thread_id_str(
+        session_key: impl Into<String>,
+        messages: Vec<aisopod_provider::Message>,
+        agent_id: Option<impl Into<String>>,
+        depth: usize,
+        thread_id: Option<&str>,
+    ) -> Self {
+        Self {
+            session_key: session_key.into(),
+            messages,
+            agent_id: agent_id.map(|id| id.into()),
+            depth,
+            thread_id: thread_id.map(|id| id.to_string()),
         }
     }
 }

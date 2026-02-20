@@ -21,6 +21,7 @@ mod tools;
 
 pub use agents::Agent;
 pub use agents::AgentsConfig;
+pub use agents::AgentDefaults;
 pub use auth::AuthConfig;
 pub use auth::AuthMode;
 pub use auth::PasswordCredential;
@@ -37,6 +38,7 @@ pub use gateway::WebUiConfig;
 pub use meta::MetaConfig;
 pub use memory::MemoryConfig;
 pub use models::ModelsConfig;
+pub use models::ModelFallback;
 pub use plugins::PluginsConfig;
 pub use session::CompactionConfig;
 pub use session::MessageConfig;

@@ -23,6 +23,8 @@ pub mod validation;
 pub mod watcher;
 
 pub use types::AisopodConfig;
+pub use types::AgentDefaults;
+pub use types::ModelFallback;
 pub use loader::load_config;
 pub use loader::load_config_json5;
 pub use loader::load_config_toml;

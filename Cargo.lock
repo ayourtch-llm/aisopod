@@ -42,6 +42,8 @@ dependencies = [
  "aisopod-shared",
  "aisopod-tools",
  "anyhow",
+ "async-stream",
+ "async-trait",
  "chrono",
  "dashmap 5.5.3",
  "futures-core",
