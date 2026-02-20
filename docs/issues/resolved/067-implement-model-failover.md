@@ -91,15 +91,45 @@ Failover is essential for production reliability. Users should not experience fa
 - Issue 040 (Auth profile management — for trying alternative auth profiles)
 
 ## Acceptance Criteria
-- [ ] `FailoverState` tracks model attempts and current position in the chain.
-- [ ] Auth errors trigger next auth profile before model failover.
-- [ ] Rate limit errors wait or fail over appropriately.
-- [ ] Context overflow triggers compaction then retry or failover.
-- [ ] Timeout errors trigger immediate failover.
-- [ ] `ModelSwitch` event is emitted when failover occurs.
-- [ ] All models exhausted returns a descriptive error.
-- [ ] Unit tests cover all failover scenarios.
-- [ ] `cargo check -p aisopod-agent` succeeds without errors.
+- [x] `FailoverState` tracks model attempts and current position in the chain.
+- [x] Auth errors trigger next auth profile before model failover.
+- [x] Rate limit errors wait or fail over appropriately.
+- [x] Context overflow triggers compaction then retry or failover.
+- [x] Timeout errors trigger immediate failover.
+- [x] `ModelSwitch` event is emitted when failover occurs.
+- [x] All models exhausted returns a descriptive error.
+- [x] Unit tests cover all failover scenarios.
+- [x] `cargo check -p aisopod-agent` succeeds without errors.
+
+## Resolution
+
+The model failover system was implemented as specified:
+
+### Changes Made:
+1. **Created `crates/aisopod-agent/src/failover.rs`**:
+   - `FailoverState` struct with `attempted_models`, `current_model_index`, `max_attempts`
+   - `ModelAttempt` struct with `model_id`, `error`, `duration`
+   - `FailoverState::new()` to initialize from model chain
+   - `FailoverState::current_model()` to get current model ID
+   - `FailoverState::advance()` to move to next model
+   - `FailoverAction` enum with retry, wait, compact, failover, abort variants
+   - `classify_error()` and `classify_error_generic()` to map provider errors to actions
+   - `execute_with_failover()` async function implementing the failover loop
+   - `AgentEvent::ModelSwitch` emitted when switching models
+
+2. **Updated `crates/aisopod-agent/src/lib.rs`**:
+   - Added `pub mod failover;`
+
+3. **Integration with pipeline (Issue 066)**:
+   - `execute_with_failover()` called in execution pipeline
+
+### Commits:
+- `6b4f113`: Issue 067: Implement Model Failover
+
+### Verification:
+- `cargo test -p aisopod-agent`: 110 tests passed (15 failover-specific tests)
+- `cargo check`, `cargo build`, `cargo clippy`: clean
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-20*
