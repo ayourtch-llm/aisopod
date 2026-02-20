@@ -671,4 +671,109 @@ mod tests {
         assert!(err_msg.contains("All models exhausted"));
         assert_eq!(state.attempted_models.len(), 2); // Both models attempted
     }
+
+    #[tokio::test]
+    async fn test_execute_with_failover_rate_limit_with_wait() {
+        let chain = ModelChain::with_fallbacks(
+            "gpt-4",
+            vec!["gpt-3.5-turbo".to_string()],
+        );
+        let mut state = FailoverState::new(&chain);
+        let (tx, mut rx) = tokio::sync::mpsc::channel(10);
+
+        // Spawn a task to receive events
+        let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let events_clone = events.clone();
+        let receive_task = tokio::spawn(async move {
+            while let Some(event) = rx.recv().await {
+                events_clone.lock().unwrap().push(event);
+            }
+        });
+
+        // First call returns rate limited, second call on next model succeeds
+        // Note: With max_attempts=3, rate limit will retry same model 3 times before failing over
+        let attempt_count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let attempt_count_clone = attempt_count.clone();
+        let result: Result<String, anyhow::Error> = execute_with_failover(
+            &mut state,
+            tx,
+            move |model_id| {
+                let model_id_clone = model_id.clone();
+                let count = attempt_count_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                async move {
+                    // First 3 attempts on gpt-4 fail with rate limit, 4th succeeds on gpt-3.5-turbo
+                    if model_id_clone == "gpt-4" && count <= 3 {
+                        // Rate limited with retry_after
+                        Err::<String, ProviderError>(ProviderError::RateLimited {
+                            provider: "openai".to_string(),
+                            retry_after: Some(Duration::from_millis(10)), // Short wait for test
+                        })
+                    } else {
+                        Ok::<String, ProviderError>("success".to_string())
+                    }
+                }
+            },
+        )
+        .await;
+
+        receive_task.await.ok();
+
+        assert_eq!(result.unwrap(), "success");
+        // 3 attempts on gpt-4 + 1 on gpt-3.5-turbo = 4 total
+        assert_eq!(state.attempted_models.len(), 4);
+        assert_eq!(state.current_model(), "gpt-3.5-turbo");
+    }
+
+    #[tokio::test]
+    async fn test_execute_with_failover_timeout_fails_over() {
+        let chain = ModelChain::with_fallbacks(
+            "gpt-4",
+            vec!["gpt-3.5-turbo".to_string()],
+        );
+        let mut state = FailoverState::new(&chain);
+        let (tx, mut rx) = tokio::sync::mpsc::channel(10);
+
+        // Spawn a task to receive events
+        let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let events_clone = events.clone();
+        let receive_task = tokio::spawn(async move {
+            while let Some(event) = rx.recv().await {
+                events_clone.lock().unwrap().push(event);
+            }
+        });
+
+        let result: Result<String, anyhow::Error> = execute_with_failover(
+            &mut state,
+            tx,
+            |model_id| {
+                let model_id_clone = model_id.clone();
+                async move {
+                    if model_id_clone == "gpt-4" {
+                        // Network/timeout error should trigger failover
+                        Err::<String, ProviderError>(ProviderError::NetworkError {
+                            provider: "openai".to_string(),
+                            message: "Connection timeout".to_string(),
+                        })
+                    } else {
+                        Ok::<String, ProviderError>("success".to_string())
+                    }
+                }
+            },
+        )
+        .await;
+
+        receive_task.await.ok();
+
+        let events_guard = events.lock().unwrap();
+
+        assert_eq!(result.unwrap(), "success");
+        assert_eq!(state.attempted_models.len(), 2);
+
+        // Check that ModelSwitch event was emitted
+        let model_switch_events: Vec<&AgentEvent> = events_guard
+            .iter()
+            .filter(|e| matches!(e, AgentEvent::ModelSwitch { .. }))
+            .collect();
+        assert_eq!(model_switch_events.len(), 1);
+    }
 }
