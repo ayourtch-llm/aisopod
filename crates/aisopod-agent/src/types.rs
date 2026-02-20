@@ -176,20 +176,43 @@ pub struct UsageReport {
     pub input_tokens: u64,
     /// The number of output tokens (completion tokens).
     pub output_tokens: u64,
+    /// The total number of tokens used.
+    #[serde(default)]
+    pub total_tokens: u64,
+    /// The number of requests made.
+    #[serde(default)]
+    pub request_count: u64,
 }
 
 impl UsageReport {
     /// Creates a new `UsageReport` with the given token counts.
     pub fn new(input_tokens: u64, output_tokens: u64) -> Self {
+        let total_tokens = input_tokens + output_tokens;
         Self {
             input_tokens,
             output_tokens,
+            total_tokens,
+            request_count: 0,
         }
     }
 
-    /// Returns the total number of tokens used.
-    pub fn total_tokens(&self) -> u64 {
-        self.input_tokens + self.output_tokens
+    /// Adds the given token counts to this report.
+    pub fn add(&mut self, input: u64, output: u64) {
+        self.input_tokens += input;
+        self.output_tokens += output;
+        self.total_tokens = self.input_tokens + self.output_tokens;
+        self.request_count += 1;
+    }
+}
+
+impl Default for UsageReport {
+    fn default() -> Self {
+        Self {
+            input_tokens: 0,
+            output_tokens: 0,
+            total_tokens: 0,
+            request_count: 0,
+        }
     }
 }
 

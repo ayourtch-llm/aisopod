@@ -43,6 +43,7 @@ dependencies = [
  "aisopod-tools",
  "anyhow",
  "chrono",
+ "dashmap 5.5.3",
  "futures-core",
  "futures-util",
  "regex",

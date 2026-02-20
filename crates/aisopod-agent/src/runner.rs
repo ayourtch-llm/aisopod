@@ -70,6 +70,8 @@ pub struct AgentRunner {
     tools: Arc<aisopod_tools::ToolRegistry>,
     /// The session store for conversation state.
     sessions: Arc<aisopod_session::SessionStore>,
+    /// Optional usage tracker for recording token usage.
+    usage_tracker: Option<Arc<crate::usage::UsageTracker>>,
 }
 
 impl AgentRunner {
@@ -92,7 +94,43 @@ impl AgentRunner {
             providers,
             tools,
             sessions,
+            usage_tracker: None,
         }
+    }
+
+    /// Creates a new `AgentRunner` with the given dependencies and usage tracker.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The agent configuration.
+    /// * `providers` - The provider registry for model access.
+    /// * `tools` - The tool registry for tool execution.
+    /// * `sessions` - The session store for conversation state.
+    /// * `usage_tracker` - The usage tracker for recording token usage.
+    pub fn new_with_usage_tracker(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        usage_tracker: Arc<crate::usage::UsageTracker>,
+    ) -> Self {
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: Some(usage_tracker),
+        }
+    }
+
+    /// Returns true if usage tracking is enabled.
+    pub fn has_usage_tracker(&self) -> bool {
+        self.usage_tracker.is_some()
+    }
+
+    /// Gets the usage tracker if enabled.
+    pub fn usage_tracker(&self) -> Option<&Arc<crate::usage::UsageTracker>> {
+        self.usage_tracker.as_ref()
     }
 
     /// Gets the agent configuration.
@@ -130,12 +168,22 @@ impl AgentRunner {
     /// Returns the final result of the agent run, or an error if
     /// the run failed.
     pub async fn run_and_get_result(&self, params: AgentRunParams) -> Result<AgentRunResult> {
-        let pipeline = crate::pipeline::AgentPipeline::new(
-            self.config.clone(),
-            self.providers.clone(),
-            self.tools.clone(),
-            self.sessions.clone(),
-        );
+        let pipeline = if let Some(ref tracker) = self.usage_tracker {
+            crate::pipeline::AgentPipeline::new_with_usage_tracker(
+                self.config.clone(),
+                self.providers.clone(),
+                self.tools.clone(),
+                self.sessions.clone(),
+                tracker.clone(),
+            )
+        } else {
+            crate::pipeline::AgentPipeline::new(
+                self.config.clone(),
+                self.providers.clone(),
+                self.tools.clone(),
+                self.sessions.clone(),
+            )
+        };
         // Create a dummy event channel that we ignore
         let (event_tx, _) = tokio::sync::mpsc::channel(100);
         pipeline.execute(&params, &event_tx).await

@@ -12,7 +12,7 @@ use futures_util::StreamExt;
 
 use crate::resolution::{resolve_agent_config, resolve_agent_model, resolve_session_agent_id, ModelChain};
 use crate::types::{AgentEvent, AgentRunParams, AgentRunResult, ToolCallRecord, UsageReport};
-use crate::{failover, prompt, transcript};
+use crate::{failover, prompt, transcript, usage};
 use aisopod_provider::ToolDefinition;
 
 /// A stream of agent events from an agent run.
@@ -56,6 +56,8 @@ pub struct AgentPipeline {
     providers: Arc<aisopod_provider::ProviderRegistry>,
     tools: Arc<aisopod_tools::ToolRegistry>,
     sessions: Arc<aisopod_session::SessionStore>,
+    /// Optional usage tracker for recording token usage
+    usage_tracker: Option<Arc<usage::UsageTracker>>,
 }
 
 impl AgentPipeline {
@@ -71,7 +73,35 @@ impl AgentPipeline {
             providers,
             tools,
             sessions,
+            usage_tracker: None,
         }
+    }
+
+    /// Creates a new AgentPipeline with the given dependencies and usage tracker.
+    pub fn new_with_usage_tracker(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        usage_tracker: Arc<usage::UsageTracker>,
+    ) -> Self {
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: Some(usage_tracker),
+        }
+    }
+
+    /// Returns true if usage tracking is enabled.
+    pub fn has_usage_tracker(&self) -> bool {
+        self.usage_tracker.is_some()
+    }
+
+    /// Gets the usage tracker if enabled.
+    pub fn usage_tracker(&self) -> Option<&Arc<usage::UsageTracker>> {
+        self.usage_tracker.as_ref()
     }
 
     /// Executes the full agent pipeline with the given parameters.
@@ -192,8 +222,9 @@ impl AgentPipeline {
     ) -> Result<AgentRunResult> {
         // Create failover state for tracking model attempts
         let mut failover_state = failover::FailoverState::new(model_chain);
-        let mut usage = UsageReport::new(0, 0);
+        let mut total_usage = UsageReport::new(0, 0);
         let mut tool_calls: Vec<ToolCallRecord> = Vec::new();
+        let usage_tracker = self.usage_tracker.clone();
 
         loop {
             // Get the current model ID for the request
@@ -248,9 +279,10 @@ impl AgentPipeline {
             )
             .await?;
 
-            // Process streaming response
+            // Process streaming response and collect per-request usage
             let mut response_text = String::new();
             let mut response_tool_calls: Vec<aisopod_provider::ToolCall> = Vec::new();
+            let mut request_usage: Option<UsageReport> = None;
 
             let mut stream = response_stream;
             while let Some(chunk) = stream.next().await {
@@ -270,13 +302,35 @@ impl AgentPipeline {
                     response_tool_calls.extend(tool_calls_chunk.clone());
                 }
 
-                // Aggregate usage
+                // Aggregate usage for this request
                 if let Some(ref u) = chunk.usage {
-                    usage = UsageReport::new(
+                    request_usage = Some(UsageReport::new(
                         u.prompt_tokens as u64,
                         u.completion_tokens as u64,
-                    );
+                    ));
                 }
+            }
+
+            // Record usage to tracker if available
+            if let Some(ref tracker) = usage_tracker {
+                if let Some(ref req_usage) = request_usage {
+                    tracker.record_request(
+                        &params.session_key,
+                        agent_id,
+                        req_usage.input_tokens,
+                        req_usage.output_tokens,
+                    );
+                    
+                    // Emit AgentEvent::Usage after each model call
+                    let _ = event_tx.send(AgentEvent::Usage {
+                        usage: req_usage.clone(),
+                    }).await;
+                }
+            }
+
+            // Update total usage
+            if let Some(ref req_usage) = request_usage {
+                total_usage.add(req_usage.input_tokens, req_usage.output_tokens);
             }
 
             // Check if there are tool calls
@@ -285,7 +339,7 @@ impl AgentPipeline {
                 let result = AgentRunResult::new(
                     response_text.clone(),
                     tool_calls.clone(),
-                    usage,
+                    total_usage,
                 );
                 let _ = event_tx.send(AgentEvent::Complete { result: result.clone() }).await;
                 return Ok(result);

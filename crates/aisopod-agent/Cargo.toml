@@ -10,6 +10,7 @@ aisopod-provider = { path = "../aisopod-provider" }
 aisopod-tools = { path = "../aisopod-tools" }
 aisopod-session = { path = "../aisopod-session" }
 aisopod-memory = { path = "../aisopod-memory" }
+dashmap = "5.5"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 anyhow.workspace = true

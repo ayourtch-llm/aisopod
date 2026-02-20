@@ -13,6 +13,7 @@ pub mod runner;
 pub mod subagent;
 pub mod transcript;
 pub mod types;
+pub mod usage;
 
 // Re-export key types from crate root
 pub use binding::{AgentBinding, BindingMatch, PeerMatch};

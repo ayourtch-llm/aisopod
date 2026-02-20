@@ -117,7 +117,7 @@ pub async fn spawn_subagent(
 
     // Step 5: Deduct child usage from parent's budget if budget was provided
     if let Some(mut budget) = params.resource_budget {
-        let child_tokens = child_result.usage.total_tokens() as usize;
+        let child_tokens = child_result.usage.total_tokens as usize;
         
         // Check if we have enough budget before deducting
         if !budget.has_budget(child_tokens) {
