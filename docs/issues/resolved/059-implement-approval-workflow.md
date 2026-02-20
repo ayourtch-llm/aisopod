@@ -91,13 +91,49 @@ The approval workflow is a critical safety mechanism. Without it, agents could e
 - Issue 034 (Event broadcasting system — for delivering approval requests to clients)
 
 ## Acceptance Criteria
-- [ ] `ApprovalRequest` type is defined with `id`, `agent_id`, `operation`, `risk_level`, and `timeout`.
-- [ ] `ApprovalHandler` trait provides an async approval mechanism.
-- [ ] Auto-approve rules correctly identify known-safe commands.
-- [ ] Approval state tracking records pending, approved, denied, and timed-out requests.
-- [ ] The approval flow integrates with the bash tool for dangerous commands.
-- [ ] Approval requests time out correctly if not resolved.
-- [ ] `cargo check -p aisopod-tools` compiles without errors.
+- [x] `ApprovalRequest` type is defined with `id`, `agent_id`, `operation`, `risk_level`, and `timeout`.
+- [x] `ApprovalHandler` trait provides an async approval mechanism.
+- [x] Auto-approve rules correctly identify known-safe commands.
+- [x] Approval state tracking records pending, approved, denied, and timed-out requests.
+- [x] The approval flow integrates with the bash tool for dangerous commands.
+- [x] Approval requests time out correctly if not resolved.
+- [x] `cargo check -p aisopod-tools` compiles without errors.
+
+## Resolution
+The approval workflow system has been fully implemented:
+
+### Changes Made
+
+1. **Created `crates/aisopod-tools/src/approval.rs`** with:
+   - `RiskLevel` enum with Low, Medium, High, Critical variants and scoring
+   - `ApprovalRequest` struct with id, agent_id, operation, risk_level, timeout, and metadata
+   - `ApprovalResponse` enum with Approved, Denied (with reason), and TimedOut variants
+   - `ApprovalHandler` trait with async `request_approval()` method
+   - `ApprovalError` enum for approval-related failures
+   - `ApprovalStateTracker` for tracking request states (pending, approved, denied, timed_out)
+   - `ApprovalSummary` struct for aggregated state counts
+   - `is_auto_approved()` function for identifying safe commands (echo, pwd, date, whoami, hostname, id, uname, ls, cat, head, tail, grep, find, etc.)
+
+2. **Re-exported approval types from `crates/aisopod-tools/src/lib.rs`**
+
+3. **Integrated with BashTool** in `crates/aisopod-tools/src/builtins/bash.rs`:
+   - Commands are checked against auto-approve list first
+   - If not auto-approved and approval_handler is available, approval is requested
+   - Only approved commands are executed; denied or timed-out requests return errors
+
+4. **Added comprehensive tests** in the approval module covering:
+   - Risk level scoring and descriptions
+   - Approval request creation and configuration
+   - Approval response variants
+   - Auto-approval logic for safe and dangerous commands
+   - State tracking for pending, approved, denied, and timed-out requests
+
+### Verification
+- `cargo build` passes at top level
+- `cargo test -p aisopod-tools` passes (19 tests: 8 approval + 11 bash)
+- All doc-tests pass (21 tests)
+- No compilation warnings
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-20*

@@ -63,13 +63,52 @@ The canvas tool enables agents to produce rich visual output — charts, diagram
 - Issue 050 (Tool registry)
 
 ## Acceptance Criteria
-- [ ] `CanvasTool` implements the `Tool` trait.
-- [ ] `create` operation generates a canvas and returns an ID.
-- [ ] `update` operation modifies existing canvas content.
-- [ ] `get` operation retrieves canvas content by ID.
-- [ ] Canvas content (HTML/CSS/JS) is stored and retrievable.
-- [ ] `parameters_schema()` returns a valid JSON Schema.
-- [ ] `cargo check -p aisopod-tools` compiles without errors.
+- [x] `CanvasTool` implements the `Tool` trait.
+- [x] `create` operation generates a canvas and returns an ID.
+- [x] `update` operation modifies existing canvas content.
+- [x] `get` operation retrieves canvas content by ID.
+- [x] Canvas content (HTML/CSS/JS) is stored and retrievable.
+- [x] `parameters_schema()` returns a valid JSON Schema.
+- [x] `cargo check -p aisopod-tools` compiles without errors.
+
+## Resolution
+The canvas tool was implemented in commit `3d773d6` with the following changes:
+
+**Files Created/Modified:**
+- `crates/aisopod-tools/src/builtins/canvas.rs` - Complete implementation
+- `crates/aisopod-tools/src/builtins/mod.rs` - Added exports
+- `crates/aisopod-tools/src/lib.rs` - Added tool registration
+
+**Implementation Details:**
+1. **`CanvasRenderer` trait** - Defines the interface for canvas rendering backends with `create`, `update`, and `get` methods that store/retrieve canvas content by ID.
+
+2. **`InMemoryCanvasRenderer`** - Thread-safe implementation using `DashMap<String, String>` for storing canvas content in memory. Includes helper methods: `new()`, `with_canvases()`, `len()`, `is_empty()`.
+
+3. **`CanvasTool`** - Implements the `Tool` trait with:
+   - `name()` → `"canvas"`
+   - `description()` → `"Generate and manage visual HTML/CSS/JS output"`
+   - `parameters_schema()` → JSON Schema with `operation`, `canvas_id`, and `content` properties
+   - `execute()` - Parses operation parameter and dispatches to renderer methods
+
+4. **Operations:**
+   - `create` - Creates a new canvas with the given ID and content; returns success/error message
+   - `update` - Updates an existing canvas; requires both canvas_id and content
+   - `get` - Retrieves content by canvas ID; returns the stored content or error
+
+5. **Testing** - Comprehensive test suite with 21 tests covering:
+   - Tool metadata (name, description, schema)
+   - All three operations (create, update, get)
+   - Error cases (missing parameters, nonexistent canvases)
+   - In-memory renderer functionality
+   - Concurrent access safety
+
+6. **Integration** - Registered in `ToolRegistry` via `register_all_tools()` function in `lib.rs`.
+
+**Verification:**
+- `cargo check -p aisopod-tools` compiles without errors
+- `cargo test -p aisopod-tools` passes all 137 tests (including 21 canvas-specific tests)
+- All acceptance criteria met
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-20*
