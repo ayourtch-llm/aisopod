@@ -374,7 +374,7 @@ pub fn create_memory_tool_schema() -> ToolSchema {
 
     ToolSchema::new(
         "memory",
-        "A tool for storing, querying, and deleting memories. Use this tool to remember important information from the conversation or to retrieve relevant past memories.",
+        "A tool for store, query, and delete operations on memories. Use this tool to remember important information from the conversation or to retrieve relevant past memories.",
         parameters,
     )
 }

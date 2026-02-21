@@ -13,6 +13,9 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
+// Import the sqlite-vec extension initialization function
+use sqlite_vec::sqlite3_vec_init;
+
 /// Memory storage backend using SQLite with sqlite-vec extension.
 ///
 /// This struct manages a SQLite database with two tables:
@@ -63,12 +66,15 @@ impl SqliteMemoryStore {
     /// # Returns
     /// Returns a new `SqliteMemoryStore` or an error if initialization fails.
     pub fn new(path: &str, embedding_dim: usize) -> Result<Self> {
-        let db = Connection::open(path)?;
-
-        // Load the sqlite-vec extension (unsafe function)
+        // Register the sqlite-vec extension as an auto-extension
+        // This must be done before opening any database connections
         unsafe {
-            db.load_extension("vec0", None).map_err(|e| anyhow!(e))?;
+            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(
+                sqlite3_vec_init as *const (),
+            )));
         }
+
+        let db = Connection::open(path)?;
 
         // Create the schema
         Self::create_schema(&db, embedding_dim)?;
@@ -171,7 +177,7 @@ impl MemoryStore for SqliteMemoryStore {
         db.execute(
             r#"
             INSERT INTO memories (id, agent_id, content, source, session_key, tags, importance, metadata, created_at, updated_at)
-            VALUES (:id, :agent_id, :content, :source, :session_key, :tags, :importance, :metadata, :created_at, :updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 agent_id = excluded.agent_id,
                 content = excluded.content,
@@ -190,7 +196,6 @@ impl MemoryStore for SqliteMemoryStore {
                 db_input.session_key,
                 tags_json,
                 db_input.importance,
-                &tags_json,  // For tags
                 metadata_json.to_string(),
                 db_input.created_at,
                 db_input.updated_at,
@@ -205,12 +210,18 @@ impl MemoryStore for SqliteMemoryStore {
             .flat_map(|&x| x.to_le_bytes())
             .collect();
 
+        // sqlite-vec virtual table doesn't support ON CONFLICT UPDATE, so we need to
+        // first try to delete if it exists, then insert
+        db.execute(
+            "DELETE FROM memory_embeddings WHERE id = ?",
+            rusqlite::params![&entry.id],
+        )
+        .ok(); // Ignore errors (might not exist)
+
         db.execute(
             r#"
             INSERT INTO memory_embeddings (id, embedding)
-            VALUES (:id, :embedding)
-            ON CONFLICT(id) DO UPDATE SET
-                embedding = excluded.embedding
+            VALUES (?, ?)
             "#,
             rusqlite::params![
                 &entry.id,
