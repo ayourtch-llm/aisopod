@@ -145,6 +145,11 @@ impl SqliteMemoryStore {
             );"
         ))?;
 
+        // Create index on agent_id for fast scoped queries
+        db.execute_batch(
+            "CREATE INDEX IF NOT EXISTS idx_memories_agent_id ON memories(agent_id);",
+        )?;
+
         // Create the vector table with dynamic dimension
         db.execute_batch(&format!(
             "CREATE VIRTUAL TABLE IF NOT EXISTS memory_embeddings USING vec0(

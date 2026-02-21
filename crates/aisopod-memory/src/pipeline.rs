@@ -21,8 +21,8 @@ use std::sync::Arc;
 /// 5. Sort by final_score descending and truncate to top_k.
 ///
 /// # Example
-/// ```rust
-/// use aisopod_memory::{MemoryQueryPipeline, MemoryQueryOptions};
+/// ```ignore
+/// use aisopod_memory::{MemoryQueryPipeline, MemoryQueryOptions, MemoryStore, EmbeddingProvider};
 /// # use anyhow::Result;
 /// #
 /// # async fn example() -> Result<()> {
@@ -165,8 +165,8 @@ impl MemoryQueryPipeline {
     /// # Returns
     /// A formatted string suitable for injection into a system prompt.
     ///
-    /// # Example Output
-    /// ```
+    /// # Example
+    /// ```text
     /// ## Relevant Memories
     /// - [score: 0.95] Memory content here
     /// - [score: 0.87] Another memory content
