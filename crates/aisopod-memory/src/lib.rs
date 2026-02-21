@@ -33,6 +33,9 @@
 
 pub mod types;
 pub mod store;
+pub mod sqlite;
+pub mod embedding;
 
 pub use types::*;
 pub use store::MemoryStore;
+pub use embedding::{EmbeddingProvider, OpenAiEmbeddingProvider};
