@@ -137,6 +137,7 @@ dependencies = [
 name = "aisopod-memory"
 version = "0.1.0"
 dependencies = [
+ "aisopod-provider",
  "aisopod-shared",
  "anyhow",
  "async-trait",
