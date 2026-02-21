@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CompactionRecord {
     /// The number of times this session has been compacted.
-    pub compaction_count: u64,
+    pub compaction_count: u32,
     /// When the session was last compacted.
     pub last_compacted_at: Option<DateTime<Utc>>,
     /// Optional summary text from the most recent compaction.
@@ -31,7 +31,7 @@ pub enum CompactionStrategy {
     /// Sliding window: keep only the most recent messages, delete older ones.
     SlidingWindow {
         /// Maximum number of messages to keep after compaction.
-        max_messages: u64,
+        max_messages: u32,
     },
     /// Summarize: delete all messages and replace with a single system summary.
     Summarize,

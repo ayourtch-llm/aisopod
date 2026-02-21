@@ -111,6 +111,8 @@ impl SessionMetadata {
 /// including its identity, lifecycle state, statistics, and metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
+    /// The unique identifier for this session in the database.
+    pub id: i64,
     /// The unique key identifying this session.
     pub key: SessionKey,
     /// When this session was created.
@@ -137,6 +139,7 @@ impl Session {
     /// Creates a new session with the given key.
     ///
     /// The session is initialized with:
+    /// - `id` set to 0 (database-generated ID)
     /// - `created_at` and `updated_at` set to the current time
     /// - `message_count` and `token_usage` set to 0
     /// - `metadata` as an empty map
@@ -151,6 +154,7 @@ impl Session {
     pub fn new(key: SessionKey) -> Self {
         let now = Utc::now();
         Self {
+            id: 0,
             key,
             created_at: now,
             updated_at: now,

@@ -7,6 +7,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use crate::db;
+use crate::compaction::CompactionStrategy;
 use crate::types::{HistoryQuery, Session, SessionFilter, SessionKey, SessionPatch, SessionStatus, SessionSummary, StoredMessage};
 
 /// A store for managing conversation sessions using SQLite.
@@ -527,6 +528,11 @@ impl SessionStore {
         Ok(rows_affected > 0)
     }
 
+    /// Retrieves the current compaction record for a session.
+    ///
+    /// Reads compaction metadata from the session including:
+    /// - compaction_count: how many times the session has been compacted
+    /// - last_compacted_at: when compaction last occurred
     /// Appends messages to a session.
     ///
     /// Inserts multiple messages into the messages table within a transaction.
@@ -739,6 +745,7 @@ impl SessionStore {
             .map(|dt| dt.with_timezone(&Utc));
 
         Ok(Session {
+            id,
             key: SessionKey {
                 agent_id,
                 channel,
@@ -1542,7 +1549,7 @@ impl SessionStore {
         match session {
             Some(s) => {
                 Ok(crate::compaction::CompactionRecord {
-                    compaction_count: s.compaction_count,
+                    compaction_count: s.compaction_count as u32,
                     last_compacted_at: s.last_compacted_at,
                     summary: s.last_compaction_summary,
                 })
@@ -1600,7 +1607,7 @@ impl SessionStore {
                             .map(|dt| dt.with_timezone(&Utc));
                         
                         Ok(crate::compaction::CompactionRecord {
-                            compaction_count: compaction_count as u64,
+                            compaction_count: compaction_count as u32,
                             last_compacted_at: last_compacted_at_dt,
                             summary: last_compaction_summary,
                         })
@@ -1672,7 +1679,7 @@ impl SessionStore {
                             .map(|dt| dt.with_timezone(&Utc));
                         
                         Ok(crate::compaction::CompactionRecord {
-                            compaction_count: compaction_count as u64,
+                            compaction_count: compaction_count as u32,
                             last_compacted_at: last_compacted_at_dt,
                             summary: last_compaction_summary,
                         })
@@ -1741,7 +1748,7 @@ impl SessionStore {
                             .map(|dt| dt.with_timezone(&Utc));
                         
                         Ok(crate::compaction::CompactionRecord {
-                            compaction_count: compaction_count as u64,
+                            compaction_count: compaction_count as u32,
                             last_compacted_at: last_compacted_at_dt,
                             summary: last_compaction_summary,
                         })
