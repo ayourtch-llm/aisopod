@@ -3,6 +3,7 @@
 //! This module provides a `SqliteMemoryStore` implementation using SQLite with
 //! the sqlite-vec extension for vector storage and cosine similarity search.
 
+use crate::embedding::EmbeddingProvider;
 use crate::store::MemoryStore;
 use crate::types::{
     MemoryEntry, MemoryFilter, MemoryMatch, MemoryQueryOptions, MemorySource,
@@ -24,6 +25,7 @@ use sqlite_vec::sqlite3_vec_init;
 pub struct SqliteMemoryStore {
     db: Arc<Mutex<Connection>>,
     embedding_dim: usize,
+    embedder: Arc<dyn EmbeddingProvider>,
 }
 
 /// Helper struct for deserializing memory entries from the database.
@@ -39,6 +41,22 @@ struct DbMemory {
     metadata: String,
     created_at: String,
     updated_at: String,
+}
+
+/// Helper struct for deserializing memory entries with embeddings from the database.
+#[derive(Deserialize)]
+struct DbMemoryWithEmbedding {
+    id: String,
+    agent_id: String,
+    content: String,
+    source: String,
+    session_key: Option<String>,
+    tags: String,
+    importance: f64,
+    metadata: String,
+    created_at: String,
+    updated_at: String,
+    embedding_bytes: Vec<u8>,
 }
 
 /// Helper struct for serializing memory entries to the database.
@@ -57,7 +75,11 @@ struct DbMemoryInput<'a> {
 }
 
 impl SqliteMemoryStore {
-    /// Creates a new `SqliteMemoryStore` at the given path.
+    /// Creates a new `SqliteMemoryStore` at the given path with a default MockEmbeddingProvider.
+    ///
+    /// This is a convenience constructor for tests and examples where a real
+    /// embedding provider is not needed. For production use, call `new_with_embedder`
+    /// with a custom embedding provider.
     ///
     /// # Arguments
     /// * `path` - Path to the SQLite database file (use `:memory:` for in-memory DB)
@@ -66,6 +88,25 @@ impl SqliteMemoryStore {
     /// # Returns
     /// Returns a new `SqliteMemoryStore` or an error if initialization fails.
     pub fn new(path: &str, embedding_dim: usize) -> Result<Self> {
+        use crate::MockEmbeddingProvider;
+        let embedder = Arc::new(MockEmbeddingProvider::new(embedding_dim));
+        Self::new_with_embedder(path, embedding_dim, embedder)
+    }
+
+    /// Creates a new `SqliteMemoryStore` at the given path with a custom embedding provider.
+    ///
+    /// # Arguments
+    /// * `path` - Path to the SQLite database file (use `:memory:` for in-memory DB)
+    /// * `embedding_dim` - Dimension of the embeddings to store
+    /// * `embedder` - The embedding provider to use for converting text queries to embeddings
+    ///
+    /// # Returns
+    /// Returns a new `SqliteMemoryStore` or an error if initialization fails.
+    pub fn new_with_embedder(
+        path: &str,
+        embedding_dim: usize,
+        embedder: Arc<dyn EmbeddingProvider>,
+    ) -> Result<Self> {
         // Register the sqlite-vec extension as an auto-extension
         // This must be done before opening any database connections
         unsafe {
@@ -82,6 +123,7 @@ impl SqliteMemoryStore {
         Ok(Self {
             db: Arc::new(Mutex::new(db)),
             embedding_dim,
+            embedder,
         })
     }
 
@@ -233,6 +275,15 @@ impl MemoryStore for SqliteMemoryStore {
     }
 
     async fn query(&self, query: &str, opts: MemoryQueryOptions) -> Result<Vec<MemoryMatch>> {
+        // Convert query string to embedding BEFORE acquiring the db lock
+        let query_embedding = self.embedder.embed(query).await?;
+        
+        // Serialize embedding as bytes (same format as in store method)
+        let query_embedding_bytes: Vec<u8> = query_embedding
+            .iter()
+            .flat_map(|&x| x.to_le_bytes())
+            .collect();
+
         let db = self.db.lock().map_err(|e| anyhow!(e.to_string()))?;
 
         // Build the filter conditions
@@ -286,25 +337,44 @@ impl MemoryStore for SqliteMemoryStore {
         let where_clause = if conditions.is_empty() {
             String::new()
         } else {
-            format!("WHERE {}", conditions.join(" AND "))
+            conditions.join(" AND ")
         };
 
-        // Execute the query
+        // sqlite-vec vec0 table requires k = ? to specify the number of results
+        // The MATCH clause must include the embedding and k parameter
+        // Format: WHERE embedding MATCH ? AND k = ?
+        
+        // Build params: query embedding first, then k, then filter params
+        let mut all_params: Vec<Box<dyn ToSql>> = Vec::new();
+        all_params.push(Box::new(&query_embedding_bytes as &[u8]));
+        all_params.push(Box::new(opts.top_k as i64));
+        all_params.extend(params);
+
+        // Build the WHERE clause with vector search
+        // The vec0 table uses MATCH syntax where the first param is the embedding
+        // and k specifies the number of results
+        let vector_match_clause = "e.embedding MATCH ? AND k = ?";
+        let final_where_clause = if where_clause.is_empty() {
+            vector_match_clause.to_string()
+        } else {
+            format!("{} AND {}", vector_match_clause, where_clause)
+        };
+
+        // Execute the query with vector search
         let sql = format!(
             r#"
             SELECT m.id, m.agent_id, m.content, m.source, m.session_key, m.tags, m.importance, m.metadata, m.created_at, m.updated_at, e.distance
             FROM memory_embeddings e
             JOIN memories m ON e.id = m.id
-            {}
+            WHERE {}
             ORDER BY e.distance ASC
-            LIMIT {}
             "#,
-            where_clause, opts.top_k
+            final_where_clause
         );
 
         let mut stmt = db.prepare(&sql)?;
         let results: Vec<DbMemoryMatch> = stmt
-            .query_map(rusqlite::params_from_iter(params.iter()), |row| {
+            .query_map(rusqlite::params_from_iter(all_params.iter()), |row| {
                 Ok(DbMemoryMatch {
                     id: row.get(0)?,
                     agent_id: row.get(1)?,
@@ -421,7 +491,7 @@ impl MemoryStore for SqliteMemoryStore {
             if !tags.is_empty() {
                 for tag in tags {
                     conditions.push(format!(
-                        "EXISTS (SELECT 1 FROM json_each(memories.tags) WHERE json_each.value = ?)"
+                        "EXISTS (SELECT 1 FROM json_each(m.tags) WHERE json_each.value = ?)"
                     ));
                     params.push(Box::new(tag));
                 }
@@ -436,17 +506,18 @@ impl MemoryStore for SqliteMemoryStore {
 
         let sql = format!(
             r#"
-            SELECT id, agent_id, content, source, session_key, tags, importance, metadata, created_at, updated_at
-            FROM memories
+            SELECT m.id, m.agent_id, m.content, m.source, m.session_key, m.tags, m.importance, m.metadata, m.created_at, m.updated_at, e.embedding
+            FROM memories m
+            JOIN memory_embeddings e ON m.id = e.id
             {}
             "#,
             where_clause
         );
 
         let mut stmt = db.prepare(&sql)?;
-        let results: Vec<DbMemory> = stmt
+        let results: Vec<DbMemoryWithEmbedding> = stmt
             .query_map(rusqlite::params_from_iter(params.iter()), |row| {
-                Ok(DbMemory {
+                Ok(DbMemoryWithEmbedding {
                     id: row.get(0)?,
                     agent_id: row.get(1)?,
                     content: row.get(2)?,
@@ -457,6 +528,7 @@ impl MemoryStore for SqliteMemoryStore {
                     metadata: row.get(7)?,
                     created_at: row.get(8)?,
                     updated_at: row.get(9)?,
+                    embedding_bytes: row.get(10)?,
                 })
             })?
             .filter_map(|r| r.ok())
@@ -468,11 +540,18 @@ impl MemoryStore for SqliteMemoryStore {
                 let created_at = chrono::DateTime::parse_from_rfc3339(&m.created_at).ok()?;
                 let updated_at = chrono::DateTime::parse_from_rfc3339(&m.updated_at).ok()?;
 
+                // Deserialize embedding from bytes
+                let embedding: Vec<f32> = m
+                    .embedding_bytes
+                    .chunks_exact(4)
+                    .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                    .collect();
+
                 Some(MemoryEntry {
                     id: m.id,
                     agent_id: m.agent_id,
                     content: m.content,
-                    embedding: vec![0.0; self.embedding_dim], // Placeholder - embeddings not retrieved
+                    embedding,
                     metadata: crate::types::MemoryMetadata {
                         source: Self::string_to_source(&m.source),
                         session_key: m.session_key,
@@ -516,7 +595,8 @@ mod tests {
     /// This creates a fresh in-memory database with the schema initialized.
     /// Use this helper in all tests to ensure isolation between tests.
     pub fn test_store(embedding_dim: usize) -> SqliteMemoryStore {
-        SqliteMemoryStore::new(":memory:", embedding_dim).expect("Failed to create test store")
+        SqliteMemoryStore::new(":memory:", embedding_dim)
+        .expect("Failed to create test store")
     }
 
     #[tokio::test]

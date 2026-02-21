@@ -47,7 +47,6 @@ pub mod lancedb;
 pub use types::*;
 pub use store::MemoryStore;
 pub use embedding::{EmbeddingProvider, OpenAiEmbeddingProvider};
-#[cfg(test)]
 pub use embedding::MockEmbeddingProvider;
 pub use pipeline::MemoryQueryPipeline;
 pub use management::{MemoryManager, MemoryManagerConfig};

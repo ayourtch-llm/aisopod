@@ -4,7 +4,7 @@
 //! the full memory query flow: embedding generation, vector search, filtering,
 //! re-ranking, and context formatting.
 
-use crate::embedding::EmbeddingProvider;
+use crate::embedding::{EmbeddingProvider, MockEmbeddingProvider};
 use crate::store::MemoryStore;
 use crate::types::{MemoryMatch, MemoryQueryOptions};
 use anyhow::Result;
@@ -224,7 +224,7 @@ impl MemoryQueryPipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::embedding::OpenAiEmbeddingProvider;
+    use crate::embedding::MockEmbeddingProvider;
     use crate::sqlite::SqliteMemoryStore;
     use crate::MemoryEntry;
     use tempfile::tempdir;
@@ -254,7 +254,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test.db");
         let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
-        let embedder = OpenAiEmbeddingProvider::new("test-key".to_string(), None, Some(4));
+        let embedder = MockEmbeddingProvider::new(4);
 
         let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
         let matches: Vec<MemoryMatch> = Vec::new();
@@ -269,7 +269,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test.db");
         let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
-        let embedder = OpenAiEmbeddingProvider::new("test-key".to_string(), None, Some(4));
+        let embedder = MockEmbeddingProvider::new(4);
 
         let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
 

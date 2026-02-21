@@ -227,27 +227,46 @@ impl MemoryManager {
 
     /// Determines if a sentence looks like a fact or assertion.
     fn is_fact_like(sentence: &str) -> bool {
-        let lower = sentence.to_lowercase();
-        let words: Vec<&str> = lower.split_whitespace().collect();
-
-        // Check for common fact-indicating patterns
-        let has_named_entity = words.iter().any(|w| {
+        // Check for named entities on the original sentence (before lowercase)
+        let has_named_entity = sentence.split_whitespace().any(|w| {
             w.len() > 3 && w.chars().next().map_or(false, |c| c.is_uppercase())
         });
 
+        let lower = sentence.to_lowercase();
+        let words: Vec<&str> = lower.split_whitespace().collect();
+
+        // List of common verbs (including third-person singular like "likes", "has", etc.)
+        let common_verbs = [
+            "is", "are", "was", "were", "has", "have", "had", "does", "do", "did",
+            "likes", "like", "loves", "love", "hates", "hate", "wants", "want",
+            "needs", "need", "believes", "believe", "thinks", "think", "knows", "know",
+            "seems", "appear", "becomes", "gets", "makes", "shows", "means", "gives",
+        ];
         let has_verb = words.iter().any(|w| {
-            ["is", "are", "was", "were", "has", "have", "had", "does", "do", "did"]
-                .contains(w)
+            common_verbs.contains(w)
                 || w.ends_with("ing")
                 || w.ends_with("ed")
         });
 
+        // Check for objects - either with articles or just a noun following a verb
         let has_object = words.iter().any(|w| {
             ["the", "a", "an", "this", "that", "these", "those"].contains(w)
         });
 
+        // Also consider a sentence fact-like if it has a verb followed by a noun/noun phrase
+        // (simple subject-verb-object pattern without articles)
+        // The verb should be followed by at least one more word
+        let has_svo_pattern = if words.len() >= 3 {
+            let verb_index = words.iter().position(|w| common_verbs.contains(w)).unwrap_or(0);
+            verb_index > 0 && verb_index < words.len() - 1
+        } else {
+            false
+        };
+
         // A fact-like sentence typically has a subject, verb, and object
-        has_verb && has_object && (has_named_entity || words.len() > 3)
+        // OR a clear SVO pattern with named entity
+        (has_verb && has_object && (has_named_entity || words.len() > 3))
+            || (has_verb && has_named_entity && words.len() >= 3 && has_svo_pattern)
     }
 
     /// Scores the importance of a memory entry based on multiple factors.
@@ -568,7 +587,7 @@ mod tests {
 
     /// Helper to create a test manager with in-memory SQLite
     fn test_manager(embedding_dim: usize, max_memories: usize) -> (MemoryManager, Arc<dyn MemoryStore>) {
-        let store = Arc::new(SqliteMemoryStore::new(":memory:", embedding_dim).unwrap());
+        let store = Arc::new(SqliteMemoryStore::new(":memory:", embedding_dim).expect("Failed to create test store"));
         let embedder = Arc::new(MockEmbeddingProvider::new(embedding_dim));
         let config = MemoryManagerConfig {
             max_memories_per_agent: max_memories,

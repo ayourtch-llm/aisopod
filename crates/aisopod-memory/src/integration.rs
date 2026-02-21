@@ -4,7 +4,7 @@
 //! into the agent execution pipeline, including pre-run memory
 //! injection and conversation analysis.
 
-use crate::embedding::EmbeddingProvider;
+use crate::embedding::{EmbeddingProvider, MockEmbeddingProvider};
 use crate::pipeline::MemoryQueryPipeline;
 use crate::store::MemoryStore;
 use crate::types::{MemoryFilter, MemoryMatch, MemoryQueryOptions};
@@ -124,7 +124,7 @@ fn format_memory_context(matches: &[crate::types::MemoryMatch], agent_id: &str) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::embedding::OpenAiEmbeddingProvider;
+    use crate::embedding::MockEmbeddingProvider;
     use crate::pipeline::MemoryQueryPipeline;
     use crate::sqlite::SqliteMemoryStore;
     use crate::types::{MemoryEntry, MemoryQueryOptions};
@@ -136,7 +136,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test.db");
         let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
-        let embedder = OpenAiEmbeddingProvider::new("test-key".to_string(), None, Some(4));
+        let embedder = MockEmbeddingProvider::new(4);
 
         let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
         let conversation: Vec<Message> = Vec::new();
@@ -153,7 +153,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test.db");
         let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
-        let embedder = OpenAiEmbeddingProvider::new("test-key".to_string(), None, Some(4));
+        let embedder = MockEmbeddingProvider::new(4);
 
         let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
 
@@ -186,7 +186,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test.db");
         let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
-        let embedder = OpenAiEmbeddingProvider::new("test-key".to_string(), None, Some(4));
+        let embedder = MockEmbeddingProvider::new(4);
 
         let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
 
