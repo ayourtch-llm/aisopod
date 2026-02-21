@@ -85,6 +85,7 @@ version = "0.1.0"
 dependencies = [
  "aisopod-shared",
  "anyhow",
+ "async-trait",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
