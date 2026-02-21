@@ -500,16 +500,16 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
-    #[test]
-    fn test_sqlite_store_new() {
+    #[tokio::test]
+    async fn test_sqlite_store_new() {
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test.db");
         let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 1536);
         assert!(store.is_ok());
     }
 
-    #[test]
-    fn test_sqlite_store_store_and_query() {
+    #[tokio::test]
+    async fn test_sqlite_store_store_and_query() {
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test.db");
         let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
@@ -534,8 +534,8 @@ mod tests {
         assert!(!matches.is_empty());
     }
 
-    #[test]
-    fn test_sqlite_store_delete() {
+    #[tokio::test]
+    async fn test_sqlite_store_delete() {
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test.db");
         let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();

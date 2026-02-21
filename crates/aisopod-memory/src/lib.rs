@@ -7,6 +7,7 @@
 //! - Core types: [`MemoryEntry`], [`MemoryMetadata`], [`MemorySource`], [`MemoryMatch`],
 //!   [`MemoryFilter`], [`MemoryQueryOptions`]
 //! - Trait: [`MemoryStore`] - async trait for memory persistence and retrieval
+//! - Pipeline: [`MemoryQueryPipeline`] - end-to-end memory query orchestration
 //!
 //! ## Example
 //!
@@ -35,7 +36,9 @@ pub mod types;
 pub mod store;
 pub mod sqlite;
 pub mod embedding;
+pub mod pipeline;
 
 pub use types::*;
 pub use store::MemoryStore;
 pub use embedding::{EmbeddingProvider, OpenAiEmbeddingProvider};
+pub use pipeline::MemoryQueryPipeline;
