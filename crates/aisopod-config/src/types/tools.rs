@@ -15,7 +15,7 @@ pub struct ToolsConfig {
 }
 
 /// Bash tool configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BashToolConfig {
     /// Enabled flag
     #[serde(default)]
@@ -26,6 +26,16 @@ pub struct BashToolConfig {
     /// Timeout in seconds
     #[serde(default = "default_timeout")]
     pub timeout: u64,
+}
+
+impl Default for BashToolConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            working_dir: String::new(),
+            timeout: default_timeout(),
+        }
+    }
 }
 
 /// Exec tool configuration

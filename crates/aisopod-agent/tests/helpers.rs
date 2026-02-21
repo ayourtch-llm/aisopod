@@ -37,6 +37,8 @@ pub struct MockProvider {
     tool_calls: Vec<aisopod_provider::ToolCall>,
     should_fail: bool,
     error_message: Option<String>,
+    /// Track if tool calls have been returned (for stateful behavior)
+    tool_calls_returned: std::sync::Arc<std::sync::Mutex<bool>>,
 }
 
 impl MockProvider {
@@ -48,6 +50,7 @@ impl MockProvider {
             tool_calls: Vec::new(),
             should_fail: false,
             error_message: None,
+            tool_calls_returned: std::sync::Arc::new(std::sync::Mutex::new(false)),
         }
     }
 
@@ -60,6 +63,8 @@ impl MockProvider {
     /// Sets tool calls to return in the response.
     pub fn with_tool_calls(mut self, tool_calls: Vec<aisopod_provider::ToolCall>) -> Self {
         self.tool_calls = tool_calls;
+        // Reset the flag for new test
+        *self.tool_calls_returned.lock().unwrap() = false;
         self
     }
 
@@ -114,7 +119,25 @@ impl ModelProvider for MockProvider {
 
         // Create a simple stream with the response
         let response_text = self.response_text.clone().unwrap_or_default();
-        let tool_calls = self.tool_calls.clone();
+        
+        // Check if we should return tool calls or text response
+        // If tool_calls is not empty and we haven't returned them yet, return tool calls
+        // Otherwise, return text response (this handles the case after tool calls are processed)
+        let should_return_tool_calls = {
+            let mut returned = self.tool_calls_returned.lock().unwrap();
+            if !self.tool_calls.is_empty() && !*returned {
+                *returned = true;
+                true
+            } else {
+                false
+            }
+        };
+        
+        let tool_calls = if should_return_tool_calls {
+            self.tool_calls.clone()
+        } else {
+            Vec::new()
+        };
 
         let chunks = MockProvider::create_stream_chunks(&response_text, &tool_calls);
 

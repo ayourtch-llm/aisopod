@@ -28,7 +28,7 @@ pub struct SkillModule {
 }
 
 /// Skill settings
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillSettings {
     /// Default timeout in seconds
     #[serde(default = "default_timeout")]
@@ -36,6 +36,15 @@ pub struct SkillSettings {
     /// Maximum execution count
     #[serde(default)]
     pub max_executions: u32,
+}
+
+impl Default for SkillSettings {
+    fn default() -> Self {
+        Self {
+            timeout: default_timeout(),
+            max_executions: 0,
+        }
+    }
 }
 
 fn default_timeout() -> u64 {

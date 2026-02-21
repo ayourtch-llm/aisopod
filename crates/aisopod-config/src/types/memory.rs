@@ -26,7 +26,7 @@ pub struct MemoryBackend {
 }
 
 /// Memory settings
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemorySettings {
     /// Default memory limit in MB
     #[serde(default)]
@@ -37,6 +37,16 @@ pub struct MemorySettings {
     /// TTL in seconds
     #[serde(default = "default_ttl")]
     pub ttl: u64,
+}
+
+impl Default for MemorySettings {
+    fn default() -> Self {
+        Self {
+            memory_limit: 0,
+            eviction_policy: String::new(),
+            ttl: default_ttl(),
+        }
+    }
 }
 
 fn default_ttl() -> u64 {

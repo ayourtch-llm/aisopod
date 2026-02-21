@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Gateway configuration for HTTP server
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GatewayConfig {
     /// HTTP server settings
     #[serde(default)]
@@ -23,8 +23,21 @@ pub struct GatewayConfig {
     pub rate_limit: RateLimitConfig,
 }
 
+impl Default for GatewayConfig {
+    fn default() -> Self {
+        Self {
+            server: ServerConfig::default(),
+            bind: BindConfig::default(),
+            tls: TlsConfig::default(),
+            web_ui: WebUiConfig::default(),
+            handshake_timeout: default_handshake_timeout(),
+            rate_limit: RateLimitConfig::default(),
+        }
+    }
+}
+
 /// HTTP server configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
     /// Server name
     #[serde(default)]
@@ -35,6 +48,16 @@ pub struct ServerConfig {
     /// Enable graceful shutdown
     #[serde(default)]
     pub graceful_shutdown: bool,
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            port: default_port(),
+            graceful_shutdown: false,
+        }
+    }
 }
 
 /// Bind address configuration
@@ -84,7 +107,7 @@ fn default_handshake_timeout() -> u64 {
 }
 
 /// Web UI configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebUiConfig {
     /// Enable static file serving for the web UI
     #[serde(default = "default_enabled")]
@@ -95,6 +118,16 @@ pub struct WebUiConfig {
     /// Allowed origins for CORS headers
     #[serde(default = "default_cors_origins")]
     pub cors_origins: Vec<String>,
+}
+
+impl Default for WebUiConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_enabled(),
+            dist_path: default_dist_path(),
+            cors_origins: default_cors_origins(),
+        }
+    }
 }
 
 fn default_enabled() -> bool {
@@ -113,7 +146,7 @@ fn default_cors_origins() -> Vec<String> {
 }
 
 /// Rate limiting configuration for the gateway
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RateLimitConfig {
     /// Maximum number of requests allowed in the window
     #[serde(default = "default_max_requests")]
@@ -121,6 +154,15 @@ pub struct RateLimitConfig {
     /// Sliding window duration in seconds
     #[serde(default = "default_window")]
     pub window: u64,
+}
+
+impl Default for RateLimitConfig {
+    fn default() -> Self {
+        Self {
+            max_requests: default_max_requests(),
+            window: default_window(),
+        }
+    }
 }
 
 fn default_max_requests() -> u64 {

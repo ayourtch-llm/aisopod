@@ -479,6 +479,13 @@ impl AgentPipeline {
 
             // Process tool calls
             for tool_call in response_tool_calls {
+                // Add tool call to the result
+                tool_calls.push(ToolCallRecord::new(
+                    tool_call.id.clone(),
+                    tool_call.name.clone(),
+                    tool_call.arguments.clone(),
+                ));
+
                 let _ = event_tx
                     .send(AgentEvent::ToolCallStart {
                         tool_name: tool_call.name.clone(),

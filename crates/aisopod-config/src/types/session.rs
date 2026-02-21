@@ -26,7 +26,7 @@ pub struct MessageConfig {
 }
 
 /// Session compaction configuration
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompactionConfig {
     /// Enabled flag
     #[serde(default)]
@@ -37,6 +37,16 @@ pub struct CompactionConfig {
     /// Compaction interval in seconds
     #[serde(default = "default_interval")]
     pub interval: u64,
+}
+
+impl Default for CompactionConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            min_messages: 0,
+            interval: default_interval(),
+        }
+    }
 }
 
 fn default_interval() -> u64 {

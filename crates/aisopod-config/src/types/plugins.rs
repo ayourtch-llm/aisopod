@@ -28,7 +28,7 @@ pub struct PluginEntry {
 }
 
 /// Plugin settings
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginSettings {
     /// Auto-load plugins
     #[serde(default)]
@@ -39,6 +39,16 @@ pub struct PluginSettings {
     /// Load timeout in seconds
     #[serde(default = "default_timeout")]
     pub load_timeout: u64,
+}
+
+impl Default for PluginSettings {
+    fn default() -> Self {
+        Self {
+            auto_load: false,
+            plugin_dir: String::new(),
+            load_timeout: default_timeout(),
+        }
+    }
 }
 
 fn default_timeout() -> u64 {
