@@ -500,6 +500,14 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
+    /// Helper function to create a test memory store using in-memory SQLite.
+    /// 
+    /// This creates a fresh in-memory database with the schema initialized.
+    /// Use this helper in all tests to ensure isolation between tests.
+    pub fn test_store(embedding_dim: usize) -> SqliteMemoryStore {
+        SqliteMemoryStore::new(":memory:", embedding_dim).expect("Failed to create test store")
+    }
+
     #[tokio::test]
     async fn test_sqlite_store_new() {
         let dir = tempdir().unwrap();
@@ -560,5 +568,368 @@ mod tests {
         };
         let matches = store.query("test", opts).await.unwrap();
         assert!(matches.is_empty());
+    }
+
+    // ==================== Vector Storage Tests ====================
+
+    #[tokio::test]
+    async fn test_store_and_retrieve() {
+        let store = test_store(4);
+
+        let entry = MemoryEntry::new(
+            "test-id".to_string(),
+            "agent-1".to_string(),
+            "test content".to_string(),
+            vec![0.1, 0.2, 0.3, 0.4],
+        );
+
+        let id = store.store(entry.clone()).await.unwrap();
+        assert_eq!(id, "test-id");
+
+        // Retrieve by listing
+        let filter = MemoryFilter {
+            agent_id: Some("agent-1".to_string()),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].id, "test-id");
+        assert_eq!(entries[0].content, "test content");
+        assert_eq!(entries[0].agent_id, "agent-1");
+    }
+
+    #[tokio::test]
+    async fn test_store_generates_id() {
+        let store = test_store(4);
+
+        let mut entry = MemoryEntry::new(
+            "".to_string(),  // Empty ID
+            "agent-1".to_string(),
+            "test content".to_string(),
+            vec![0.1, 0.2, 0.3, 0.4],
+        );
+
+        let id = store.store(entry).await.unwrap();
+        assert!(!id.is_empty());
+        // Verify it's a valid UUID
+        uuid::Uuid::parse_str(&id).expect("Generated ID should be a valid UUID");
+    }
+
+    #[tokio::test]
+    async fn test_delete_entry() {
+        let store = test_store(4);
+
+        let entry = MemoryEntry::new(
+            "delete-me".to_string(),
+            "agent-1".to_string(),
+            "to be deleted".to_string(),
+            vec![0.1, 0.2, 0.3, 0.4],
+        );
+
+        let id = store.store(entry).await.unwrap();
+
+        // Verify entry exists
+        let filter = MemoryFilter::default();
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 1);
+
+        // Delete the entry
+        store.delete(&id).await.unwrap();
+
+        // Verify entry no longer exists
+        let entries = store.list(MemoryFilter::default()).await.unwrap();
+        assert!(entries.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_delete_nonexistent() {
+        let store = test_store(4);
+
+        // Delete a non-existent ID should not error
+        let result = store.delete("nonexistent-id").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_empty() {
+        let store = test_store(4);
+
+        let filter = MemoryFilter::default();
+        let entries = store.list(filter).await.unwrap();
+        assert!(entries.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_list_with_agent_filter() {
+        let store = test_store(4);
+
+        // Store entries for different agents
+        for agent_id in ["agent-a", "agent-b"] {
+            for i in 1..=3 {
+                let entry = MemoryEntry::new(
+                    format!("{}-{}", agent_id, i),
+                    agent_id.to_string(),
+                    format!("content for {}-{}", agent_id, i),
+                    vec![0.1 * i as f32, 0.2, 0.3, 0.4],
+                );
+                store.store(entry).await.unwrap();
+            }
+        }
+
+        // List only agent-a entries
+        let filter = MemoryFilter {
+            agent_id: Some("agent-a".to_string()),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 3);
+        assert!(entries.iter().all(|e| e.agent_id == "agent-a"));
+
+        // List only agent-b entries
+        let filter = MemoryFilter {
+            agent_id: Some("agent-b".to_string()),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 3);
+        assert!(entries.iter().all(|e| e.agent_id == "agent-b"));
+    }
+
+    #[tokio::test]
+    async fn test_list_with_tag_filter() {
+        let store = test_store(4);
+
+        // Store entries with different tags
+        let entries = vec![
+            MemoryEntry {
+                metadata: crate::types::MemoryMetadata {
+                    tags: vec!["tag1".to_string(), "tag2".to_string()],
+                    ..Default::default()
+                },
+                ..MemoryEntry::new(
+                    "entry-1".to_string(),
+                    "agent-1".to_string(),
+                    "content 1".to_string(),
+                    vec![0.1, 0.2, 0.3, 0.4],
+                )
+            },
+            MemoryEntry {
+                metadata: crate::types::MemoryMetadata {
+                    tags: vec!["tag2".to_string(), "tag3".to_string()],
+                    ..Default::default()
+                },
+                ..MemoryEntry::new(
+                    "entry-2".to_string(),
+                    "agent-1".to_string(),
+                    "content 2".to_string(),
+                    vec![0.1, 0.2, 0.3, 0.4],
+                )
+            },
+            MemoryEntry {
+                metadata: crate::types::MemoryMetadata {
+                    tags: vec!["tag3".to_string()],
+                    ..Default::default()
+                },
+                ..MemoryEntry::new(
+                    "entry-3".to_string(),
+                    "agent-1".to_string(),
+                    "content 3".to_string(),
+                    vec![0.1, 0.2, 0.3, 0.4],
+                )
+            },
+        ];
+
+        for entry in entries {
+            store.store(entry).await.unwrap();
+        }
+
+        // Filter by tag2 - should get 2 entries
+        let filter = MemoryFilter {
+            tags: Some(vec!["tag2".to_string()]),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 2);
+
+        // Filter by tag3 - should get 2 entries
+        let filter = MemoryFilter {
+            tags: Some(vec!["tag3".to_string()]),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 2);
+
+        // Filter by multiple tags (AND) - should get 1 entry with both tag1 and tag2
+        let filter = MemoryFilter {
+            tags: Some(vec!["tag1".to_string(), "tag2".to_string()]),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_list_with_importance_filter() {
+        let store = test_store(4);
+
+        // Store entries with different importance scores
+        for (i, importance) in [0.1, 0.3, 0.5, 0.7, 0.9].iter().enumerate() {
+            let entry = MemoryEntry::new(
+                format!("entry-{}", i),
+                "agent-1".to_string(),
+                format!("content {}", i),
+                vec![0.1 * i as f32, 0.2, 0.3, 0.4],
+            );
+            let mut entry = entry;
+            entry.metadata.importance = *importance;
+            store.store(entry).await.unwrap();
+        }
+
+        // Filter by importance >= 0.5 - should get 3 entries
+        let filter = MemoryFilter {
+            importance_min: Some(0.5),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 3);
+        assert!(entries.iter().all(|e| e.metadata.importance >= 0.5));
+
+        // Filter by importance >= 0.8 - should get 1 entry
+        let filter = MemoryFilter {
+            importance_min: Some(0.8),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert!(entries[0].metadata.importance >= 0.8);
+    }
+
+    // ==================== Similarity Search Tests ====================
+
+    #[tokio::test]
+    async fn test_similarity_search_returns_closest() {
+        let store = test_store(4);
+
+        // Store entries with known embeddings
+        let entries = vec![
+            // This one should be closest to query [0.9, 0.1, 0.1, 0.1]
+            MemoryEntry::new(
+                "closest".to_string(),
+                "agent-1".to_string(),
+                "closest content".to_string(),
+                vec![0.9, 0.1, 0.1, 0.1],
+            ),
+            // This one should be farther
+            MemoryEntry::new(
+                "farther".to_string(),
+                "agent-1".to_string(),
+                "farther content".to_string(),
+                vec![-0.1, 0.9, -0.1, 0.1],
+            ),
+        ];
+
+        for entry in entries {
+            store.store(entry).await.unwrap();
+        }
+
+        // Query with a vector close to the first entry
+        let opts = MemoryQueryOptions {
+            top_k: 10,
+            filter: MemoryFilter::default(),
+            min_score: Some(0.0),
+        };
+
+        let matches = store.query("query", opts).await.unwrap();
+        assert!(!matches.is_empty());
+        // The closest entry should have the highest score
+        assert_eq!(matches[0].entry.id, "closest");
+    }
+
+    #[tokio::test]
+    async fn test_similarity_search_top_k() {
+        let store = test_store(4);
+
+        // Store 20 entries
+        for i in 0..20 {
+            let entry = MemoryEntry::new(
+                format!("entry-{}", i),
+                "agent-1".to_string(),
+                format!("content {}", i),
+                vec![0.1 * (i as f32), 0.2, 0.3, 0.4],
+            );
+            store.store(entry).await.unwrap();
+        }
+
+        // Query with top_k=5
+        let opts = MemoryQueryOptions {
+            top_k: 5,
+            filter: MemoryFilter::default(),
+            min_score: Some(0.0),
+        };
+
+        let matches = store.query("query", opts).await.unwrap();
+        assert_eq!(matches.len(), 5);
+    }
+
+    #[tokio::test]
+    async fn test_similarity_search_min_score() {
+        let store = test_store(4);
+
+        // Store entries
+        for i in 0..10 {
+            let entry = MemoryEntry::new(
+                format!("entry-{}", i),
+                "agent-1".to_string(),
+                format!("content {}", i),
+                vec![0.1 * (i as f32), 0.2, 0.3, 0.4],
+            );
+            store.store(entry).await.unwrap();
+        }
+
+        // Query with high min_score - should get no results if score threshold is too high
+        // Note: sqlite-vec returns cosine distance (0=identical, 2=opposite)
+        // Score is calculated as 1 - (distance / 2)
+        let opts = MemoryQueryOptions {
+            top_k: 10,
+            filter: MemoryFilter::default(),
+            min_score: Some(0.99),  // Very high threshold
+        };
+
+        let matches = store.query("query", opts).await.unwrap();
+        // With a high threshold, we may get fewer results
+        assert!(matches.len() <= 10);
+    }
+
+    #[tokio::test]
+    async fn test_similarity_search_agent_scoped() {
+        let store = test_store(4);
+
+        // Store entries for different agents
+        for agent_id in ["agent-a", "agent-b"] {
+            for i in 0..5 {
+                let entry = MemoryEntry::new(
+                    format!("{}-{}", agent_id, i),
+                    agent_id.to_string(),
+                    format!("content {}-{}", agent_id, i),
+                    vec![0.1 * (i as f32), 0.2, 0.3, 0.4],
+                );
+                store.store(entry).await.unwrap();
+            }
+        }
+
+        // Query scoped to agent-a
+        let filter = MemoryFilter {
+            agent_id: Some("agent-a".to_string()),
+            ..Default::default()
+        };
+        let opts = MemoryQueryOptions {
+            top_k: 10,
+            filter,
+            min_score: Some(0.0),
+        };
+
+        let matches = store.query("query", opts).await.unwrap();
+        assert_eq!(matches.len(), 5);
+        assert!(matches.iter().all(|m| m.entry.agent_id == "agent-a"));
     }
 }

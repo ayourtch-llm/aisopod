@@ -281,7 +281,7 @@ mod tests {
                 format!("Test content {}", i),
                 vec![0.1 * i as f32, 0.2, 0.3, 0.4],
             );
-            pipeline.store.store(entry).await.unwrap();
+            pipeline.store().store(entry).await.unwrap();
         }
 
         // Query and format

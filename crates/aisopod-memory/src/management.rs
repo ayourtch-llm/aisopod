@@ -514,6 +514,7 @@ impl MemoryManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::embedding::MockEmbeddingProvider;
     use crate::sqlite::SqliteMemoryStore;
     use tempfile::tempdir;
 
@@ -561,5 +562,296 @@ mod tests {
         assert!(MemoryManager::is_fact_like("John likes apples."));
         assert!(!MemoryManager::is_fact_like("Hello."));
         assert!(!MemoryManager::is_fact_like("Run."));
+    }
+
+    // ==================== Memory Management Tests ====================
+
+    /// Helper to create a test manager with in-memory SQLite
+    fn test_manager(embedding_dim: usize, max_memories: usize) -> (MemoryManager, Arc<dyn MemoryStore>) {
+        let store = Arc::new(SqliteMemoryStore::new(":memory:", embedding_dim).unwrap());
+        let embedder = Arc::new(MockEmbeddingProvider::new(embedding_dim));
+        let config = MemoryManagerConfig {
+            max_memories_per_agent: max_memories,
+            expiration_days: 90,
+            min_importance_threshold: 0.1,
+            consolidation_similarity_threshold: 0.92,
+        };
+        let manager = MemoryManager::new(store.clone(), embedder, config);
+        (manager, store)
+    }
+
+    #[tokio::test]
+    async fn test_expire_old_entries() {
+        let (manager, _) = test_manager(4, 1000);
+
+        // Store entries with old timestamps
+        let old_time = Utc::now() - Duration::days(100); // Older than expiration threshold
+
+        // Low importance old entry - should be expired
+        let entry1 = MemoryEntry {
+            created_at: old_time,
+            updated_at: old_time,
+            metadata: crate::types::MemoryMetadata {
+                importance: 0.05, // Below threshold
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "old-low-importance".to_string(),
+                "agent-1".to_string(),
+                "old low importance".to_string(),
+                vec![0.1, 0.2, 0.3, 0.4],
+            )
+        };
+        manager.store.store(entry1).await.unwrap();
+
+        // High importance old entry - should NOT be expired
+        let entry2 = MemoryEntry {
+            created_at: old_time,
+            updated_at: old_time,
+            metadata: crate::types::MemoryMetadata {
+                importance: 0.5, // Above threshold
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "old-high-importance".to_string(),
+                "agent-1".to_string(),
+                "old high importance".to_string(),
+                vec![0.1, 0.2, 0.3, 0.4],
+            )
+        };
+        manager.store.store(entry2).await.unwrap();
+
+        // Recent entry - should NOT be expired
+        let entry3 = MemoryEntry {
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            metadata: crate::types::MemoryMetadata {
+                importance: 0.1, // At threshold
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "recent".to_string(),
+                "agent-1".to_string(),
+                "recent content".to_string(),
+                vec![0.1, 0.2, 0.3, 0.4],
+            )
+        };
+        manager.store.store(entry3).await.unwrap();
+
+        // Run expiration
+        let expired = manager.expire("agent-1").await.unwrap();
+        assert_eq!(expired, 1); // Only the old low-importance entry should be expired
+
+        // Verify remaining entries
+        let filter = MemoryFilter {
+            agent_id: Some("agent-1".to_string()),
+            ..Default::default()
+        };
+        let entries = manager.store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 2);
+        let ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
+        assert!(ids.contains(&"old-high-importance"));
+        assert!(ids.contains(&"recent"));
+    }
+
+    #[tokio::test]
+    async fn test_expire_preserves_important() {
+        let (manager, _) = test_manager(4, 1000);
+
+        // Store an old entry with high importance
+        let old_time = Utc::now() - Duration::days(100);
+        let entry = MemoryEntry {
+            created_at: old_time,
+            updated_at: old_time,
+            metadata: crate::types::MemoryMetadata {
+                importance: 0.5, // High importance
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "important-old".to_string(),
+                "agent-1".to_string(),
+                "important old content".to_string(),
+                vec![0.1, 0.2, 0.3, 0.4],
+            )
+        };
+        manager.store.store(entry).await.unwrap();
+
+        // Run expiration
+        let expired = manager.expire("agent-1").await.unwrap();
+        assert_eq!(expired, 0); // Should not expire high importance
+
+        // Verify the entry still exists
+        let filter = MemoryFilter {
+            agent_id: Some("agent-1".to_string()),
+            ..Default::default()
+        };
+        let entries = manager.store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].id, "important-old");
+    }
+
+    #[tokio::test]
+    async fn test_consolidate_similar() {
+        let (manager, store) = test_manager(4, 1000);
+
+        // Store two entries with very similar embeddings (cosine similarity > 0.92)
+        let embedding = vec![0.5, 0.5, 0.5, 0.5];
+        
+        let entry1 = MemoryEntry {
+            embedding: embedding.clone(),
+            metadata: crate::types::MemoryMetadata {
+                importance: 0.8,
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "similar-1".to_string(),
+                "agent-1".to_string(),
+                "similar content 1".to_string(),
+                embedding.clone(),
+            )
+        };
+        manager.store.store(entry1).await.unwrap();
+
+        let entry2 = MemoryEntry {
+            embedding: vec![0.49, 0.51, 0.49, 0.51], // Very similar
+            metadata: crate::types::MemoryMetadata {
+                importance: 0.7,
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "similar-2".to_string(),
+                "agent-1".to_string(),
+                "similar content 2".to_string(),
+                vec![0.49, 0.51, 0.49, 0.51],
+            )
+        };
+        manager.store.store(entry2).await.unwrap();
+
+        // Run consolidation
+        let consolidated = manager.consolidate("agent-1").await.unwrap();
+        assert_eq!(consolidated, 1); // Two similar entries should be merged
+
+        // Verify only one entry remains
+        let filter = MemoryFilter {
+            agent_id: Some("agent-1".to_string()),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_consolidate_preserves_different() {
+        let (manager, store) = test_manager(4, 1000);
+
+        // Store two entries with dissimilar embeddings
+        let entry1 = MemoryEntry {
+            embedding: vec![1.0, 0.0, 0.0, 0.0],
+            ..MemoryEntry::new(
+                "different-1".to_string(),
+                "agent-1".to_string(),
+                "content 1".to_string(),
+                vec![1.0, 0.0, 0.0, 0.0],
+            )
+        };
+        manager.store.store(entry1).await.unwrap();
+
+        let entry2 = MemoryEntry {
+            embedding: vec![0.0, 1.0, 0.0, 0.0],
+            ..MemoryEntry::new(
+                "different-2".to_string(),
+                "agent-1".to_string(),
+                "content 2".to_string(),
+                vec![0.0, 1.0, 0.0, 0.0],
+            )
+        };
+        manager.store.store(entry2).await.unwrap();
+
+        // Run consolidation
+        let consolidated = manager.consolidate("agent-1").await.unwrap();
+        assert_eq!(consolidated, 0); // Different entries should not be merged
+
+        // Verify both entries remain
+        let filter = MemoryFilter {
+            agent_id: Some("agent-1".to_string()),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_enforce_quota() {
+        let (manager, store) = test_manager(4, 3); // Max 3 memories
+
+        // Store 5 entries
+        for i in 0..5 {
+            let entry = MemoryEntry {
+                metadata: crate::types::MemoryMetadata {
+                    importance: (i as f32) / 5.0, // Importance: 0.0, 0.2, 0.4, 0.6, 0.8
+                    ..Default::default()
+                },
+                ..MemoryEntry::new(
+                    format!("quota-{}", i),
+                    "agent-1".to_string(),
+                    format!("content {}", i),
+                    vec![0.1 * (i as f32), 0.2, 0.3, 0.4],
+                )
+            };
+            manager.store.store(entry).await.unwrap();
+        }
+
+        // Verify 5 entries exist
+        let filter = MemoryFilter {
+            agent_id: Some("agent-1".to_string()),
+            ..Default::default()
+        };
+        let entries = store.list(filter.clone()).await.unwrap();
+        assert_eq!(entries.len(), 5);
+
+        // Run quota enforcement
+        let evicted = manager.enforce_quota("agent-1").await.unwrap();
+        assert_eq!(evicted, 2); // Should evict 2 entries (5 - 3 = 2)
+
+        // Verify only 3 entries remain (the highest importance ones)
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 3);
+
+        // Verify the lowest importance entries were evicted
+        let importances: Vec<f32> = entries.iter().map(|e| e.metadata.importance).collect();
+        assert!(importances.iter().all(|&x| x >= 0.4)); // Should keep importances 0.4, 0.6, 0.8
+    }
+
+    #[tokio::test]
+    async fn test_maintain_runs_all() {
+        let (manager, store) = test_manager(4, 2); // Max 2 memories
+
+        // Store 4 entries to test quota enforcement
+        for i in 0..4 {
+            let entry = MemoryEntry {
+                metadata: crate::types::MemoryMetadata {
+                    importance: (i as f32) / 4.0,
+                    ..Default::default()
+                },
+                ..MemoryEntry::new(
+                    format!("maintain-{}", i),
+                    "agent-1".to_string(),
+                    format!("content {}", i),
+                    vec![0.1 * (i as f32), 0.2, 0.3, 0.4],
+                )
+            };
+            manager.store.store(entry).await.unwrap();
+        }
+
+        // Run maintain (should run expiration, consolidation, and quota enforcement)
+        manager.maintain("agent-1").await.unwrap();
+
+        // Verify quota was enforced (should have 2 entries max)
+        let filter = MemoryFilter {
+            agent_id: Some("agent-1".to_string()),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert!(entries.len() <= 2);
     }
 }

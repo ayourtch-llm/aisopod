@@ -4,8 +4,10 @@
 //! into the agent execution pipeline, including pre-run memory
 //! injection and conversation analysis.
 
+use crate::embedding::EmbeddingProvider;
 use crate::pipeline::MemoryQueryPipeline;
-use crate::types::MemoryQueryOptions;
+use crate::store::MemoryStore;
+use crate::types::{MemoryFilter, MemoryMatch, MemoryQueryOptions};
 use aisopod_provider::types::{Message, Role};
 use anyhow::Result;
 use std::sync::Arc;
@@ -195,7 +197,7 @@ mod tests {
             "User prefers vegetarian food".to_string(),
             vec![0.1, 0.2, 0.3, 0.4],
         );
-        pipeline.store.store(entry).await.unwrap();
+        pipeline.store().store(entry).await.unwrap();
 
         let conversation = vec![
             Message {
@@ -212,5 +214,199 @@ mod tests {
 
         assert!(context.contains("Relevant Memories"));
         assert!(context.contains("User prefers vegetarian food"));
+    }
+
+    // ==================== Memory Tool Tests ====================
+
+    /// Simulates a memory tool call with store action
+    pub async fn memory_tool_store(
+        store: &Arc<dyn crate::store::MemoryStore>,
+        agent_id: &str,
+        content: &str,
+    ) -> Result<String> {
+        // Generate embedding using mock (for testing)
+        let mut mock_embedder = crate::MockEmbeddingProvider::new(4);
+        let embedding = mock_embedder.embed(content).await?;
+
+        let entry = MemoryEntry::new(
+            uuid::Uuid::new_v4().to_string(),
+            agent_id.to_string(),
+            content.to_string(),
+            embedding,
+        );
+        let id = store.store(entry).await?;
+        Ok(id)
+    }
+
+    /// Simulates a memory tool call with query action
+    pub async fn memory_tool_query(
+        store: &Arc<dyn crate::store::MemoryStore>,
+        agent_id: &str,
+        query: &str,
+        top_k: usize,
+    ) -> Result<Vec<MemoryMatch>> {
+        let opts = MemoryQueryOptions {
+            top_k,
+            filter: MemoryFilter {
+                agent_id: Some(agent_id.to_string()),
+                ..Default::default()
+            },
+            min_score: Some(0.0),
+        };
+        store.query(query, opts).await
+    }
+
+    /// Simulates a memory tool call with delete action
+    pub async fn memory_tool_delete(
+        store: &Arc<dyn crate::store::MemoryStore>,
+        id: &str,
+    ) -> Result<()> {
+        store.delete(id).await
+    }
+
+    #[tokio::test]
+    async fn test_memory_tool_store() {
+        let store = Arc::new(SqliteMemoryStore::new(":memory:", 4).unwrap());
+        let agent_id = "agent-1";
+        let content = "User loves chocolate ice cream";
+
+        // Store via memory tool
+        let id = memory_tool_store(&(Arc::clone(&store) as Arc<dyn MemoryStore>), agent_id, content).await.unwrap();
+
+        // Verify it was stored
+        let filter = MemoryFilter {
+            agent_id: Some(agent_id.to_string()),
+            ..Default::default()
+        };
+        let entries = store.list(filter.clone()).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].content, content);
+        assert_eq!(entries[0].agent_id, agent_id);
+    }
+
+    #[tokio::test]
+    async fn test_memory_tool_query() {
+        let store = Arc::new(SqliteMemoryStore::new(":memory:", 4).unwrap());
+        let agent_id = "agent-1";
+
+        // Store some memories first
+        let content1 = "User prefers vegetarian food";
+        let content2 = "User likes Italian cuisine";
+        memory_tool_store(&(Arc::clone(&store) as Arc<dyn MemoryStore>), agent_id, content1).await.unwrap();
+        memory_tool_store(&(Arc::clone(&store) as Arc<dyn MemoryStore>), agent_id, content2).await.unwrap();
+
+        // Query memories
+        let matches = memory_tool_query(&(Arc::clone(&store) as Arc<dyn MemoryStore>), agent_id, "food preferences", 10).await.unwrap();
+        assert!(!matches.is_empty());
+
+        // Verify results contain relevant content
+        let contents: Vec<&str> = matches.iter().map(|m| m.entry.content.as_str()).collect();
+        assert!(contents.contains(&"User prefers vegetarian food"));
+        assert!(contents.contains(&"User likes Italian cuisine"));
+    }
+
+    #[tokio::test]
+    async fn test_memory_tool_delete() {
+        let store = Arc::new(SqliteMemoryStore::new(":memory:", 4).unwrap());
+        let agent_id = "agent-1";
+        let content = "Memory to be deleted";
+
+        // Store a memory
+        let id = memory_tool_store(&(Arc::clone(&store) as Arc<dyn MemoryStore>), agent_id, content).await.unwrap();
+
+        // Verify it exists
+        let filter = MemoryFilter {
+            agent_id: Some(agent_id.to_string()),
+            ..Default::default()
+        };
+        let entries = store.list(filter.clone()).await.unwrap();
+        assert_eq!(entries.len(), 1);
+
+        // Delete via memory tool
+        memory_tool_delete(&(Arc::clone(&store) as Arc<dyn MemoryStore>), &id).await.unwrap();
+
+        // Verify it was deleted
+        let entries = store.list(filter).await.unwrap();
+        assert!(entries.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_no_memory_configured() {
+        // Test that operations work correctly when no memory is configured
+        // This simulates running an agent without memory
+        
+        // Create a minimal mock embedder using a simple struct that implements the trait
+        struct MockEmbedder {
+            dim: usize,
+        }
+        
+        #[async_trait::async_trait]
+        impl EmbeddingProvider for MockEmbedder {
+            async fn embed(&self, _text: &str) -> Result<Vec<f32>> {
+                Ok(vec![0.0; self.dim])
+            }
+            
+            async fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+                let mut results = Vec::with_capacity(texts.len());
+                for _ in texts {
+                    results.push(vec![0.0; self.dim]);
+                }
+                Ok(results)
+            }
+            
+            fn dimensions(&self) -> usize {
+                self.dim
+            }
+        }
+        
+        let embedder = Arc::new(MockEmbedder { dim: 4 });
+        
+        // In this case, we're testing that operations don't fail when
+        // memory is not properly configured (simulating the scenario)
+        
+        // The key is that operations should handle missing configuration gracefully
+        // For example, building memory context with no memories should return empty result
+        
+        let context = build_memory_context_helper(Arc::clone(&embedder) as Arc<dyn EmbeddingProvider>, "agent-1").await;
+        assert!(context.contains("No relevant memories found"));
+    }
+
+    /// Helper for no_memory_configured test
+    async fn build_memory_context_helper(
+        embedder: Arc<dyn EmbeddingProvider>,
+        agent_id: &str,
+    ) -> String {
+        // Create a minimal mock store for testing
+        struct MockStore;
+        
+        #[async_trait::async_trait]
+        impl crate::store::MemoryStore for MockStore {
+            async fn store(&self, _entry: crate::types::MemoryEntry) -> Result<String> {
+                Ok(uuid::Uuid::new_v4().to_string())
+            }
+            
+            async fn query(&self, _query: &str, _opts: crate::types::MemoryQueryOptions) -> Result<Vec<crate::types::MemoryMatch>> {
+                Ok(Vec::new())
+            }
+            
+            async fn delete(&self, _id: &str) -> Result<()> {
+                Ok(())
+            }
+            
+            async fn list(&self, _filter: crate::types::MemoryFilter) -> Result<Vec<crate::types::MemoryEntry>> {
+                Ok(Vec::new())
+            }
+        }
+        
+        let store = Arc::new(MockStore);
+        let pipeline = MemoryQueryPipeline::new(store, embedder.clone());
+        
+        // Empty conversation
+        let conversation: Vec<Message> = Vec::new();
+        let opts = MemoryQueryOptions::default();
+        
+        build_memory_context(&pipeline, agent_id, &conversation, opts)
+            .await
+            .unwrap_or_else(|_| "Error building context".to_string())
     }
 }
