@@ -15,6 +15,7 @@ pub mod subagent;
 pub mod transcript;
 pub mod types;
 pub mod usage;
+pub mod memory;
 
 // Re-export key types from crate root
 pub use abort::{notify_abort, AbortHandle, AbortRegistry};
@@ -36,3 +37,4 @@ pub use runner::{AgentRunner, SubagentRunnerExt};
 pub use subagent::{spawn_subagent, ResourceBudget, SubagentSpawnParams};
 pub use transcript::{repair_transcript, ProviderKind};
 pub use types::{AgentEvent, AgentRunParams, AgentRunResult, SessionMetadata, UsageReport};
+pub use memory::{MemoryConfig, inject_memory_context, extract_memories_after_run, MemoryTool, create_memory_tool_schema};

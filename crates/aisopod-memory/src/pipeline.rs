@@ -209,6 +209,16 @@ impl MemoryQueryPipeline {
         let matches = self.query(query, opts).await?;
         Ok(self.format_context(&matches))
     }
+
+    /// Gets a reference to the embedder.
+    pub fn embedder(&self) -> &Arc<dyn EmbeddingProvider> {
+        &self.embedder
+    }
+
+    /// Gets a reference to the store.
+    pub fn store(&self) -> &Arc<dyn MemoryStore> {
+        &self.store
+    }
 }
 
 #[cfg(test)]

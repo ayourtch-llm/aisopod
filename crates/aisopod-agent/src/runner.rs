@@ -10,8 +10,10 @@ use anyhow::Result;
 use tokio::sync::broadcast;
 
 use crate::abort::{AbortHandle, AbortRegistry};
+use crate::memory::{inject_memory_context, MemoryConfig};
 use crate::resolution;
 use crate::types::{AgentEvent, AgentRunParams, AgentRunResult};
+use aisopod_memory::{MemoryManager, MemoryQueryPipeline};
 
 /// Extension trait for AgentRunner to support subagent spawning.
 pub trait SubagentRunnerExt {
@@ -33,6 +35,7 @@ pub trait SubagentRunnerExt {
 /// - Tool registry for tool execution
 /// - Session store for conversation state
 /// - Abort registry for tracking and cancelling active sessions
+/// - Optional memory components for memory integration
 ///
 /// # Example
 ///
@@ -76,6 +79,12 @@ pub struct AgentRunner {
     usage_tracker: Option<Arc<crate::usage::UsageTracker>>,
     /// Registry for tracking active sessions and their abort handles
     abort_registry: Arc<AbortRegistry>,
+    /// Optional memory query pipeline for pre-run memory injection
+    memory_pipeline: Option<Arc<MemoryQueryPipeline>>,
+    /// Optional memory manager for post-run memory extraction
+    memory_manager: Option<Arc<MemoryManager>>,
+    /// Memory configuration
+    memory_config: MemoryConfig,
 }
 
 impl AgentRunner {
@@ -100,6 +109,9 @@ impl AgentRunner {
             sessions,
             usage_tracker: None,
             abort_registry: Arc::new(AbortRegistry::new()),
+            memory_pipeline: None,
+            memory_manager: None,
+            memory_config: MemoryConfig::default(),
         }
     }
 
@@ -126,6 +138,73 @@ impl AgentRunner {
             sessions,
             usage_tracker: Some(usage_tracker),
             abort_registry: Arc::new(AbortRegistry::new()),
+            memory_pipeline: None,
+            memory_manager: None,
+            memory_config: MemoryConfig::default(),
+        }
+    }
+
+    /// Creates a new `AgentRunner` with memory integration.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The agent configuration.
+    /// * `providers` - The provider registry for model access.
+    /// * `tools` - The tool registry for tool execution.
+    /// * `sessions` - The session store for conversation state.
+    /// * `memory_pipeline` - The memory query pipeline for querying memories.
+    /// * `memory_manager` - The memory manager for storing memories.
+    pub fn new_with_memory(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        memory_pipeline: Arc<MemoryQueryPipeline>,
+        memory_manager: Arc<MemoryManager>,
+    ) -> Self {
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: None,
+            abort_registry: Arc::new(AbortRegistry::new()),
+            memory_pipeline: Some(memory_pipeline),
+            memory_manager: Some(memory_manager),
+            memory_config: MemoryConfig::default(),
+        }
+    }
+
+    /// Creates a new `AgentRunner` with memory integration and usage tracker.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The agent configuration.
+    /// * `providers` - The provider registry for model access.
+    /// * `tools` - The tool registry for tool execution.
+    /// * `sessions` - The session store for conversation state.
+    /// * `memory_pipeline` - The memory query pipeline for querying memories.
+    /// * `memory_manager` - The memory manager for storing memories.
+    /// * `usage_tracker` - The usage tracker for recording token usage.
+    pub fn new_with_memory_and_usage_tracker(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        memory_pipeline: Arc<MemoryQueryPipeline>,
+        memory_manager: Arc<MemoryManager>,
+        usage_tracker: Arc<crate::usage::UsageTracker>,
+    ) -> Self {
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: Some(usage_tracker),
+            abort_registry: Arc::new(AbortRegistry::new()),
+            memory_pipeline: Some(memory_pipeline),
+            memory_manager: Some(memory_manager),
+            memory_config: MemoryConfig::default(),
         }
     }
 
@@ -142,6 +221,32 @@ impl AgentRunner {
     /// Gets the abort registry.
     pub fn abort_registry(&self) -> &Arc<AbortRegistry> {
         &self.abort_registry
+    }
+
+    /// Returns true if memory integration is enabled.
+    pub fn has_memory(&self) -> bool {
+        self.memory_pipeline.is_some() && self.memory_manager.is_some()
+    }
+
+    /// Gets the memory pipeline if enabled.
+    pub fn memory_pipeline(&self) -> Option<&Arc<MemoryQueryPipeline>> {
+        self.memory_pipeline.as_ref()
+    }
+
+    /// Gets the memory manager if enabled.
+    pub fn memory_manager(&self) -> Option<&Arc<MemoryManager>> {
+        self.memory_manager.as_ref()
+    }
+
+    /// Gets the memory configuration.
+    pub fn memory_config(&self) -> &MemoryConfig {
+        &self.memory_config
+    }
+
+    /// Sets the memory configuration.
+    pub fn with_memory_config(mut self, config: MemoryConfig) -> Self {
+        self.memory_config = config;
+        self
     }
 
     /// Registers an active session with its abort handle.
@@ -212,7 +317,32 @@ impl AgentRunner {
     /// Returns the final result of the agent run, or an error if
     /// the run failed.
     pub async fn run_and_get_result(&self, params: AgentRunParams) -> Result<AgentRunResult> {
-        let pipeline = if let Some(ref tracker) = self.usage_tracker {
+        let pipeline = if self.has_memory() {
+            // Use memory-enabled pipeline
+            let memory_pipeline = self.memory_pipeline.clone().unwrap();
+            let memory_manager = self.memory_manager.clone().unwrap();
+            if let Some(ref tracker) = self.usage_tracker {
+                crate::pipeline::AgentPipeline::new_with_memory_and_usage_tracker(
+                    self.config.clone(),
+                    self.providers.clone(),
+                    self.tools.clone(),
+                    self.sessions.clone(),
+                    memory_pipeline,
+                    memory_manager,
+                    tracker.clone(),
+                )
+            } else {
+                crate::pipeline::AgentPipeline::new_with_memory(
+                    self.config.clone(),
+                    self.providers.clone(),
+                    self.tools.clone(),
+                    self.sessions.clone(),
+                    memory_pipeline,
+                    memory_manager,
+                )
+            }
+        } else if let Some(ref tracker) = self.usage_tracker {
+            // Use pipeline with usage tracker only
             crate::pipeline::AgentPipeline::new_with_usage_tracker(
                 self.config.clone(),
                 self.providers.clone(),
@@ -221,6 +351,7 @@ impl AgentRunner {
                 tracker.clone(),
             )
         } else {
+            // Use basic pipeline
             crate::pipeline::AgentPipeline::new(
                 self.config.clone(),
                 self.providers.clone(),
@@ -252,10 +383,34 @@ impl AgentRunner {
         let providers = self.providers.clone();
         let tools = self.tools.clone();
         let sessions = self.sessions.clone();
+        
+        // Clone memory components (if any)
+        let memory_pipeline = self.memory_pipeline.clone();
+        let memory_manager = self.memory_manager.clone();
+        let usage_tracker = self.usage_tracker.clone();
 
         // Spawn the pipeline execution
         tokio::spawn(async move {
-            let pipeline = crate::pipeline::AgentPipeline::new(config, providers, tools, sessions);
+            let pipeline = if let (Some(memory_pipeline), Some(memory_manager)) = 
+                (memory_pipeline, memory_manager)
+            {
+                // Use memory-enabled pipeline
+                if let Some(tracker) = usage_tracker {
+                    crate::pipeline::AgentPipeline::new_with_memory_and_usage_tracker(
+                        config, providers, tools, sessions, memory_pipeline, memory_manager, tracker,
+                    )
+                } else {
+                    crate::pipeline::AgentPipeline::new_with_memory(
+                        config, providers, tools, sessions, memory_pipeline, memory_manager,
+                    )
+                }
+            } else if let Some(tracker) = usage_tracker {
+                crate::pipeline::AgentPipeline::new_with_usage_tracker(
+                    config, providers, tools, sessions, tracker,
+                )
+            } else {
+                crate::pipeline::AgentPipeline::new(config, providers, tools, sessions)
+            };
             if let Err(e) = pipeline.execute(&params, &event_tx).await {
                 let _ = event_tx
                     .send(crate::types::AgentEvent::Error {

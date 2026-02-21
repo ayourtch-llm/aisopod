@@ -39,9 +39,11 @@ pub mod sqlite;
 pub mod embedding;
 pub mod pipeline;
 pub mod management;
+pub mod integration;
 
 pub use types::*;
 pub use store::MemoryStore;
 pub use embedding::{EmbeddingProvider, OpenAiEmbeddingProvider};
 pub use pipeline::MemoryQueryPipeline;
 pub use management::{MemoryManager, MemoryManagerConfig};
+pub use integration::build_memory_context;

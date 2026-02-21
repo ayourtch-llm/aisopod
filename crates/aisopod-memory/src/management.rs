@@ -72,6 +72,11 @@ impl MemoryManager {
         }
     }
 
+    /// Gets a reference to the store.
+    pub fn store(&self) -> &Arc<dyn MemoryStore> {
+        &self.store
+    }
+
     /// Extracts key facts from conversation transcripts and stores them as memories.
     ///
     /// Iterates through conversation messages, identifies key facts, decisions,

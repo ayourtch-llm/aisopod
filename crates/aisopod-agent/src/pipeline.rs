@@ -63,6 +63,10 @@ pub struct AgentPipeline {
     usage_tracker: Option<Arc<usage::UsageTracker>>,
     /// Optional abort registry for tracking and cancelling active sessions
     abort_registry: Option<Arc<crate::abort::AbortRegistry>>,
+    /// Optional memory query pipeline for pre-run memory injection
+    memory_pipeline: Option<Arc<aisopod_memory::MemoryQueryPipeline>>,
+    /// Optional memory manager for post-run memory extraction
+    memory_manager: Option<Arc<aisopod_memory::MemoryManager>>,
 }
 
 impl AgentPipeline {
@@ -80,6 +84,8 @@ impl AgentPipeline {
             sessions,
             usage_tracker: None,
             abort_registry: None,
+            memory_pipeline: None,
+            memory_manager: None,
         }
     }
 
@@ -98,6 +104,8 @@ impl AgentPipeline {
             sessions,
             usage_tracker: Some(usage_tracker),
             abort_registry: None,
+            memory_pipeline: None,
+            memory_manager: None,
         }
     }
 
@@ -117,6 +125,74 @@ impl AgentPipeline {
             sessions,
             usage_tracker: Some(usage_tracker),
             abort_registry: Some(abort_registry),
+            memory_pipeline: None,
+            memory_manager: None,
+        }
+    }
+
+    /// Creates a new AgentPipeline with memory integration.
+    pub fn new_with_memory(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        memory_pipeline: Arc<aisopod_memory::MemoryQueryPipeline>,
+        memory_manager: Arc<aisopod_memory::MemoryManager>,
+    ) -> Self {
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: None,
+            abort_registry: None,
+            memory_pipeline: Some(memory_pipeline),
+            memory_manager: Some(memory_manager),
+        }
+    }
+
+    /// Creates a new AgentPipeline with memory integration and usage tracker.
+    pub fn new_with_memory_and_usage_tracker(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        memory_pipeline: Arc<aisopod_memory::MemoryQueryPipeline>,
+        memory_manager: Arc<aisopod_memory::MemoryManager>,
+        usage_tracker: Arc<usage::UsageTracker>,
+    ) -> Self {
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: Some(usage_tracker),
+            abort_registry: None,
+            memory_pipeline: Some(memory_pipeline),
+            memory_manager: Some(memory_manager),
+        }
+    }
+
+    /// Creates a new AgentPipeline with memory integration, usage tracker, and abort registry.
+    pub fn new_with_all(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        memory_pipeline: Arc<aisopod_memory::MemoryQueryPipeline>,
+        memory_manager: Arc<aisopod_memory::MemoryManager>,
+        usage_tracker: Arc<usage::UsageTracker>,
+        abort_registry: Arc<crate::abort::AbortRegistry>,
+    ) -> Self {
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: Some(usage_tracker),
+            abort_registry: Some(abort_registry),
+            memory_pipeline: Some(memory_pipeline),
+            memory_manager: Some(memory_manager),
         }
     }
 
@@ -133,6 +209,21 @@ impl AgentPipeline {
     /// Gets the abort registry if enabled.
     pub fn abort_registry(&self) -> Option<&Arc<crate::abort::AbortRegistry>> {
         self.abort_registry.as_ref()
+    }
+
+    /// Returns true if memory integration is enabled.
+    pub fn has_memory(&self) -> bool {
+        self.memory_pipeline.is_some() && self.memory_manager.is_some()
+    }
+
+    /// Gets the memory pipeline if enabled.
+    pub fn memory_pipeline(&self) -> Option<&Arc<aisopod_memory::MemoryQueryPipeline>> {
+        self.memory_pipeline.as_ref()
+    }
+
+    /// Gets the memory manager if enabled.
+    pub fn memory_manager(&self) -> Option<&Arc<aisopod_memory::MemoryManager>> {
+        self.memory_manager.as_ref()
     }
 
     /// Gets the config.
@@ -203,8 +294,24 @@ impl AgentPipeline {
             })
             .collect();
 
-        // 5. Build system prompt
-        let system_prompt = self.build_system_prompt(&agent_config, &tool_definitions);
+        // 5. Inject memory context before building system prompt
+        let system_prompt = {
+            let base_prompt = self.build_system_prompt(&agent_config, &tool_definitions);
+            if self.has_memory() {
+                // Use default memory config for now - could be made configurable
+                let default_config = crate::memory::MemoryConfig::default();
+                crate::memory::inject_memory_context(
+                    self.memory_pipeline.as_ref(),
+                    &agent_id,
+                    &params.messages,
+                    &default_config,
+                    &base_prompt,
+                )
+                .await
+            } else {
+                base_prompt
+            }
+        };
 
         // 6. Repair message transcript
         let provider_kind = self.determine_provider_kind(&model_chain);
@@ -232,6 +339,21 @@ impl AgentPipeline {
                 abort_handle.as_ref(),
             )
             .await;
+
+        // 9. Extract memories after run completes (if enabled)
+        if self.has_memory() {
+            let default_config = crate::memory::MemoryConfig::default();
+            if let Err(e) = crate::memory::extract_memories_after_run(
+                self.memory_manager.as_ref(),
+                &agent_id,
+                &params.messages,
+                &default_config,
+            )
+            .await
+            {
+                eprintln!("Failed to extract memories after run: {}", e);
+            }
+        }
 
         // Clean up abort handle if we created one
         if let (Some(ref registry), Some(ref handle)) =
