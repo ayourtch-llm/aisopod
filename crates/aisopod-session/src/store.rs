@@ -4,6 +4,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension, Result as SqliteResult};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 use crate::db;
 use crate::types::{Session, SessionFilter, SessionKey, SessionPatch, SessionStatus, SessionSummary, StoredMessage};
@@ -42,7 +43,7 @@ use crate::types::{Session, SessionFilter, SessionKey, SessionPatch, SessionStat
 /// ```
 #[derive(Debug)]
 pub struct SessionStore {
-    conn: Connection,
+    conn: Arc<Mutex<Connection>>,
 }
 
 impl SessionStore {
@@ -61,7 +62,25 @@ impl SessionStore {
     /// or an error if the database cannot be opened or migrations fail.
     pub fn new(path: &Path) -> Result<Self> {
         let conn = db::open_database(path)?;
-        Ok(Self { conn })
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+        })
+    }
+
+    /// Creates a new SessionStore backed by an in-memory SQLite database.
+    ///
+    /// This is useful for testing where persistence is not needed.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(SessionStore)` with the database connection if successful,
+    /// or an error if the database cannot be opened or migrations fail.
+    pub fn new_in_memory() -> Result<Self> {
+        let conn = Connection::open_in_memory()?;
+        db::run_migrations(&conn)?;
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+        })
     }
 
     /// Gets an existing session or creates a new one if it doesn't exist.
@@ -87,7 +106,7 @@ impl SessionStore {
         // If not found, create a new session
         let now = Utc::now().to_rfc3339();
         
-        self.conn.execute(
+        self.conn.lock().unwrap().execute(
             r#"
             INSERT INTO sessions 
                 (agent_id, channel, account_id, peer_kind, peer_id, 
@@ -132,7 +151,7 @@ impl SessionStore {
 
     /// Internal helper to get a session by key.
     fn get_by_key(&self, key: &SessionKey) -> Result<Option<Session>> {
-        let session: Option<Session> = self.conn.query_row(
+        let session: Option<Session> = self.conn.lock().unwrap().query_row(
             r#"
             SELECT id, agent_id, channel, account_id, peer_kind, peer_id,
                    created_at, updated_at, message_count, token_usage, metadata, status
@@ -242,8 +261,9 @@ impl SessionStore {
 
         query.push_str(" ORDER BY updated_at DESC");
 
-        let mut stmt = self.conn.prepare(&query)?;
-        let session_summaries = stmt
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(&query)?;
+        let session_summaries: Vec<SessionSummary> = stmt
             .query_map(rusqlite::params_from_iter(params.iter()), |row| {
                 self.row_to_session_summary(row)
             })?
@@ -320,7 +340,7 @@ impl SessionStore {
             set_clauses.join(", ")
         );
 
-        self.conn.execute(&sql, rusqlite::params_from_iter(params.iter()))?;
+        self.conn.lock().unwrap().execute(&sql, rusqlite::params_from_iter(params.iter()))?;
 
         let session = self.get_by_key(key)?;
         session.ok_or_else(|| {
@@ -342,7 +362,7 @@ impl SessionStore {
     /// Returns `Ok(true)` if a session was deleted, `Ok(false)` if no
     /// session matched the key, or an error if the database operation fails.
     pub fn delete(&self, key: &SessionKey) -> Result<bool> {
-        let rows_affected = self.conn.execute(
+        let rows_affected = self.conn.lock().unwrap().execute(
             r#"
             DELETE FROM sessions
             WHERE agent_id = ? AND channel = ? AND account_id = ? 
@@ -451,8 +471,7 @@ mod tests {
 
     /// Creates a fresh in-memory database for testing.
     fn create_test_store() -> SessionStore {
-        let path = PathBuf::from(":memory:");
-        SessionStore::new(&path).unwrap()
+        SessionStore::new_in_memory().unwrap()
     }
 
     fn create_test_key() -> SessionKey {
@@ -468,7 +487,10 @@ mod tests {
     #[test]
     fn test_new_store() {
         let store = create_test_store();
-        assert!(std::ptr::addr_of!(store.conn) as *const _ as usize > 0);
+        // Just verify the store can perform operations
+        let key = create_test_key();
+        let session = store.get_or_create(&key).unwrap();
+        assert_eq!(session.key.agent_id, key.agent_id);
     }
 
     #[test]
@@ -734,36 +756,33 @@ mod tests {
         store.get_or_create(&key).unwrap();
 
         // Insert a message directly into the database
-        let session_id: i64 = store
-            .conn
-            .query_row(
-                "SELECT id FROM sessions WHERE agent_id = ? AND channel = ? AND account_id = ? AND peer_kind = ? AND peer_id = ?",
-                params![key.agent_id, key.channel, key.account_id, key.peer_kind, key.peer_id],
-                |row| row.get(0),
-            )
-            .unwrap();
+        {
+            let conn = store.conn.lock().unwrap();
+            let session_id: i64 = conn
+                .query_row(
+                    "SELECT id FROM sessions WHERE agent_id = ? AND channel = ? AND account_id = ? AND peer_kind = ? AND peer_id = ?",
+                    params![key.agent_id, key.channel, key.account_id, key.peer_kind, key.peer_id],
+                    |row| row.get(0),
+                )
+                .unwrap();
 
-        store
-            .conn
-            .execute(
+            conn.execute(
                 "INSERT INTO messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)",
                 params![session_id, "user", "\"Hello!\"", "2024-01-01T00:00:00Z"],
             )
             .unwrap();
 
-        // Verify message exists
-        let count: i64 = store.conn
-            .query_row("SELECT COUNT(*) FROM messages", params![], |row| row.get(0))
-            .unwrap();
-        assert_eq!(count, 1);
+            // Verify message exists
+            let count: i64 = conn.query_row("SELECT COUNT(*) FROM messages", params![], |row| row.get(0)).unwrap();
+            assert_eq!(count, 1);
+        } // Lock is dropped here
 
         // Delete session
         store.delete(&key).unwrap();
 
         // Verify message was cascaded deleted
-        let count: i64 = store.conn
-            .query_row("SELECT COUNT(*) FROM messages", params![], |row| row.get(0))
-            .unwrap();
+        let conn = store.conn.lock().unwrap();
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM messages", params![], |row| row.get(0)).unwrap();
         assert_eq!(count, 0);
     }
 

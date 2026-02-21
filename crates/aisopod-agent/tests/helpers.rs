@@ -387,9 +387,9 @@ pub fn test_config_with_fallbacks() -> AisopodConfig {
 // Session Store Helpers
 // ============================================================================
 
-/// Creates a test session store.
+/// Creates a test session store using an in-memory database.
 pub fn test_session_store() -> Arc<SessionStore> {
-    Arc::new(SessionStore::new())
+    Arc::new(SessionStore::new_in_memory().expect("Failed to create in-memory session store"))
 }
 
 // ============================================================================

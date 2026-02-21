@@ -14,6 +14,8 @@ use aisopod_agent::types::{AgentEvent, AgentRunResult};
 use aisopod_provider::Message;
 use std::sync::Arc;
 
+use aisopod_session::SessionStore;
+
 use helpers::{
     collect_events, test_abort_registry, test_agent_run_params, test_agent_run_result, test_config,
     test_session_store, test_tool_registry, user_message, MockProvider,
@@ -118,7 +120,8 @@ fn create_test_dependencies() -> (
     let config = Arc::new(aisopod_config::AisopodConfig::default());
     let providers = Arc::new(aisopod_provider::ProviderRegistry::new());
     let tools = Arc::new(aisopod_tools::ToolRegistry::new());
-    let sessions = Arc::new(aisopod_session::SessionStore::new());
+    let sessions =
+        Arc::new(SessionStore::new_in_memory().expect("Failed to create in-memory session store"));
 
     (config, providers, tools, sessions)
 }

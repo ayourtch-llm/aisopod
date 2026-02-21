@@ -321,13 +321,15 @@ impl SubagentRunnerExt for AgentRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use aisopod_session::SessionStore;
 
     #[test]
     fn test_agent_runner_new() {
         let config = Arc::new(aisopod_config::AisopodConfig::default());
         let providers = Arc::new(aisopod_provider::ProviderRegistry::new());
         let tools = Arc::new(aisopod_tools::ToolRegistry::new());
-        let sessions = Arc::new(aisopod_session::SessionStore::new());
+        let sessions =
+            Arc::new(SessionStore::new_in_memory().expect("Failed to create in-memory session store"));
 
         let runner = AgentRunner::new(config, providers, tools, sessions);
 
