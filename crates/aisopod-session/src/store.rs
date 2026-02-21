@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use crate::db;
-use crate::types::{Session, SessionFilter, SessionKey, SessionPatch, SessionStatus, SessionSummary, StoredMessage};
+use crate::types::{HistoryQuery, Session, SessionFilter, SessionKey, SessionPatch, SessionStatus, SessionSummary, StoredMessage};
 
 /// A store for managing conversation sessions using SQLite.
 ///
@@ -170,6 +170,27 @@ impl SessionStore {
         ).optional()?;
 
         Ok(session)
+    }
+
+    /// Internal helper to get a session's id by key.
+    fn get_session_id(&self, key: &SessionKey) -> Result<Option<i64>> {
+        let session_id: Option<i64> = self.conn.lock().unwrap().query_row(
+            r#"
+            SELECT id FROM sessions
+            WHERE agent_id = ? AND channel = ? AND account_id = ? 
+                  AND peer_kind = ? AND peer_id = ?
+            "#,
+            params![
+                key.agent_id,
+                key.channel,
+                key.account_id,
+                key.peer_kind,
+                key.peer_id,
+            ],
+            |row| row.get(0),
+        ).optional()?;
+
+        Ok(session_id)
     }
 
     /// Lists sessions matching the given filter.
@@ -378,6 +399,183 @@ impl SessionStore {
         )?;
 
         Ok(rows_affected > 0)
+    }
+
+    /// Appends messages to a session.
+    ///
+    /// Inserts multiple messages into the messages table within a transaction.
+    /// Updates the session's message_count and updated_at after successful insertion.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The session key to append messages to.
+    /// * `messages` - Slice of messages to append.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` on success, or an error if the session doesn't exist
+    /// or the database operation fails.
+    pub fn append_messages(&self, key: &SessionKey, messages: &[StoredMessage]) -> Result<()> {
+        // First, look up the session's id
+        let session_id = match self.get_session_id(key)? {
+            Some(id) => id,
+            None => return Err(anyhow::anyhow!("Session not found for key {:?}", key)),
+        };
+
+        // Start a transaction
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+
+        // Insert each message
+        for msg in messages {
+            let content_str = serde_json::to_string(&msg.content)?;
+            let tool_calls_str = match &msg.tool_calls {
+                Some(tc) => Some(serde_json::to_string(tc)?),
+                None => None,
+            };
+
+            tx.execute(
+                r#"
+                INSERT INTO messages (session_id, role, content, tool_calls, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                "#,
+                params![
+                    session_id,
+                    msg.role,
+                    content_str,
+                    tool_calls_str,
+                    msg.created_at.to_rfc3339(),
+                ],
+            )?;
+        }
+
+        // Update the session's message_count and updated_at
+        let new_count = messages.len() as i64;
+        tx.execute(
+            r#"
+            UPDATE sessions 
+            SET message_count = message_count + ?, updated_at = ?
+            WHERE id = ?
+            "#,
+            params![new_count, Utc::now().to_rfc3339(), session_id],
+        )?;
+
+        tx.commit()?;
+
+        Ok(())
+    }
+
+    /// Retrieves message history for a session with optional pagination and filtering.
+    ///
+    /// Returns messages in chronological order (oldest first). Supports pagination
+    /// with limit/offset and timestamp filtering with before/after.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - The session key to retrieve messages for.
+    /// * `query` - The query with pagination and filter options.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Vec<StoredMessage>)` with messages in chronological order,
+    /// or an error if the session doesn't exist or the database operation fails.
+    pub fn get_history(&self, key: &SessionKey, query: &HistoryQuery) -> Result<Vec<StoredMessage>> {
+        // First, look up the session's id
+        let session_id = match self.get_session_id(key)? {
+            Some(id) => id,
+            None => return Err(anyhow::anyhow!("Session not found for key {:?}", key)),
+        };
+
+        let mut query_sql = String::from(
+            r#"
+            SELECT id, session_id, role, content, tool_calls, created_at
+            FROM messages
+            WHERE session_id = ?
+            "#,
+        );
+
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![Box::new(session_id)];
+
+        // Add before filter
+        if let Some(ref before) = query.before {
+            query_sql.push_str(" AND created_at < ?");
+            let before_str: String = before.to_rfc3339();
+            params.push(Box::new(before_str));
+        }
+
+        // Add after filter
+        if let Some(ref after) = query.after {
+            query_sql.push_str(" AND created_at > ?");
+            let after_str: String = after.to_rfc3339();
+            params.push(Box::new(after_str));
+        }
+
+        // Order by created_at ASC (chronological)
+        query_sql.push_str(" ORDER BY created_at ASC");
+
+        // Add limit (default to 1000 if not specified)
+        let limit = query.limit.unwrap_or(1000);
+        query_sql.push_str(&format!(" LIMIT {}", limit));
+
+        // Add offset (must come after LIMIT)
+        if let Some(offset) = query.offset {
+            query_sql.push_str(&format!(" OFFSET {}", offset));
+        }
+
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(&query_sql)?;
+        let messages: Vec<StoredMessage> = stmt
+            .query_map(rusqlite::params_from_iter(params.iter()), |row| {
+                self.row_to_stored_message(row)
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        Ok(messages)
+    }
+
+    /// Converts a database row to a StoredMessage struct.
+    fn row_to_stored_message(&self, row: &rusqlite::Row) -> SqliteResult<StoredMessage> {
+        let id: i64 = row.get(0)?;
+        let session_id: i64 = row.get(1)?;
+        let role: String = row.get(2)?;
+        let content_str: String = row.get(3)?;
+        let tool_calls_str: Option<String> = row.get(4)?;
+        let created_at_str: String = row.get(5)?;
+
+        let content: serde_json::Value = serde_json::from_str(&content_str)
+            .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                3,
+                rusqlite::types::Type::Text,
+                Box::new(e),
+            ))?;
+
+        let tool_calls: Option<serde_json::Value> = match tool_calls_str {
+            Some(s) => Some(serde_json::from_str(&s)
+                .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                    4,
+                    rusqlite::types::Type::Text,
+                    Box::new(e),
+                ))?),
+            None => None,
+        };
+
+        let created_at: DateTime<Utc> = DateTime::parse_from_rfc3339(&created_at_str)
+            .map(|dt| dt.with_timezone(&Utc))
+            .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                5,
+                rusqlite::types::Type::Text,
+                Box::new(e),
+            ))?;
+
+        Ok(StoredMessage {
+            id,
+            session_id,
+            role,
+            content,
+            tool_calls,
+            created_at,
+        })
     }
 
     /// Converts a database row to a Session struct.
@@ -819,5 +1017,212 @@ mod tests {
         let sessions = store.list(&filter).unwrap();
         assert_eq!(sessions.len(), 1);
         assert_eq!(sessions[0].key.peer_id, "user_222");
+    }
+
+    #[test]
+    fn test_append_messages() {
+        let store = create_test_store();
+        let key = create_test_key();
+
+        // Create session
+        store.get_or_create(&key).unwrap();
+
+        // Append messages
+        let messages = vec![
+            StoredMessage::user("Hello!"),
+            StoredMessage::assistant("Hi there!"),
+            StoredMessage::user("How are you?"),
+        ];
+
+        store.append_messages(&key, &messages).unwrap();
+
+        // Verify session message_count was updated
+        let session = store.get(&key).unwrap().unwrap();
+        assert_eq!(session.message_count, 3);
+    }
+
+    #[test]
+    fn test_append_messages_nonexistent_session() {
+        let store = create_test_store();
+        let key = create_test_key();
+
+        // Try to append messages to non-existent session
+        let messages = vec![StoredMessage::user("Hello")];
+        let result = store.append_messages(&key, &messages);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_history_empty() {
+        let store = create_test_store();
+        let key = create_test_key();
+
+        // Create session
+        store.get_or_create(&key).unwrap();
+
+        // Get history for empty session
+        let history = store.get_history(&key, &HistoryQuery::default()).unwrap();
+        assert!(history.is_empty());
+    }
+
+    #[test]
+    fn test_get_history_with_messages() {
+        let store = create_test_store();
+        let key = create_test_key();
+
+        // Create session
+        store.get_or_create(&key).unwrap();
+
+        // Append messages
+        let messages = vec![
+            StoredMessage::user("First"),
+            StoredMessage::assistant("Second"),
+            StoredMessage::user("Third"),
+        ];
+        store.append_messages(&key, &messages).unwrap();
+
+        // Get history
+        let history = store.get_history(&key, &HistoryQuery::default()).unwrap();
+        assert_eq!(history.len(), 3);
+
+        // Verify messages are in chronological order
+        assert_eq!(history[0].role, "user");
+        assert_eq!(history[0].content, serde_json::json!("First"));
+        assert_eq!(history[1].role, "assistant");
+        assert_eq!(history[1].content, serde_json::json!("Second"));
+        assert_eq!(history[2].role, "user");
+        assert_eq!(history[2].content, serde_json::json!("Third"));
+    }
+
+    #[test]
+    fn test_get_history_with_pagination() {
+        let store = create_test_store();
+        let key = create_test_key();
+
+        // Create session
+        store.get_or_create(&key).unwrap();
+
+        // Append messages
+        let messages: Vec<StoredMessage> = (0..10)
+            .map(|i| StoredMessage::user(format!("Message {}", i)))
+            .collect();
+        store.append_messages(&key, &messages).unwrap();
+
+        // Test limit
+        let query = HistoryQuery {
+            limit: Some(3),
+            offset: None,
+            before: None,
+            after: None,
+        };
+        let history = store.get_history(&key, &query).unwrap();
+        assert_eq!(history.len(), 3);
+
+        // Test offset
+        let query = HistoryQuery {
+            limit: Some(3),
+            offset: Some(2),
+            before: None,
+            after: None,
+        };
+        let history = store.get_history(&key, &query).unwrap();
+        assert_eq!(history.len(), 3);
+        assert_eq!(history[0].content, serde_json::json!("Message 2"));
+    }
+
+    #[test]
+    fn test_get_history_with_timestamp_filters() {
+        let store = create_test_store();
+        let key = create_test_key();
+
+        // Create session
+        store.get_or_create(&key).unwrap();
+
+        // Insert messages directly with specific timestamps using the database
+        let now = Utc::now();
+        let before_10 = (now - chrono::Duration::minutes(10)).to_rfc3339();
+        let before_5 = (now - chrono::Duration::minutes(5)).to_rfc3339();
+        let before_2 = (now - chrono::Duration::minutes(2)).to_rfc3339();
+
+        {
+            let conn = store.conn.lock().unwrap();
+            let session_id: i64 = conn
+                .query_row(
+                    "SELECT id FROM sessions WHERE agent_id = ? AND channel = ? AND account_id = ? AND peer_kind = ? AND peer_id = ?",
+                    params![key.agent_id, key.channel, key.account_id, key.peer_kind, key.peer_id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+
+            conn.execute(
+                "INSERT INTO messages (session_id, role, content, tool_calls, created_at) VALUES (?, ?, ?, ?, ?)",
+                params![session_id, "user", "\"First\"", None::<String>, before_10],
+            ).unwrap();
+
+            conn.execute(
+                "INSERT INTO messages (session_id, role, content, tool_calls, created_at) VALUES (?, ?, ?, ?, ?)",
+                params![session_id, "assistant", "\"Second\"", None::<String>, before_5],
+            ).unwrap();
+
+            conn.execute(
+                "INSERT INTO messages (session_id, role, content, tool_calls, created_at) VALUES (?, ?, ?, ?, ?)",
+                params![session_id, "user", "\"Third\"", None::<String>, before_2],
+            ).unwrap();
+        }
+
+        // Update message count
+        store.patch(&key, &SessionPatch::with_message_count(3)).unwrap();
+
+        // Test before filter (should return only First - created before 6 minutes ago)
+        // Messages at 10 min ago and 5 min ago are both before 6 min ago, but the 5 min ago message
+        // has created_at exactly at the boundary, so we need to be careful about comparisons.
+        // The 10 min ago message should be returned.
+        let query = HistoryQuery {
+            limit: None,
+            offset: None,
+            before: Some(now - chrono::Duration::minutes(6)),
+            after: None,
+        };
+        let history = store.get_history(&key, &query).unwrap();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].content, serde_json::json!("First"));
+
+        // Test after filter (should return only Third - created after 4 minutes ago)
+        // Messages at 2 min ago are after 4 min ago
+        let query = HistoryQuery {
+            limit: None,
+            offset: None,
+            before: None,
+            after: Some(now - chrono::Duration::minutes(4)),
+        };
+        let history = store.get_history(&key, &query).unwrap();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].content, serde_json::json!("Third"));
+    }
+
+    #[test]
+    fn test_append_messages_tool_calls() {
+        let store = create_test_store();
+        let key = create_test_key();
+
+        // Create session
+        store.get_or_create(&key).unwrap();
+
+        // Append messages with tool calls
+        let messages = vec![
+            StoredMessage::assistant("Let me check the weather"),
+            StoredMessage::with_tool_calls(
+                "tool",
+                "Weather result",
+                serde_json::json!({"city": "New York", "temp": 72}),
+            ),
+            StoredMessage::assistant("It's 72 degrees in New York"),
+        ];
+        store.append_messages(&key, &messages).unwrap();
+
+        // Get history
+        let history = store.get_history(&key, &HistoryQuery::default()).unwrap();
+        assert_eq!(history.len(), 3);
+        assert!(history[1].tool_calls.is_some());
     }
 }

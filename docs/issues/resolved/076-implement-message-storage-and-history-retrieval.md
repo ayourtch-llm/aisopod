@@ -53,14 +53,53 @@ Message history is critical for constructing agent prompts, supporting session c
 - Issue 075 (implement SessionStore core CRUD operations)
 
 ## Acceptance Criteria
-- [ ] `append_messages` inserts messages into the `messages` table within a transaction
-- [ ] `append_messages` updates the session's `message_count` and `updated_at`
-- [ ] `get_history` returns messages in chronological order
-- [ ] `get_history` supports `limit` and `offset` pagination
-- [ ] `get_history` supports `before` and `after` timestamp filters
-- [ ] Messages are stored as JSON blobs, preserving arbitrary content structure
-- [ ] An error is returned if appending to a non-existent session
-- [ ] `cargo check -p aisopod-session` succeeds
+- [x] `append_messages` inserts messages into the `messages` table within a transaction
+- [x] `append_messages` updates the session's `message_count` and `updated_at`
+- [x] `get_history` returns messages in chronological order
+- [x] `get_history` supports `limit` and `offset` pagination
+- [x] `get_history` supports `before` and `after` timestamp filters
+- [x] Messages are stored as JSON blobs, preserving arbitrary content structure
+- [x] An error is returned if appending to a non-existent session
+- [x] `cargo check -p aisopod-session` succeeds
+
+## Resolution
+The implementation includes:
+
+1. **HistoryQuery struct** in `types.rs` with pagination fields:
+   - `limit: Option<u32>` - maximum number of messages to return
+   - `offset: Option<u32>` - number of messages to skip
+   - `before: Option<DateTime<Utc>>` - filter messages created before this timestamp
+   - `after: Option<DateTime<Utc>>` - filter messages created after this timestamp
+
+2. **append_messages** method in `store.rs`:
+   - Looks up session ID from the database
+   - Returns error if session doesn't exist
+   - Uses a transaction to insert all messages
+   - Updates session's `message_count` incrementally and `updated_at`
+   - Serializes messages as JSON blobs
+
+3. **get_history** method in `store.rs`:
+   - Looks up session ID from the database
+   - Builds dynamic query with optional filters
+   - Returns messages in chronological order (ORDER BY created_at ASC)
+   - Supports pagination with LIMIT and OFFSET
+   - Deserializes JSON content and tool_calls
+
+4. **StoredMessage** struct in `types.rs` updated to include `session_id` field
+
+5. **row_to_stored_message** helper method to convert database rows to StoredMessage
+
+6. **Export** of HistoryQuery from `lib.rs`
+
+7. **Tests** covering:
+   - append_messages with valid session
+   - append_messages error for non-existent session
+   - get_history with empty session
+   - get_history with messages
+   - Pagination with limit and offset
+   - Timestamp filtering with before and after
+   - Messages with tool_calls
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-21*

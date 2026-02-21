@@ -309,6 +309,21 @@ impl SessionFilter {
     }
 }
 
+/// A query for retrieving message history with pagination and filtering.
+///
+/// This struct allows filtering messages by timestamp and paginating results.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct HistoryQuery {
+    /// Maximum number of messages to return.
+    pub limit: Option<u32>,
+    /// Number of messages to skip (for offset-based pagination).
+    pub offset: Option<u32>,
+    /// Only return messages created before this timestamp.
+    pub before: Option<DateTime<Utc>>,
+    /// Only return messages created after this timestamp.
+    pub after: Option<DateTime<Utc>>,
+}
+
 /// A patch for updating session fields.
 ///
 /// All fields are optional. Only non-None fields are applied when updating
@@ -335,6 +350,14 @@ impl SessionPatch {
     pub fn with_status(status: SessionStatus) -> Self {
         Self {
             status: Some(status),
+            ..Default::default()
+        }
+    }
+
+    /// Creates a patch that updates only the message count.
+    pub fn with_message_count(count: u64) -> Self {
+        Self {
+            message_count: Some(count),
             ..Default::default()
         }
     }
@@ -372,6 +395,8 @@ impl SessionPatch {
 pub struct StoredMessage {
     /// Auto-incrementing row ID in storage.
     pub id: i64,
+    /// The session ID this message belongs to.
+    pub session_id: i64,
     /// The role of the message sender: "user", "assistant", "system", or "tool".
     pub role: String,
     /// The message content as a JSON value.
@@ -412,6 +437,7 @@ impl StoredMessage {
     pub fn new(role: impl Into<String>, content: impl Into<String>) -> Self {
         Self {
             id: 0,
+            session_id: 0,
             role: role.into(),
             content: serde_json::Value::String(content.into()),
             tool_calls: None,
@@ -428,6 +454,7 @@ impl StoredMessage {
     pub fn with_json_content(role: impl Into<String>, content: serde_json::Value) -> Self {
         Self {
             id: 0,
+            session_id: 0,
             role: role.into(),
             content,
             tool_calls: None,
@@ -449,10 +476,29 @@ impl StoredMessage {
     ) -> Self {
         Self {
             id: 0,
+            session_id: 0,
             role: role.into(),
             content: serde_json::Value::String(content.into()),
             tool_calls: Some(tool_calls),
             created_at: Utc::now(),
+        }
+    }
+
+    /// Creates a new message with a specific timestamp.
+    ///
+    /// # Arguments
+    ///
+    /// * `role` - The role of the message sender.
+    /// * `content` - The message content.
+    /// * `timestamp` - The timestamp for this message.
+    pub fn with_timestamp(role: impl Into<String>, content: impl Into<String>, timestamp: DateTime<Utc>) -> Self {
+        Self {
+            id: 0,
+            session_id: 0,
+            role: role.into(),
+            content: serde_json::Value::String(content.into()),
+            tool_calls: None,
+            created_at: timestamp,
         }
     }
 }

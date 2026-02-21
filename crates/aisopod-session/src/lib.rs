@@ -8,6 +8,6 @@ pub mod types;
 
 pub use store::SessionStore;
 pub use types::{
-    Session, SessionFilter, SessionKey, SessionMetadata, SessionPatch, SessionStatus, SessionSummary,
-    StoredMessage,
+    HistoryQuery, Session, SessionFilter, SessionKey, SessionMetadata, SessionPatch, SessionStatus,
+    SessionSummary, StoredMessage,
 };
