@@ -1,0 +1,16 @@
+[package]
+name = "test_issue_077"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+aisopod-session = { path = "../crates/aisopod-session" }
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[[bin]]
+name = "test_issue_077"
+path = "./src/test_issue_077.rs"

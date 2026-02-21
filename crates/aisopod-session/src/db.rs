@@ -8,7 +8,7 @@ use rusqlite::{params, Connection, Result};
 use std::path::Path;
 
 /// The current schema version.
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 
 /// Opens or creates a SQLite database at the given path.
 ///
@@ -79,6 +79,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     let migrations = vec![
         create_tables_migration(),
         create_indexes_migration(),
+        add_compaction_columns_migration(),
     ];
 
     // Apply each migration
@@ -139,7 +140,18 @@ fn create_indexes_migration() -> &'static str {
     -- Indexes for messages table
     CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id);
     CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(session_id, created_at);
-    "#}
+    "#
+}
+
+/// Returns the SQL statement to add compaction metadata columns to sessions table.
+fn add_compaction_columns_migration() -> &'static str {
+    r#"
+    -- Add compaction metadata columns to sessions table
+    ALTER TABLE sessions ADD COLUMN compaction_count INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE sessions ADD COLUMN last_compacted_at TEXT;
+    ALTER TABLE sessions ADD COLUMN last_compaction_summary TEXT;
+    "#
+}
 
 #[cfg(test)]
 mod tests {

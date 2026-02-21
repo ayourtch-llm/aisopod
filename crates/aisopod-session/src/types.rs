@@ -125,6 +125,12 @@ pub struct Session {
     pub metadata: SessionMetadata,
     /// The current lifecycle status of this session.
     pub status: SessionStatus,
+    /// The number of times this session has been compacted.
+    pub compaction_count: u64,
+    /// When this session was last compacted.
+    pub last_compacted_at: Option<DateTime<Utc>>,
+    /// Optional summary from the most recent compaction.
+    pub last_compaction_summary: Option<String>,
 }
 
 impl Session {
@@ -135,6 +141,9 @@ impl Session {
     /// - `message_count` and `token_usage` set to 0
     /// - `metadata` as an empty map
     /// - `status` set to `SessionStatus::Active`
+    /// - `compaction_count` set to 0
+    /// - `last_compacted_at` set to None
+    /// - `last_compaction_summary` set to None
     ///
     /// # Arguments
     ///
@@ -149,6 +158,9 @@ impl Session {
             token_usage: 0,
             metadata: SessionMetadata::new(),
             status: SessionStatus::Active,
+            compaction_count: 0,
+            last_compacted_at: None,
+            last_compaction_summary: None,
         }
     }
 
@@ -172,6 +184,14 @@ impl Session {
     /// Adds to the token usage.
     pub fn add_token_usage(&mut self, tokens: u64) {
         self.token_usage += tokens;
+        self.touch();
+    }
+
+    /// Updates the session's compaction metadata.
+    pub fn update_compaction(&mut self, compaction_count: u64, last_compacted_at: Option<DateTime<Utc>>, last_compaction_summary: Option<String>) {
+        self.compaction_count = compaction_count;
+        self.last_compacted_at = last_compacted_at;
+        self.last_compaction_summary = last_compaction_summary;
         self.touch();
     }
 }
@@ -391,7 +411,7 @@ impl SessionPatch {
 ///
 /// Messages can be from different roles (user, assistant, system, tool)
 /// and contain structured content with optional tool call data.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct StoredMessage {
     /// Auto-incrementing row ID in storage.
     pub id: i64,
