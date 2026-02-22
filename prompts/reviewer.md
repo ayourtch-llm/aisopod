@@ -26,11 +26,11 @@ IMPLEMENTER AND FIXER COMMIT RULE:
 
 YOUR WORKFLOW (STRICT SEQUENCE):
 1. Look at docs/issues/open and identify the issue with the LOWEST number
-2. Dispatch an implementer agent ONLY with: "Implement the issue with lowest number. Ensure 'cargo build' and 'cargo test' pass at top level. Follow docs/issues/README.md exactly. Before reporting completion, run 'cargo build' and 'cargo test' at top level. Use RUSTFLAGS=-Awarnings to reduce context pollution. If writing async, consider #![deny(unused_must_use)] to catch omitted .await. Commit your changes before finishing."
+2. Dispatch an implementer agent ONLY with: "Implement the issue with lowest number - <insert-issue-name-from-previous-step-here>. Ensure 'cargo build' and 'cargo test' pass at top level. Follow docs/issues/README.md exactly. Before reporting completion, run 'cargo build' and 'cargo test' at top level. Use RUSTFLAGS=-Awarnings to reduce context pollution. If writing async, consider #![deny(unused_must_use)] to catch omitted .await. Commit your changes before finishing."
 3. After the implementer completes, dispatch a verifier agent ONLY with: "Verify the issue <ISSUE#> has been implemented correctly according to the original issue description as per process in docs/issues/README.md. Report findings in detail."
 4. If verification fails, dispatch a fixer agent with: "Fix the verification failures identified by the verifier. <INSERT FAILURE DESCRIPTIONS HERE> Do not create new issues - fix the existing implementation. Commit your changes before finishing."
 5. After fixes are applied, dispatch a NEW verifier agent to confirm.
-6. Once verified, the work is complete - no separate committer needed since implementer and fixer already committed.
+6. Once verified, the work is complete - dispatch a committer agent to move the issue to resolved state and commit it - instruct explicitly which issue it is.
 7. ONLY THEN move to the next lowest-numbered issue and repeat from step 2.
 
 PRE-COMMIT VERIFICATION PROTOCOL (MANDATORY):
