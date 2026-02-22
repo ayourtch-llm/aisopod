@@ -44,6 +44,16 @@ pub trait DocumentExtractor: Send + Sync {
 ## Impact
 Media handling is essential for channels that support images, audio, and documents (e.g., Telegram, Discord). Without these utilities, each channel plugin would need to implement its own media processing, leading to duplication and inconsistency.
 
+## Resolution
+The following was implemented:
+
+- Created `MediaHandler` with `resize_image()`, `convert_image_format()`, `detect_media_type()`, `detect_mime_type()`, and `validate_media()` functions
+- Created `AudioTranscriber` and `DocumentExtractor` async traits for future integration
+- Added `image` crate dependency to `Cargo.toml` with support for PNG, JPEG, GIF, and WebP formats
+- Added 14 comprehensive unit tests covering media type detection, MIME type detection, image resizing, and media validation
+- All types and functions have doc-comments following Rust documentation conventions
+- Media module is exported from `lib.rs` with all public items re-exported
+
 ## Suggested Implementation
 1. Add the `image` crate to `crates/aisopod-channel/Cargo.toml` as a dependency.
 2. Open `crates/aisopod-channel/src/media.rs`.
@@ -75,14 +85,16 @@ Media handling is essential for channels that support images, audio, and documen
 - Issue 091 (define message types — provides `Media`, `MediaType`)
 
 ## Acceptance Criteria
-- [ ] `resize_image()` scales images down to specified maximum dimensions using the `image` crate
-- [ ] `convert_image_format()` converts between image formats
-- [ ] `detect_media_type()` correctly identifies images, audio, video, and documents from magic bytes and file extensions
-- [ ] `detect_mime_type()` returns correct MIME type strings
-- [ ] `validate_media()` checks media against `ChannelCapabilities` constraints
-- [ ] `AudioTranscriber` and `DocumentExtractor` traits are defined as integration points
-- [ ] Every public function and trait has a doc-comment
-- [ ] `cargo check -p aisopod-channel` compiles without errors
+- [x] `resize_image()` scales images down to specified maximum dimensions using the `image` crate
+- [x] `convert_image_format()` converts between image formats
+- [x] `detect_media_type()` correctly identifies images, audio, video, and documents from magic bytes and file extensions
+- [x] `detect_mime_type()` returns correct MIME type strings
+- [x] `validate_media()` checks media against `ChannelCapabilities` constraints
+- [x] `AudioTranscriber` and `DocumentExtractor` traits are defined as integration points
+- [x] Every public function and trait has a doc-comment
+- [x] `cargo check -p aisopod-channel` compiles without errors
+- [x] All 14 unit tests pass
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-22*
