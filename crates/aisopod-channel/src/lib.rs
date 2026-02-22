@@ -70,6 +70,7 @@ pub mod channel;
 pub mod message;
 pub mod plugin;
 pub mod router;
+pub mod security;
 pub mod types;
 
 // Re-export message types
@@ -80,6 +81,9 @@ pub use message::{
 
 // Re-export router
 pub use router::{MessageRouter, AgentResolver, ConfigAgentResolver};
+
+// Re-export security types
+pub use security::{SecurityEnforcer, MentionCheckResult};
 
 // Re-export core types
 pub use plugin::ChannelPlugin;

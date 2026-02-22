@@ -11,6 +11,7 @@ use tracing::{instrument, trace};
 use crate::message::IncomingMessage;
 use crate::channel::ChannelRegistry;
 use crate::adapters::{ChannelConfigAdapter, SecurityAdapter};
+use crate::security::SecurityEnforcer;
 use aisopod_session::{SessionKey, routing::resolve_session_key, PeerKind};
 use aisopod_agent::resolution::resolve_session_agent_id;
 use aisopod_config::AisopodConfig;
@@ -150,25 +151,28 @@ impl MessageRouter {
         trace!("Built session key: {}", session_key.canonical_string());
 
         // Step 4: Check security/allowlist
-        if let Some(security_adapter) = plugin.security() {
-            if !security_adapter.is_allowed_sender(&message.sender) {
-                return Err(anyhow::anyhow!("Unauthorized sender: {}", message.sender.id));
-            }
-        }
+        let enforcer = SecurityEnforcer::new();
+        let security_adapter = plugin.security();
+        enforcer.check_sender(security_adapter, &message.sender)?;
+
         trace!("Security check passed");
 
         // Step 5: Check mention requirement for group messages
-        if message.peer.kind == crate::PeerKind::Group {
-            if let Some(security_adapter) = plugin.security() {
-                if security_adapter.requires_mention_in_group() {
-                    if !self.is_bot_mentioned(&message) {
-                        trace!("Skipping group message without @mention");
-                        return Ok(());
-                    }
-                }
+        // Build bot identifiers from the bot's sender info
+        let bot_identifiers = vec![message.account_id.clone()];
+
+        match enforcer.check_mention(security_adapter, &message, &bot_identifiers) {
+            crate::security::MentionCheckResult::Allowed => {
+                trace!("Mention check passed");
+            }
+            crate::security::MentionCheckResult::SkipSilently => {
+                trace!("Skipping group message without @mention");
+                return Ok(());
+            }
+            crate::security::MentionCheckResult::Blocked(reason) => {
+                return Err(anyhow::anyhow!("Message blocked: {}", reason));
             }
         }
-        trace!("Mention check passed");
 
         // Step 6: Resolve agent
         let agent_id = self.agent_resolver.resolve(&session_key)?;
@@ -217,18 +221,6 @@ impl MessageRouter {
         let agent_id = agent_id.unwrap_or_else(|| "default_agent".to_string());
 
         resolve_session_key(&agent_id, &ctx)
-    }
-
-    /// Checks if the bot is mentioned in the message content.
-    fn is_bot_mentioned(&self, message: &IncomingMessage) -> bool {
-        // Check if the message content contains @<bot_id> or <@<bot_id>>
-        // This is a simplified implementation - a full one would parse mentions properly
-        let content = message.content_to_string();
-        let sender_id = &message.sender.id;
-
-        content.contains(&format!("@{}", sender_id))
-            || content.contains(&format!("<@{}>", sender_id))
-            || content.contains(&format!("<@{}", sender_id))
     }
 
     /// Routes the message to the agent runner.
