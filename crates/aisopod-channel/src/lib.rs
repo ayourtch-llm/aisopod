@@ -67,6 +67,7 @@
 
 pub mod adapters;
 pub mod channel;
+pub mod media;
 pub mod message;
 pub mod plugin;
 pub mod router;
@@ -88,6 +89,12 @@ pub use security::{SecurityEnforcer, MentionCheckResult};
 // Re-export core types
 pub use plugin::ChannelPlugin;
 pub use types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+
+// Re-export media utilities
+pub use media::{
+    AudioTranscriber, DocumentExtractor, detect_media_type, detect_mime_type,
+    resize_image, convert_image_format, validate_media,
+};
 
 // Re-export adapter traits and types from adapters module
 pub use adapters::{

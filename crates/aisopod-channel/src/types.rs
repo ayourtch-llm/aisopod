@@ -54,7 +54,7 @@ pub struct ChannelMeta {
 ///
 /// This struct provides a comprehensive view of what features a channel
 /// implementation supports, allowing the system to adapt its behavior accordingly.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ChannelCapabilities {
     /// List of chat types this channel supports.
     pub chat_types: Vec<ChatType>,
