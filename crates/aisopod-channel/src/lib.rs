@@ -59,18 +59,25 @@
 //! ```
 
 pub mod adapters;
+pub mod message;
 pub mod plugin;
 pub mod types;
 
-// Re-export adapter traits
-pub use adapters::{
-    AccountConfig, AccountSnapshot, AuthAdapter, AuthToken, ChannelConfigAdapter,
-    ChannelHealth, DirectoryAdapter, GatewayAdapter, GroupInfo, HeartbeatAdapter,
-    MemberInfo, MessageTarget, Media, MessagingAdapter, OnboardingAdapter,
-    OnboardingContext, PairingAdapter, PairingCode, SecurityAdapter, SenderInfo,
-    StatusAdapter, ThreadingAdapter, TypingAdapter, OutboundAdapter,
+// Re-export message types
+pub use message::{
+    IncomingMessage, OutgoingMessage, MessageContent, MessagePart, MessageTarget,
+    PeerInfo, PeerKind, Media,
 };
 
 // Re-export core types
 pub use plugin::ChannelPlugin;
 pub use types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+
+// Re-export adapter traits and types from adapters module
+pub use adapters::{
+    AccountConfig, AccountSnapshot, AuthAdapter, AuthToken, ChannelConfigAdapter,
+    ChannelHealth, DirectoryAdapter, GatewayAdapter, GroupInfo, HeartbeatAdapter,
+    MemberInfo, MessagingAdapter, OnboardingAdapter, OnboardingContext,
+    PairingAdapter, PairingCode, SecurityAdapter, StatusAdapter, ThreadingAdapter,
+    TypingAdapter, OutboundAdapter,
+};

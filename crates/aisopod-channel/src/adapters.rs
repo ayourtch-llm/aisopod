@@ -6,6 +6,7 @@
 //! Each adapter trait represents a specific capability domain, from onboarding
 //! to device pairing. Channel plugins implement only the adapters they support.
 
+use crate::message::{Media, MessageTarget, SenderInfo};
 use crate::types::{ChannelMeta, ChannelCapabilities};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -98,40 +99,6 @@ pub struct PairingCode {
     pub expires_at: DateTime<Utc>,
     /// Optional URL for QR code display.
     pub qr_url: Option<String>,
-}
-
-/// Message target specifying where to send a message.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MessageTarget {
-    /// Chat type (DM, group, channel, or thread).
-    #[serde(rename = "type")]
-    pub chat_type: String,
-    /// Target chat or user identifier.
-    pub chat_id: String,
-    /// Optional thread identifier for threaded conversations.
-    pub thread_id: Option<String>,
-}
-
-/// Media content to be sent.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Media {
-    /// Media URL or path.
-    pub url: String,
-    /// Optional media caption/description.
-    pub caption: Option<String>,
-    /// Optional media type override.
-    pub media_type: Option<String>,
-}
-
-/// Information about a message sender.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SenderInfo {
-    /// Sender's unique identifier.
-    pub id: String,
-    /// Sender's display name.
-    pub display_name: String,
-    /// Optional boolean indicating if sender is a bot.
-    pub is_bot: Option<bool>,
 }
 
 // ============================================================================
