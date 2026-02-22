@@ -5,9 +5,7 @@
 
 use crate::embedding::EmbeddingProvider;
 use crate::store::MemoryStore;
-use crate::types::{
-    MemoryEntry, MemoryFilter, MemoryMatch, MemoryQueryOptions, MemorySource,
-};
+use crate::types::{MemoryEntry, MemoryFilter, MemoryMatch, MemoryQueryOptions, MemorySource};
 use anyhow::{anyhow, Result};
 use rusqlite::{Connection, ToSql};
 use serde::{Deserialize, Serialize};
@@ -252,10 +250,7 @@ impl MemoryStore for SqliteMemoryStore {
         // Insert into memory_embeddings table
         let embedding: Vec<f32> = entry.embedding.iter().map(|&x| x as f32).collect();
         // Serialize embedding as bytes for storage
-        let embedding_bytes: Vec<u8> = embedding
-            .iter()
-            .flat_map(|&x| x.to_le_bytes())
-            .collect();
+        let embedding_bytes: Vec<u8> = embedding.iter().flat_map(|&x| x.to_le_bytes()).collect();
 
         // sqlite-vec virtual table doesn't support ON CONFLICT UPDATE, so we need to
         // first try to delete if it exists, then insert
@@ -270,10 +265,7 @@ impl MemoryStore for SqliteMemoryStore {
             INSERT INTO memory_embeddings (id, embedding)
             VALUES (?, ?)
             "#,
-            rusqlite::params![
-                &entry.id,
-                &embedding_bytes as &[u8]
-            ],
+            rusqlite::params![&entry.id, &embedding_bytes as &[u8]],
         )?;
 
         Ok(entry.id)
@@ -282,7 +274,7 @@ impl MemoryStore for SqliteMemoryStore {
     async fn query(&self, query: &str, opts: MemoryQueryOptions) -> Result<Vec<MemoryMatch>> {
         // Convert query string to embedding BEFORE acquiring the db lock
         let query_embedding = self.embedder.embed(query).await?;
-        
+
         // Serialize embedding as bytes (same format as in store method)
         let query_embedding_bytes: Vec<u8> = query_embedding
             .iter()
@@ -348,7 +340,7 @@ impl MemoryStore for SqliteMemoryStore {
         // sqlite-vec vec0 table requires k = ? to specify the number of results
         // The MATCH clause must include the embedding and k parameter
         // Format: WHERE embedding MATCH ? AND k = ?
-        
+
         // Build params: query embedding first, then k, then filter params
         let mut all_params: Vec<Box<dyn ToSql>> = Vec::new();
         all_params.push(Box::new(&query_embedding_bytes as &[u8]));
@@ -436,7 +428,11 @@ impl MemoryStore for SqliteMemoryStore {
             .collect();
 
         // Sort by score descending (we already have them in ascending distance order)
-        matches.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        matches.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         Ok(matches)
     }
@@ -445,7 +441,10 @@ impl MemoryStore for SqliteMemoryStore {
         let mut db = self.db.lock().map_err(|e| anyhow!(e.to_string()))?;
 
         // Delete from memory_embeddings table
-        db.execute("DELETE FROM memory_embeddings WHERE id = ?", rusqlite::params![id])?;
+        db.execute(
+            "DELETE FROM memory_embeddings WHERE id = ?",
+            rusqlite::params![id],
+        )?;
 
         // Delete from memories table
         db.execute("DELETE FROM memories WHERE id = ?", rusqlite::params![id])?;
@@ -596,12 +595,11 @@ mod tests {
     use tempfile::tempdir;
 
     /// Helper function to create a test memory store using in-memory SQLite.
-    /// 
+    ///
     /// This creates a fresh in-memory database with the schema initialized.
     /// Use this helper in all tests to ensure isolation between tests.
     pub fn test_store(embedding_dim: usize) -> SqliteMemoryStore {
-        SqliteMemoryStore::new(":memory:", embedding_dim)
-        .expect("Failed to create test store")
+        SqliteMemoryStore::new(":memory:", embedding_dim).expect("Failed to create test store")
     }
 
     #[tokio::test]
@@ -699,7 +697,7 @@ mod tests {
         let store = test_store(4);
 
         let mut entry = MemoryEntry::new(
-            "".to_string(),  // Empty ID
+            "".to_string(), // Empty ID
             "agent-1".to_string(),
             "test content".to_string(),
             vec![0.1, 0.2, 0.3, 0.4],
@@ -988,7 +986,7 @@ mod tests {
         let opts = MemoryQueryOptions {
             top_k: 10,
             filter: MemoryFilter::default(),
-            min_score: Some(0.99),  // Very high threshold
+            min_score: Some(0.99), // Very high threshold
         };
 
         let matches = store.query("query", opts).await.unwrap();

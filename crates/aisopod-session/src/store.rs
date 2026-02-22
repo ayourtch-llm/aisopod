@@ -6,9 +6,12 @@ use rusqlite::{params, Connection, OptionalExtension, Result as SqliteResult};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use crate::db;
 use crate::compaction::CompactionStrategy;
-use crate::types::{HistoryQuery, Session, SessionFilter, SessionKey, SessionPatch, SessionStatus, SessionSummary, StoredMessage};
+use crate::db;
+use crate::types::{
+    HistoryQuery, Session, SessionFilter, SessionKey, SessionPatch, SessionStatus, SessionSummary,
+    StoredMessage,
+};
 
 /// A store for managing conversation sessions using SQLite.
 ///
@@ -110,11 +113,11 @@ impl SessionStore {
 
         // If not found, create a new session
         let now = Utc::now().to_rfc3339();
-        
+
         self.conn.lock().unwrap().execute(
             r#"
-            INSERT INTO sessions 
-                (agent_id, channel, account_id, peer_kind, peer_id, 
+            INSERT INTO sessions
+                (agent_id, channel, account_id, peer_kind, peer_id,
                  created_at, updated_at, message_count, token_usage, metadata, status,
                  compaction_count, last_compacted_at, last_compaction_summary)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -160,45 +163,55 @@ impl SessionStore {
 
     /// Internal helper to get a session by key.
     fn get_by_key(&self, key: &SessionKey) -> Result<Option<Session>> {
-        let session: Option<Session> = self.conn.lock().unwrap().query_row(
-            r#"
+        let session: Option<Session> = self
+            .conn
+            .lock()
+            .unwrap()
+            .query_row(
+                r#"
             SELECT id, agent_id, channel, account_id, peer_kind, peer_id,
                    created_at, updated_at, message_count, token_usage, metadata, status,
                    compaction_count, last_compacted_at, last_compaction_summary
             FROM sessions
-            WHERE agent_id = ? AND channel = ? AND account_id = ? 
+            WHERE agent_id = ? AND channel = ? AND account_id = ?
                   AND peer_kind = ? AND peer_id = ?
             "#,
-            params![
-                key.agent_id,
-                key.channel,
-                key.account_id,
-                key.peer_kind,
-                key.peer_id,
-            ],
-            |row| self.row_to_session(row),
-        ).optional()?;
+                params![
+                    key.agent_id,
+                    key.channel,
+                    key.account_id,
+                    key.peer_kind,
+                    key.peer_id,
+                ],
+                |row| self.row_to_session(row),
+            )
+            .optional()?;
 
         Ok(session)
     }
 
     /// Internal helper to get a session's id by key.
     fn get_session_id(&self, key: &SessionKey) -> Result<Option<i64>> {
-        let session_id: Option<i64> = self.conn.lock().unwrap().query_row(
-            r#"
+        let session_id: Option<i64> = self
+            .conn
+            .lock()
+            .unwrap()
+            .query_row(
+                r#"
             SELECT id FROM sessions
-            WHERE agent_id = ? AND channel = ? AND account_id = ? 
+            WHERE agent_id = ? AND channel = ? AND account_id = ?
                   AND peer_kind = ? AND peer_id = ?
             "#,
-            params![
-                key.agent_id,
-                key.channel,
-                key.account_id,
-                key.peer_kind,
-                key.peer_id,
-            ],
-            |row| row.get(0),
-        ).optional()?;
+                params![
+                    key.agent_id,
+                    key.channel,
+                    key.account_id,
+                    key.peer_kind,
+                    key.peer_id,
+                ],
+                |row| row.get(0),
+            )
+            .optional()?;
 
         Ok(session_id)
     }
@@ -229,7 +242,8 @@ impl SessionStore {
             if filter_agent_id != agent_id {
                 return Err(anyhow::anyhow!(
                     "access denied: agent '{}' cannot access sessions owned by agent '{}'",
-                    agent_id, filter_agent_id
+                    agent_id,
+                    filter_agent_id
                 ));
             }
         }
@@ -468,9 +482,7 @@ impl SessionStore {
         if set_clauses.is_empty() {
             // No fields to update, just return the current session
             let session = self.get_by_key(key)?;
-            return session.ok_or_else(|| {
-                anyhow::anyhow!("Session not found for key {:?}", key)
-            });
+            return session.ok_or_else(|| anyhow::anyhow!("Session not found for key {:?}", key));
         }
 
         params.push(Box::new(key.agent_id.clone()));
@@ -484,12 +496,13 @@ impl SessionStore {
             set_clauses.join(", ")
         );
 
-        self.conn.lock().unwrap().execute(&sql, rusqlite::params_from_iter(params.iter()))?;
+        self.conn
+            .lock()
+            .unwrap()
+            .execute(&sql, rusqlite::params_from_iter(params.iter()))?;
 
         let session = self.get_by_key(key)?;
-        session.ok_or_else(|| {
-            anyhow::anyhow!("Session not found for key {:?} after update", key)
-        })
+        session.ok_or_else(|| anyhow::anyhow!("Session not found for key {:?} after update", key))
     }
 
     /// Deletes a session and all its associated messages.
@@ -513,7 +526,7 @@ impl SessionStore {
         let rows_affected = self.conn.lock().unwrap().execute(
             r#"
             DELETE FROM sessions
-            WHERE agent_id = ? AND channel = ? AND account_id = ? 
+            WHERE agent_id = ? AND channel = ? AND account_id = ?
                   AND peer_kind = ? AND peer_id = ?
             "#,
             params![
@@ -548,7 +561,12 @@ impl SessionStore {
     ///
     /// Returns `Ok(())` on success, or an error if the session doesn't exist
     /// or the database operation fails.
-    pub fn append_messages(&self, agent_id: &str, key: &SessionKey, messages: &[StoredMessage]) -> Result<()> {
+    pub fn append_messages(
+        &self,
+        agent_id: &str,
+        key: &SessionKey,
+        messages: &[StoredMessage],
+    ) -> Result<()> {
         // Verify scope: ensure the calling agent matches the session's agent
         Self::verify_scope(agent_id, key)?;
 
@@ -589,7 +607,7 @@ impl SessionStore {
         let new_count = messages.len() as i64;
         tx.execute(
             r#"
-            UPDATE sessions 
+            UPDATE sessions
             SET message_count = message_count + ?, updated_at = ?
             WHERE id = ?
             "#,
@@ -616,7 +634,12 @@ impl SessionStore {
     ///
     /// Returns `Ok(Vec<StoredMessage>)` with messages in chronological order,
     /// or an error if the session doesn't exist or the database operation fails.
-    pub fn get_history(&self, agent_id: &str, key: &SessionKey, query: &HistoryQuery) -> Result<Vec<StoredMessage>> {
+    pub fn get_history(
+        &self,
+        agent_id: &str,
+        key: &SessionKey,
+        query: &HistoryQuery,
+    ) -> Result<Vec<StoredMessage>> {
         // Verify scope: ensure the calling agent matches the session's agent
         Self::verify_scope(agent_id, key)?;
 
@@ -683,30 +706,30 @@ impl SessionStore {
         let tool_calls_str: Option<String> = row.get(4)?;
         let created_at_str: String = row.get(5)?;
 
-        let content: serde_json::Value = serde_json::from_str(&content_str)
-            .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
-                3,
-                rusqlite::types::Type::Text,
-                Box::new(e),
-            ))?;
+        let content: serde_json::Value = serde_json::from_str(&content_str).map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(3, rusqlite::types::Type::Text, Box::new(e))
+        })?;
 
         let tool_calls: Option<serde_json::Value> = match tool_calls_str {
-            Some(s) => Some(serde_json::from_str(&s)
-                .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+            Some(s) => Some(serde_json::from_str(&s).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
                     4,
                     rusqlite::types::Type::Text,
                     Box::new(e),
-                ))?),
+                )
+            })?),
             None => None,
         };
 
         let created_at: DateTime<Utc> = DateTime::parse_from_rfc3339(&created_at_str)
             .map(|dt| dt.with_timezone(&Utc))
-            .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
-                5,
-                rusqlite::types::Type::Text,
-                Box::new(e),
-            ))?;
+            .map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    5,
+                    rusqlite::types::Type::Text,
+                    Box::new(e),
+                )
+            })?;
 
         Ok(StoredMessage {
             id,
@@ -1017,7 +1040,13 @@ mod tests {
         store.get_or_create("agent_001", &key2).unwrap();
 
         // Patch key2 to set it to Idle
-        store.patch("agent_001", &key2, &SessionPatch::with_status(SessionStatus::Idle)).unwrap();
+        store
+            .patch(
+                "agent_001",
+                &key2,
+                &SessionPatch::with_status(SessionStatus::Idle),
+            )
+            .unwrap();
 
         let mut filter = SessionFilter::new();
         filter.status = Some(SessionStatus::Idle);
@@ -1036,7 +1065,13 @@ mod tests {
         assert_eq!(session1.status, SessionStatus::Active);
 
         // Patch the status
-        let session2 = store.patch("agent_001", &key, &SessionPatch::with_status(SessionStatus::Idle)).unwrap();
+        let session2 = store
+            .patch(
+                "agent_001",
+                &key,
+                &SessionPatch::with_status(SessionStatus::Idle),
+            )
+            .unwrap();
         assert_eq!(session2.status, SessionStatus::Idle);
 
         // Patch message count and token usage
@@ -1123,7 +1158,9 @@ mod tests {
             .unwrap();
 
             // Verify message exists
-            let count: i64 = conn.query_row("SELECT COUNT(*) FROM messages", params![], |row| row.get(0)).unwrap();
+            let count: i64 = conn
+                .query_row("SELECT COUNT(*) FROM messages", params![], |row| row.get(0))
+                .unwrap();
             assert_eq!(count, 1);
         } // Lock is dropped here
 
@@ -1132,7 +1169,9 @@ mod tests {
 
         // Verify message was cascaded deleted
         let conn = store.conn.lock().unwrap();
-        let count: i64 = conn.query_row("SELECT COUNT(*) FROM messages", params![], |row| row.get(0)).unwrap();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM messages", params![], |row| row.get(0))
+            .unwrap();
         assert_eq!(count, 0);
     }
 
@@ -1213,7 +1252,9 @@ mod tests {
         store.get_or_create("agent_001", &key).unwrap();
 
         // Get history for empty session
-        let history = store.get_history("agent_001", &key, &HistoryQuery::default()).unwrap();
+        let history = store
+            .get_history("agent_001", &key, &HistoryQuery::default())
+            .unwrap();
         assert!(history.is_empty());
     }
 
@@ -1234,7 +1275,9 @@ mod tests {
         store.append_messages("agent_001", &key, &messages).unwrap();
 
         // Get history
-        let history = store.get_history("agent_001", &key, &HistoryQuery::default()).unwrap();
+        let history = store
+            .get_history("agent_001", &key, &HistoryQuery::default())
+            .unwrap();
         assert_eq!(history.len(), 3);
 
         // Verify messages are in chronological order
@@ -1323,7 +1366,9 @@ mod tests {
         }
 
         // Update message count
-        store.patch("agent_001", &key, &SessionPatch::with_message_count(3)).unwrap();
+        store
+            .patch("agent_001", &key, &SessionPatch::with_message_count(3))
+            .unwrap();
 
         // Test before filter (should return only First - created before 6 minutes ago)
         // Messages at 10 min ago and 5 min ago are both before 6 min ago, but the 5 min ago message
@@ -1373,7 +1418,9 @@ mod tests {
         store.append_messages("agent_001", &key, &messages).unwrap();
 
         // Get history
-        let history = store.get_history("agent_001", &key, &HistoryQuery::default()).unwrap();
+        let history = store
+            .get_history("agent_001", &key, &HistoryQuery::default())
+            .unwrap();
         assert_eq!(history.len(), 3);
         assert!(history[1].tool_calls.is_some());
     }
@@ -1411,7 +1458,14 @@ mod tests {
         }
 
         // Try to compact with None strategy - should return unchanged record
-        let record = store.compact("agent_001", &key, &crate::compaction::CompactionStrategy::None, None).unwrap();
+        let record = store
+            .compact(
+                "agent_001",
+                &key,
+                &crate::compaction::CompactionStrategy::None,
+                None,
+            )
+            .unwrap();
         assert_eq!(record.compaction_count, 2);
         assert!(record.last_compacted_at.is_some());
     }
@@ -1431,7 +1485,14 @@ mod tests {
         store.append_messages("agent_001", &key, &messages).unwrap();
 
         // Compact with sliding window of 5
-        let record = store.compact("agent_001", &key, &crate::compaction::CompactionStrategy::SlidingWindow { max_messages: 5 }, Some("summary text")).unwrap();
+        let record = store
+            .compact(
+                "agent_001",
+                &key,
+                &crate::compaction::CompactionStrategy::SlidingWindow { max_messages: 5 },
+                Some("summary text"),
+            )
+            .unwrap();
 
         // Check compaction record
         assert_eq!(record.compaction_count, 1);
@@ -1443,7 +1504,9 @@ mod tests {
         assert_eq!(session.message_count, 5);
 
         // Check only 5 messages remain
-        let history = store.get_history("agent_001", &key, &HistoryQuery::default()).unwrap();
+        let history = store
+            .get_history("agent_001", &key, &HistoryQuery::default())
+            .unwrap();
         assert_eq!(history.len(), 5);
     }
 
@@ -1465,10 +1528,20 @@ mod tests {
 
         // Check initial state
         let session = store.get(&key).unwrap().unwrap();
-        assert_eq!(session.message_count, 3, "Initial message count should be 3");
+        assert_eq!(
+            session.message_count, 3,
+            "Initial message count should be 3"
+        );
 
         // Compact with summarize strategy
-        let record = store.compact("agent_001", &key, &crate::compaction::CompactionStrategy::Summarize, Some("Session summary")).unwrap();
+        let record = store
+            .compact(
+                "agent_001",
+                &key,
+                &crate::compaction::CompactionStrategy::Summarize,
+                Some("Session summary"),
+            )
+            .unwrap();
 
         // Check compaction record
         assert_eq!(record.compaction_count, 1);
@@ -1477,12 +1550,24 @@ mod tests {
 
         // Get fresh session from DB after compact
         let session_after = store.get(&key).unwrap().unwrap();
-        assert_eq!(session_after.message_count, 1, "Message count should be 1 after summarize");
+        assert_eq!(
+            session_after.message_count, 1,
+            "Message count should be 1 after summarize"
+        );
 
         // Check only summary message remains
-        let history = store.get_history("agent_001", &key, &HistoryQuery::default()).unwrap();
-        assert_eq!(history.len(), 1, "Should have exactly one message after summarize");
-        assert_eq!(history[0].role, "system", "The summary message should have role 'system'");
+        let history = store
+            .get_history("agent_001", &key, &HistoryQuery::default())
+            .unwrap();
+        assert_eq!(
+            history.len(),
+            1,
+            "Should have exactly one message after summarize"
+        );
+        assert_eq!(
+            history[0].role, "system",
+            "The summary message should have role 'system'"
+        );
     }
 
     #[test]
@@ -1497,7 +1582,12 @@ mod tests {
         };
 
         // Try to compact a non-existent session
-        let result = store.compact("agent_001", &key, &crate::compaction::CompactionStrategy::None, None);
+        let result = store.compact(
+            "agent_001",
+            &key,
+            &crate::compaction::CompactionStrategy::None,
+            None,
+        );
         assert!(result.is_err());
     }
 
@@ -1518,10 +1608,19 @@ mod tests {
         store.append_messages("agent_001", &key, &messages).unwrap();
 
         // Try to compact with sliding window of 10 (more than current)
-        let record = store.compact("agent_001", &key, &crate::compaction::CompactionStrategy::SlidingWindow { max_messages: 10 }, None).unwrap();
+        let record = store
+            .compact(
+                "agent_001",
+                &key,
+                &crate::compaction::CompactionStrategy::SlidingWindow { max_messages: 10 },
+                None,
+            )
+            .unwrap();
 
         // Should still have 3 messages
-        let history = store.get_history("agent_001", &key, &HistoryQuery::default()).unwrap();
+        let history = store
+            .get_history("agent_001", &key, &HistoryQuery::default())
+            .unwrap();
         assert_eq!(history.len(), 3);
     }
 }
@@ -1541,19 +1640,21 @@ impl SessionStore {
     ///
     /// Returns `Ok(CompactionRecord)` with the session's compaction information,
     /// or an error if the session doesn't exist or the database operation fails.
-    pub fn get_compaction_record(&self, agent_id: &str, key: &SessionKey) -> Result<crate::compaction::CompactionRecord> {
+    pub fn get_compaction_record(
+        &self,
+        agent_id: &str,
+        key: &SessionKey,
+    ) -> Result<crate::compaction::CompactionRecord> {
         // Verify scope: ensure the calling agent matches the session's agent
         Self::verify_scope(agent_id, key)?;
 
         let session = self.get(key)?;
         match session {
-            Some(s) => {
-                Ok(crate::compaction::CompactionRecord {
-                    compaction_count: s.compaction_count as u32,
-                    last_compacted_at: s.last_compacted_at,
-                    summary: s.last_compaction_summary,
-                })
-            }
+            Some(s) => Ok(crate::compaction::CompactionRecord {
+                compaction_count: s.compaction_count as u32,
+                last_compacted_at: s.last_compacted_at,
+                summary: s.last_compaction_summary,
+            }),
             None => Err(anyhow::anyhow!("Session not found for key {:?}", key)),
         }
     }
@@ -1600,12 +1701,12 @@ impl SessionStore {
                         let compaction_count: i64 = row.get(0)?;
                         let last_compacted_at: Option<String> = row.get(1)?;
                         let last_compaction_summary: Option<String> = row.get(2)?;
-                        
+
                         let last_compacted_at_dt = last_compacted_at
                             .as_ref()
                             .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
                             .map(|dt| dt.with_timezone(&Utc));
-                        
+
                         Ok(crate::compaction::CompactionRecord {
                             compaction_count: compaction_count as u32,
                             last_compacted_at: last_compacted_at_dt,
@@ -1613,7 +1714,7 @@ impl SessionStore {
                         })
                     },
                 ).map_err(|e| anyhow::anyhow!("Failed to get compaction record: {}", e))?;
-                
+
                 Ok(record)
             }
             crate::compaction::CompactionStrategy::SlidingWindow { max_messages } => {
@@ -1631,7 +1732,7 @@ impl SessionStore {
                     // Delete the oldest messages (those with smallest ids, since they were created first)
                     conn.execute(
                         "DELETE FROM messages WHERE session_id = ? AND id IN (
-                            SELECT id FROM messages WHERE session_id = ? 
+                            SELECT id FROM messages WHERE session_id = ?
                             ORDER BY id ASC LIMIT ?
                         )",
                         params![session_id, session_id, count_to_delete],
@@ -1647,10 +1748,10 @@ impl SessionStore {
 
                 // Update session compaction metadata
                 conn.execute(
-                    "UPDATE sessions 
-                     SET message_count = ?, 
-                         compaction_count = compaction_count + 1, 
-                         last_compacted_at = ?, 
+                    "UPDATE sessions
+                     SET message_count = ?,
+                         compaction_count = compaction_count + 1,
+                         last_compacted_at = ?,
                          last_compaction_summary = ?,
                          updated_at = ?,
                          status = 'compacted'
@@ -1672,12 +1773,12 @@ impl SessionStore {
                         let compaction_count: i64 = row.get(0)?;
                         let last_compacted_at: Option<String> = row.get(1)?;
                         let last_compaction_summary: Option<String> = row.get(2)?;
-                        
+
                         let last_compacted_at_dt = last_compacted_at
                             .as_ref()
                             .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
                             .map(|dt| dt.with_timezone(&Utc));
-                        
+
                         Ok(crate::compaction::CompactionRecord {
                             compaction_count: compaction_count as u32,
                             last_compacted_at: last_compacted_at_dt,
@@ -1685,7 +1786,7 @@ impl SessionStore {
                         })
                     },
                 ).map_err(|e| anyhow::anyhow!("Failed to get compaction record: {}", e))?;
-                
+
                 Ok(record)
             }
             crate::compaction::CompactionStrategy::Summarize => {
@@ -1698,12 +1799,12 @@ impl SessionStore {
                 // Insert a single summary message with role="system"
                 let now = Utc::now();
                 let summary_text = summary.unwrap_or("Session has been compacted.");
-                
+
                 // Serialize the summary text as JSON string (stored_messages expect JSON content)
                 let summary_json = serde_json::Value::String(summary_text.to_string());
-                let summary_json_str = serde_json::to_string(&summary_json)
-                    .expect("Failed to serialize summary JSON");
-                
+                let summary_json_str =
+                    serde_json::to_string(&summary_json).expect("Failed to serialize summary JSON");
+
                 // Insert the summary message with role="system"
                 conn.execute(
                     "INSERT INTO messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)",
@@ -1717,20 +1818,15 @@ impl SessionStore {
 
                 // Update session metadata
                 conn.execute(
-                    "UPDATE sessions 
-                     SET message_count = 1, 
-                         compaction_count = compaction_count + 1, 
-                         last_compacted_at = ?, 
+                    "UPDATE sessions
+                     SET message_count = 1,
+                         compaction_count = compaction_count + 1,
+                         last_compacted_at = ?,
                          last_compaction_summary = ?,
                          updated_at = ?,
                          status = 'compacted'
                      WHERE id = ?",
-                    params![
-                        now.to_rfc3339(),
-                        summary,
-                        now.to_rfc3339(),
-                        session_id,
-                    ],
+                    params![now.to_rfc3339(), summary, now.to_rfc3339(), session_id,],
                 )?;
 
                 // Fetch the updated record directly from the database
@@ -1741,12 +1837,12 @@ impl SessionStore {
                         let compaction_count: i64 = row.get(0)?;
                         let last_compacted_at: Option<String> = row.get(1)?;
                         let last_compaction_summary: Option<String> = row.get(2)?;
-                        
+
                         let last_compacted_at_dt = last_compacted_at
                             .as_ref()
                             .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
                             .map(|dt| dt.with_timezone(&Utc));
-                        
+
                         Ok(crate::compaction::CompactionRecord {
                             compaction_count: compaction_count as u32,
                             last_compacted_at: last_compacted_at_dt,
@@ -1754,7 +1850,7 @@ impl SessionStore {
                         })
                     },
                 ).map_err(|e| anyhow::anyhow!("Failed to get compaction record: {}", e))?;
-                
+
                 Ok(record)
             }
         }
@@ -1778,7 +1874,8 @@ impl SessionStore {
         if agent_id != key.agent_id {
             return Err(anyhow::anyhow!(
                 "access denied: agent '{}' cannot access sessions owned by agent '{}'",
-                agent_id, key.agent_id
+                agent_id,
+                key.agent_id
             ));
         }
         Ok(())
@@ -1936,10 +2033,18 @@ mod store_tests {
 
         // Note: get() doesn't check scope (no agent_id parameter)
         // But operations with agent_id do check scope
-        let result = store.patch("agent_001", &key2, &SessionPatch::with_status(SessionStatus::Idle));
+        let result = store.patch(
+            "agent_001",
+            &key2,
+            &SessionPatch::with_status(SessionStatus::Idle),
+        );
         assert!(result.is_err()); // Agent 1 can't patch agent 2's session
 
-        let result = store.patch("agent_002", &key1, &SessionPatch::with_status(SessionStatus::Idle));
+        let result = store.patch(
+            "agent_002",
+            &key1,
+            &SessionPatch::with_status(SessionStatus::Idle),
+        );
         assert!(result.is_err()); // Agent 2 can't patch agent 1's session
     }
 
@@ -2088,7 +2193,10 @@ mod store_tests {
         assert_eq!(updated.status, SessionStatus::Idle);
         assert_eq!(updated.message_count, 10);
         assert_eq!(updated.token_usage, 500);
-        assert_eq!(updated.metadata.get("key"), Some(&serde_json::json!("value")));
+        assert_eq!(
+            updated.metadata.get("key"),
+            Some(&serde_json::json!("value"))
+        );
     }
 
     #[test]
@@ -2105,7 +2213,9 @@ mod store_tests {
 
         store.append_messages("agent_001", &key, &messages).unwrap();
 
-        let history = store.get_history("agent_001", &key, &HistoryQuery::default()).unwrap();
+        let history = store
+            .get_history("agent_001", &key, &HistoryQuery::default())
+            .unwrap();
         assert_eq!(history.len(), 3);
     }
 
@@ -2115,7 +2225,9 @@ mod store_tests {
         let key = create_test_key();
         store.get_or_create("agent_001", &key).unwrap();
 
-        let messages: Vec<StoredMessage> = (0..10).map(|i| StoredMessage::user(format!("Message {}", i))).collect();
+        let messages: Vec<StoredMessage> = (0..10)
+            .map(|i| StoredMessage::user(format!("Message {}", i)))
+            .collect();
         store.append_messages("agent_001", &key, &messages).unwrap();
 
         // Test limit
@@ -2133,7 +2245,10 @@ mod store_tests {
         };
         let history = store.get_history("agent_001", &key, &query).unwrap();
         assert_eq!(history.len(), 5);
-        assert_eq!(history[0].content, serde_json::Value::String("Message 5".to_string()));
+        assert_eq!(
+            history[0].content,
+            serde_json::Value::String("Message 5".to_string())
+        );
 
         // Test combined limit and offset
         let query = HistoryQuery {
@@ -2143,7 +2258,10 @@ mod store_tests {
         };
         let history = store.get_history("agent_001", &key, &query).unwrap();
         assert_eq!(history.len(), 3);
-        assert_eq!(history[0].content, serde_json::Value::String("Message 2".to_string()));
+        assert_eq!(
+            history[0].content,
+            serde_json::Value::String("Message 2".to_string())
+        );
     }
 
     #[test]
@@ -2180,7 +2298,10 @@ mod store_tests {
         };
         let history = store.get_history("agent_001", &key, &query).unwrap();
         assert_eq!(history.len(), 1);
-        assert_eq!(history[0].content, serde_json::Value::String("Old".to_string()));
+        assert_eq!(
+            history[0].content,
+            serde_json::Value::String("Old".to_string())
+        );
 
         // Test before filter - messages older than 1 hour (should get "Old" and "Middle")
         let query = HistoryQuery {
@@ -2189,8 +2310,14 @@ mod store_tests {
         };
         let history = store.get_history("agent_001", &key, &query).unwrap();
         assert_eq!(history.len(), 2);
-        assert_eq!(history[0].content, serde_json::Value::String("Old".to_string()));
-        assert_eq!(history[1].content, serde_json::Value::String("Middle".to_string()));
+        assert_eq!(
+            history[0].content,
+            serde_json::Value::String("Old".to_string())
+        );
+        assert_eq!(
+            history[1].content,
+            serde_json::Value::String("Middle".to_string())
+        );
 
         // Test after filter - messages newer than 2 hours ago (should get "Middle" and "New")
         let query = HistoryQuery {
@@ -2199,8 +2326,14 @@ mod store_tests {
         };
         let history = store.get_history("agent_001", &key, &query).unwrap();
         assert_eq!(history.len(), 2);
-        assert_eq!(history[0].content, serde_json::Value::String("Middle".to_string()));
-        assert_eq!(history[1].content, serde_json::Value::String("New".to_string()));
+        assert_eq!(
+            history[0].content,
+            serde_json::Value::String("Middle".to_string())
+        );
+        assert_eq!(
+            history[1].content,
+            serde_json::Value::String("New".to_string())
+        );
     }
 
     #[test]
@@ -2246,7 +2379,9 @@ mod store_tests {
         // Appending empty list should succeed
         store.append_messages("agent_001", &key, &vec![]).unwrap();
 
-        let history = store.get_history("agent_001", &key, &HistoryQuery::default()).unwrap();
+        let history = store
+            .get_history("agent_001", &key, &HistoryQuery::default())
+            .unwrap();
         assert_eq!(history.len(), 0);
     }
 
@@ -2259,12 +2394,16 @@ mod store_tests {
         let msg = StoredMessage::with_tool_calls(
             "assistant",
             "Response",
-            serde_json::json!({"tool": "test", "args": {}})
+            serde_json::json!({"tool": "test", "args": {}}),
         );
 
-        store.append_messages("agent_001", &key, &vec![msg]).unwrap();
+        store
+            .append_messages("agent_001", &key, &vec![msg])
+            .unwrap();
 
-        let history = store.get_history("agent_001", &key, &HistoryQuery::default()).unwrap();
+        let history = store
+            .get_history("agent_001", &key, &HistoryQuery::default())
+            .unwrap();
         assert_eq!(history.len(), 1);
         assert!(history[0].tool_calls.is_some());
     }
@@ -2317,11 +2456,15 @@ mod store_tests {
         let session = store.get_or_create("agent_001", &key).unwrap();
         assert_eq!(session.message_count, 0);
 
-        store.append_messages("agent_001", &key, &vec![StoredMessage::user("msg1")]).unwrap();
+        store
+            .append_messages("agent_001", &key, &vec![StoredMessage::user("msg1")])
+            .unwrap();
         let session = store.get_or_create("agent_001", &key).unwrap();
         assert_eq!(session.message_count, 1);
 
-        store.append_messages("agent_001", &key, &vec![StoredMessage::user("msg2")]).unwrap();
+        store
+            .append_messages("agent_001", &key, &vec![StoredMessage::user("msg2")])
+            .unwrap();
         let session = store.get_or_create("agent_001", &key).unwrap();
         assert_eq!(session.message_count, 2);
     }
@@ -2418,12 +2561,16 @@ mod store_tests {
         store.get_or_create("agent_001", &key).unwrap();
 
         // First append - message count accumulates
-        store.append_messages("agent_001", &key, &vec![StoredMessage::user("msg1")]).unwrap();
+        store
+            .append_messages("agent_001", &key, &vec![StoredMessage::user("msg1")])
+            .unwrap();
         let session = store.get_or_create("agent_001", &key).unwrap();
         assert_eq!(session.message_count, 1);
 
         // Second append - message count accumulates again
-        store.append_messages("agent_001", &key, &vec![StoredMessage::user("msg2")]).unwrap();
+        store
+            .append_messages("agent_001", &key, &vec![StoredMessage::user("msg2")])
+            .unwrap();
         let session = store.get_or_create("agent_001", &key).unwrap();
         assert_eq!(session.message_count, 2); // Counts accumulate
     }
@@ -2434,7 +2581,9 @@ mod store_tests {
         let key = create_test_key();
         store.get_or_create("agent_001", &key).unwrap();
 
-        let messages: Vec<StoredMessage> = (0..2000).map(|i| StoredMessage::user(format!("Message {}", i))).collect();
+        let messages: Vec<StoredMessage> = (0..2000)
+            .map(|i| StoredMessage::user(format!("Message {}", i)))
+            .collect();
         store.append_messages("agent_001", &key, &messages).unwrap();
 
         // Without limit, default limit of 1000 is applied
@@ -2450,7 +2599,9 @@ mod store_tests {
         let key = create_test_key();
         store.get_or_create("agent_001", &key).unwrap();
 
-        let messages: Vec<StoredMessage> = (0..2000).map(|i| StoredMessage::user(format!("Message {}", i))).collect();
+        let messages: Vec<StoredMessage> = (0..2000)
+            .map(|i| StoredMessage::user(format!("Message {}", i)))
+            .collect();
         store.append_messages("agent_001", &key, &messages).unwrap();
 
         // With high limit, should return all
@@ -2491,7 +2642,10 @@ mod store_tests {
         };
         let history = store.get_history("agent_001", &key, &query).unwrap();
         assert_eq!(history.len(), 1);
-        assert_eq!(history[0].content, serde_json::Value::String("Old".to_string()));
+        assert_eq!(
+            history[0].content,
+            serde_json::Value::String("Old".to_string())
+        );
 
         // Test after filter - should get messages newer than 1 hour ago
         let query = HistoryQuery {
@@ -2500,7 +2654,10 @@ mod store_tests {
         };
         let history = store.get_history("agent_001", &key, &query).unwrap();
         assert_eq!(history.len(), 1);
-        assert_eq!(history[0].content, serde_json::Value::String("New".to_string()));
+        assert_eq!(
+            history[0].content,
+            serde_json::Value::String("New".to_string())
+        );
     }
 
     #[test]
@@ -2516,7 +2673,10 @@ mod store_tests {
             ..Default::default()
         };
         let updated = store.patch("agent_001", &key, &patch).unwrap();
-        assert_eq!(updated.metadata.get("key1"), Some(&serde_json::json!("value1")));
+        assert_eq!(
+            updated.metadata.get("key1"),
+            Some(&serde_json::json!("value1"))
+        );
 
         // Replace with new metadata
         let patch = SessionPatch {
@@ -2525,7 +2685,10 @@ mod store_tests {
         };
         let updated = store.patch("agent_001", &key, &patch).unwrap();
         assert_eq!(updated.metadata.get("key1"), None);
-        assert_eq!(updated.metadata.get("key2"), Some(&serde_json::json!("value2")));
+        assert_eq!(
+            updated.metadata.get("key2"),
+            Some(&serde_json::json!("value2"))
+        );
     }
 
     #[test]
@@ -2534,7 +2697,9 @@ mod store_tests {
         let key = create_test_key();
         store.get_or_create("agent_001", &key).unwrap();
 
-        let record = store.compact("agent_001", &key, &CompactionStrategy::None, None).unwrap();
+        let record = store
+            .compact("agent_001", &key, &CompactionStrategy::None, None)
+            .unwrap();
         assert_eq!(record.compaction_count, 0);
         assert!(record.last_compacted_at.is_none());
         assert!(record.summary.is_none());
@@ -2547,9 +2712,13 @@ mod store_tests {
         store.get_or_create("agent_001", &key).unwrap();
 
         let msg = StoredMessage::system("System initialization complete");
-        store.append_messages("agent_001", &key, &vec![msg]).unwrap();
+        store
+            .append_messages("agent_001", &key, &vec![msg])
+            .unwrap();
 
-        let history = store.get_history("agent_001", &key, &HistoryQuery::default()).unwrap();
+        let history = store
+            .get_history("agent_001", &key, &HistoryQuery::default())
+            .unwrap();
         assert_eq!(history.len(), 1);
         assert_eq!(history[0].role, "system");
     }
@@ -2561,9 +2730,13 @@ mod store_tests {
         store.get_or_create("agent_001", &key).unwrap();
 
         let msg = StoredMessage::tool("Tool result: success");
-        store.append_messages("agent_001", &key, &vec![msg]).unwrap();
+        store
+            .append_messages("agent_001", &key, &vec![msg])
+            .unwrap();
 
-        let history = store.get_history("agent_001", &key, &HistoryQuery::default()).unwrap();
+        let history = store
+            .get_history("agent_001", &key, &HistoryQuery::default())
+            .unwrap();
         assert_eq!(history.len(), 1);
         assert_eq!(history[0].role, "tool");
     }

@@ -7,6 +7,7 @@ pub mod binding;
 pub mod compaction;
 pub mod context_guard;
 pub mod failover;
+pub mod memory;
 pub mod pipeline;
 pub mod prompt;
 pub mod resolution;
@@ -15,7 +16,6 @@ pub mod subagent;
 pub mod transcript;
 pub mod types;
 pub mod usage;
-pub mod memory;
 
 // Re-export key types from crate root
 pub use abort::{notify_abort, AbortHandle, AbortRegistry};
@@ -27,6 +27,10 @@ pub use context_guard::ContextWindowGuard;
 pub use failover::{
     classify_error, execute_with_failover, FailoverAction, FailoverState, ModelAttempt,
 };
+pub use memory::{
+    create_memory_tool_schema, extract_memories_after_run, inject_memory_context, MemoryConfig,
+    MemoryTool,
+};
 pub use pipeline::{AgentPipeline, AgentRunStream};
 pub use prompt::{PromptSection, SystemPromptBuilder};
 pub use resolution::{
@@ -37,4 +41,3 @@ pub use runner::{AgentRunner, SubagentRunnerExt};
 pub use subagent::{spawn_subagent, ResourceBudget, SubagentSpawnParams};
 pub use transcript::{repair_transcript, ProviderKind};
 pub use types::{AgentEvent, AgentRunParams, AgentRunResult, SessionMetadata, UsageReport};
-pub use memory::{MemoryConfig, inject_memory_context, extract_memories_after_run, MemoryTool, create_memory_tool_schema};

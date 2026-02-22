@@ -9,7 +9,7 @@ pub mod store;
 pub mod types;
 
 pub use compaction::{CompactionRecord, CompactionStrategy};
-pub use routing::{ChannelContext, PeerKind, resolve_session_key};
+pub use routing::{resolve_session_key, ChannelContext, PeerKind};
 pub use store::SessionStore;
 pub use types::{
     HistoryQuery, Session, SessionFilter, SessionKey, SessionMetadata, SessionPatch, SessionStatus,

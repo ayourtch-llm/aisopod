@@ -64,7 +64,9 @@ impl MockEmbeddingProvider {
             let value = ((current_hash % 1000) as f32 - 500.0) / 500.0;
             embedding.push(value);
             // Mix the hash for the next dimension
-            current_hash = current_hash.wrapping_mul(6364136223846793005).wrapping_add(1);
+            current_hash = current_hash
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1);
         }
 
         // Normalize to unit vector
@@ -136,20 +138,20 @@ mod tests {
     async fn test_mock_provider_deterministic() {
         let mut provider = MockEmbeddingProvider::new(4);
         let text = "test text";
-        
+
         let embedding1 = provider.embed(text).await.unwrap();
         let embedding2 = provider.embed(text).await.unwrap();
-        
+
         assert_eq!(embedding1, embedding2);
     }
 
     #[tokio::test]
     async fn test_mock_provider_different_texts() {
         let mut provider = MockEmbeddingProvider::new(4);
-        
+
         let emb1 = provider.embed("text one").await.unwrap();
         let emb2 = provider.embed("text two").await.unwrap();
-        
+
         // Different texts should produce different embeddings
         assert_ne!(emb1, emb2);
     }
@@ -158,19 +160,22 @@ mod tests {
     async fn test_mock_provider_unit_vector() {
         let mut provider = MockEmbeddingProvider::new(4);
         let embedding = provider.embed("test").await.unwrap();
-        
+
         let magnitude: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
-        assert!((magnitude - 1.0).abs() < 0.0001, "Embedding should be normalized to unit vector");
+        assert!(
+            (magnitude - 1.0).abs() < 0.0001,
+            "Embedding should be normalized to unit vector"
+        );
     }
 
     #[tokio::test]
     async fn test_mock_provider_different_dimensions() {
         let mut provider_4 = MockEmbeddingProvider::new(4);
         let mut provider_8 = MockEmbeddingProvider::new(8);
-        
+
         let emb4 = provider_4.embed("test").await.unwrap();
         let emb8 = provider_8.embed("test").await.unwrap();
-        
+
         assert_eq!(emb4.len(), 4);
         assert_eq!(emb8.len(), 8);
     }
@@ -179,17 +184,17 @@ mod tests {
     async fn test_mock_provider_cache() {
         let mut provider = MockEmbeddingProvider::new(4);
         let text = "cached text";
-        
+
         // First call
         let embedding1 = provider.embed(text).await.unwrap();
-        
+
         // Modify the cache
         let mut new_embedding = embedding1.clone();
         new_embedding[0] = new_embedding[0] + 0.1;
-        
+
         // Second call should return the cached original
         let embedding2 = provider.embed(text).await.unwrap();
-        
+
         assert_eq!(embedding1, embedding2);
     }
 }

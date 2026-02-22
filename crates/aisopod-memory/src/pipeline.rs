@@ -68,11 +68,7 @@ impl MemoryQueryPipeline {
     ///
     /// # Errors
     /// Returns an error if embedding generation or query execution fails.
-    pub async fn query(
-        &self,
-        query: &str,
-        opts: MemoryQueryOptions,
-    ) -> Result<Vec<MemoryMatch>> {
+    pub async fn query(&self, query: &str, opts: MemoryQueryOptions) -> Result<Vec<MemoryMatch>> {
         // Step 1: Generate query embedding
         let query_embedding = self.embedder.embed(query).await?;
 
@@ -178,9 +174,7 @@ impl MemoryQueryPipeline {
 
         let bullets: Vec<String> = matches
             .iter()
-            .map(|m| {
-                format!("- [score: {:.2}] {}", m.score, m.entry.content)
-            })
+            .map(|m| format!("- [score: {:.2}] {}", m.score, m.entry.content))
             .collect();
 
         let joined = bullets.join("\n");
@@ -201,11 +195,7 @@ impl MemoryQueryPipeline {
     ///
     /// # Errors
     /// Returns an error if the query fails.
-    pub async fn query_and_format(
-        &self,
-        query: &str,
-        opts: MemoryQueryOptions,
-    ) -> Result<String> {
+    pub async fn query_and_format(&self, query: &str, opts: MemoryQueryOptions) -> Result<String> {
         let matches = self.query(query, opts).await?;
         Ok(self.format_context(&matches))
     }

@@ -6,8 +6,8 @@
 
 use std::sync::Arc;
 
-use aisopod_memory::{EmbeddingProvider, MockEmbeddingProvider};
 use aisopod_memory::sqlite::SqliteMemoryStore;
+use aisopod_memory::{EmbeddingProvider, MockEmbeddingProvider};
 use anyhow::Result;
 
 /// Creates a new in-memory SQLite memory store for testing.

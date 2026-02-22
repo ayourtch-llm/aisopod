@@ -4,10 +4,10 @@
 //! memory lifecycle management including extraction, scoring, consolidation,
 //! expiration, and quota enforcement.
 
-use aisopod_provider::types::{Message, MessageContent, Role};
 use crate::embedding::EmbeddingProvider;
 use crate::store::MemoryStore;
-use crate::types::{MemoryEntry, MemoryFilter, MemorySource, MemoryMetadata};
+use crate::types::{MemoryEntry, MemoryFilter, MemoryMetadata, MemorySource};
+use aisopod_provider::types::{Message, MessageContent, Role};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
@@ -108,7 +108,9 @@ impl MemoryManager {
                     parts
                         .iter()
                         .filter_map(|p| match p {
-                            aisopod_provider::types::ContentPart::Text { text } => Some(text.clone()),
+                            aisopod_provider::types::ContentPart::Text { text } => {
+                                Some(text.clone())
+                            }
                             _ => None, // Ignore non-text parts
                         })
                         .collect::<Vec<_>>()
@@ -131,11 +133,7 @@ impl MemoryManager {
                 let embedding = self.embedder.embed(&fact).await?;
 
                 // Calculate importance based on heuristics
-                let base_importance = if is_explicit_memory {
-                    0.9
-                } else {
-                    0.5
-                };
+                let base_importance = if is_explicit_memory { 0.9 } else { 0.5 };
 
                 let entry = MemoryEntry {
                     id: uuid::Uuid::new_v4().to_string(),
@@ -182,10 +180,7 @@ impl MemoryManager {
     ///
     /// # Returns
     /// Returns a list of (fact, is_explicit_memory) tuples.
-    fn extract_facts_from_content(
-        content: &str,
-        role: Role,
-    ) -> Vec<(String, bool)> {
+    fn extract_facts_from_content(content: &str, role: Role) -> Vec<(String, bool)> {
         let mut facts = Vec::new();
         let is_user = matches!(role, Role::User);
 
@@ -228,36 +223,37 @@ impl MemoryManager {
     /// Determines if a sentence looks like a fact or assertion.
     fn is_fact_like(sentence: &str) -> bool {
         // Check for named entities on the original sentence (before lowercase)
-        let has_named_entity = sentence.split_whitespace().any(|w| {
-            w.len() > 3 && w.chars().next().map_or(false, |c| c.is_uppercase())
-        });
+        let has_named_entity = sentence
+            .split_whitespace()
+            .any(|w| w.len() > 3 && w.chars().next().map_or(false, |c| c.is_uppercase()));
 
         let lower = sentence.to_lowercase();
         let words: Vec<&str> = lower.split_whitespace().collect();
 
         // List of common verbs (including third-person singular like "likes", "has", etc.)
         let common_verbs = [
-            "is", "are", "was", "were", "has", "have", "had", "does", "do", "did",
-            "likes", "like", "loves", "love", "hates", "hate", "wants", "want",
-            "needs", "need", "believes", "believe", "thinks", "think", "knows", "know",
-            "seems", "appear", "becomes", "gets", "makes", "shows", "means", "gives",
+            "is", "are", "was", "were", "has", "have", "had", "does", "do", "did", "likes", "like",
+            "loves", "love", "hates", "hate", "wants", "want", "needs", "need", "believes",
+            "believe", "thinks", "think", "knows", "know", "seems", "appear", "becomes", "gets",
+            "makes", "shows", "means", "gives",
         ];
-        let has_verb = words.iter().any(|w| {
-            common_verbs.contains(w)
-                || w.ends_with("ing")
-                || w.ends_with("ed")
-        });
+        let has_verb = words
+            .iter()
+            .any(|w| common_verbs.contains(w) || w.ends_with("ing") || w.ends_with("ed"));
 
         // Check for objects - either with articles or just a noun following a verb
-        let has_object = words.iter().any(|w| {
-            ["the", "a", "an", "this", "that", "these", "those"].contains(w)
-        });
+        let has_object = words
+            .iter()
+            .any(|w| ["the", "a", "an", "this", "that", "these", "those"].contains(w));
 
         // Also consider a sentence fact-like if it has a verb followed by a noun/noun phrase
         // (simple subject-verb-object pattern without articles)
         // The verb should be followed by at least one more word
         let has_svo_pattern = if words.len() >= 3 {
-            let verb_index = words.iter().position(|w| common_verbs.contains(w)).unwrap_or(0);
+            let verb_index = words
+                .iter()
+                .position(|w| common_verbs.contains(w))
+                .unwrap_or(0);
             verb_index > 0 && verb_index < words.len() - 1
         } else {
             false
@@ -452,7 +448,8 @@ impl MemoryManager {
         let mut expired_count = 0u32;
 
         for mem in memories {
-            if mem.created_at < cutoff && mem.metadata.importance < self.config.min_importance_threshold
+            if mem.created_at < cutoff
+                && mem.metadata.importance < self.config.min_importance_threshold
             {
                 self.store.delete(&mem.id).await?;
                 expired_count += 1;
@@ -560,19 +557,26 @@ mod tests {
 
     #[test]
     fn test_extract_facts_from_content_user() {
-        let content = "I like pizza. My favorite color is blue. Remember that I'm allergic to peanuts.";
+        let content =
+            "I like pizza. My favorite color is blue. Remember that I'm allergic to peanuts.";
         let facts = MemoryManager::extract_facts_from_content(content, Role::User);
-        
-        assert!(facts.len() >= 2, "Should extract at least 2 facts for user preferences");
+
+        assert!(
+            facts.len() >= 2,
+            "Should extract at least 2 facts for user preferences"
+        );
     }
 
     #[test]
     fn test_extract_facts_from_content_assistant() {
         let content = "The weather is sunny today. I can help you with that.";
         let facts = MemoryManager::extract_facts_from_content(content, Role::Assistant);
-        
+
         // Assistant facts are extracted but not preferences
-        assert!(facts.len() >= 1, "Should extract at least 1 fact from assistant");
+        assert!(
+            facts.len() >= 1,
+            "Should extract at least 1 fact from assistant"
+        );
     }
 
     #[test]
@@ -586,8 +590,13 @@ mod tests {
     // ==================== Memory Management Tests ====================
 
     /// Helper to create a test manager with in-memory SQLite
-    fn test_manager(embedding_dim: usize, max_memories: usize) -> (MemoryManager, Arc<dyn MemoryStore>) {
-        let store = Arc::new(SqliteMemoryStore::new(":memory:", embedding_dim).expect("Failed to create test store"));
+    fn test_manager(
+        embedding_dim: usize,
+        max_memories: usize,
+    ) -> (MemoryManager, Arc<dyn MemoryStore>) {
+        let store = Arc::new(
+            SqliteMemoryStore::new(":memory:", embedding_dim).expect("Failed to create test store"),
+        );
         let embedder = Arc::new(MockEmbeddingProvider::new(embedding_dim));
         let config = MemoryManagerConfig {
             max_memories_per_agent: max_memories,
@@ -715,7 +724,7 @@ mod tests {
 
         // Store two entries with very similar embeddings (cosine similarity > 0.92)
         let embedding = vec![0.5, 0.5, 0.5, 0.5];
-        
+
         let entry1 = MemoryEntry {
             embedding: embedding.clone(),
             metadata: crate::types::MemoryMetadata {

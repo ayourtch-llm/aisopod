@@ -7,29 +7,27 @@
 #![cfg(feature = "lancedb")]
 
 use crate::store::MemoryStore;
-use crate::types::{
-    MemoryEntry, MemoryFilter, MemoryMatch, MemoryQueryOptions, MemorySource,
-};
+use crate::types::{MemoryEntry, MemoryFilter, MemoryMatch, MemoryQueryOptions, MemorySource};
 use anyhow::{anyhow, Result};
+use arrow_array::Array;
 use chrono::DateTime;
+use futures_util::stream::TryStreamExt;
 use lancedb::arrow::RecordBatchStream;
 use lancedb::connection::Connection as LanceDbConnection;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use lancedb::table::Table as LanceDbTable;
 use lancedb::Result as LanceDbResult;
-use futures_util::stream::TryStreamExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use arrow_array::Array;
 
 // Re-export arrow types needed for the lancedb feature
-#[cfg(feature = "arrow-schema")]
-pub use arrow_schema as arrow_schema_internal;
 #[cfg(feature = "arrow-array")]
 pub use arrow_array as arrow_array_internal;
 #[cfg(feature = "arrow-array")]
 pub use arrow_array::types::Float32Type;
+#[cfg(feature = "arrow-schema")]
+pub use arrow_schema as arrow_schema_internal;
 
 /// Memory storage backend using LanceDB.
 ///
@@ -75,32 +73,76 @@ impl LanceDbMemoryStore {
 
         // Try to open existing table or create new one
         let table_name = "memories";
-        
+
         let table = match db.open_table(table_name).execute().await {
             Ok(tbl) => tbl,
             Err(_) => {
                 // Create schema with lancedb's arrow module
                 let schema = Arc::new(lancedb::arrow::arrow_schema::Schema::new(vec![
-                    lancedb::arrow::arrow_schema::Field::new("id", lancedb::arrow::arrow_schema::DataType::Utf8, false),
-                    lancedb::arrow::arrow_schema::Field::new("agent_id", lancedb::arrow::arrow_schema::DataType::Utf8, false),
-                    lancedb::arrow::arrow_schema::Field::new("content", lancedb::arrow::arrow_schema::DataType::Utf8, false),
-                    lancedb::arrow::arrow_schema::Field::new("source", lancedb::arrow::arrow_schema::DataType::Utf8, false),
-                    lancedb::arrow::arrow_schema::Field::new("session_key", lancedb::arrow::arrow_schema::DataType::Utf8, true),
-                    lancedb::arrow::arrow_schema::Field::new("tags", lancedb::arrow::arrow_schema::DataType::Utf8, false),
-                    lancedb::arrow::arrow_schema::Field::new("importance", lancedb::arrow::arrow_schema::DataType::Float64, false),
-                    lancedb::arrow::arrow_schema::Field::new("metadata", lancedb::arrow::arrow_schema::DataType::Utf8, false),
-                    lancedb::arrow::arrow_schema::Field::new("created_at", lancedb::arrow::arrow_schema::DataType::Int64, false),
-                    lancedb::arrow::arrow_schema::Field::new("updated_at", lancedb::arrow::arrow_schema::DataType::Int64, false),
+                    lancedb::arrow::arrow_schema::Field::new(
+                        "id",
+                        lancedb::arrow::arrow_schema::DataType::Utf8,
+                        false,
+                    ),
+                    lancedb::arrow::arrow_schema::Field::new(
+                        "agent_id",
+                        lancedb::arrow::arrow_schema::DataType::Utf8,
+                        false,
+                    ),
+                    lancedb::arrow::arrow_schema::Field::new(
+                        "content",
+                        lancedb::arrow::arrow_schema::DataType::Utf8,
+                        false,
+                    ),
+                    lancedb::arrow::arrow_schema::Field::new(
+                        "source",
+                        lancedb::arrow::arrow_schema::DataType::Utf8,
+                        false,
+                    ),
+                    lancedb::arrow::arrow_schema::Field::new(
+                        "session_key",
+                        lancedb::arrow::arrow_schema::DataType::Utf8,
+                        true,
+                    ),
+                    lancedb::arrow::arrow_schema::Field::new(
+                        "tags",
+                        lancedb::arrow::arrow_schema::DataType::Utf8,
+                        false,
+                    ),
+                    lancedb::arrow::arrow_schema::Field::new(
+                        "importance",
+                        lancedb::arrow::arrow_schema::DataType::Float64,
+                        false,
+                    ),
+                    lancedb::arrow::arrow_schema::Field::new(
+                        "metadata",
+                        lancedb::arrow::arrow_schema::DataType::Utf8,
+                        false,
+                    ),
+                    lancedb::arrow::arrow_schema::Field::new(
+                        "created_at",
+                        lancedb::arrow::arrow_schema::DataType::Int64,
+                        false,
+                    ),
+                    lancedb::arrow::arrow_schema::Field::new(
+                        "updated_at",
+                        lancedb::arrow::arrow_schema::DataType::Int64,
+                        false,
+                    ),
                     lancedb::arrow::arrow_schema::Field::new(
                         "embedding",
                         lancedb::arrow::arrow_schema::DataType::FixedSizeList(
-                            Arc::new(lancedb::arrow::arrow_schema::Field::new("item", lancedb::arrow::arrow_schema::DataType::Float32, true)),
+                            Arc::new(lancedb::arrow::arrow_schema::Field::new(
+                                "item",
+                                lancedb::arrow::arrow_schema::DataType::Float32,
+                                true,
+                            )),
                             embedding_dim as i32,
                         ),
                         true,
                     ),
                 ]));
-                
+
                 // Create empty table with schema
                 db.create_empty_table(table_name, schema)
                     .execute()
@@ -181,13 +223,17 @@ impl MemoryStore for LanceDbMemoryStore {
 
         // Convert to record batch for insertion
         let record = Self::db_memory_to_record(&db_memory, self.embedding_dim)?;
-        
+
         // Wrap in RecordBatchIterator for IntoArrow
         let schema = record.schema();
-        let batch_reader = arrow_array::RecordBatchIterator::new(vec![record].into_iter().map(Ok), schema);
-        
+        let batch_reader =
+            arrow_array::RecordBatchIterator::new(vec![record].into_iter().map(Ok), schema);
+
         // Add to table
-        self.table.add(batch_reader).execute().await
+        self.table
+            .add(batch_reader)
+            .execute()
+            .await
             .map_err(|e| anyhow!("Failed to insert record: {}", e))?;
 
         Ok(entry.id)
@@ -207,7 +253,10 @@ impl MemoryStore for LanceDbMemoryStore {
         }
 
         if let Some(session_key) = &opts.filter.session_key {
-            filters.push(format!("session_key = '{}'", session_key.replace("'", "''")));
+            filters.push(format!(
+                "session_key = '{}'",
+                session_key.replace("'", "''")
+            ));
         }
 
         if let Some(importance_min) = &opts.filter.importance_min {
@@ -240,7 +289,9 @@ impl MemoryStore for LanceDbMemoryStore {
         let dummy_vector: Vec<f32> = vec![0.0; self.embedding_dim];
 
         // Execute vector search
-        let mut query = self.table.query()
+        let mut query = self
+            .table
+            .query()
             .nearest_to(dummy_vector)?
             .limit(opts.top_k as usize);
 
@@ -249,11 +300,15 @@ impl MemoryStore for LanceDbMemoryStore {
         }
 
         // Execute the query and get results as a stream
-        let results = query.execute().await
+        let results = query
+            .execute()
+            .await
             .map_err(|e| anyhow!("Query failed: {}", e))?;
 
         // Convert stream to Vec<RecordBatch>
-        let batches: Vec<arrow_array::RecordBatch> = results.try_collect().await
+        let batches: Vec<arrow_array::RecordBatch> = results
+            .try_collect()
+            .await
             .map_err(|e| anyhow!("Result collection failed: {:?}", e))?;
 
         // Convert to MemoryMatch
@@ -262,29 +317,91 @@ impl MemoryStore for LanceDbMemoryStore {
 
         for record in batches.iter() {
             // Access columns by index
-            let id = record.column(0).as_any().downcast_ref::<arrow_array::StringArray>().unwrap().value(0).to_string();
-            let agent_id = record.column(1).as_any().downcast_ref::<arrow_array::StringArray>().unwrap().value(0).to_string();
-            let content = record.column(2).as_any().downcast_ref::<arrow_array::StringArray>().unwrap().value(0).to_string();
-            let source = record.column(3).as_any().downcast_ref::<arrow_array::StringArray>().unwrap().value(0).to_string();
+            let id = record
+                .column(0)
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap()
+                .value(0)
+                .to_string();
+            let agent_id = record
+                .column(1)
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap()
+                .value(0)
+                .to_string();
+            let content = record
+                .column(2)
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap()
+                .value(0)
+                .to_string();
+            let source = record
+                .column(3)
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap()
+                .value(0)
+                .to_string();
             // Handle nullable session_key using is_null() + value() pattern
-            let session_key_arr = record.column(4).as_any().downcast_ref::<arrow_array::StringArray>().unwrap();
+            let session_key_arr = record
+                .column(4)
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap();
             let session_key = if session_key_arr.is_null(0) {
                 None
             } else {
                 Some(session_key_arr.value(0).to_string())
             };
-            let tags_json = record.column(5).as_any().downcast_ref::<arrow_array::StringArray>().unwrap().value(0).to_string();
-            let importance = record.column(6).as_any().downcast_ref::<arrow_array::Float64Array>().unwrap().value(0);
-            let metadata_json = record.column(7).as_any().downcast_ref::<arrow_array::StringArray>().unwrap().value(0).to_string();
-            let created_at = record.column(8).as_any().downcast_ref::<arrow_array::Int64Array>().unwrap().value(0);
-            let updated_at = record.column(9).as_any().downcast_ref::<arrow_array::Int64Array>().unwrap().value(0);
+            let tags_json = record
+                .column(5)
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap()
+                .value(0)
+                .to_string();
+            let importance = record
+                .column(6)
+                .as_any()
+                .downcast_ref::<arrow_array::Float64Array>()
+                .unwrap()
+                .value(0);
+            let metadata_json = record
+                .column(7)
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap()
+                .value(0)
+                .to_string();
+            let created_at = record
+                .column(8)
+                .as_any()
+                .downcast_ref::<arrow_array::Int64Array>()
+                .unwrap()
+                .value(0);
+            let updated_at = record
+                .column(9)
+                .as_any()
+                .downcast_ref::<arrow_array::Int64Array>()
+                .unwrap()
+                .value(0);
             // The distance column should be available
-            let distance = record.column(11).as_any().downcast_ref::<arrow_array::Float32Array>().unwrap().value(0);
-            
+            let distance = record
+                .column(11)
+                .as_any()
+                .downcast_ref::<arrow_array::Float32Array>()
+                .unwrap()
+                .value(0);
+
             // Parse JSON values
-            let tags: Vec<String> = serde_json::from_str(tags_json.as_str()).unwrap_or_else(|_| Vec::new());
-            let metadata: HashMap<String, serde_json::Value> = serde_json::from_str(metadata_json.as_str()).unwrap_or_else(|_| HashMap::new());
-            
+            let tags: Vec<String> =
+                serde_json::from_str(tags_json.as_str()).unwrap_or_else(|_| Vec::new());
+            let metadata: HashMap<String, serde_json::Value> =
+                serde_json::from_str(metadata_json.as_str()).unwrap_or_else(|_| HashMap::new());
+
             // Convert distance to score (LanceDB uses cosine distance by default)
             let score = 1.0 - (distance / 2.0);
 
@@ -312,7 +429,10 @@ impl MemoryStore for LanceDbMemoryStore {
                     .with_timezone(&chrono::Utc),
             };
 
-            matches.push(MemoryMatch { entry, score: score as f32 });
+            matches.push(MemoryMatch {
+                entry,
+                score: score as f32,
+            });
         }
 
         // Sort by score descending
@@ -327,7 +447,9 @@ impl MemoryStore for LanceDbMemoryStore {
 
     async fn delete(&self, id: &str) -> Result<()> {
         let sql = format!("id = '{}'", id.replace("'", "''"));
-        self.table.delete(&sql).await
+        self.table
+            .delete(&sql)
+            .await
             .map_err(|e| anyhow!("Delete failed: {}", e))?;
 
         Ok(())
@@ -347,7 +469,10 @@ impl MemoryStore for LanceDbMemoryStore {
         }
 
         if let Some(session_key) = &filter.session_key {
-            filters.push(format!("session_key = '{}'", session_key.replace("'", "''")));
+            filters.push(format!(
+                "session_key = '{}'",
+                session_key.replace("'", "''")
+            ));
         }
 
         if let Some(importance_min) = &filter.importance_min {
@@ -377,46 +502,113 @@ impl MemoryStore for LanceDbMemoryStore {
         };
 
         // Execute query with filter
-        let mut query = self.table.query()
-            .select(lancedb::query::Select::All);
+        let mut query = self.table.query().select(lancedb::query::Select::All);
 
         if !where_clause.is_empty() {
             query = query.only_if(&where_clause);
         }
 
-        let results = query.execute().await
+        let results = query
+            .execute()
+            .await
             .map_err(|e| anyhow!("List query failed: {}", e))?;
 
-        let batches: Vec<arrow_array::RecordBatch> = results.try_collect().await
+        let batches: Vec<arrow_array::RecordBatch> = results
+            .try_collect()
+            .await
             .map_err(|e| anyhow!("{:?}", e))?;
 
         let mut entries = Vec::new();
 
         for record in batches.iter() {
             // Manually extract columns from RecordBatch (try_get doesn't exist in arrow-array v53)
-            let id = record.column(0).as_any().downcast_ref::<arrow_array::StringArray>().unwrap().value(0).to_string();
-            let agent_id = record.column(1).as_any().downcast_ref::<arrow_array::StringArray>().unwrap().value(0).to_string();
-            let content = record.column(2).as_any().downcast_ref::<arrow_array::StringArray>().unwrap().value(0).to_string();
-            let source = record.column(3).as_any().downcast_ref::<arrow_array::StringArray>().unwrap().value(0).to_string();
-            let session_key_arr = record.column(4).as_any().downcast_ref::<arrow_array::StringArray>().unwrap();
+            let id = record
+                .column(0)
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap()
+                .value(0)
+                .to_string();
+            let agent_id = record
+                .column(1)
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap()
+                .value(0)
+                .to_string();
+            let content = record
+                .column(2)
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap()
+                .value(0)
+                .to_string();
+            let source = record
+                .column(3)
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap()
+                .value(0)
+                .to_string();
+            let session_key_arr = record
+                .column(4)
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap();
             let session_key = if session_key_arr.is_null(0) {
                 None
             } else {
                 Some(session_key_arr.value(0).to_string())
             };
-            let tags_json = record.column(5).as_any().downcast_ref::<arrow_array::StringArray>().unwrap().value(0).to_string();
-            let importance = record.column(6).as_any().downcast_ref::<arrow_array::Float64Array>().unwrap().value(0);
-            let metadata_json = record.column(7).as_any().downcast_ref::<arrow_array::StringArray>().unwrap().value(0).to_string();
-            let created_at = record.column(8).as_any().downcast_ref::<arrow_array::Int64Array>().unwrap().value(0);
-            let updated_at = record.column(9).as_any().downcast_ref::<arrow_array::Int64Array>().unwrap().value(0);
+            let tags_json = record
+                .column(5)
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap()
+                .value(0)
+                .to_string();
+            let importance = record
+                .column(6)
+                .as_any()
+                .downcast_ref::<arrow_array::Float64Array>()
+                .unwrap()
+                .value(0);
+            let metadata_json = record
+                .column(7)
+                .as_any()
+                .downcast_ref::<arrow_array::StringArray>()
+                .unwrap()
+                .value(0)
+                .to_string();
+            let created_at = record
+                .column(8)
+                .as_any()
+                .downcast_ref::<arrow_array::Int64Array>()
+                .unwrap()
+                .value(0);
+            let updated_at = record
+                .column(9)
+                .as_any()
+                .downcast_ref::<arrow_array::Int64Array>()
+                .unwrap()
+                .value(0);
             // Extract embedding from the FixedSizeListArray
-            let embedding_arr = record.column(10).as_any().downcast_ref::<arrow_array::FixedSizeListArray>().unwrap();
+            let embedding_arr = record
+                .column(10)
+                .as_any()
+                .downcast_ref::<arrow_array::FixedSizeListArray>()
+                .unwrap();
             let embedding_values = embedding_arr.values();
-            let embedding_f32 = embedding_values.as_any().downcast_ref::<arrow_array::Float32Array>().unwrap();
+            let embedding_f32 = embedding_values
+                .as_any()
+                .downcast_ref::<arrow_array::Float32Array>()
+                .unwrap();
             let embedding: Vec<f32> = embedding_f32.values().to_vec();
 
-            let tags: Vec<String> = serde_json::from_str(tags_json.as_str()).unwrap_or_else(|_| Vec::new());
-            let metadata: HashMap<String, serde_json::Value> = serde_json::from_str(metadata_json.as_str()).unwrap_or_else(|_| HashMap::new());
+            let tags: Vec<String> =
+                serde_json::from_str(tags_json.as_str()).unwrap_or_else(|_| Vec::new());
+            let metadata: HashMap<String, serde_json::Value> =
+                serde_json::from_str(metadata_json.as_str()).unwrap_or_else(|_| HashMap::new());
 
             let entry = MemoryEntry {
                 id,
@@ -446,15 +638,20 @@ impl MemoryStore for LanceDbMemoryStore {
 }
 
 impl LanceDbMemoryStore {
-    fn db_memory_to_record(memory: &DbMemory, embedding_dim: usize) -> Result<arrow_array::RecordBatch> {
-        use arrow_array::{Float32Array, RecordBatch, StringArray, Int64Array};
-        use arrow_schema::{DataType, Field, Schema};
+    fn db_memory_to_record(
+        memory: &DbMemory,
+        embedding_dim: usize,
+    ) -> Result<arrow_array::RecordBatch> {
         use arrow_array::builder::ArrayBuilder;
-        
+        use arrow_array::{Float32Array, Int64Array, RecordBatch, StringArray};
+        use arrow_schema::{DataType, Field, Schema};
+
         let embedding_array = arrow_array::FixedSizeListArray::new(
             Arc::new(Field::new("item", DataType::Float32, true)),
             embedding_dim as i32,
-            Arc::new(Float32Array::from_iter_values(memory.embedding.iter().cloned())) as arrow_array::ArrayRef,
+            Arc::new(Float32Array::from_iter_values(
+                memory.embedding.iter().cloned(),
+            )) as arrow_array::ArrayRef,
             None,
         );
 
@@ -480,7 +677,8 @@ impl LanceDbMemoryStore {
         ]);
 
         let tags_json = serde_json::to_string(&memory.tags).unwrap_or_else(|_| "[]".to_string());
-        let metadata_json = serde_json::to_string(&memory.metadata).unwrap_or_else(|_| "{}".to_string());
+        let metadata_json =
+            serde_json::to_string(&memory.metadata).unwrap_or_else(|_| "{}".to_string());
 
         RecordBatch::try_new(
             Arc::new(schema),
@@ -490,7 +688,10 @@ impl LanceDbMemoryStore {
                 Arc::new(StringArray::from(vec![memory.content.as_str()])),
                 Arc::new(StringArray::from(vec![memory.source.as_str()])),
                 // Use StringArray::from for nullable strings (Vec<Option<&str>>)
-                Arc::new(StringArray::from(vec![memory.session_key.as_ref().map(|s| s.as_str())])),
+                Arc::new(StringArray::from(vec![memory
+                    .session_key
+                    .as_ref()
+                    .map(|s| s.as_str())])),
                 Arc::new(StringArray::from(vec![tags_json.as_str()])),
                 Arc::new(arrow_array::Float64Array::from(vec![memory.importance])),
                 Arc::new(StringArray::from(vec![metadata_json.as_str()])),
@@ -498,7 +699,8 @@ impl LanceDbMemoryStore {
                 Arc::new(Int64Array::from(vec![memory.updated_at])),
                 Arc::new(embedding_array),
             ],
-        ).map_err(|e| anyhow!("Failed to create record batch: {}", e))
+        )
+        .map_err(|e| anyhow!("Failed to create record batch: {}", e))
     }
 }
 
@@ -519,7 +721,9 @@ mod tests {
     async fn test_lancedb_store_store_and_query() {
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test_lancedb");
-        let store = LanceDbMemoryStore::new(db_path.to_str().unwrap(), 4).await.unwrap();
+        let store = LanceDbMemoryStore::new(db_path.to_str().unwrap(), 4)
+            .await
+            .unwrap();
 
         let entry = MemoryEntry::new(
             "test-1".to_string(),
@@ -545,7 +749,9 @@ mod tests {
     async fn test_lancedb_store_delete() {
         let dir = tempdir().unwrap();
         let db_path = dir.path().join("test_lancedb");
-        let store = LanceDbMemoryStore::new(db_path.to_str().unwrap(), 4).await.unwrap();
+        let store = LanceDbMemoryStore::new(db_path.to_str().unwrap(), 4)
+            .await
+            .unwrap();
 
         let entry = MemoryEntry::new(
             "test-2".to_string(),

@@ -383,7 +383,7 @@ impl AgentRunner {
         let providers = self.providers.clone();
         let tools = self.tools.clone();
         let sessions = self.sessions.clone();
-        
+
         // Clone memory components (if any)
         let memory_pipeline = self.memory_pipeline.clone();
         let memory_manager = self.memory_manager.clone();
@@ -391,17 +391,28 @@ impl AgentRunner {
 
         // Spawn the pipeline execution
         tokio::spawn(async move {
-            let pipeline = if let (Some(memory_pipeline), Some(memory_manager)) = 
+            let pipeline = if let (Some(memory_pipeline), Some(memory_manager)) =
                 (memory_pipeline, memory_manager)
             {
                 // Use memory-enabled pipeline
                 if let Some(tracker) = usage_tracker {
                     crate::pipeline::AgentPipeline::new_with_memory_and_usage_tracker(
-                        config, providers, tools, sessions, memory_pipeline, memory_manager, tracker,
+                        config,
+                        providers,
+                        tools,
+                        sessions,
+                        memory_pipeline,
+                        memory_manager,
+                        tracker,
                     )
                 } else {
                     crate::pipeline::AgentPipeline::new_with_memory(
-                        config, providers, tools, sessions, memory_pipeline, memory_manager,
+                        config,
+                        providers,
+                        tools,
+                        sessions,
+                        memory_pipeline,
+                        memory_manager,
                     )
                 }
             } else if let Some(tracker) = usage_tracker {
@@ -483,8 +494,9 @@ mod tests {
         let config = Arc::new(aisopod_config::AisopodConfig::default());
         let providers = Arc::new(aisopod_provider::ProviderRegistry::new());
         let tools = Arc::new(aisopod_tools::ToolRegistry::new());
-        let sessions =
-            Arc::new(SessionStore::new_in_memory().expect("Failed to create in-memory session store"));
+        let sessions = Arc::new(
+            SessionStore::new_in_memory().expect("Failed to create in-memory session store"),
+        );
 
         let runner = AgentRunner::new(config, providers, tools, sessions);
 

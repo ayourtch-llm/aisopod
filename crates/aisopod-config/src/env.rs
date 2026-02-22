@@ -244,7 +244,7 @@ mod tests {
         env::set_var("NUM_TEST", "42");
         let mut val = json!({
             "number": 123,
-            "float": 3.14,
+            "float": std::f64::consts::PI,
             "bool_true": true,
             "bool_false": false,
             "null": null,
@@ -252,7 +252,7 @@ mod tests {
         });
         expand_env_vars(&mut val).unwrap();
         assert_eq!(val["number"], 123);
-        assert_eq!(val["float"], 3.14);
+        assert_eq!(val["float"], std::f64::consts::PI);
         assert_eq!(val["bool_true"], true);
         assert_eq!(val["bool_false"], false);
         assert_eq!(val["null"], Value::Null);

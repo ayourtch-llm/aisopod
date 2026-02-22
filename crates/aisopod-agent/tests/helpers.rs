@@ -119,7 +119,7 @@ impl ModelProvider for MockProvider {
 
         // Create a simple stream with the response
         let response_text = self.response_text.clone().unwrap_or_default();
-        
+
         // Check if we should return tool calls or text response
         // If tool_calls is not empty and we haven't returned them yet, return tool calls
         // Otherwise, return text response (this handles the case after tool calls are processed)
@@ -132,7 +132,7 @@ impl ModelProvider for MockProvider {
                 false
             }
         };
-        
+
         let tool_calls = if should_return_tool_calls {
             self.tool_calls.clone()
         } else {

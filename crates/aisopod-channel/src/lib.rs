@@ -44,4 +44,4 @@ pub mod plugin;
 pub mod types;
 
 pub use plugin::ChannelPlugin;
-pub use types::{ChannelCapabilities, ChannelMeta, ChannelConfigAdapter, ChatType, MediaType};
+pub use types::{ChannelCapabilities, ChannelConfigAdapter, ChannelMeta, ChatType, MediaType};

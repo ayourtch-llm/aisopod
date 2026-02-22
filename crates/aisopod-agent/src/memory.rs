@@ -12,7 +12,9 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 use crate::types::{AgentRunParams, ToolSchema};
-use aisopod_memory::{build_memory_context, MemoryManager, MemoryQueryOptions, MemoryQueryPipeline};
+use aisopod_memory::{
+    build_memory_context, MemoryManager, MemoryQueryOptions, MemoryQueryPipeline,
+};
 use aisopod_tools::{Tool, ToolContext, ToolResult};
 
 /// Configuration for memory integration in the agent engine.
@@ -152,11 +154,7 @@ impl MemoryTool {
     }
 
     /// Handles the store action - stores a new memory.
-    async fn handle_store(
-        &self,
-        params: &Value,
-        ctx: &ToolContext,
-    ) -> Result<ToolResult> {
+    async fn handle_store(&self, params: &Value, ctx: &ToolContext) -> Result<ToolResult> {
         // Extract content
         let content = params
             .get("content")
@@ -194,15 +192,13 @@ impl MemoryTool {
         let manager_store = self.manager.store();
         manager_store.store(updated_entry).await?;
 
-        Ok(ToolResult::success("Memory stored successfully".to_string()))
+        Ok(ToolResult::success(
+            "Memory stored successfully".to_string(),
+        ))
     }
 
     /// Handles the query action - queries and returns relevant memories.
-    async fn handle_query(
-        &self,
-        params: &Value,
-        _ctx: &ToolContext,
-    ) -> Result<ToolResult> {
+    async fn handle_query(&self, params: &Value, _ctx: &ToolContext) -> Result<ToolResult> {
         // Extract query string
         let query = params
             .get("query")
@@ -229,11 +225,7 @@ impl MemoryTool {
     }
 
     /// Handles the delete action - deletes a memory by ID.
-    async fn handle_delete(
-        &self,
-        params: &Value,
-        _ctx: &ToolContext,
-    ) -> Result<ToolResult> {
+    async fn handle_delete(&self, params: &Value, _ctx: &ToolContext) -> Result<ToolResult> {
         // Extract memory ID
         let id = params
             .get("id")
@@ -244,7 +236,10 @@ impl MemoryTool {
         let manager_store = self.manager.store();
         manager_store.delete(id).await?;
 
-        Ok(ToolResult::success(format!("Memory '{}' deleted successfully", id)))
+        Ok(ToolResult::success(format!(
+            "Memory '{}' deleted successfully",
+            id
+        )))
     }
 }
 

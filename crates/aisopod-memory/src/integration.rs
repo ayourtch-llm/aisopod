@@ -48,11 +48,7 @@ pub async fn build_memory_context(
     opts: MemoryQueryOptions,
 ) -> Result<String> {
     // Extract the last N messages as query context (default: last 5)
-    let mut last_n = conversation
-        .iter()
-        .rev()
-        .take(5)
-        .collect::<Vec<_>>();
+    let mut last_n = conversation.iter().rev().take(5).collect::<Vec<_>>();
     last_n.reverse();
 
     // Concatenate message content into a single query string
@@ -66,7 +62,9 @@ pub async fn build_memory_context(
                     let text_parts: Vec<String> = parts
                         .iter()
                         .filter_map(|part| match part {
-                            aisopod_provider::types::ContentPart::Text { text } => Some(text.clone()),
+                            aisopod_provider::types::ContentPart::Text { text } => {
+                                Some(text.clone())
+                            }
                             _ => None,
                         })
                         .collect();
@@ -112,9 +110,7 @@ fn format_memory_context(matches: &[crate::types::MemoryMatch], agent_id: &str) 
 
     let bullets: Vec<String> = matches
         .iter()
-        .map(|m| {
-            format!("- [score: {:.2}] {}", m.score, m.entry.content)
-        })
+        .map(|m| format!("- [score: {:.2}] {}", m.score, m.entry.content))
         .collect();
 
     let joined = bullets.join("\n");
@@ -141,9 +137,14 @@ mod tests {
         let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
         let conversation: Vec<Message> = Vec::new();
 
-        let context = build_memory_context(&pipeline, "agent-1", &conversation, MemoryQueryOptions::default())
-            .await
-            .unwrap();
+        let context = build_memory_context(
+            &pipeline,
+            "agent-1",
+            &conversation,
+            MemoryQueryOptions::default(),
+        )
+        .await
+        .unwrap();
 
         assert!(context.contains("No relevant memories found"));
     }
@@ -173,9 +174,14 @@ mod tests {
             },
         ];
 
-        let context = build_memory_context(&pipeline, "agent-1", &conversation, MemoryQueryOptions::default())
-            .await
-            .unwrap();
+        let context = build_memory_context(
+            &pipeline,
+            "agent-1",
+            &conversation,
+            MemoryQueryOptions::default(),
+        )
+        .await
+        .unwrap();
 
         // Should have a header even with no matching memories
         assert!(context.contains("## Relevant Memories"));
@@ -199,18 +205,21 @@ mod tests {
         );
         pipeline.store().store(entry).await.unwrap();
 
-        let conversation = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("What should I order?".to_string()),
-                tool_calls: None,
-                tool_call_id: None,
-            },
-        ];
+        let conversation = vec![Message {
+            role: Role::User,
+            content: MessageContent::Text("What should I order?".to_string()),
+            tool_calls: None,
+            tool_call_id: None,
+        }];
 
-        let context = build_memory_context(&pipeline, "agent-1", &conversation, MemoryQueryOptions::default())
-            .await
-            .unwrap();
+        let context = build_memory_context(
+            &pipeline,
+            "agent-1",
+            &conversation,
+            MemoryQueryOptions::default(),
+        )
+        .await
+        .unwrap();
 
         assert!(context.contains("Relevant Memories"));
         assert!(context.contains("User prefers vegetarian food"));
@@ -271,7 +280,13 @@ mod tests {
         let content = "User loves chocolate ice cream";
 
         // Store via memory tool
-        let id = memory_tool_store(&(Arc::clone(&store) as Arc<dyn MemoryStore>), agent_id, content).await.unwrap();
+        let id = memory_tool_store(
+            &(Arc::clone(&store) as Arc<dyn MemoryStore>),
+            agent_id,
+            content,
+        )
+        .await
+        .unwrap();
 
         // Verify it was stored
         let filter = MemoryFilter {
@@ -292,11 +307,30 @@ mod tests {
         // Store some memories first
         let content1 = "User prefers vegetarian food";
         let content2 = "User likes Italian cuisine";
-        memory_tool_store(&(Arc::clone(&store) as Arc<dyn MemoryStore>), agent_id, content1).await.unwrap();
-        memory_tool_store(&(Arc::clone(&store) as Arc<dyn MemoryStore>), agent_id, content2).await.unwrap();
+        memory_tool_store(
+            &(Arc::clone(&store) as Arc<dyn MemoryStore>),
+            agent_id,
+            content1,
+        )
+        .await
+        .unwrap();
+        memory_tool_store(
+            &(Arc::clone(&store) as Arc<dyn MemoryStore>),
+            agent_id,
+            content2,
+        )
+        .await
+        .unwrap();
 
         // Query memories
-        let matches = memory_tool_query(&(Arc::clone(&store) as Arc<dyn MemoryStore>), agent_id, "food preferences", 10).await.unwrap();
+        let matches = memory_tool_query(
+            &(Arc::clone(&store) as Arc<dyn MemoryStore>),
+            agent_id,
+            "food preferences",
+            10,
+        )
+        .await
+        .unwrap();
         assert!(!matches.is_empty());
 
         // Verify results contain relevant content
@@ -312,7 +346,13 @@ mod tests {
         let content = "Memory to be deleted";
 
         // Store a memory
-        let id = memory_tool_store(&(Arc::clone(&store) as Arc<dyn MemoryStore>), agent_id, content).await.unwrap();
+        let id = memory_tool_store(
+            &(Arc::clone(&store) as Arc<dyn MemoryStore>),
+            agent_id,
+            content,
+        )
+        .await
+        .unwrap();
 
         // Verify it exists
         let filter = MemoryFilter {
@@ -323,7 +363,9 @@ mod tests {
         assert_eq!(entries.len(), 1);
 
         // Delete via memory tool
-        memory_tool_delete(&(Arc::clone(&store) as Arc<dyn MemoryStore>), &id).await.unwrap();
+        memory_tool_delete(&(Arc::clone(&store) as Arc<dyn MemoryStore>), &id)
+            .await
+            .unwrap();
 
         // Verify it was deleted
         let entries = store.list(filter).await.unwrap();
@@ -334,18 +376,18 @@ mod tests {
     async fn test_no_memory_configured() {
         // Test that operations work correctly when no memory is configured
         // This simulates running an agent without memory
-        
+
         // Create a minimal mock embedder using a simple struct that implements the trait
         struct MockEmbedder {
             dim: usize,
         }
-        
+
         #[async_trait::async_trait]
         impl EmbeddingProvider for MockEmbedder {
             async fn embed(&self, _text: &str) -> Result<Vec<f32>> {
                 Ok(vec![0.0; self.dim])
             }
-            
+
             async fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
                 let mut results = Vec::with_capacity(texts.len());
                 for _ in texts {
@@ -353,21 +395,25 @@ mod tests {
                 }
                 Ok(results)
             }
-            
+
             fn dimensions(&self) -> usize {
                 self.dim
             }
         }
-        
+
         let embedder = Arc::new(MockEmbedder { dim: 4 });
-        
+
         // In this case, we're testing that operations don't fail when
         // memory is not properly configured (simulating the scenario)
-        
+
         // The key is that operations should handle missing configuration gracefully
         // For example, building memory context with no memories should return empty result
-        
-        let context = build_memory_context_helper(Arc::clone(&embedder) as Arc<dyn EmbeddingProvider>, "agent-1").await;
+
+        let context = build_memory_context_helper(
+            Arc::clone(&embedder) as Arc<dyn EmbeddingProvider>,
+            "agent-1",
+        )
+        .await;
         assert!(context.contains("No relevant memories found"));
     }
 
@@ -378,33 +424,40 @@ mod tests {
     ) -> String {
         // Create a minimal mock store for testing
         struct MockStore;
-        
+
         #[async_trait::async_trait]
         impl crate::store::MemoryStore for MockStore {
             async fn store(&self, _entry: crate::types::MemoryEntry) -> Result<String> {
                 Ok(uuid::Uuid::new_v4().to_string())
             }
-            
-            async fn query(&self, _query: &str, _opts: crate::types::MemoryQueryOptions) -> Result<Vec<crate::types::MemoryMatch>> {
+
+            async fn query(
+                &self,
+                _query: &str,
+                _opts: crate::types::MemoryQueryOptions,
+            ) -> Result<Vec<crate::types::MemoryMatch>> {
                 Ok(Vec::new())
             }
-            
+
             async fn delete(&self, _id: &str) -> Result<()> {
                 Ok(())
             }
-            
-            async fn list(&self, _filter: crate::types::MemoryFilter) -> Result<Vec<crate::types::MemoryEntry>> {
+
+            async fn list(
+                &self,
+                _filter: crate::types::MemoryFilter,
+            ) -> Result<Vec<crate::types::MemoryEntry>> {
                 Ok(Vec::new())
             }
         }
-        
+
         let store = Arc::new(MockStore);
         let pipeline = MemoryQueryPipeline::new(store, embedder.clone());
-        
+
         // Empty conversation
         let conversation: Vec<Message> = Vec::new();
         let opts = MemoryQueryOptions::default();
-        
+
         build_memory_context(&pipeline, agent_id, &conversation, opts)
             .await
             .unwrap_or_else(|_| "Error building context".to_string())

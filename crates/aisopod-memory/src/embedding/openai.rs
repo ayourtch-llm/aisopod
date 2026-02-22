@@ -115,7 +115,9 @@ impl EmbeddingProvider for OpenAiEmbeddingProvider {
 
             let mut result = Vec::with_capacity(embedding_array.len());
             for v in embedding_array {
-                let f = v.as_f64().ok_or_else(|| anyhow!("Invalid embedding value"))?;
+                let f = v
+                    .as_f64()
+                    .ok_or_else(|| anyhow!("Invalid embedding value"))?;
                 result.push(f as f32);
             }
             result
@@ -214,7 +216,9 @@ impl EmbeddingProvider for OpenAiEmbeddingProvider {
 
                 let mut result = Vec::with_capacity(embedding_array.len());
                 for v in embedding_array {
-                    let f = v.as_f64().ok_or_else(|| anyhow!("Invalid embedding value"))?;
+                    let f = v
+                        .as_f64()
+                        .ok_or_else(|| anyhow!("Invalid embedding value"))?;
                     result.push(f as f32);
                 }
                 result

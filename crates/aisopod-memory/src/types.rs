@@ -72,12 +72,7 @@ pub struct MemoryEntry {
 
 impl MemoryEntry {
     /// Creates a new memory entry with default metadata.
-    pub fn new(
-        id: String,
-        agent_id: String,
-        content: String,
-        embedding: Vec<f32>,
-    ) -> Self {
+    pub fn new(id: String, agent_id: String, content: String, embedding: Vec<f32>) -> Self {
         let now = chrono::Utc::now();
         Self {
             id,

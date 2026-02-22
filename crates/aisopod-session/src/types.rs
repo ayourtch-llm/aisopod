@@ -192,7 +192,12 @@ impl Session {
     }
 
     /// Updates the session's compaction metadata.
-    pub fn update_compaction(&mut self, compaction_count: u64, last_compacted_at: Option<DateTime<Utc>>, last_compaction_summary: Option<String>) {
+    pub fn update_compaction(
+        &mut self,
+        compaction_count: u64,
+        last_compacted_at: Option<DateTime<Utc>>,
+        last_compaction_summary: Option<String>,
+    ) {
         self.compaction_count = compaction_count;
         self.last_compacted_at = last_compacted_at;
         self.last_compaction_summary = last_compaction_summary;
@@ -515,7 +520,11 @@ impl StoredMessage {
     /// * `role` - The role of the message sender.
     /// * `content` - The message content.
     /// * `timestamp` - The timestamp for this message.
-    pub fn with_timestamp(role: impl Into<String>, content: impl Into<String>, timestamp: DateTime<Utc>) -> Self {
+    pub fn with_timestamp(
+        role: impl Into<String>,
+        content: impl Into<String>,
+        timestamp: DateTime<Utc>,
+    ) -> Self {
         Self {
             id: 0,
             session_id: 0,
@@ -588,7 +597,10 @@ mod tests {
 
         metadata.set("key1", serde_json::Value::String("value1".to_string()));
         assert!(metadata.contains_key("key1"));
-        assert_eq!(metadata.get("key1"), Some(&serde_json::Value::String("value1".to_string())));
+        assert_eq!(
+            metadata.get("key1"),
+            Some(&serde_json::Value::String("value1".to_string()))
+        );
 
         metadata.remove("key1");
         assert!(!metadata.contains_key("key1"));
@@ -687,7 +699,10 @@ mod tests {
         };
         patch.apply(&mut session);
 
-        assert_eq!(session.metadata.get("key"), Some(&serde_json::json!("value")));
+        assert_eq!(
+            session.metadata.get("key"),
+            Some(&serde_json::json!("value"))
+        );
     }
 
     #[test]
@@ -707,7 +722,10 @@ mod tests {
             serde_json::json!({"type": "text", "text": "Response"}),
         );
         assert_eq!(msg.role, "assistant");
-        assert_eq!(msg.content, serde_json::json!({"type": "text", "text": "Response"}));
+        assert_eq!(
+            msg.content,
+            serde_json::json!({"type": "text", "text": "Response"})
+        );
     }
 
     #[test]

@@ -6,12 +6,12 @@
 //! - Quota enforcement by evicting lowest-importance entries
 //! - The maintain() function for running all operations
 
+use aisopod_memory::sqlite::SqliteMemoryStore;
+use aisopod_memory::MockEmbeddingProvider;
 use aisopod_memory::{
     EmbeddingProvider, MemoryEntry, MemoryFilter, MemoryManager, MemoryManagerConfig,
     MemoryMetadata, MemorySource, MemoryStore,
 };
-use aisopod_memory::MockEmbeddingProvider;
-use aisopod_memory::sqlite::SqliteMemoryStore;
 use chrono::{Duration, Utc};
 use std::sync::Arc;
 
@@ -19,8 +19,13 @@ use std::sync::Arc;
 mod helpers;
 
 /// Helper to create a test manager with in-memory SQLite
-fn test_manager(embedding_dim: usize, max_memories: usize) -> (MemoryManager, Arc<dyn MemoryStore>) {
-    let store = Arc::new(SqliteMemoryStore::new(":memory:", embedding_dim).expect("Failed to create test store"));
+fn test_manager(
+    embedding_dim: usize,
+    max_memories: usize,
+) -> (MemoryManager, Arc<dyn MemoryStore>) {
+    let store = Arc::new(
+        SqliteMemoryStore::new(":memory:", embedding_dim).expect("Failed to create test store"),
+    );
     let embedder = Arc::new(MockEmbeddingProvider::new(embedding_dim));
     let config = MemoryManagerConfig {
         max_memories_per_agent: max_memories,
@@ -156,7 +161,12 @@ async fn test_expire_mixed_entries() {
                 importance: 0.05,
                 ..Default::default()
             },
-            ..MemoryEntry::new("exp-1".to_string().to_string(), "agent-1".to_string(), "exp-1".to_string(), vec![0.1, 0.1, 0.1, 0.1])
+            ..MemoryEntry::new(
+                "exp-1".to_string().to_string(),
+                "agent-1".to_string(),
+                "exp-1".to_string(),
+                vec![0.1, 0.1, 0.1, 0.1],
+            )
         },
         // Should NOT expire: old + high importance
         MemoryEntry {
@@ -166,7 +176,12 @@ async fn test_expire_mixed_entries() {
                 importance: 0.5,
                 ..Default::default()
             },
-            ..MemoryEntry::new("keep-1".to_string().to_string(), "agent-1".to_string(), "keep-1".to_string(), vec![0.2, 0.2, 0.2, 0.2])
+            ..MemoryEntry::new(
+                "keep-1".to_string().to_string(),
+                "agent-1".to_string(),
+                "keep-1".to_string(),
+                vec![0.2, 0.2, 0.2, 0.2],
+            )
         },
         // Should NOT expire: recent + low importance
         MemoryEntry {
@@ -176,7 +191,12 @@ async fn test_expire_mixed_entries() {
                 importance: 0.05,
                 ..Default::default()
             },
-            ..MemoryEntry::new("keep-2".to_string().to_string(), "agent-1".to_string(), "keep-2".to_string(), vec![0.3, 0.3, 0.3, 0.3])
+            ..MemoryEntry::new(
+                "keep-2".to_string().to_string(),
+                "agent-1".to_string(),
+                "keep-2".to_string(),
+                vec![0.3, 0.3, 0.3, 0.3],
+            )
         },
         // Should NOT expire: recent + high importance
         MemoryEntry {
@@ -186,7 +206,12 @@ async fn test_expire_mixed_entries() {
                 importance: 0.5,
                 ..Default::default()
             },
-            ..MemoryEntry::new("keep-3".to_string().to_string(), "agent-1".to_string(), "keep-3".to_string(), vec![0.4, 0.4, 0.4, 0.4])
+            ..MemoryEntry::new(
+                "keep-3".to_string().to_string(),
+                "agent-1".to_string(),
+                "keep-3".to_string(),
+                vec![0.4, 0.4, 0.4, 0.4],
+            )
         },
     ];
 
@@ -495,53 +520,84 @@ async fn test_maintain_runs_all_operations() {
     // 3. Multiple entries to test quota enforcement
 
     // Old entry that should expire
-    manager.store().store(MemoryEntry {
-        created_at: old_time,
-        updated_at: old_time,
-        metadata: MemoryMetadata {
-            importance: 0.05,
-            source: MemorySource::User,
-            ..Default::default()
-        },
-        ..MemoryEntry::new("to-expire".to_string().to_string(), "agent-1".to_string(), "to-expire".to_string(), vec![0.0, 0.0, 0.0, 0.0])
-    }).await.unwrap();
-
-    // Similar entries for consolidation
-    manager.store().store(MemoryEntry {
-        embedding: vec![0.5, 0.5, 0.5, 0.5],
-        metadata: MemoryMetadata {
-            importance: 0.8,
-            source: MemorySource::User,
-            ..Default::default()
-        },
-        ..MemoryEntry::new("consolidate-1".to_string().to_string(), "agent-1".to_string(), "consolidate-1".to_string(), vec![0.5, 0.5, 0.5, 0.5])
-    }).await.unwrap();
-
-    manager.store().store(MemoryEntry {
-        embedding: vec![0.49, 0.51, 0.49, 0.51],
-        metadata: MemoryMetadata {
-            importance: 0.7,
-            source: MemorySource::User,
-            ..Default::default()
-        },
-        ..MemoryEntry::new("consolidate-2".to_string().to_string(), "agent-1".to_string(), "consolidate-2".to_string(), vec![0.49, 0.51, 0.49, 0.51])
-    }).await.unwrap();
-
-    // Additional entries to exceed quota (total: 4 entries before quota enforcement)
-    for i in 0..1 {
-        manager.store().store(MemoryEntry {
+    manager
+        .store()
+        .store(MemoryEntry {
+            created_at: old_time,
+            updated_at: old_time,
             metadata: MemoryMetadata {
-                importance: 0.9,
+                importance: 0.05,
                 source: MemorySource::User,
                 ..Default::default()
             },
             ..MemoryEntry::new(
-                format!("quota-{}", i),
+                "to-expire".to_string().to_string(),
                 "agent-1".to_string(),
-                format!("quota-{}", i),
-                vec![0.1, 0.2, 0.3, 0.4],
+                "to-expire".to_string(),
+                vec![0.0, 0.0, 0.0, 0.0],
             )
-        }).await.unwrap();
+        })
+        .await
+        .unwrap();
+
+    // Similar entries for consolidation
+    manager
+        .store()
+        .store(MemoryEntry {
+            embedding: vec![0.5, 0.5, 0.5, 0.5],
+            metadata: MemoryMetadata {
+                importance: 0.8,
+                source: MemorySource::User,
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "consolidate-1".to_string().to_string(),
+                "agent-1".to_string(),
+                "consolidate-1".to_string(),
+                vec![0.5, 0.5, 0.5, 0.5],
+            )
+        })
+        .await
+        .unwrap();
+
+    manager
+        .store()
+        .store(MemoryEntry {
+            embedding: vec![0.49, 0.51, 0.49, 0.51],
+            metadata: MemoryMetadata {
+                importance: 0.7,
+                source: MemorySource::User,
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "consolidate-2".to_string().to_string(),
+                "agent-1".to_string(),
+                "consolidate-2".to_string(),
+                vec![0.49, 0.51, 0.49, 0.51],
+            )
+        })
+        .await
+        .unwrap();
+
+    // Additional entries to exceed quota (total: 4 entries before quota enforcement)
+    for i in 0..1 {
+        manager
+            .store()
+            .store(MemoryEntry {
+                metadata: MemoryMetadata {
+                    importance: 0.9,
+                    source: MemorySource::User,
+                    ..Default::default()
+                },
+                ..MemoryEntry::new(
+                    format!("quota-{}", i),
+                    "agent-1".to_string(),
+                    format!("quota-{}", i),
+                    vec![0.1, 0.2, 0.3, 0.4],
+                )
+            })
+            .await
+            .unwrap();
     }
 
     // Verify initial state (should have 4 entries after storing)
@@ -585,9 +641,13 @@ async fn test_maintain_no_operations_needed() {
                 "agent-1".to_string(),
                 format!("normal-{}", i),
                 // Use orthogonal vectors to ensure low similarity
-                if i == 0 { vec![1.0, 0.0, 0.0, 0.0] }
-                else if i == 1 { vec![0.0, 1.0, 0.0, 0.0] }
-                else { vec![0.0, 0.0, 1.0, 0.0] },
+                if i == 0 {
+                    vec![1.0, 0.0, 0.0, 0.0]
+                } else if i == 1 {
+                    vec![0.0, 1.0, 0.0, 0.0]
+                } else {
+                    vec![0.0, 0.0, 1.0, 0.0]
+                },
             )
         };
         let id = manager.store().store(entry).await.unwrap();
@@ -640,30 +700,43 @@ async fn test_maintain_multiple_agents() {
 
     // Store entries for agent-1 (3 entries, should trigger quota)
     for i in 0..3 {
-        manager.store().store(MemoryEntry {
+        manager
+            .store()
+            .store(MemoryEntry {
+                metadata: MemoryMetadata {
+                    importance: (i as f32) / 3.0,
+                    source: MemorySource::User,
+                    ..Default::default()
+                },
+                ..MemoryEntry::new(
+                    format!("agent1-{}", i),
+                    "agent-1".to_string(),
+                    format!("agent-1 content {}", i),
+                    vec![0.1 * (i as f32), 0.2, 0.3, 0.4],
+                )
+            })
+            .await
+            .unwrap();
+    }
+
+    // Store entries for agent-2 (1 entry, within quota)
+    manager
+        .store()
+        .store(MemoryEntry {
             metadata: MemoryMetadata {
-                importance: (i as f32) / 3.0,
+                importance: 0.5,
                 source: MemorySource::User,
                 ..Default::default()
             },
             ..MemoryEntry::new(
-                format!("agent1-{}", i),
-                "agent-1".to_string(),
-                format!("agent-1 content {}", i),
-                vec![0.1 * (i as f32), 0.2, 0.3, 0.4],
+                "agent2-0".to_string(),
+                "agent-2".to_string(),
+                "agent-2 content 0".to_string(),
+                vec![0.1, 0.1, 0.1, 0.1],
             )
-        }).await.unwrap();
-    }
-
-    // Store entries for agent-2 (1 entry, within quota)
-    manager.store().store(MemoryEntry {
-        metadata: MemoryMetadata {
-            importance: 0.5,
-            source: MemorySource::User,
-            ..Default::default()
-        },
-        ..MemoryEntry::new("agent2-0".to_string(), "agent-2".to_string(), "agent-2 content 0".to_string(), vec![0.1, 0.1, 0.1, 0.1])
-    }).await.unwrap();
+        })
+        .await
+        .unwrap();
 
     // Run maintain for agent-1
     manager.maintain("agent-1").await.unwrap();

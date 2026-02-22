@@ -33,24 +33,24 @@
 //! }
 //! ```
 
-pub mod types;
-pub mod store;
-pub mod sqlite;
 pub mod embedding;
-pub mod pipeline;
-pub mod management;
 pub mod integration;
+pub mod management;
+pub mod pipeline;
+pub mod sqlite;
+pub mod store;
+pub mod types;
 
 #[cfg(feature = "lancedb")]
 pub mod lancedb;
 
-pub use types::*;
-pub use store::MemoryStore;
-pub use embedding::{EmbeddingProvider, OpenAiEmbeddingProvider};
 pub use embedding::MockEmbeddingProvider;
-pub use pipeline::MemoryQueryPipeline;
-pub use management::{MemoryManager, MemoryManagerConfig};
+pub use embedding::{EmbeddingProvider, OpenAiEmbeddingProvider};
 pub use integration::build_memory_context;
+pub use management::{MemoryManager, MemoryManagerConfig};
+pub use pipeline::MemoryQueryPipeline;
+pub use store::MemoryStore;
+pub use types::*;
 
 #[cfg(feature = "lancedb")]
 pub use lancedb::LanceDbMemoryStore;

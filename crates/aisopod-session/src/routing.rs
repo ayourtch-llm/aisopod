@@ -212,6 +212,29 @@ mod tests {
         assert_eq!(key1, key2);
         assert_eq!(key1.canonical_string(), key2.canonical_string());
     }
+
+    #[test]
+    fn test_same_user_same_key() {
+        // Test that the same user always produces the same DM session key for a given agent
+        let agent_id = "agent_001";
+        let ctx = ChannelContext {
+            channel: "discord".to_string(),
+            account_id: "bot_123".to_string(),
+            peer_kind: PeerKind::Dm,
+            peer_id: "user_456".to_string(),
+        };
+
+        // Generate the same key multiple times
+        let key1 = resolve_session_key(agent_id, &ctx);
+        let key2 = resolve_session_key(agent_id, &ctx);
+        let key3 = resolve_session_key(agent_id, &ctx);
+
+        // All should be equal
+        assert_eq!(key1, key2);
+        assert_eq!(key2, key3);
+        assert_eq!(key1.canonical_string(), key2.canonical_string());
+        assert_eq!(key2.canonical_string(), key3.canonical_string());
+    }
 }
 
 /// The kind of peer in a conversation.

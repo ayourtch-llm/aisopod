@@ -27,16 +27,16 @@ const SCHEMA_VERSION: i64 = 2;
 /// Returns a `Result` containing the `Connection` if successful, or an error.
 pub fn open_database(path: &Path) -> Result<Connection> {
     let conn = Connection::open(path)?;
-    
+
     // Enable WAL mode for better concurrency
     conn.execute_batch("PRAGMA journal_mode = WAL;")?;
-    
+
     // Enable foreign key support
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
-    
+
     // Run migrations
     run_migrations(&conn)?;
-    
+
     Ok(conn)
 }
 
@@ -65,11 +65,13 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     )?;
 
     // Get current version
-    let current_version: i64 = conn.query_row(
-        "SELECT COALESCE(MAX(version), 0) FROM schema_version",
-        params![],
-        |row| row.get(0),
-    ).unwrap_or(0);
+    let current_version: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(version), 0) FROM schema_version",
+            params![],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
 
     if current_version >= SCHEMA_VERSION {
         return Ok(());
@@ -161,17 +163,17 @@ mod tests {
     /// Creates a fresh in-memory database for testing.
     fn create_test_database() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
-        
+
         // Enable foreign keys for testing
         conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
-        
+
         conn
     }
 
     #[test]
     fn test_create_tables_migration() {
         let conn = create_test_database();
-        
+
         // Apply the tables migration
         conn.execute_batch(create_tables_migration()).unwrap();
 
@@ -203,7 +205,7 @@ mod tests {
             .unwrap()
             .filter_map(|r| r.ok())
             .collect();
-        
+
         assert!(columns.contains(&"id".to_string()));
         assert!(columns.contains(&"agent_id".to_string()));
         assert!(columns.contains(&"channel".to_string()));
@@ -225,7 +227,7 @@ mod tests {
             .unwrap()
             .filter_map(|r| r.ok())
             .collect();
-        
+
         assert!(columns.contains(&"id".to_string()));
         assert!(columns.contains(&"session_id".to_string()));
         assert!(columns.contains(&"role".to_string()));
@@ -237,10 +239,10 @@ mod tests {
     #[test]
     fn test_create_indexes_migration() {
         let conn = create_test_database();
-        
+
         // First create the tables
         conn.execute_batch(create_tables_migration()).unwrap();
-        
+
         // Then create the indexes
         conn.execute_batch(create_indexes_migration()).unwrap();
 
@@ -303,7 +305,7 @@ mod tests {
     #[test]
     fn test_schema_version_table_created() {
         let conn = create_test_database();
-        
+
         // Run migrations (which includes creating schema_version table)
         run_migrations(&conn).unwrap();
 
@@ -321,7 +323,7 @@ mod tests {
     #[test]
     fn test_run_migrations_is_idempotent() {
         let conn = create_test_database();
-        
+
         // Run migrations twice
         run_migrations(&conn).unwrap();
         run_migrations(&conn).unwrap();
@@ -340,7 +342,7 @@ mod tests {
     #[test]
     fn test_foreign_key_constraint() {
         let conn = create_test_database();
-        
+
         // Run migrations
         run_migrations(&conn).unwrap();
 
@@ -363,7 +365,8 @@ mod tests {
         conn.execute(
             "INSERT INTO messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)",
             params![1, "user", "Hello", "2024-01-01T00:00:01Z"],
-        ).unwrap();
+        )
+        .unwrap();
 
         // Verify the message was inserted
         let count: i64 = conn
@@ -372,7 +375,8 @@ mod tests {
         assert_eq!(count, 1);
 
         // Delete the session - this should cascade to delete the message due to ON DELETE CASCADE
-        conn.execute("DELETE FROM sessions WHERE id = ?", params![1]).unwrap();
+        conn.execute("DELETE FROM sessions WHERE id = ?", params![1])
+            .unwrap();
 
         // Verify the message was deleted
         let count: i64 = conn
@@ -384,7 +388,7 @@ mod tests {
     #[test]
     fn test_unique_constraint_on_sessions() {
         let conn = create_test_database();
-        
+
         // Run migrations
         run_migrations(&conn).unwrap();
 
