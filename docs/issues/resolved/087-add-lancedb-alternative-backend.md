@@ -21,7 +21,7 @@ Provides users with an alternative vector storage backend that may offer better 
    ```toml
    [features]
    default = []
-   lancedb = ["dep:lancedb"]
+   lancedb = ["dep:lancedb", "arrow-schema", "arrow-array", "futures-util"]
 
    [dependencies]
    lancedb = { version = "0.15", optional = true }
@@ -32,6 +32,7 @@ Provides users with an alternative vector storage backend that may offer better 
    ```
 3. Define `LanceDbMemoryStore` struct with fields:
    - `db: lancedb::Connection`
+   - `table: LanceDbTable`
    - `table_name: String` (default: `"memories"`)
    - `embedding_dim: usize`
 4. Implement constructor `LanceDbMemoryStore::new(path: &str, embedding_dim: usize) -> Result<Self>`:
@@ -62,11 +63,27 @@ Provides users with an alternative vector storage backend that may offer better 
 - Issue 081 (define memory types and MemoryStore trait)
 
 ## Acceptance Criteria
-- [ ] `LanceDbMemoryStore` implements the `MemoryStore` trait
-- [ ] The implementation is behind the `lancedb` feature flag and does not affect default compilation
-- [ ] `store()`, `query()`, `delete()`, and `list()` work with LanceDB as the backend
-- [ ] `cargo check -p aisopod-memory` compiles without the `lancedb` feature
-- [ ] `cargo check -p aisopod-memory --features lancedb` compiles with the `lancedb` feature
+- [x] `LanceDbMemoryStore` implements the `MemoryStore` trait
+- [x] The implementation is behind the `lancedb` feature flag and does not affect default compilation
+- [x] `store()`, `query()`, `delete()`, and `list()` work with LanceDB as the backend
+- [x] `cargo check -p aisopod-memory` compiles without the `lancedb` feature
+- [x] `cargo check -p aisopod-memory --features lancedb` compiles with the `lancedb` feature
+
+## Resolution
+
+The `LanceDbMemoryStore` implementation was successfully added with all required functionality:
+
+- **Module Structure**: Created `crates/aisopod-memory/src/lancedb.rs` with the entire module gated behind `#![cfg(feature = "lancedb")]`
+- **Feature-Gated Dependencies**: Added `lancedb = { version = "0.15", optional = true }` to `Cargo.toml` with feature flags for `lancedb`, `arrow-schema`, `arrow-array`, and `futures-util`
+- **MemoryStore Trait Implementation**: Implemented all required methods:
+  - `store()`: Inserts memory entries as records into the LanceDB table with proper embedding storage
+  - `query()`: Uses LanceDB's vector search API with filter support for agent_id, source, session_key, importance, created_at, and tags
+  - `delete()`: Removes records by ID from the LanceDB table
+  - `list()`: Queries the table with filter predicates and returns `Vec<MemoryEntry>`
+- **Helper Structs**: Created `DbMemory` struct for serialization/deserialization with proper handling of nullable fields and JSON metadata
+- **Conditional Exports**: Added `#[cfg(feature = "lancedb")] pub mod lancedb;` to `lib.rs` and re-exported `LanceDbMemoryStore`
+- **Testing**: All tests pass including 3 new LanceDB-specific tests (`test_lancedb_store_new`, `test_lancedb_store_store_and_query`, `test_lancedb_store_delete`) and full test suite verification with `cargo test -p aisopod-memory --features lancedb`
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-22*
