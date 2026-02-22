@@ -108,6 +108,7 @@ dependencies = [
  "aisopod-shared",
  "anyhow",
  "async-trait",
+ "bytes",
  "chrono",
  "futures-core",
  "futures-util",

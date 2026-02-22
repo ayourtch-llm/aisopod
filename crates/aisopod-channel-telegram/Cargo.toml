@@ -19,6 +19,7 @@ chrono.workspace = true
 futures-core.workspace = true
 futures-util.workspace = true
 url.workspace = true
+bytes = "1.5"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
