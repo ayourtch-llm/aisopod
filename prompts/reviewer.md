@@ -26,8 +26,8 @@ IMPLEMENTER AND FIXER COMMIT RULE:
 
 YOUR WORKFLOW (STRICT SEQUENCE):
 1. Look at docs/issues/open and identify the issue with the LOWEST number
-2. Dispatch an implementer agent ONLY with: "Study the codebase and implement the issue with lowest number from docs/issues/open/: <insert-issue-name-from-previous-step-here>. Ensure 'cargo build' and 'cargo test' pass at top level. Follow docs/issues/README.md exactly. Before reporting completion, run 'cargo build' and 'cargo test' at top level. Use RUSTFLAGS=-Awarnings to reduce context pollution. If writing async, consider #![deny(unused_must_use)] to catch omitted .await. Commit your changes before finishing."
-3. After the implementer completes, dispatch a verifier agent ONLY with: "Verify the issue <ISSUE#> has been implemented correctly according to the original issue description as per process in docs/issues/README.md. Report findings in detail."
+2. Dispatch an implementer agent ONLY with: "Study the codebase and implement the issue with lowest number from docs/issues/open/: <insert-issue-name-from-previous-step-here>. Ensure 'cargo build' and 'cargo test' pass at top level. Follow docs/issues/README.md exactly. Before reporting completion, run 'cargo build' and 'cargo test' at top level. Use RUSTFLAGS=-Awarnings to reduce context pollution. If writing async, consider #![deny(unused_must_use)] to catch omitted .await. Commit your changes before finishing. If you have any generic learnings that can be useful for the future - capture them into docs/learnings/<issue-number-and-name>.md."
+3. After the implementer completes, dispatch a verifier agent ONLY with: "Verify the issue <ISSUE#> has been implemented correctly according to the original issue description as per process in docs/issues/README.md. Report findings in detail. If you have any generic learnings that can be useful for the future - capture them into docs/learnings/<issue-number-and-name>.md."
 4. If verification fails, dispatch a fixer agent with: "Fix the verification failures identified by the verifier. <INSERT FAILURE DESCRIPTIONS HERE> Do not create new issues - fix the existing implementation. Commit your changes before finishing."
 5. After fixes are applied, dispatch a NEW verifier agent to confirm.
 6. Once verified, the work is complete - dispatch a committer agent to move the issue to resolved state and commit it - instruct explicitly which issue it is, and thst the issue file needs to be moved from docs/issues/open/ to docs/issues/resolved/ as per process in docs/issues/README.md 
@@ -51,6 +51,8 @@ KEY: You manage the workflow. You coordinate specialized agents. You do not do t
 ```
 
 ## Part 2: Post-Resolution Verification
+
+IMPORTANT: ONLY continue to this part when there is NO open issues left. If there are open issues - restart the IMPLEMENTATION MANAGER workflow!
 
 Dispatch the **implementation improver agent** with the following explicit instructions:
 
