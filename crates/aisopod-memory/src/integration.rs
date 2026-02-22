@@ -84,9 +84,45 @@ pub async fn build_memory_context(
     // Join all parts with a space separator
     let query = query_parts.join(" ");
 
-    // If the query is empty, return early with no memories message
+    // If the query is empty, query for all memories for the agent instead
     if query.trim().is_empty() {
-        return Ok(format_memory_context(&[], agent_id));
+        // Get all memories for the agent using list() with the filter
+        let filter = MemoryFilter {
+            agent_id: Some(agent_id.to_string()),
+            ..opts.filter.clone()
+        };
+        let memories = pipeline.store().list(filter).await?;
+        
+        // Convert to MemoryMatch with default scores
+        let mut matches: Vec<MemoryMatch> = memories
+            .into_iter()
+            .map(|entry| MemoryMatch {
+                entry,
+                score: 1.0, // Default score for list-based results
+            })
+            .collect();
+        
+        // Apply the same re-ranking logic as the pipeline
+        for match_ in matches.iter_mut() {
+            let recency = MemoryQueryPipeline::recency_factor(match_.entry.created_at);
+            let importance = match_.entry.metadata.importance;
+            // Combined score: similarity * 0.7 + importance * 0.2 + recency * 0.1
+            match_.score = match_.score * 0.7 + importance as f32 * 0.2 + recency * 0.1;
+        }
+        
+        // Sort by score descending
+        matches.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        
+        // Truncate to top_k
+        let matches: Vec<MemoryMatch> = matches.into_iter()
+            .take(opts.top_k)
+            .collect();
+        
+        return Ok(format_memory_context(&matches, agent_id));
     }
 
     // Query memories using the conversation context as the query
@@ -634,22 +670,15 @@ mod tests {
 
         let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
 
-        // Store a memory
-        let entry = MemoryEntry::new(
-            "unique-id".to_string(),
-            "agent-1".to_string(),
-            "This is unique content".to_string(),
-            vec![0.1, 0.2, 0.3, 0.4],
-        );
-        pipeline.store().store(entry).await.unwrap();
-
-        // Query with something that won't match
+        // Don't store any memory - this tests the case where there are no memories for the agent
+        // Query with empty conversation (which retrieves all memories for the agent)
         let opts = MemoryQueryOptions::default();
         let context = build_memory_context(&pipeline, "agent-1", &[], opts)
             .await
             .unwrap();
 
-        // Should still show the header
+        // Should return empty context when no memories exist
+        eprintln!("Context for no match test:\n{}", context);
         assert!(context.contains("## Relevant Memories"));
         assert!(context.contains("No relevant memories found"));
     }
@@ -779,7 +808,9 @@ mod tests {
         };
         let context = build_memory_context(&pipeline, "", &[], opts).await.unwrap();
 
-        // Should still work with empty agent_id
-        assert!(context.contains("No relevant memories found"));
+        // Should find the memory stored with empty agent_id
+        eprintln!("Context for empty agent_id test:\n{}", context);
+        assert!(context.contains("Relevant Memories"));
+        assert!(context.contains("Test content"));
     }
 }

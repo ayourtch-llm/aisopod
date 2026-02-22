@@ -144,7 +144,8 @@ impl MemoryQueryPipeline {
     pub fn recency_factor(created_at: DateTime<Utc>) -> f32 {
         let now = Utc::now();
         let elapsed = now.signed_duration_since(created_at);
-        let days_old = elapsed.num_days() as f32;
+        // Use num_seconds() instead of num_days() to get precise fractional days
+        let days_old = elapsed.num_seconds() as f32 / 86400.0;
 
         // Exponential decay: factor halves every 7 days
         // Using 2.0^(-days/7) gives us nice decay properties
@@ -294,7 +295,7 @@ mod tests {
         let now = Utc::now();
 
         // Future timestamp should have factor > 1.0 (capped to 1.0)
-        let future = now + chrono::Duration::days(-7); // Actually in the future relative to "now - 7 days"
+        let future = now + chrono::Duration::days(7); // 7 days in the future
         let future_factor = MemoryQueryPipeline::recency_factor(future);
         assert!((future_factor - 2.0).abs() < 0.001); // 2.0^(-(-7)/7) = 2.0^1 = 2.0
     }

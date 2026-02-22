@@ -162,6 +162,15 @@ impl AgentRunner {
         memory_pipeline: Arc<MemoryQueryPipeline>,
         memory_manager: Arc<MemoryManager>,
     ) -> Self {
+        // Register the memory tool with the tools registry
+        let memory_tool = Arc::new(crate::memory::MemoryTool::new(
+            memory_pipeline.clone(),
+            memory_manager.clone(),
+        ));
+        let mut tools_ref = Arc::into_inner(tools).unwrap();
+        tools_ref.register(memory_tool);
+        let tools = Arc::new(tools_ref);
+
         Self {
             config,
             providers,
@@ -195,6 +204,15 @@ impl AgentRunner {
         memory_manager: Arc<MemoryManager>,
         usage_tracker: Arc<crate::usage::UsageTracker>,
     ) -> Self {
+        // Register the memory tool with the tools registry
+        let memory_tool = Arc::new(crate::memory::MemoryTool::new(
+            memory_pipeline.clone(),
+            memory_manager.clone(),
+        ));
+        let mut tools_ref = Arc::into_inner(tools).unwrap();
+        tools_ref.register(memory_tool);
+        let tools = Arc::new(tools_ref);
+
         Self {
             config,
             providers,
@@ -488,6 +506,9 @@ impl SubagentRunnerExt for AgentRunner {
 mod tests {
     use super::*;
     use aisopod_session::SessionStore;
+    use aisopod_memory::{MemoryManager, MemoryManagerConfig, MemoryQueryPipeline, MockEmbeddingProvider};
+    use aisopod_memory::sqlite::SqliteMemoryStore;
+    use tempfile::tempdir;
 
     #[test]
     fn test_agent_runner_new() {
@@ -502,5 +523,41 @@ mod tests {
 
         // Just verify it compiles - full tests will be added in subsequent issues
         assert_eq!(runner.config.meta.version, "1.0");
+    }
+
+    #[test]
+    fn test_agent_runner_memory_tool_registered() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let store = Arc::new(store) as Arc<dyn aisopod_memory::MemoryStore>;
+        let embedder = Arc::new(MockEmbeddingProvider::new(4));
+        
+        let pipeline = Arc::new(MemoryQueryPipeline::new(store.clone(), embedder.clone()));
+        let manager = Arc::new(MemoryManager::new(store, embedder, MemoryManagerConfig::default()));
+        
+        let config = Arc::new(aisopod_config::AisopodConfig::default());
+        let providers = Arc::new(aisopod_provider::ProviderRegistry::new());
+        let mut tools = aisopod_tools::ToolRegistry::new();
+        aisopod_tools::register_all_tools(&mut tools);
+        let tools = Arc::new(tools);
+        let sessions = Arc::new(
+            SessionStore::new_in_memory().expect("Failed to create in-memory session store"),
+        );
+
+        let runner = AgentRunner::new_with_memory(
+            config,
+            providers,
+            tools,
+            sessions,
+            pipeline,
+            manager,
+        );
+
+        // Verify memory tool is registered
+        let tools = runner.tools();
+        let registered_tools = tools.list();
+        assert!(registered_tools.contains(&"memory".to_string()), 
+                "Memory tool should be registered. Registered tools: {:?}", registered_tools);
     }
 }

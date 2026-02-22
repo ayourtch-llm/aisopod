@@ -12,6 +12,24 @@
 //! - [`ChatType`] - Enum for chat conversation types
 //! - [`MediaType`] - Enum for media content types
 //!
+//! ## Adapter Traits
+//!
+//! The crate also defines 13 optional adapter traits for channel capabilities:
+//!
+//! - [`OnboardingAdapter`] - CLI onboarding wizard
+//! - [`OutboundAdapter`] - Message delivery
+//! - [`GatewayAdapter`] - WebSocket/polling connection lifecycle
+//! - [`StatusAdapter`] - Health monitoring
+//! - [`TypingAdapter`] - Typing indicators
+//! - [`MessagingAdapter`] - Message reactions
+//! - [`ThreadingAdapter`] - Thread/reply support
+//! - [`DirectoryAdapter`] - Group/user discovery
+//! - [`SecurityAdapter`] - Security and DM policies
+//! - [`HeartbeatAdapter`] - Keep-alive mechanism
+//! - [`ChannelConfigAdapter`] - Account management
+//! - [`AuthAdapter`] - Token/credential management
+//! - [`PairingAdapter`] - Device pairing
+//!
 //! ## Example
 //!
 //! ```rust,ignore
@@ -40,8 +58,19 @@
 //! }
 //! ```
 
+pub mod adapters;
 pub mod plugin;
 pub mod types;
 
+// Re-export adapter traits
+pub use adapters::{
+    AccountConfig, AccountSnapshot, AuthAdapter, AuthToken, ChannelConfigAdapter,
+    ChannelHealth, DirectoryAdapter, GatewayAdapter, GroupInfo, HeartbeatAdapter,
+    MemberInfo, MessageTarget, Media, MessagingAdapter, OnboardingAdapter,
+    OnboardingContext, PairingAdapter, PairingCode, SecurityAdapter, SenderInfo,
+    StatusAdapter, ThreadingAdapter, TypingAdapter, OutboundAdapter,
+};
+
+// Re-export core types
 pub use plugin::ChannelPlugin;
-pub use types::{ChannelCapabilities, ChannelConfigAdapter, ChannelMeta, ChatType, MediaType};
+pub use types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
