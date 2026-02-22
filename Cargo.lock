@@ -83,7 +83,11 @@ dependencies = [
 name = "aisopod-channel"
 version = "0.1.0"
 dependencies = [
+ "aisopod-agent",
+ "aisopod-config",
+ "aisopod-session",
  "aisopod-shared",
+ "aisopod-tools",
  "anyhow",
  "async-trait",
  "chrono",

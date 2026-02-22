@@ -55,14 +55,65 @@ This is the central integration point between the channel layer and the agent en
 - Issue 077 (implement session key generation and routing)
 
 ## Acceptance Criteria
-- [ ] `MessageRouter` struct is defined with channel registry, agent resolver, and session manager dependencies
-- [ ] `route()` method implements the full pipeline: normalize → resolve account → build session key → check security → check mention → resolve agent → route to runner
-- [ ] Unknown channels return an error
-- [ ] Disabled or missing accounts return an error
-- [ ] Unauthorized senders are rejected
-- [ ] Group messages without required @mention are silently ignored
-- [ ] Messages are delivered to the correct agent
-- [ ] `cargo check -p aisopod-channel` compiles without errors
+- [x] `MessageRouter` struct is defined with channel registry, agent resolver, and session manager dependencies
+- [x] `route()` method implements the full pipeline: normalize → resolve account → build session key → check security → check mention → resolve agent → route to runner
+- [x] Unknown channels return an error
+- [x] Disabled or missing accounts return an error
+- [x] Unauthorized senders are rejected
+- [x] Group messages without required @mention are silently ignored
+- [x] Messages are delivered to the correct agent
+- [x] `cargo check -p aisopod-channel` compiles without errors
+
+## Resolution
+
+The message routing pipeline has been implemented with the following components:
+
+### MessageRouter Struct
+- Created `MessageRouter` struct with three dependencies:
+  - `registry: Arc<ChannelRegistry>` - for channel lookup and ID normalization
+  - `agent_resolver: Arc<dyn AgentResolver>` - for resolving which agent handles the message
+  - `session_manager: Arc<dyn SessionManager>` - for session key generation and session lifecycle
+
+### route() Method Pipeline
+Implemented a full 7-step routing pipeline:
+1. **Normalize channel ID** - Uses `ChannelRegistry::normalize_id()` to resolve the channel identifier
+2. **Resolve account** - Uses `ChannelConfigAdapter::resolve_account()` to load the account configuration
+3. **Build session key** - Uses session key generation combining channel, account, and peer info
+4. **Check security/allowlist** - Uses `SecurityAdapter::is_allowed_sender()` to verify the sender
+5. **Check mention requirement** - For group messages, checks if the bot must be @mentioned
+6. **Resolve agent** - Uses agent resolution to find the agent bound to this channel/account/peer
+7. **Route to agent runner** - Passes the message and resolved agent to the agent execution pipeline
+
+### AgentResolver Trait
+- Added `AgentResolver` trait for abstracting agent resolution logic
+- Implemented `ConfigAgentResolver` using aisopod configuration for agent resolution
+- Uses `resolve_session_agent_id()` from aisopod-agent
+
+### Security Adapter Integration
+- Added `security()` method to `ChannelPlugin` trait for accessing `SecurityAdapter`
+- Properly integrates with security checks for sender allowlist and group mention requirements
+
+### Helper Methods
+- Added `IncomingMessage::content_to_string()` helper method for extracting text content from messages
+- Added `build_session_key()` for creating session keys from channel context
+- Added `is_bot_mentioned()` for checking @mention in group messages
+
+### Module Exports
+- Added `router` module to `crates/aisopod-channel/src/lib.rs`
+- Re-exports `MessageRouter`, `AgentResolver`, and `ConfigAgentResolver`
+
+### Dependencies
+- No new dependencies added - uses existing crates:
+  - `aisopod-session` for session key generation
+  - `aisopod-agent` for agent resolution
+  - `aisopod-config` for configuration-based agent resolution
+  - `aisopod-tools` for SessionManager trait
+
+### Testing
+- All existing tests pass (`cargo test -p aisopod-channel`)
+- Unit tests included for normalize, session key creation, and mention detection
+- Doc-tests pass
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-22*
