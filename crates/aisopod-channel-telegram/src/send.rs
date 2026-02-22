@@ -79,24 +79,35 @@ pub async fn send_text(
                 })
             };
             
-            let sent = account.bot
-                .send_message(ChatId(chat_id), chunk)
-                .parse_mode(options.parse_mode.unwrap_or(teloxide::types::ParseMode::MarkdownV2))
-                .reply_to_message_id(chunk_options.as_ref().and_then(|o| o.reply_to_message_id.map(|id| MessageId(id as i32))).expect("reply_to_message_id is MessageId"))
-                .disable_web_page_preview(options.disable_web_page_preview)
-                .await?;
+            // Build the request with conditional reply_to_message_id
+            let mut req = account.bot.send_message(ChatId(chat_id), chunk);
+            req = req.parse_mode(options.parse_mode.unwrap_or(teloxide::types::ParseMode::MarkdownV2));
             
+            // Only set reply_to_message_id if we have a value
+            if let Some(id) = chunk_options.as_ref().and_then(|o| o.reply_to_message_id) {
+                req = req.reply_to_message_id(MessageId(id as i32));
+            }
+            
+            req = req.disable_web_page_preview(options.disable_web_page_preview);
+            
+            let sent = req.await?;
             last_id = Some(sent.id);
         }
         
         Ok(last_id.map(|id| id.0 as i64).unwrap_or(0))
     } else {
-        let sent = account.bot
-            .send_message(ChatId(chat_id), text)
-            .parse_mode(options.parse_mode.unwrap_or(teloxide::types::ParseMode::MarkdownV2))
-            .reply_to_message_id(options.reply_to_message_id.map(|id| MessageId(id as i32)).expect("reply_to_message_id is MessageId"))
-            .disable_web_page_preview(options.disable_web_page_preview)
-            .await?;
+        // Build the request with conditional reply_to_message_id
+        let mut req = account.bot.send_message(ChatId(chat_id), text);
+        req = req.parse_mode(options.parse_mode.unwrap_or(teloxide::types::ParseMode::MarkdownV2));
+        
+        // Only set reply_to_message_id if we have a value
+        if let Some(id) = options.reply_to_message_id {
+            req = req.reply_to_message_id(MessageId(id as i32));
+        }
+        
+        req = req.disable_web_page_preview(options.disable_web_page_preview);
+        
+        let sent = req.await?;
         
         Ok(sent.id.0 as i64)
     }

@@ -191,6 +191,34 @@ Added 28 unit tests covering:
 
 4. **Security adapter**: The `ChannelPlugin::security()` method returns `None` because the security adapter needs to be stored and shared properly.
 
+## Bug Fixes
+
+### Fix: reply_to_message_id Option Handling (2026-02-22)
+
+**Issue**: The original implementation used `expect()` calls that would panic when `reply_to_message_id` was `None`.
+
+**Root Cause**: The teloxide-core 0.9.1 `SendMessage` struct has `reply_to_message_id: MessageId` (not `Option<MessageId>`). The builder methods expect a concrete `MessageId` value.
+
+**Solution**: Rewrote `send_text()` to conditionally build the request by:
+1. Creating the base request first
+2. Conditionally calling `reply_to_message_id()` only when a value exists
+3. Using mutable reference pattern to build the request incrementally
+
+```rust
+let mut req = account.bot.send_message(ChatId(chat_id), text);
+req = req.parse_mode(...);
+
+// Only set reply_to_message_id if we have a value
+if let Some(id) = options.reply_to_message_id {
+    req = req.reply_to_message_id(MessageId(id as i32));
+}
+
+req = req.disable_web_page_preview(...);
+let sent = req.await?;
+```
+
+**Lesson**: When working with fluent builder APIs that require concrete types, build the request incrementally rather than trying to pass `Option` values directly.
+
 ## Future Improvements
 
 1. Implement full config adapter with persistence
