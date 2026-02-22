@@ -4,7 +4,8 @@
 //! must implement. It provides a unified interface for accessing channel metadata,
 //! capabilities, and configuration.
 
-use crate::types::{ChannelCapabilities, ChannelConfigAdapter, ChannelMeta};
+use crate::types::{ChannelCapabilities, ChannelMeta};
+use crate::adapters::ChannelConfigAdapter;
 use async_trait::async_trait;
 
 /// The core trait that all channel plugins must implement.

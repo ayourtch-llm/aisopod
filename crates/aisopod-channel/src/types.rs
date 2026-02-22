@@ -73,14 +73,3 @@ pub struct ChannelCapabilities {
     /// List of media types this channel supports.
     pub supported_media_types: Vec<MediaType>,
 }
-
-/// Adapter trait for channel configuration management.
-///
-/// This trait provides methods for managing channel accounts, including
-/// listing, enabling, disabling, and deleting accounts.
-///
-/// Note: This is a minimal definition. The full trait is defined in Issue 090.
-pub trait ChannelConfigAdapter: Send + Sync {
-    /// List all configured account IDs for this channel.
-    fn list_accounts(&self) -> anyhow::Result<Vec<String>>;
-}

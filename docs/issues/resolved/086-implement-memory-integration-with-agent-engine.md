@@ -53,11 +53,52 @@ This is the feature that makes the memory system useful to end users. Without in
 - Issue 066 (implement streaming agent execution pipeline)
 
 ## Acceptance Criteria
-- [ ] Relevant memories are queried and injected into the system prompt before each agent run
-- [ ] The `MemoryTool` supports `store`, `query`, and `delete` actions and is registered with the tool system
-- [ ] Post-run memory extraction stores key facts from the conversation
-- [ ] Memory integration is optional — agents work correctly with or without memory configured
-- [ ] `cargo check -p aisopod-memory -p aisopod-agent` compiles without errors
+- [x] Relevant memories are queried and injected into the system prompt before each agent run
+- [x] The `MemoryTool` supports `store`, `query`, and `delete` actions and is registered with the tool system
+- [x] Post-run memory extraction stores key facts from the conversation
+- [x] Memory integration is optional — agents work correctly with or without memory configured
+- [x] `cargo check -p aisopod-memory -p aisopod-agent` compiles without errors
+
+## Resolution
+The memory integration was implemented in commit c39b2e7 with the following changes:
+
+### Files Modified
+- `crates/aisopod-memory/src/integration.rs` - New file implementing:
+  - `build_memory_context()` - Pre-run memory injection function
+  - Helper functions for memory context building
+  - Integration tests
+
+- `crates/aisopod-agent/src/memory.rs` - New file implementing:
+  - `MemoryConfig` struct for memory integration configuration
+  - `inject_memory_context()` - Pre-run memory context injection into system prompts
+  - `extract_memories_after_run()` - Post-run memory extraction from conversations
+  - `MemoryTool` struct implementing the `Tool` trait with:
+    - `handle_store()` - Store new memories with content and optional tags
+    - `handle_query()` - Query memories and return formatted results
+    - `handle_delete()` - Delete memories by ID
+  - `create_memory_tool_schema()` - Creates the tool schema for registration
+
+- `crates/aisopod-agent/src/runner.rs` - Updated:
+  - Added `memory_pipeline` field for optional memory query pipeline
+  - Added `memory_manager` field for optional memory manager
+  - Added `memory_config` field for memory configuration
+  - Updated `AgentRunner::new()` to accept optional memory components
+  - Memory steps are skipped if not configured (memory is optional)
+
+- `crates/aisopod-agent/src/pipeline.rs` - Updated to use memory integration
+- `crates/aisopod-memory/src/lib.rs` - Re-exported `build_memory_context`
+- `crates/aisopod-memory/src/management.rs` - Added `extract_memories()` method
+- `crates/aisopod-memory/src/pipeline.rs` - Added `query_and_format()` method
+
+### Follow-up Fixes
+- Commit edf5b05: Fixed grammar in memory tool description and sqlite-vec integration
+- Commit 64e0233: Fixed formatting issues and clippy warnings
+
+### Testing
+- All integration tests pass (`cargo test -p aisopod-memory`)
+- All agent tests pass (`cargo test -p aisopod-agent`)
+- Full test suite passes (`cargo test`)
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-22*
