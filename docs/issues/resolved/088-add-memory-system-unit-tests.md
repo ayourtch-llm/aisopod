@@ -58,13 +58,87 @@ Without tests, regressions can be introduced silently. Tests provide confidence 
 - Issue 087 (add LanceDB alternative backend)
 
 ## Acceptance Criteria
-- [ ] A `MockEmbeddingProvider` generates deterministic embeddings without API calls
-- [ ] Vector storage tests cover store, retrieve, delete, and list with various filters
-- [ ] Similarity search tests verify ranking, top-K limits, min-score thresholds, and agent scoping
-- [ ] Memory management tests verify expiration, consolidation, and quota enforcement
-- [ ] Agent integration tests verify pre-run context injection, memory tool operations, and post-run extraction
-- [ ] All tests use in-memory SQLite for speed and isolation
-- [ ] `cargo test -p aisopod-memory` passes with all tests green
+- [x] A `MockEmbeddingProvider` generates deterministic embeddings without API calls
+- [x] Vector storage tests cover store, retrieve, delete, and list with various filters
+- [x] Similarity search tests verify ranking, top-K limits, min-score thresholds, and agent scoping
+- [x] Memory management tests verify expiration, consolidation, and quota enforcement
+- [x] Agent integration tests verify pre-run context injection, memory tool operations, and post-run extraction
+- [x] All tests use in-memory SQLite for speed and isolation
+- [x] `cargo test -p aisopod-memory` passes with all tests green
+
+## Resolution
+
+**Resolved: 2026-02-22**
+
+The following test infrastructure and test files were implemented to provide comprehensive unit test coverage for the memory system:
+
+### Test Helpers (`crates/aisopod-memory/tests/helpers/mod.rs`)
+- `test_store(embedding_dim)` — Creates a new in-memory SQLite memory store for testing
+- `test_store_with_embedder(embedding_dim, embedder)` — Creates a test store with a custom embedding provider
+- `test_store_with_mock_provider(embedding_dim)` — Creates a test store with `MockEmbeddingProvider`
+
+### Mock Embedding Provider (`crates/aisopod-memory/src/embedding/mock.rs`)
+- `MockEmbeddingProvider` — Generates deterministic embeddings based on a hash of input text, normalized to unit vectors
+- Caching mechanism to ensure the same text always produces the same embedding
+- Supports configurable embedding dimensions and batch embedding operations
+
+### Test Files Created
+1. **`test_storage.rs`** (9 tests) — Vector storage and retrieval tests:
+   - `test_store_and_retrieve`
+   - `test_store_generates_id`
+   - `test_delete_entry`
+   - `test_delete_nonexistent`
+   - `test_list_empty`
+   - `test_list_with_agent_filter`
+   - `test_list_with_tag_filter`
+   - `test_list_with_importance_filter`
+   - `test_store_overwrites_existing`
+
+2. **`test_search.rs`** (7 tests) — Similarity search tests:
+   - `test_similarity_search_returns_closest`
+   - `test_similarity_search_top_k`
+   - `test_similarity_search_min_score`
+   - `test_similarity_search_agent_scoped`
+   - `test_similarity_search_ranking`
+   - `test_similarity_search_empty_store`
+   - `test_similarity_search_with_importance_filter`
+
+3. **`test_management.rs`** (15 tests) — Memory management tests:
+   - Expiration tests: `test_expire_deletes_old_low_importance`, `test_expire_preserves_recent`, `test_expire_preserves_high_importance`, `test_expire_mixed_entries`
+   - Consolidation tests: `test_consolidate_merges_similar`, `test_consolidate_preserves_different`, `test_consolidate_single_entry`, `test_consolidate_empty_store`
+   - Quota enforcement tests: `test_enforce_quota_exactly_at_limit`, `test_enforce_quota_no_eviction_needed`, `test_enforce_quota_evicts_low_importance`
+   - Maintenance tests: `test_maintain_empty_store`, `test_maintain_no_operations_needed`, `test_maintain_multiple_agents`, `test_maintain_runs_all_operations`
+
+4. **`test_integration.rs`** (15 tests) — Agent integration tests:
+   - `test_build_memory_context`
+   - `test_build_memory_context_empty`
+   - `test_memory_tool_store`
+   - `test_memory_tool_store_multiple`
+   - `test_memory_tool_query`
+   - `test_memory_tool_query_empty`
+   - `test_memory_tool_query_top_k`
+   - `test_memory_tool_delete`
+   - `test_memory_tool_delete_nonexistent`
+   - `test_no_memory_configured`
+   - `test_memory_manager_with_integration`
+   - `test_memory_context_with_message_parts`
+   - `test_memory_context_with_empty_conversation`
+   - `test_memory_tool_with_tags`
+   - `test_memory_context_with_agent_scoping`
+
+### Test Summary
+- **79 unit tests** (inline tests in `sqlite.rs`, `management.rs`, `integration.rs`, `pipeline.rs`, `embedding/mock.rs`)
+- **15 integration tests** (`test_integration.rs`)
+- **15 management tests** (`test_management.rs`)
+- **7 search tests** (`test_search.rs`)
+- **9 storage tests** (`test_storage.rs`)
+
+**Total: 125 tests**
+
+All tests use in-memory SQLite databases for speed and isolation. The mock embedding provider eliminates the need for real API calls during testing, enabling fast and reliable test execution.
+
+All tests pass with `cargo test -p aisopod-memory`.
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-22*
