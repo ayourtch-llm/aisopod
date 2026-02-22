@@ -5,6 +5,7 @@
 
 use crate::types::{MemoryEntry, MemoryFilter, MemoryMatch, MemoryQueryOptions};
 use anyhow::Result;
+use std::any::Any;
 
 /// Trait for memory storage and retrieval operations.
 ///
@@ -71,4 +72,7 @@ pub trait MemoryStore: Send + Sync {
     /// # Errors
     /// Returns an error if listing fails (e.g., database error).
     async fn list(&self, filter: MemoryFilter) -> Result<Vec<MemoryEntry>>;
+
+    /// Returns a reference to self as `Any` for downcasting.
+    fn as_any(&self) -> &dyn Any;
 }

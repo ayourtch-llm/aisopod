@@ -11,6 +11,7 @@ use aisopod_memory::{
     build_memory_context, EmbeddingProvider, MemoryManager, MemoryManagerConfig,
     MemoryQueryOptions, MemoryQueryPipeline, MemoryStore,
 };
+use std::any::Any;
 use std::sync::Arc;
 
 // Import the test helpers
@@ -395,6 +396,10 @@ async fn test_no_memory_configured() {
             _filter: aisopod_memory::MemoryFilter,
         ) -> Result<Vec<aisopod_memory::MemoryEntry>, anyhow::Error> {
             Ok(Vec::new())
+        }
+
+        fn as_any(&self) -> &dyn Any {
+            self
         }
     }
 

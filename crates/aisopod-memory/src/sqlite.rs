@@ -9,6 +9,7 @@ use crate::types::{MemoryEntry, MemoryFilter, MemoryMatch, MemoryQueryOptions, M
 use anyhow::{anyhow, Result};
 use rusqlite::{Connection, ToSql};
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
@@ -571,6 +572,10 @@ impl MemoryStore for SqliteMemoryStore {
 
         Ok(entries)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 /// Internal struct for matching database results with distance.
@@ -863,7 +868,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_list_with_importance_filter() {
+    async fn test_list_with_importance_filter_levels() {
         let store = test_store(4);
 
         // Store entries with different importance scores
@@ -1025,5 +1030,321 @@ mod tests {
         let matches = store.query("query", opts).await.unwrap();
         assert_eq!(matches.len(), 5);
         assert!(matches.iter().all(|m| m.entry.agent_id == "agent-a"));
+    }
+
+    // ==================== Additional Edge Case Tests ====================
+
+    #[tokio::test]
+    async fn test_store_overwrites_existing() {
+        let store = test_store(4);
+
+        // Store initial entry
+        let entry1 = MemoryEntry::new(
+            "same-id".to_string(),
+            "agent-1".to_string(),
+            "Original content".to_string(),
+            vec![0.1, 0.2, 0.3, 0.4],
+        );
+        store.store(entry1).await.unwrap();
+
+        // Verify original content
+        let filter = MemoryFilter::default();
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].content, "Original content");
+
+        // Store updated entry with same ID
+        let entry2 = MemoryEntry::new(
+            "same-id".to_string(),
+            "agent-1".to_string(),
+            "Updated content".to_string(),
+            vec![0.5, 0.6, 0.7, 0.8],
+        );
+        store.store(entry2).await.unwrap();
+
+        // Verify entry was updated
+        let entries = store.list(MemoryFilter::default()).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].content, "Updated content");
+        assert_eq!(entries[0].embedding, vec![0.5, 0.6, 0.7, 0.8]);
+    }
+
+    #[tokio::test]
+    async fn test_list_with_source_filter() {
+        let store = test_store(4);
+
+        // Store entries with different sources
+        let entry_agent = MemoryEntry {
+            metadata: crate::types::MemoryMetadata {
+                source: crate::types::MemorySource::Agent,
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "agent-entry".to_string(),
+                "agent-1".to_string(),
+                "Agent created this".to_string(),
+                vec![0.1, 0.2, 0.3, 0.4],
+            )
+        };
+
+        let entry_user = MemoryEntry {
+            metadata: crate::types::MemoryMetadata {
+                source: crate::types::MemorySource::User,
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "user-entry".to_string(),
+                "agent-1".to_string(),
+                "User created this".to_string(),
+                vec![0.2, 0.3, 0.4, 0.5],
+            )
+        };
+
+        store.store(entry_agent).await.unwrap();
+        store.store(entry_user).await.unwrap();
+
+        // List by Agent source
+        let filter = MemoryFilter {
+            source: Some(crate::types::MemorySource::Agent),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].content, "Agent created this");
+
+        // List by User source
+        let filter = MemoryFilter {
+            source: Some(crate::types::MemorySource::User),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].content, "User created this");
+    }
+
+    #[tokio::test]
+    async fn test_list_with_importance_filter_edge_cases() {
+        let store = test_store(4);
+
+        // Store entries with different importance levels
+        let entry_low = MemoryEntry {
+            metadata: crate::types::MemoryMetadata {
+                importance: 0.1,
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "low-importance".to_string(),
+                "agent-1".to_string(),
+                "Low importance content".to_string(),
+                vec![0.1, 0.2, 0.3, 0.4],
+            )
+        };
+
+        let entry_high = MemoryEntry {
+            metadata: crate::types::MemoryMetadata {
+                importance: 0.9,
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "high-importance".to_string(),
+                "agent-1".to_string(),
+                "High importance content".to_string(),
+                vec![0.2, 0.3, 0.4, 0.5],
+            )
+        };
+
+        store.store(entry_low).await.unwrap();
+        store.store(entry_high).await.unwrap();
+
+        // List with minimum importance 0.5
+        let filter = MemoryFilter {
+            importance_min: Some(0.5),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].content, "High importance content");
+    }
+
+    #[tokio::test]
+    async fn test_list_with_multiple_filters() {
+        let store = test_store(4);
+
+        // Store entries with various combinations
+        let entry_a1 = MemoryEntry {
+            metadata: crate::types::MemoryMetadata {
+                source: crate::types::MemorySource::Agent,
+                tags: vec!["important".to_string()],
+                importance: 0.8,
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "a1".to_string(),
+                "agent-1".to_string(),
+                "Important agent entry".to_string(),
+                vec![0.1, 0.2, 0.3, 0.4],
+            )
+        };
+
+        let entry_a2 = MemoryEntry {
+            metadata: crate::types::MemoryMetadata {
+                source: crate::types::MemorySource::Agent,
+                tags: vec!["draft".to_string()],
+                importance: 0.9,
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "a2".to_string(),
+                "agent-1".to_string(),
+                "Another agent entry".to_string(),
+                vec![0.2, 0.3, 0.4, 0.5],
+            )
+        };
+
+        let entry_u1 = MemoryEntry {
+            metadata: crate::types::MemoryMetadata {
+                source: crate::types::MemorySource::User,
+                tags: vec!["important".to_string()],
+                importance: 0.7,
+                ..Default::default()
+            },
+            ..MemoryEntry::new(
+                "u1".to_string(),
+                "agent-1".to_string(),
+                "User important entry".to_string(),
+                vec![0.3, 0.4, 0.5, 0.6],
+            )
+        };
+
+        store.store(entry_a1).await.unwrap();
+        store.store(entry_a2).await.unwrap();
+        store.store(entry_u1).await.unwrap();
+
+        // Filter by agent_id AND source
+        let filter = MemoryFilter {
+            agent_id: Some("agent-1".to_string()),
+            source: Some(crate::types::MemorySource::Agent),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 2);
+        assert!(entries.iter().all(|e| e.agent_id == "agent-1"));
+        assert!(entries
+            .iter()
+            .all(|e| matches!(e.metadata.source, crate::types::MemorySource::Agent)));
+
+        // Filter by agent_id AND tag
+        let filter = MemoryFilter {
+            agent_id: Some("agent-1".to_string()),
+            tags: Some(vec!["important".to_string()]),
+            ..Default::default()
+        };
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 2);
+        assert!(entries.iter().all(|e| e.metadata.tags.contains(&"important".to_string())));
+    }
+
+    #[tokio::test]
+    async fn test_embedder_integration() {
+        // Test that the store uses the correct embedder
+        let store = test_store(4);
+
+        // Store an entry with a specific embedding
+        let entry = MemoryEntry::new(
+            "test-id".to_string(),
+            "agent-1".to_string(),
+            "Test content for embedder".to_string(),
+            vec![0.5, 0.5, 0.5, 0.5], // Specific embedding
+        );
+        store.store(entry).await.unwrap();
+
+        // Query with same text should find the entry
+        let opts = MemoryQueryOptions {
+            top_k: 5,
+            filter: MemoryFilter::default(),
+            min_score: Some(0.0),
+        };
+
+        let matches = store.query("Test content for embedder", opts).await.unwrap();
+        assert!(!matches.is_empty());
+        assert_eq!(matches[0].entry.content, "Test content for embedder");
+    }
+
+    #[tokio::test]
+    async fn test_multiple_agents_isolated() {
+        let store = test_store(4);
+
+        // Store memories for different agents
+        for agent_id in ["agent-alpha", "agent-beta", "agent-gamma"] {
+            for i in 0..3 {
+                let entry = MemoryEntry::new(
+                    format!("{}-{}", agent_id, i),
+                    agent_id.to_string(),
+                    format!("Content from {}-{}", agent_id, i),
+                    vec![0.1 * i as f32, 0.2, 0.3, 0.4],
+                );
+                store.store(entry).await.unwrap();
+            }
+        }
+
+        // Verify each agent has its own memories
+        for agent_id in ["agent-alpha", "agent-beta", "agent-gamma"] {
+            let filter = MemoryFilter {
+                agent_id: Some(agent_id.to_string()),
+                ..Default::default()
+            };
+            let entries = store.list(filter).await.unwrap();
+            assert_eq!(entries.len(), 3);
+        }
+
+        // Verify query is also scoped correctly
+        let filter = MemoryFilter {
+            agent_id: Some("agent-beta".to_string()),
+            ..Default::default()
+        };
+        let opts = MemoryQueryOptions {
+            top_k: 10,
+            filter,
+            min_score: Some(0.0),
+        };
+
+        let matches = store.query("content", opts).await.unwrap();
+        assert_eq!(matches.len(), 3);
+        assert!(matches.iter().all(|m| m.entry.agent_id == "agent-beta"));
+    }
+
+    #[tokio::test]
+    async fn test_empty_content_handling() {
+        let store = test_store(4);
+
+        // Store entry with empty content
+        let entry = MemoryEntry::new(
+            "empty-content".to_string(),
+            "agent-1".to_string(),
+            "".to_string(),
+            vec![0.1, 0.2, 0.3, 0.4],
+        );
+        store.store(entry).await.unwrap();
+
+        // Retrieve should work
+        let filter = MemoryFilter::default();
+        let entries = store.list(filter).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert!(entries[0].content.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_query_empty_store() {
+        let store = test_store(4);
+
+        // Query an empty store
+        let opts = MemoryQueryOptions {
+            top_k: 5,
+            filter: MemoryFilter::default(),
+            min_score: Some(0.0),
+        };
+
+        let matches = store.query("anything", opts).await.unwrap();
+        assert!(matches.is_empty());
     }
 }

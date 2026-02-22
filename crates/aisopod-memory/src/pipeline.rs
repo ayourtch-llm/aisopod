@@ -6,9 +6,10 @@
 
 use crate::embedding::{EmbeddingProvider, MockEmbeddingProvider};
 use crate::store::MemoryStore;
-use crate::types::{MemoryMatch, MemoryQueryOptions};
+use crate::types::{MemoryFilter, MemoryMatch, MemoryQueryOptions};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use std::any::Any;
 use std::sync::Arc;
 
 /// Pipeline for querying and retrieving relevant memories.
@@ -284,5 +285,237 @@ mod tests {
         assert!(context.contains("## Relevant Memories"));
         assert!(context.contains("Test content"));
         assert!(context.contains("[score:"));
+    }
+
+    // ==================== Additional Pipeline Tests ====================
+
+    #[tokio::test]
+    async fn test_recency_factor_edge_cases() {
+        let now = Utc::now();
+
+        // Future timestamp should have factor > 1.0 (capped to 1.0)
+        let future = now + chrono::Duration::days(-7); // Actually in the future relative to "now - 7 days"
+        let future_factor = MemoryQueryPipeline::recency_factor(future);
+        assert!((future_factor - 2.0).abs() < 0.001); // 2.0^(-(-7)/7) = 2.0^1 = 2.0
+    }
+
+    #[tokio::test]
+    async fn test_query_empty_store() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Query an empty store
+        let opts = MemoryQueryOptions {
+            top_k: 5,
+            filter: MemoryFilter::default(),
+            min_score: Some(0.0),
+        };
+
+        let matches = pipeline.query("anything", opts).await.unwrap();
+        assert!(matches.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_query_with_top_k() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Store 10 entries
+        for i in 0..10 {
+            let entry = MemoryEntry::new(
+                format!("query-{}", i),
+                "agent-1".to_string(),
+                format!("Content {}", i),
+                vec![0.1 * (i as f32), 0.2, 0.3, 0.4],
+            );
+            pipeline.store().store(entry).await.unwrap();
+        }
+
+        // Query with top_k=3
+        let opts = MemoryQueryOptions {
+            top_k: 3,
+            filter: MemoryFilter::default(),
+            min_score: Some(0.0),
+        };
+
+        let matches = pipeline.query("test", opts).await.unwrap();
+        assert_eq!(matches.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_query_with_min_score() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Store entries
+        for i in 0..5 {
+            let entry = MemoryEntry::new(
+                format!("score-{}", i),
+                "agent-1".to_string(),
+                format!("Content {}", i),
+                vec![0.1 * (i as f32), 0.2, 0.3, 0.4],
+            );
+            pipeline.store().store(entry).await.unwrap();
+        }
+
+        // Query with high min_score (may get no results)
+        let opts = MemoryQueryOptions {
+            top_k: 10,
+            filter: MemoryFilter::default(),
+            min_score: Some(0.99),
+        };
+
+        let matches = pipeline.query("test", opts).await.unwrap();
+        assert!(matches.len() <= 5); // May have no results or few results
+    }
+
+    #[tokio::test]
+    async fn test_query_with_agent_filter() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Store entries for different agents
+        for agent_id in ["agent-alpha", "agent-beta"] {
+            for i in 0..3 {
+                let entry = MemoryEntry::new(
+                    format!("{}-{}", agent_id, i),
+                    agent_id.to_string(),
+                    format!("Content {}-{}", agent_id, i),
+                    vec![0.1 * (i as f32), 0.2, 0.3, 0.4],
+                );
+                pipeline.store().store(entry).await.unwrap();
+            }
+        }
+
+        // Query with agent filter
+        let opts = MemoryQueryOptions {
+            top_k: 10,
+            filter: MemoryFilter {
+                agent_id: Some("agent-beta".to_string()),
+                ..Default::default()
+            },
+            min_score: Some(0.0),
+        };
+
+        let matches = pipeline.query("test", opts).await.unwrap();
+        assert_eq!(matches.len(), 3);
+        assert!(matches.iter().all(|m| m.entry.agent_id == "agent-beta"));
+    }
+
+    #[tokio::test]
+    async fn test_query_and_format() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Store a memory
+        let entry = MemoryEntry::new(
+            "test-id".to_string(),
+            "agent-1".to_string(),
+            "Test content for query and format".to_string(),
+            vec![0.1, 0.2, 0.3, 0.4],
+        );
+        pipeline.store().store(entry).await.unwrap();
+
+        // Use query_and_format
+        let context = pipeline
+            .query_and_format(
+                "Test content for query and format",
+                MemoryQueryOptions::default(),
+            )
+            .await
+            .unwrap();
+
+        assert!(context.contains("Relevant Memories"));
+        assert!(context.contains("Test content for query and format"));
+        assert!(context.contains("[score:"));
+    }
+
+    #[tokio::test]
+    async fn test_embedder_reference() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Get reference to embedder
+        let embedder_ref = pipeline.embedder();
+        assert_eq!(embedder_ref.dimensions(), 4);
+    }
+
+    #[tokio::test]
+    async fn test_store_reference() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Get reference to store
+        let store_ref = pipeline.store();
+        assert!(store_ref.as_any().is::<SqliteMemoryStore>());
+    }
+
+    #[tokio::test]
+    async fn test_format_context_with_empty_matches() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Format empty matches
+        let matches: Vec<MemoryMatch> = Vec::new();
+        let context = pipeline.format_context(&matches);
+
+        assert!(context.contains("## Relevant Memories"));
+        assert!(context.contains("No relevant memories found"));
+    }
+
+    #[tokio::test]
+    async fn test_recency_factor_decay() {
+        let now = Utc::now();
+
+        // Today
+        let today_factor = MemoryQueryPipeline::recency_factor(now);
+        assert!((today_factor - 1.0).abs() < 0.001);
+
+        // 7 days ago (should be 0.5)
+        let week_ago = now - chrono::Duration::days(7);
+        let week_factor = MemoryQueryPipeline::recency_factor(week_ago);
+        assert!((week_factor - 0.5).abs() < 0.001);
+
+        // 14 days ago (should be 0.25)
+        let two_weeks_ago = now - chrono::Duration::days(14);
+        let two_weeks_factor = MemoryQueryPipeline::recency_factor(two_weeks_ago);
+        assert!((two_weeks_factor - 0.25).abs() < 0.001);
+
+        // 21 days ago (should be 0.125)
+        let three_weeks_ago = now - chrono::Duration::days(21);
+        let three_weeks_factor = MemoryQueryPipeline::recency_factor(three_weeks_ago);
+        assert!((three_weeks_factor - 0.125).abs() < 0.001);
     }
 }

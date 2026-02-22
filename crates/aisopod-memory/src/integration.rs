@@ -10,6 +10,7 @@ use crate::store::MemoryStore;
 use crate::types::{MemoryFilter, MemoryMatch, MemoryQueryOptions};
 use aisopod_provider::types::{Message, Role};
 use anyhow::Result;
+use std::any::Any;
 use std::sync::Arc;
 
 /// Builds a memory context by querying relevant memories from the conversation.
@@ -449,6 +450,10 @@ mod tests {
             ) -> Result<Vec<crate::types::MemoryEntry>> {
                 Ok(Vec::new())
             }
+
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
         }
 
         let store = Arc::new(MockStore);
@@ -461,5 +466,320 @@ mod tests {
         build_memory_context(&pipeline, agent_id, &conversation, opts)
             .await
             .unwrap_or_else(|_| "Error building context".to_string())
+    }
+
+    // ==================== Additional Integration Tests ====================
+
+    #[tokio::test]
+    async fn test_build_memory_context_with_recent_messages() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Store a relevant memory
+        let entry = MemoryEntry::new(
+            "test-id".to_string(),
+            "agent-1".to_string(),
+            "User prefers spicy food".to_string(),
+            vec![0.1, 0.2, 0.3, 0.4],
+        );
+        pipeline.store().store(entry).await.unwrap();
+
+        // Build conversation with many messages (last 5 should be used)
+        let conversation = vec![
+            Message {
+                role: Role::User,
+                content: MessageContent::Text("First message".to_string()),
+                tool_calls: None,
+                tool_call_id: None,
+            },
+            Message {
+                role: Role::Assistant,
+                content: MessageContent::Text("Second message".to_string()),
+                tool_calls: None,
+                tool_call_id: None,
+            },
+            Message {
+                role: Role::User,
+                content: MessageContent::Text("Third message".to_string()),
+                tool_calls: None,
+                tool_call_id: None,
+            },
+            Message {
+                role: Role::Assistant,
+                content: MessageContent::Text("Fourth message".to_string()),
+                tool_calls: None,
+                tool_call_id: None,
+            },
+            Message {
+                role: Role::User,
+                content: MessageContent::Text("Fifth message - spicy food".to_string()),
+                tool_calls: None,
+                tool_call_id: None,
+            },
+            Message {
+                role: Role::Assistant,
+                content: MessageContent::Text("Sixth message".to_string()),
+                tool_calls: None,
+                tool_call_id: None,
+            },
+        ];
+
+        let opts = MemoryQueryOptions::default();
+        let context = build_memory_context(&pipeline, "agent-1", &conversation, opts)
+            .await
+            .unwrap();
+
+        // Should contain the memory about spicy food
+        assert!(context.contains("User prefers spicy food"));
+    }
+
+    #[tokio::test]
+    async fn test_build_memory_context_with_empty_query() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Empty conversation
+        let conversation: Vec<Message> = Vec::new();
+
+        let opts = MemoryQueryOptions::default();
+        let context = build_memory_context(&pipeline, "agent-1", &conversation, opts)
+            .await
+            .unwrap();
+
+        // Should return empty context
+        assert!(context.contains("No relevant memories found"));
+    }
+
+    #[tokio::test]
+    async fn test_build_memory_context_with_whitespace_only() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Conversation with only whitespace content
+        let conversation = vec![
+            Message {
+                role: Role::User,
+                content: MessageContent::Text("   ".to_string()),
+                tool_calls: None,
+                tool_call_id: None,
+            },
+            Message {
+                role: Role::Assistant,
+                content: MessageContent::Text("\t\n".to_string()),
+                tool_calls: None,
+                tool_call_id: None,
+            },
+        ];
+
+        let opts = MemoryQueryOptions::default();
+        let context = build_memory_context(&pipeline, "agent-1", &conversation, opts)
+            .await
+            .unwrap();
+
+        // Should return empty context (whitespace-only content is treated as empty)
+        assert!(context.contains("No relevant memories found"));
+    }
+
+    #[tokio::test]
+    async fn test_memory_context_with_multiple_memories() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Store multiple memories
+        for i in 1..=5 {
+            let entry = MemoryEntry::new(
+                format!("mem-{}", i),
+                "agent-1".to_string(),
+                format!("Memory content {}", i),
+                vec![0.1 * (i as f32), 0.2, 0.3, 0.4],
+            );
+            pipeline.store().store(entry).await.unwrap();
+        }
+
+        // Query
+        let opts = MemoryQueryOptions::default();
+        let context = build_memory_context(&pipeline, "agent-1", &[], opts)
+            .await
+            .unwrap();
+
+        // Should contain all memories
+        assert!(context.contains("Relevant Memories"));
+        for i in 1..=5 {
+            assert!(context.contains(&format!("Memory content {}", i)));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_memory_context_with_no_memories_match() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Store a memory
+        let entry = MemoryEntry::new(
+            "unique-id".to_string(),
+            "agent-1".to_string(),
+            "This is unique content".to_string(),
+            vec![0.1, 0.2, 0.3, 0.4],
+        );
+        pipeline.store().store(entry).await.unwrap();
+
+        // Query with something that won't match
+        let opts = MemoryQueryOptions::default();
+        let context = build_memory_context(&pipeline, "agent-1", &[], opts)
+            .await
+            .unwrap();
+
+        // Should still show the header
+        assert!(context.contains("## Relevant Memories"));
+        assert!(context.contains("No relevant memories found"));
+    }
+
+    #[tokio::test]
+    async fn test_memory_tool_query_multiple_results() {
+        let store = Arc::new(SqliteMemoryStore::new(":memory:", 4).unwrap());
+        let agent_id = "agent-1";
+
+        // Store multiple memories
+        for i in 0..5 {
+            let content = format!("Memory content {}", i);
+            let embedding = crate::MockEmbeddingProvider::new(4).embed(&content).await.unwrap();
+
+            let entry = MemoryEntry::new(
+                uuid::Uuid::new_v4().to_string(),
+                agent_id.to_string(),
+                content,
+                embedding,
+            );
+            store.store(entry).await.unwrap();
+        }
+
+        // Query memories
+        let opts = MemoryQueryOptions {
+            top_k: 10,
+            filter: MemoryFilter {
+                agent_id: Some(agent_id.to_string()),
+                ..Default::default()
+            },
+            min_score: Some(0.0),
+        };
+        let matches = store.query("content", opts).await.unwrap();
+
+        // Should return multiple results
+        assert!(!matches.is_empty());
+        assert_eq!(matches.len(), 5);
+    }
+
+    #[tokio::test]
+    async fn test_memory_tool_delete_idempotent() {
+        // Test that deleting a non-existent memory doesn't error
+        let store = Arc::new(SqliteMemoryStore::new(":memory:", 4).unwrap());
+        let agent_id = "agent-1";
+
+        // Store a memory
+        let content = "Memory to delete";
+        let embedding = crate::MockEmbeddingProvider::new(4).embed(content).await.unwrap();
+
+        let entry = MemoryEntry::new(
+            uuid::Uuid::new_v4().to_string(),
+            agent_id.to_string(),
+            content.to_string(),
+            embedding,
+        );
+        let id = store.store(entry).await.unwrap();
+
+        // Delete the memory
+        store.delete(&id).await.unwrap();
+
+        // Delete again (idempotent - should not error)
+        store.delete(&id).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_memory_context_with_importance_ranking() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Store memories with different importance levels but same content
+        for importance in [0.2, 0.5, 0.8] {
+            let entry = MemoryEntry {
+                metadata: crate::types::MemoryMetadata {
+                    importance,
+                    ..Default::default()
+                },
+                ..MemoryEntry::new(
+                    uuid::Uuid::new_v4().to_string(),
+                    "agent-1".to_string(),
+                    "Same content different importance".to_string(),
+                    vec![0.1, 0.2, 0.3, 0.4],
+                )
+            };
+            pipeline.store().store(entry).await.unwrap();
+        }
+
+        // Query
+        let opts = MemoryQueryOptions::default();
+        let context = build_memory_context(&pipeline, "agent-1", &[], opts)
+            .await
+            .unwrap();
+
+        // Should contain the memory
+        assert!(context.contains("Relevant Memories"));
+        assert!(context.contains("Same content different importance"));
+    }
+
+    #[tokio::test]
+    async fn test_memory_context_with_empty_agent_id() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
+        let embedder = MockEmbeddingProvider::new(4);
+
+        let pipeline = MemoryQueryPipeline::new(Arc::new(store), Arc::new(embedder));
+
+        // Store a memory for empty agent_id
+        let entry = MemoryEntry::new(
+            "test-id".to_string(),
+            "".to_string(), // Empty agent_id
+            "Test content".to_string(),
+            vec![0.1, 0.2, 0.3, 0.4],
+        );
+        pipeline.store().store(entry).await.unwrap();
+
+        // Query with empty agent_id
+        let opts = MemoryQueryOptions {
+            filter: MemoryFilter {
+                agent_id: Some("".to_string()),
+                ..Default::default()
+            },
+            ..MemoryQueryOptions::default()
+        };
+        let context = build_memory_context(&pipeline, "", &[], opts).await.unwrap();
+
+        // Should still work with empty agent_id
+        assert!(context.contains("No relevant memories found"));
     }
 }

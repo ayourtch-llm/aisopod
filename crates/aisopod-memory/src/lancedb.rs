@@ -18,6 +18,7 @@ use lancedb::query::{ExecutableQuery, QueryBase};
 use lancedb::table::Table as LanceDbTable;
 use lancedb::Result as LanceDbResult;
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -634,6 +635,10 @@ impl MemoryStore for LanceDbMemoryStore {
         }
 
         Ok(entries)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
