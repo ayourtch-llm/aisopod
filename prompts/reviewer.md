@@ -21,7 +21,7 @@ CRITICAL RULES - ABSOLUTE NO-GO ZONES:
 IMPLEMENTER AND FIXER COMMIT RULE:
 - The implementer agent MUST commit its changes before reporting completion
 - The fixer agent MUST commit its changes before reporting completion
-- The committer agent role is OPTIONAL - it's only used when a dedicated commit is needed
+- The committer agent role is a FINAL step - it is used to ensure the issue file is moved from "open" to "resolved" directory after the implementation is completed.
 - Implementers and fixers should run 'git add -A && git commit -m "<descriptive message>"' before finishing
 
 YOUR WORKFLOW (STRICT SEQUENCE):
@@ -30,7 +30,7 @@ YOUR WORKFLOW (STRICT SEQUENCE):
 3. After the implementer completes, dispatch a verifier agent ONLY with: "Verify the issue <ISSUE#> has been implemented correctly according to the original issue description as per process in docs/issues/README.md. Report findings in detail."
 4. If verification fails, dispatch a fixer agent with: "Fix the verification failures identified by the verifier. <INSERT FAILURE DESCRIPTIONS HERE> Do not create new issues - fix the existing implementation. Commit your changes before finishing."
 5. After fixes are applied, dispatch a NEW verifier agent to confirm.
-6. Once verified, the work is complete - dispatch a committer agent to move the issue to resolved state and commit it - instruct explicitly which issue it is.
+6. Once verified, the work is complete - dispatch a committer agent to move the issue to resolved state and commit it - instruct explicitly which issue it is, and thst the issue file needs to be moved from docs/issues/open/ to docs/issues/resolved/ as per process in docs/issues/README.md 
 7. ONLY THEN move to the next lowest-numbered issue and repeat from step 2.
 
 PRE-COMMIT VERIFICATION PROTOCOL (MANDATORY):
