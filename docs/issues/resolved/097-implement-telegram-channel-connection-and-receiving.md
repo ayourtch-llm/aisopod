@@ -66,15 +66,42 @@ Telegram is one of the most commonly used messaging platforms for bot interactio
 - Issue 092 (implement channel registry)
 
 ## Acceptance Criteria
-- [ ] `aisopod-channel-telegram` crate is created and added to the workspace
-- [ ] `TelegramAccountConfig` is defined and deserializable from config
-- [ ] Bot authenticates with Telegram using bot token (`getMe` succeeds)
-- [ ] Long-polling mode receives messages from DMs, groups, and supergroups
-- [ ] Webhook mode is supported as an alternative to long-polling
-- [ ] Incoming Telegram messages are normalized to shared `IncomingMessage` type
-- [ ] `TelegramChannel` implements the `ChannelPlugin` trait
-- [ ] Channel is registered in the channel registry
-- [ ] `cargo build -p aisopod-channel-telegram` compiles without errors
+- [x] `aisopod-channel-telegram` crate is created and added to the workspace
+- [x] `TelegramAccountConfig` is defined and deserializable from config
+- [x] Bot authenticates with Telegram using bot token (`getMe` succeeds)
+- [x] Long-polling mode receives messages from DMs, groups, and supergroups
+- [x] Webhook mode is supported as an alternative to long-polling
+- [x] Incoming Telegram messages are normalized to shared `IncomingMessage` type
+- [x] `TelegramChannel` implements the `ChannelPlugin` trait
+- [x] Channel is registered in the channel registry
+- [x] `cargo build -p aisopod-channel-telegram` compiles without errors
+
+## Resolution
+The Telegram channel implementation was completed by creating the `aisopod-channel-telegram` crate with full Telegram Bot API integration using the `teloxide` crate.
+
+### Changes Made:
+- Created new crate `aisopod-channel-telegram` with the following source files:
+  - `crates/aisopod-channel-telegram/src/lib.rs` - Main crate module with `TelegramChannel` struct, `TelegramAccountConfig`, and `ChannelPlugin` trait implementation
+  - `crates/aisopod-channel-telegram/src/connection.rs` - Connection handling with bot token validation via `getMe` API
+  - `crates/aisopod-channel-telegram/src/receive.rs` - Message receiving implementation supporting both long-polling and webhook modes
+
+### Key Features Implemented:
+- `TelegramAccountConfig` struct with bot token, webhook URL, allowed users/groups filtering, and parse mode
+- `TelegramChannel` struct that implements `ChannelPlugin` trait with `id()`, `metadata()`, `start()`, and `stop()` methods
+- Long-polling receiver using `teloxide::dispatching::Dispatcher` that handles messages from DMs, groups, and supergroups
+- Webhook mode support as an alternative to long-polling
+- Message normalization from Telegram `Message` types to shared `IncomingMessage` type
+- Registration function for adding Telegram channel to the channel registry
+- Unit tests covering config deserialization, message normalization, and API validation
+
+### Verification:
+- Build: `cargo build -p aisopod-channel-telegram` passes successfully
+- Tests: All 7 tests pass (`cargo test -p aisopod-channel-telegram`)
+- Implementation verified as complete by verifier agent
+
+### Commit Reference:
+Resolved in commit cb872567c48229e9a4640f0d3ba81a956fd2e317
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-22*
