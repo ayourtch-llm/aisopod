@@ -49,14 +49,41 @@ This is the primary interface that the agent engine uses to retrieve relevant me
 - Issue 082 (implement SQLite-Vec vector storage backend)
 - Issue 083 (define embedding provider trait and OpenAI implementation)
 
-## Acceptance Criteria
-- [ ] `MemoryQueryPipeline` accepts a query string and returns ranked `MemoryMatch` results
-- [ ] Query embedding is generated via the `EmbeddingProvider`
-- [ ] Vector similarity search is performed via the `MemoryStore`
-- [ ] Results are re-ranked by a combined score of similarity, importance, and recency
-- [ ] `format_context()` produces a readable string suitable for prompt injection
-- [ ] `query_and_format()` convenience method works end-to-end
-- [ ] `cargo check -p aisopod-memory` compiles without errors
+## Resolution
+
+The implementation was completed as follows:
+
+1. Created `crates/aisopod-memory/src/pipeline.rs` with:
+   - `MemoryQueryPipeline` struct with `store` and `embedder` fields
+   - `new()` constructor that takes `Arc<dyn MemoryStore>` and `Arc<dyn EmbeddingProvider>`
+   - `query()` async method that:
+     - Generates query embedding via `embedder.embed()`
+     - Executes vector similarity search via `store.query()`
+     - Applies post-retrieval filtering
+     - Re-ranks results using combined score: `score * 0.7 + importance * 0.2 + recency * 0.1`
+     - Sorts by final score descending and truncates to `top_k`
+   - `format_context()` method that formats results as bullet points with scores
+   - `query_and_format()` convenience method that combines query and format
+   - `recency_factor()` helper with exponential decay (halves every 7 days)
+
+2. Updated `crates/aisopod-memory/src/lib.rs` to re-export `MemoryQueryPipeline`
+
+3. Added `tempfile = "3.10"` to dev-dependencies for testing
+
+4. Updated `crates/aisopod-memory/src/sqlite.rs` tests to use `tokio::test` and async/await
+
+### Verification
+
+All acceptance criteria verified:
+- ✅ `MemoryQueryPipeline` accepts query string and returns ranked `MemoryMatch` results
+- ✅ Query embedding is generated via `EmbeddingProvider`
+- ✅ Vector similarity search is performed via `MemoryStore`
+- ✅ Results are re-ranked by combined score of similarity, importance, and recency
+- ✅ `format_context()` produces readable string suitable for prompt injection
+- ✅ `query_and_format()` convenience method works end-to-end
+- ✅ `cargo check -p aisopod-memory` compiles without errors
+- ✅ All tests pass (`cargo test -p aisopod-memory`): 49 unit tests + 15 integration tests + 15 management tests + 7 search tests + 9 storage tests = 95 tests total
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-22*
