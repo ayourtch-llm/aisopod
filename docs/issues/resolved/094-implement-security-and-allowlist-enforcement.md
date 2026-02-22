@@ -57,14 +57,70 @@ Without security enforcement, the bot processes messages from unauthorized users
 - Issue 093 (implement message routing pipeline — consumes security checks)
 
 ## Acceptance Criteria
-- [ ] `SecurityEnforcer` struct is defined with `check_sender()`, `check_mention()`, and `check_dm_policy()` methods
-- [ ] `MentionCheckResult` enum is defined with `Allowed`, `SkipSilently`, and `Blocked` variants
-- [ ] Unauthorized senders are rejected with a descriptive error
-- [ ] Group messages without required @mention return `SkipSilently`
-- [ ] When no `SecurityAdapter` is provided, all checks pass (open access)
-- [ ] DM security policies are enforced
-- [ ] Every public type and method has a doc-comment
-- [ ] `cargo check -p aisopod-channel` compiles without errors
+- [x] `SecurityEnforcer` struct is defined with `check_sender()`, `check_mention()`, and `check_dm_policy()` methods
+- [x] `MentionCheckResult` enum is defined with `Allowed`, `SkipSilently`, and `Blocked` variants
+- [x] Unauthorized senders are rejected with a descriptive error
+- [x] Group messages without required @mention return `SkipSilently`
+- [x] When no `SecurityAdapter` is provided, all checks pass (open access)
+- [x] DM security policies are enforced
+- [x] Every public type and method has a doc-comment
+- [x] `cargo check -p aisopod-channel` compiles without errors
+
+## Resolution
+
+Implemented the security enforcement layer as described in the issue:
+
+### Implementation Details
+
+**Created `SecurityEnforcer` struct** in `crates/aisopod-channel/src/security.rs`:
+- Stateful enforcer with optional `DmPolicy` configuration
+- `new()` constructor for default configuration
+- `with_dm_policy()` constructor for custom DM policy
+- `Default` trait implementation
+
+**Created `MentionCheckResult` enum** with variants:
+- `Allowed` - Message passes mention check
+- `SkipSilently` - Message without required @mention
+- `Blocked(String)` - Message explicitly blocked with reason
+
+**Created `DmPolicy` enum** for DM security policies:
+- `Allowlist` - Use same allowlist as regular messages
+- `Open` - Allow all DMs (no restrictions)
+- `Custom` - Custom policy implementation
+
+### Methods Implemented
+
+1. **`check_sender()`** - Verifies sender is on allowlist
+   - Uses `SecurityAdapter::is_allowed_sender()` when available
+   - Allows all senders when no adapter is provided
+   - Returns descriptive error with sender ID for unauthorized senders
+
+2. **`check_mention()`** - Checks @mention requirement for group messages
+   - Applies only to Group/Channel peer kinds
+   - Respects `SecurityAdapter::requires_mention_in_group()`
+   - Scans message content for `@identifier` or `<@identifier>` format
+   - Returns `Allowed`, `SkipSilently`, or `Blocked` variant
+
+3. **`check_dm_policy()`** - Enforces DM security policies
+   - Uses allowlist check via `SecurityAdapter::is_allowed_sender()`
+   - Allows all senders when no adapter is provided
+
+### Integration
+
+**SecurityEnforcer is integrated into `MessageRouter`**:
+- Step 4 in routing pipeline: calls `check_sender()`
+- Step 5 in routing pipeline: calls `check_mention()` for group messages
+- Properly handles `MentionCheckResult` variants
+- Skips silently or blocks messages as appropriate
+
+### Code Quality
+
+- Comprehensive doc-comments on all public types and methods
+- 39 unit tests covering all methods and edge cases
+- All tests pass (`cargo test -p aisopod-channel`)
+- Code compiles without errors (`cargo check -p aisopod-channel`)
+- Re-exports `SecurityEnforcer` and `MentionCheckResult` from `lib.rs`
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-22*
