@@ -12,6 +12,13 @@
 //! - [`ChatType`] - Enum for chat conversation types
 //! - [`MediaType`] - Enum for media content types
 //!
+//! ## Channel Registry
+//!
+//! The crate includes a [`ChannelRegistry`] for managing channel plugins:
+//!
+//! - [`ChannelRegistry`] - Central registry for channel plugins
+//! - [`ChannelAlias`] - Alias mapping for channel IDs
+//!
 //! ## Adapter Traits
 //!
 //! The crate also defines 13 optional adapter traits for channel capabilities:
@@ -59,6 +66,7 @@
 //! ```
 
 pub mod adapters;
+pub mod channel;
 pub mod message;
 pub mod plugin;
 pub mod types;
@@ -81,3 +89,6 @@ pub use adapters::{
     PairingAdapter, PairingCode, SecurityAdapter, StatusAdapter, ThreadingAdapter,
     TypingAdapter, OutboundAdapter,
 };
+
+// Re-export channel registry
+pub use channel::{ChannelAlias, ChannelRegistry};
