@@ -257,6 +257,11 @@ mod tests {
             // Return a dummy implementation for testing
             unimplemented!("TestChannel does not implement config")
         }
+
+        fn security(&self) -> Option<&dyn crate::adapters::SecurityAdapter> {
+            // TestChannel doesn't implement security adapter
+            None
+        }
     }
 
     #[test]

@@ -5,7 +5,7 @@
 //! capabilities, and configuration.
 
 use crate::types::{ChannelCapabilities, ChannelMeta};
-use crate::adapters::ChannelConfigAdapter;
+use crate::adapters::{ChannelConfigAdapter, SecurityAdapter};
 use async_trait::async_trait;
 
 /// The core trait that all channel plugins must implement.
@@ -43,4 +43,11 @@ pub trait ChannelPlugin: Send + Sync {
     /// The configuration adapter provides methods for managing channel accounts,
     /// including listing, enabling, disabling, and deleting accounts.
     fn config(&self) -> &dyn ChannelConfigAdapter;
+
+    /// Returns the security adapter for this channel if available.
+    ///
+    /// The security adapter provides methods for enforcing security policies,
+    /// such as sender allowlists and group mention requirements.
+    /// Returns `None` if the channel doesn't implement security checks.
+    fn security(&self) -> Option<&dyn SecurityAdapter>;
 }

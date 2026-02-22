@@ -140,6 +140,50 @@ pub struct IncomingMessage {
     pub metadata: serde_json::Value,
 }
 
+impl IncomingMessage {
+    /// Converts the message content to a string representation.
+    ///
+    /// This method extracts the text content from the message, handling
+    /// different content types (text, media, mixed).
+    ///
+    /// # Returns
+    ///
+    /// A string representation of the message content.
+    pub fn content_to_string(&self) -> String {
+        match &self.content {
+            MessageContent::Text(text) => text.clone(),
+            MessageContent::Media(media) => {
+                // Return a placeholder for media content
+                match &media.media_type {
+                    crate::types::MediaType::Image => format!("[Image: {}]", media.url.as_deref().unwrap_or("unknown")),
+                    crate::types::MediaType::Audio => format!("[Audio: {}]", media.url.as_deref().unwrap_or("unknown")),
+                    crate::types::MediaType::Video => format!("[Video: {}]", media.url.as_deref().unwrap_or("unknown")),
+                    crate::types::MediaType::Document => format!("[Document: {}]", media.filename.as_deref().unwrap_or("unknown")),
+                    crate::types::MediaType::Other(other) => format!("[{}: {}]", other, media.url.as_deref().unwrap_or("unknown")),
+                }
+            }
+            MessageContent::Mixed(parts) => {
+                parts
+                    .iter()
+                    .map(|part| match part {
+                        MessagePart::Text(text) => text.clone(),
+                        MessagePart::Media(media) => {
+                            match &media.media_type {
+                                crate::types::MediaType::Image => format!("[Image: {}]", media.url.as_deref().unwrap_or("unknown")),
+                                crate::types::MediaType::Audio => format!("[Audio: {}]", media.url.as_deref().unwrap_or("unknown")),
+                                crate::types::MediaType::Video => format!("[Video: {}]", media.url.as_deref().unwrap_or("unknown")),
+                                crate::types::MediaType::Document => format!("[Document: {}]", media.filename.as_deref().unwrap_or("unknown")),
+                                crate::types::MediaType::Other(other) => format!("[{}: {}]", other, media.url.as_deref().unwrap_or("unknown")),
+                            }
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            }
+        }
+    }
+}
+
 /// An outgoing message to be sent to a channel.
 ///
 /// This struct represents a message to be sent through a channel,

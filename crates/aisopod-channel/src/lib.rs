@@ -69,6 +69,7 @@ pub mod adapters;
 pub mod channel;
 pub mod message;
 pub mod plugin;
+pub mod router;
 pub mod types;
 
 // Re-export message types
@@ -76,6 +77,9 @@ pub use message::{
     IncomingMessage, OutgoingMessage, MessageContent, MessagePart, MessageTarget,
     PeerInfo, PeerKind, Media,
 };
+
+// Re-export router
+pub use router::{MessageRouter, AgentResolver, ConfigAgentResolver};
 
 // Re-export core types
 pub use plugin::ChannelPlugin;
