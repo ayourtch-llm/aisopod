@@ -53,11 +53,51 @@ These traits define the contract between the core system and every channel imple
 - Issue 089 (define ChannelPlugin trait and channel metadata types)
 
 ## Acceptance Criteria
-- [ ] All 13 adapter traits are defined with correct method signatures
-- [ ] All supporting types (`OnboardingContext`, `AccountConfig`, `ChannelHealth`, `GroupInfo`, `MemberInfo`, `AccountSnapshot`, `AuthToken`, `PairingCode`) are defined
-- [ ] Every trait, method, and type has a doc-comment
-- [ ] All traits require `Send + Sync` bounds
-- [ ] `cargo check -p aisopod-channel` compiles without errors
+- [x] All 13 adapter traits are defined with correct method signatures
+- [x] All supporting types (`OnboardingContext`, `AccountConfig`, `ChannelHealth`, `GroupInfo`, `MemberInfo`, `AccountSnapshot`, `AuthToken`, `PairingCode`) are defined
+- [x] Every trait, method, and type has a doc-comment
+- [x] All traits require `Send + Sync` bounds
+- [x] `cargo check -p aisopod-channel` compiles without errors
+
+## Resolution
+**Resolved: 2026-02-22**
+
+The adapter interface traits were successfully implemented in `crates/aisopod-channel/src/adapters.rs`:
+
+### Supporting Types (8 types)
+- `OnboardingContext` — Context struct with `config_dir: PathBuf` and `channel_config_dir: Option<PathBuf>` for onboarding wizard flow
+- `AccountConfig` — Account configuration with `id`, `channel`, `credentials` (serde_json::Value), and `enabled` boolean
+- `ChannelHealth` — Enum with `Healthy`, `Degraded(String)`, and `Disconnected(String)` variants for connection status
+- `GroupInfo` — Group information with `id` and `name` fields
+- `MemberInfo` — Member information with `id` and `display_name` fields
+- `AccountSnapshot` — Account state snapshot with `id`, `channel`, `enabled`, and `connected` fields
+- `AuthToken` — Authentication token with `token` string and optional `expires_at: DateTime<Utc>`
+- `PairingCode` — Pairing code with `code` string, `expires_at: DateTime<Utc>`, and optional `qr_url`
+
+### Adapter Traits (13 traits)
+All traits use `#[async_trait]` and require `Send + Sync` bounds with comprehensive doc-comments:
+
+1. **OnboardingAdapter** — `setup_wizard(&self, ctx: &OnboardingContext) -> Result<AccountConfig, anyhow::Error>`
+2. **OutboundAdapter** — `send_text(&self, target: &MessageTarget, text: &str) -> Result<(), anyhow::Error>`, `send_media(&self, target: &MessageTarget, media: &Media) -> Result<(), anyhow::Error>`
+3. **GatewayAdapter** — `connect(&self, account: &AccountConfig) -> Result<(), anyhow::Error>`, `disconnect(&self, account: &AccountConfig) -> Result<(), anyhow::Error>`, `is_connected(&self, account: &AccountConfig) -> bool`
+4. **StatusAdapter** — `health_check(&self, account: &AccountConfig) -> Result<ChannelHealth, anyhow::Error>`
+5. **TypingAdapter** — `send_typing(&self, target: &MessageTarget) -> Result<(), anyhow::Error>`
+6. **MessagingAdapter** — `react(&self, message_id: &str, emoji: &str) -> Result<(), anyhow::Error>`, `unreact(&self, message_id: &str, emoji: &str) -> Result<(), anyhow::Error>`
+7. **ThreadingAdapter** — `create_thread(&self, parent_id: &str, title: &str) -> Result<String, anyhow::Error>`, `reply_in_thread(&self, thread_id: &str, text: &str) -> Result<(), anyhow::Error>`
+8. **DirectoryAdapter** — `list_groups(&self, account: &AccountConfig) -> Result<Vec<GroupInfo>, anyhow::Error>`, `list_members(&self, group_id: &str) -> Result<Vec<MemberInfo>, anyhow::Error>`
+9. **SecurityAdapter** — `is_allowed_sender(&self, sender: &SenderInfo) -> bool`, `requires_mention_in_group(&self) -> bool`
+10. **HeartbeatAdapter** — `heartbeat(&self, account: &AccountConfig) -> Result<(), anyhow::Error>`, `heartbeat_interval(&self) -> Duration`
+11. **ChannelConfigAdapter** — `list_accounts(&self) -> Result<Vec<String>, anyhow::Error>`, `resolve_account(&self, id: &str) -> Result<AccountSnapshot, anyhow::Error>`, `enable_account(&self, id: &str) -> Result<(), anyhow::Error>`, `disable_account(&self, id: &str) -> Result<(), anyhow::Error>`, `delete_account(&self, id: &str) -> Result<(), anyhow::Error>`
+12. **AuthAdapter** — `authenticate(&self, config: &AccountConfig) -> Result<AuthToken, anyhow::Error>`, `refresh_token(&self, token: &AuthToken) -> Result<AuthToken, anyhow::Error>`
+13. **PairingAdapter** — `initiate_pairing(&self) -> Result<PairingCode, anyhow::Error>`, `complete_pairing(&self, code: &str) -> Result<AccountConfig, anyhow::Error>`
+
+### Verification
+- `cargo check -p aisopod-channel` — ✅ Compiles without errors
+- `cargo test -p aisopod-channel` — ✅ All 21 tests pass
+- All traits and types are properly re-exported from `aisopod_channel` crate root
+
+The implementation satisfies all acceptance criteria with comprehensive documentation on every trait, method, and parameter.
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-22*
