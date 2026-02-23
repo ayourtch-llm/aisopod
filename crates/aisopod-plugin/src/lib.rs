@@ -51,6 +51,16 @@
 //! }
 //! ```
 //!
+//! ## Security
+//!
+//! The plugin system includes security features for CLI command registration:
+//!
+//! - Reserved command name protection
+//! - Argument sanitization (control character removal, size limits)
+//! - Thread-safe command registry with `RwLock`
+//!
+//! See the [`security`] and [`commands`] modules for details.
+//!
 //! ## Example
 //!
 //! This example shows the basic structure of a plugin:
@@ -117,10 +127,14 @@
 //! - [`registry`]: Plugin registry for lifecycle management
 //! - [`abi`]: ABI definitions for dynamic plugins
 //! - [`dynamic`]: Dynamic plugin loading from shared libraries
+//! - [`security`]: Security utilities for command registration
+//! - [`commands`]: Command registry with security hardening
 
 pub mod abi;
 pub mod api;
+pub mod builtin;
 pub mod command;
+pub mod commands;
 pub mod context;
 pub mod dynamic;
 pub mod hook;
@@ -128,10 +142,12 @@ pub mod manifest;
 pub mod meta;
 pub mod registry;
 pub mod r#trait;
+pub mod security;
 
 pub use abi::{ABI_VERSION, PluginAbiVersionFn, PluginCreateFn, PluginDestroyFn};
 pub use api::PluginApi;
 pub use command::PluginCommand;
+pub use commands::CommandRegistry;
 pub use context::PluginContext;
 pub use dynamic::{DiscoveredPlugin, DynamicPluginLoader, LoadError};
 pub use hook::{Hook, HookContext, HookHandler, HookRegistry, PluginHookHandler};
@@ -139,3 +155,4 @@ pub use manifest::{ManifestError, PluginCapabilities, PluginCompatibility, Plugi
 pub use meta::PluginMeta;
 pub use registry::{PluginRegistry, RegistryError};
 pub use r#trait::Plugin;
+pub use security::{SecurityError, MAX_ARG_SIZE, RESERVED_COMMANDS, sanitize_argument, validate_command_name};

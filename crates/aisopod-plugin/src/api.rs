@@ -12,6 +12,7 @@ use aisopod_tools::Tool;
 
 use crate::command::PluginCommand;
 use crate::hook::{Hook, HookHandler, PluginHookHandler};
+use crate::security::SecurityError;
 
 /// The API available to plugins during registration.
 ///
@@ -158,11 +159,27 @@ impl PluginApi {
     /// This method allows plugins to contribute CLI commands that
     /// can be invoked by users through the command-line interface.
     ///
+    /// The command name is validated against security rules:
+    /// - Must not be empty
+    /// - Must be at most 64 characters
+    /// - Must contain only alphanumeric characters, hyphens, and underscores
+    /// - Must not match any reserved built-in command name
+    ///
     /// # Arguments
     ///
     /// * `command` - The [`PluginCommand`] to register
-    pub fn register_command(&mut self, command: PluginCommand) {
+    ///
+    /// # Errors
+    ///
+    /// Returns `SecurityError::ReservedCommandName` if the command name
+    /// matches a reserved built-in command.
+    /// Returns `SecurityError::InvalidCommandName` if the command name
+    /// fails validation (empty, too long, or contains invalid characters).
+    pub fn register_command(&mut self, command: PluginCommand) -> Result<(), SecurityError> {
+        // Validate the command name before registration
+        crate::security::validate_command_name(&command.name)?;
         self.commands.push(command);
+        Ok(())
     }
 
     /// Register a model provider.
@@ -229,14 +246,67 @@ mod tests {
     fn test_register_command() {
         let mut api = PluginApi::new();
         let command = PluginCommand::new(
-            "test",
+            "myplugin",
             "A test command",
-            "test [OPTIONS]",
+            "myplugin [OPTIONS]",
             false,
             Arc::new(|_| Ok(())),
         );
-        api.register_command(command);
+        assert!(api.register_command(command).is_ok());
         assert_eq!(api.command_count(), 1);
+    }
+
+    #[test]
+    fn test_register_command_reserved_name() {
+        let mut api = PluginApi::new();
+        let command = PluginCommand::new(
+            "help",
+            "Help command",
+            "help",
+            false,
+            Arc::new(|_| Ok(())),
+        );
+        let result = api.register_command(command);
+        assert!(result.is_err());
+        // Should return ReservedCommandName error
+    }
+
+    #[test]
+    fn test_register_command_invalid_name() {
+        let mut api = PluginApi::new();
+        
+        // Empty name
+        let command = PluginCommand::new(
+            "",
+            "Empty command",
+            "",
+            false,
+            Arc::new(|_| Ok(())),
+        );
+        let result = api.register_command(command);
+        assert!(result.is_err());
+
+        // Too long name
+        let command = PluginCommand::new(
+            "a".repeat(65),
+            "Long command",
+            "a",
+            false,
+            Arc::new(|_| Ok(())),
+        );
+        let result = api.register_command(command);
+        assert!(result.is_err());
+
+        // Invalid characters
+        let command = PluginCommand::new(
+            "bad!char",
+            "Bad char command",
+            "bad!char",
+            false,
+            Arc::new(|_| Ok(())),
+        );
+        let result = api.register_command(command);
+        assert!(result.is_err());
     }
 
     #[test]
