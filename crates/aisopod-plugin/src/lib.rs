@@ -24,6 +24,14 @@
 //! their identity, version, capabilities, and compatibility constraints.
 //! See the [`manifest`] module for details.
 //!
+//! ## Registry
+//!
+//! The [`PluginRegistry`] provides centralized lifecycle management:
+//!
+//! - **Registration**: Plugins are registered via [`PluginRegistry::register()`]
+//! - **Initialization**: All plugins initialized via [`PluginRegistry::init_all()`]
+//! - **Shutdown**: All plugins shut down via [`PluginRegistry::shutdown_all()`]
+//!
 //! ## Example
 //!
 //! This example shows the basic structure of a plugin:
@@ -87,6 +95,7 @@
 //! - [`api`]: Plugin API for capability registration
 //! - [`command`]: Plugin command types for CLI integration
 //! - [`hook`]: Lifecycle hook types
+//! - [`registry`]: Plugin registry for lifecycle management
 
 pub mod api;
 pub mod command;
@@ -94,6 +103,7 @@ pub mod context;
 pub mod hook;
 pub mod manifest;
 pub mod meta;
+pub mod registry;
 pub mod r#trait;
 
 pub use api::PluginApi;
@@ -102,4 +112,5 @@ pub use context::PluginContext;
 pub use hook::{Hook, HookHandler, PluginHookHandler};
 pub use manifest::{ManifestError, PluginCapabilities, PluginCompatibility, PluginManifest, PluginManifestInfo};
 pub use meta::PluginMeta;
+pub use registry::{PluginRegistry, RegistryError};
 pub use r#trait::Plugin;
