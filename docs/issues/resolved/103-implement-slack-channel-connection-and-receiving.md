@@ -72,17 +72,56 @@ Slack is the dominant platform for workplace communication. This issue delivers 
 - Issue 092 (implement channel registry)
 
 ## Acceptance Criteria
-- [ ] `aisopod-channel-slack` crate is created and added to the workspace
-- [ ] `SlackAccountConfig` is defined and deserializable from config
-- [ ] Bot authenticates with Slack using bot token (`auth.test` succeeds)
-- [ ] Socket Mode connection is established via app token and WebSocket
-- [ ] Socket Mode events are acknowledged correctly
-- [ ] DM, channel, and thread messages are received
-- [ ] Bot's own messages are filtered out
-- [ ] Incoming Slack messages are normalized to shared `IncomingMessage` type
-- [ ] `SlackChannel` implements the `ChannelPlugin` trait
-- [ ] Channel is registered in the channel registry
-- [ ] `cargo build -p aisopod-channel-slack` compiles without errors
+- [x] `aisopod-channel-slack` crate is created and added to the workspace
+- [x] `SlackAccountConfig` is defined and deserializable from config
+- [x] Bot authenticates with Slack using bot token (`auth.test` succeeds)
+- [x] Socket Mode connection is established via app token and WebSocket
+- [x] Socket Mode events are acknowledged correctly
+- [x] DM, channel, and thread messages are received
+- [x] Bot's own messages are filtered out
+- [x] Incoming Slack messages are normalized to shared `IncomingMessage` type
+- [x] `SlackChannel` implements the `ChannelPlugin` trait
+- [x] Channel is registered in the channel registry
+- [x] `cargo build -p aisopod-channel-slack` compiles without errors
+
+## Resolution
+The Slack channel integration was implemented with the following components:
+
+**Crate Structure:**
+- Created `crates/aisopod-channel-slack/` crate with workspace integration
+- Implemented modular design across multiple source files
+- All required dependencies added: `reqwest`, `tokio`, `tokio-tungstenite`, `serde`, `serde_json`, `tracing`, `chrono`, `futures_util`, `anyhow`
+
+**Core Implementation:**
+- `SlackAccountConfig`: Configuration type with bot token, optional app token, channel/user filtering, mention requirement, and reconnection settings
+- `SlackAccount`: Account wrapper with configuration and bot user ID storage
+- `SlackChannel`: Main plugin implementation with `ChannelPlugin` trait
+- `SlackSocketModeConnection`: WebSocket connection management for Socket Mode
+- `SlackClientHandle`: HTTP client for Slack Web API calls
+
+**Message Processing:**
+- `receive.rs`: Message receiving, filtering, and normalization
+  - Self-message filtering to avoid loops
+  - Channel/user allowlist filtering
+  - Mention requirement enforcement
+  - Message normalization to shared `IncomingMessage` type
+  - Support for DMs (channel ID starts with 'D'), channels ('C'), and groups ('G')
+  - Thread context detection and reply_to population
+
+**Socket Mode Protocol:**
+- `apps.connections.open` endpoint for WebSocket URL fetch
+- WebSocket connection via `tokio-tungstenite`
+- Event acknowledgment via `envelope_id`
+- Background task spawning with shutdown signal handling
+
+**Tests:**
+- 42 unit tests covering all modules
+- Tests for config serialization, message normalization, filtering, and Socket Mode events
+
+**Verification:**
+- `cargo build -p aisopod-channel-slack`: ✅ Passed with `RUSTFLAGS=-Awarnings`
+- `cargo test -p aisopod-channel-slack`: ✅ 42 tests passed
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-23*
