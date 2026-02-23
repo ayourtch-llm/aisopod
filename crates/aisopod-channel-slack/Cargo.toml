@@ -1,0 +1,25 @@
+[package]
+name = "aisopod-channel-slack"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+aisopod-channel = { path = "../aisopod-channel" }
+aisopod-shared = { path = "../aisopod-shared" }
+aisopod-config = { path = "../aisopod-config" }
+tokio = { workspace = true, features = ["full"] }
+tokio-tungstenite = "0.21"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = "2"
+tracing = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true }
+async-trait = { workspace = true }
+url = "2"
+futures-util.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
