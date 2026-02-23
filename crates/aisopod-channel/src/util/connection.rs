@@ -215,11 +215,12 @@ impl ConnectionManager {
         // Store the new delay for next time
         *current_delay = new_delay;
 
-        // Apply jitter if configured
+        // Apply jitter if configured, then cap at max delay
         if self.config.use_jitter {
             let jitter_range = (new_delay.as_secs_f64() * self.config.jitter_factor) as u64;
             let jitter = (rand::random::<u64>() % (jitter_range * 2 + 1)).saturating_sub(jitter_range);
-            Duration::from_secs(new_delay.as_secs().saturating_add(jitter))
+            let delayed_with_jitter = Duration::from_secs(new_delay.as_secs().saturating_add(jitter));
+            delayed_with_jitter.min(self.config.max_delay)
         } else {
             new_delay
         }
