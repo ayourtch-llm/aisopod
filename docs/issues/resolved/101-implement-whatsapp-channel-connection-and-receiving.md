@@ -73,17 +73,50 @@ WhatsApp is the world's most widely used messaging platform. This issue delivers
 - Issue 091 (define message types)
 - Issue 092 (implement channel registry)
 
-## Acceptance Criteria
-- [ ] `aisopod-channel-whatsapp` crate is created and added to the workspace
-- [ ] `WhatsAppAccountConfig` is defined and deserializable from config
-- [ ] API token authentication is validated on startup
-- [ ] Webhook verification (GET) responds correctly to WhatsApp challenge
-- [ ] Webhook receiver (POST) parses incoming message notifications
-- [ ] DM and group messages are received and distinguished
-- [ ] Incoming WhatsApp messages are normalized to shared `IncomingMessage` type
-- [ ] `WhatsAppChannel` implements the `ChannelPlugin` trait
-- [ ] Channel is registered in the channel registry
-- [ ] `cargo build -p aisopod-channel-whatsapp` compiles without errors
+## Resolution
+
+This issue was implemented by creating the `aisopod-channel-whatsapp` crate with full WhatsApp Business API integration.
+
+### Changes Made:
+
+1. **Created the crate scaffold:**
+   - Created `crates/aisopod-channel-whatsapp` with `cargo new --lib`
+   - Added to workspace `Cargo.toml`
+   - Added dependencies: `reqwest`, `tokio`, `serde`, `serde_json`, `tracing`, `axum`, `anyhow`, `chrono`
+
+2. **Implemented configuration types:**
+   - `crates/aisopod-channel-whatsapp/src/connection.rs` - `WhatsAppMode` enum and `WhatsAppAccountConfig` struct with `Deserialize` derive
+
+3. **Implemented ChannelPlugin trait:**
+   - `crates/aisopod-channel-whatsapp/src/lib.rs` - `WhatsAppChannel` struct and `ChannelPlugin` trait implementation with `id()`, `metadata()`, `start()`, `stop()` methods
+   - `register()` function to add WhatsApp channel to the channel registry
+
+4. **Implemented webhook handlers:**
+   - `crates/aisopod-channel-whatsapp/src/webhook.rs` - GET handler for verification (responds to `hub.challenge` with verify token check) and POST handler for receiving messages
+
+5. **Implemented message receiving and normalization:**
+   - `crates/aisopod-channel-whatsapp/src/receive.rs` - Parse WhatsApp JSON payload, extract messages from `entry[].changes[].value.messages[]`, handle text, image, audio, location, and group messages
+   - Normalize to shared `IncomingMessage` type with sender ID mapping and DM/group detection
+
+6. **Implemented message sending:**
+   - `crates/aisopod-channel-whatsapp/src/send.rs` - Send text messages, images, and other media via WhatsApp Business API
+
+7. **Implemented media handling:**
+   - `crates/aisopod-channel-whatsapp/src/media.rs` - Upload and download media files with proper content type handling
+
+8. **Added unit tests (19 tests):**
+   - Webhook verification with correct and incorrect tokens
+   - Message parsing for text, image, audio, location, and group messages
+   - `WhatsAppMode` and `WhatsAppAccountConfig` serialization/deserialization
+   - Channel registration with the registry
+   - Sender filtering for allowed numbers
+
+### Verification:
+- `cargo build`: Passes
+- `cargo test`: All tests pass (116 + 15 + 16 + 21 + ... + 19 WhatsApp tests)
+- `cargo test -p aisopod-provider`: 107 tests passed
+- `cargo test -p aisopod-tools`: 137 tests passed
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-23*
