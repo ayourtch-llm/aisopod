@@ -72,6 +72,19 @@
 //!
 //! See the [`security`] and [`commands`] modules for details.
 //!
+//! ## Skills System
+//!
+//! The skills system provides a higher-level abstraction for reusable bundles
+//! of system prompt fragments and tools. Skills can be assigned to agents and
+//! provide a way to compose functionality.
+//!
+//! See the [`skills`] module for the core types:
+//!
+//! - [`skills::Skill`] - The main async trait that all skills must implement
+//! - [`skills::SkillMeta`] - Metadata describing a skill's identity and requirements
+//! - [`skills::SkillCategory`] - Category classification for skills
+//! - [`skills::SkillContext`] - Runtime context provided to skills during initialization
+//!
 //! ## Example
 //!
 //! This example shows the basic structure of a plugin:
@@ -141,6 +154,7 @@
 //! - [`dynamic`]: Dynamic plugin loading from shared libraries
 //! - [`security`]: Security utilities for command registration
 //! - [`commands`]: Command registry with security hardening
+//! - [`skills`]: Core types for the skills system
 
 pub mod abi;
 pub mod api;
@@ -156,6 +170,7 @@ pub mod meta;
 pub mod registry;
 pub mod r#trait;
 pub mod security;
+pub mod skills;
 
 pub use abi::{ABI_VERSION, PluginAbiVersionFn, PluginCreateFn, PluginDestroyFn};
 pub use api::PluginApi;
@@ -170,3 +185,4 @@ pub use meta::PluginMeta;
 pub use registry::{PluginRegistry, RegistryError};
 pub use r#trait::Plugin;
 pub use security::{SecurityError, MAX_ARG_SIZE, RESERVED_COMMANDS, sanitize_argument, validate_command_name};
+pub use skills::{Skill, SkillCategory, SkillContext, SkillMeta};
