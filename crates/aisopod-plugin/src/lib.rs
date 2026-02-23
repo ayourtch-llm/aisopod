@@ -32,6 +32,25 @@
 //! - **Initialization**: All plugins initialized via [`PluginRegistry::init_all()`]
 //! - **Shutdown**: All plugins shut down via [`PluginRegistry::shutdown_all()`]
 //!
+//! ## Dynamic Plugin Loading
+//!
+//! Plugins can be loaded dynamically from shared libraries (`.so`, `.dylib`, `.dll`):
+//!
+//! ```ignore
+//! use aisopod_plugin::dynamic::{DynamicPluginLoader, LoadError};
+//! use std::path::PathBuf;
+//!
+//! let loader = DynamicPluginLoader::new(vec![PathBuf::from("~/.aisopod/plugins")]);
+//! let discovered = loader.discover()?;
+//!
+//! for plugin in discovered {
+//!     match unsafe { loader.load_plugin(&plugin) } {
+//!         Ok(p) => println!("Loaded: {}", p.id()),
+//!         Err(e) => eprintln!("Failed: {}", e),
+//!     }
+//! }
+//! ```
+//!
 //! ## Example
 //!
 //! This example shows the basic structure of a plugin:
@@ -96,19 +115,25 @@
 //! - [`command`]: Plugin command types for CLI integration
 //! - [`hook`]: Lifecycle hook types
 //! - [`registry`]: Plugin registry for lifecycle management
+//! - [`abi`]: ABI definitions for dynamic plugins
+//! - [`dynamic`]: Dynamic plugin loading from shared libraries
 
+pub mod abi;
 pub mod api;
 pub mod command;
 pub mod context;
+pub mod dynamic;
 pub mod hook;
 pub mod manifest;
 pub mod meta;
 pub mod registry;
 pub mod r#trait;
 
+pub use abi::{ABI_VERSION, PluginAbiVersionFn, PluginCreateFn, PluginDestroyFn};
 pub use api::PluginApi;
 pub use command::PluginCommand;
 pub use context::PluginContext;
+pub use dynamic::{DiscoveredPlugin, DynamicPluginLoader, LoadError};
 pub use hook::{Hook, HookHandler, PluginHookHandler};
 pub use manifest::{ManifestError, PluginCapabilities, PluginCompatibility, PluginManifest, PluginManifestInfo};
 pub use meta::PluginMeta;

@@ -3,15 +3,42 @@ name = "aisopod-plugin"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = []
+# Channel plugins
+plugin-telegram = ["dep:aisopod-channel-telegram"]
+plugin-discord = ["dep:aisopod-channel-discord"]
+plugin-slack = ["dep:aisopod-channel-slack"]
+plugin-whatsapp = ["dep:aisopod-channel-whatsapp"]
+# Provider plugins
+plugin-openai = ["dep:aisopod-provider-openai"]
+plugin-anthropic = ["dep:aisopod-provider-anthropic"]
+# Meta feature to enable all plugins
+all-plugins = [
+    "plugin-telegram",
+    "plugin-discord",
+    "plugin-slack",
+    "plugin-whatsapp",
+    "plugin-openai",
+    "plugin-anthropic",
+]
+
 [dependencies]
 aisopod-channel = { path = "../aisopod-channel" }
 aisopod-provider = { path = "../aisopod-provider" }
 aisopod-shared = { path = "../aisopod-shared" }
 aisopod-tools = { path = "../aisopod-tools" }
+aisopod-channel-telegram = { path = "../aisopod-channel-telegram", optional = true }
+aisopod-channel-discord = { path = "../aisopod-channel-discord", optional = true }
+aisopod-channel-slack = { path = "../aisopod-channel-slack", optional = true }
+aisopod-channel-whatsapp = { path = "../aisopod-channel-whatsapp", optional = true }
+aisopod-provider-openai = { path = "../aisopod-provider-openai", optional = true }
+aisopod-provider-anthropic = { path = "../aisopod-provider-anthropic", optional = true }
 anyhow.workspace = true
 async-trait.workspace = true
 futures-core.workspace = true
 futures-util.workspace = true
+libloading = "0.8"
 semver.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
@@ -19,3 +46,6 @@ thiserror.workspace = true
 tokio.workspace = true
 toml.workspace = true
 tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
