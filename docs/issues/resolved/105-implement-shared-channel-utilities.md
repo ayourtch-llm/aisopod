@@ -88,5 +88,23 @@ Without shared utilities, each channel crate duplicates common logic, increasing
 - [ ] Unit tests pass for formatting round-trips, rate limiting, connection management, and error mapping
 - [ ] `cargo test -p aisopod-channel` passes with all utility tests green
 
+## Resolution
+A shared utilities module was implemented in the `aisopod-channel` crate at `crates/aisopod-channel/src/util/` with the following components:
+
+- **formatting.rs**: Implemented `NormalizedMarkdown` type with parsing and rendering functions for Telegram MarkdownV2, Discord markdown, Slack mrkdwn, WhatsApp text, and plain text formats. Supports cross-platform message forwarding with formatting preservation.
+
+- **media.rs**: Implemented media transcoding utilities with format compatibility checking and conversion for images (PNG/JPEG/WebP) and audio (OGG/MP3/AAC). Defines per-platform constraints for file sizes and supported formats.
+
+- **rate_limit.rs**: Implemented `RateLimiter` struct with per-platform rate limiting configurations (Telegram 30/sec, Discord 5/5sec, WhatsApp 80/sec, Slack 1/sec). Supports `Retry-After` header handling using a sliding window algorithm.
+
+- **connection.rs**: Implemented `ConnectionManager` with `ConnectionState` enum (Disconnected, Connecting, Connected, Reconnecting, Failed). Provides exponential backoff (1s to 5min) with jitter for reconnection attempts. Emits state change events via `tokio::sync::watch` channel.
+
+- **errors.rs**: Implemented `ChannelError` enum with common error variants across platforms (AuthenticationFailed, RateLimited, MessageTooLong, MediaUnsupported, ConnectionLost, PermissionDenied, NotFound, PlatformError). Provides `From` implementations for platform-specific error mapping.
+
+- **mod.rs**: Module entry point with all utilities properly exported.
+
+Unit tests were added for all utilities covering formatting round-trips, rate limiting behavior, connection state transitions, exponential backoff timing, and error mapping correctness. All tests pass with `cargo test -p aisopod-channel`.
+
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-23*
