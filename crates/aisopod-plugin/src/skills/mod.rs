@@ -11,6 +11,11 @@
 //! - [`SkillCategory`]: Category classification for skills.
 //! - [`SkillContext`]: Runtime context provided to skills during initialization.
 //!
+//! # Registry Types
+//!
+//! - [`SkillRegistry`]: Central registry for skill discovery and lifecycle management.
+//! - [`SkillStatus`]: Status indicating a skill's health and availability.
+//!
 //! # Example
 //!
 //! ```ignore
@@ -65,8 +70,10 @@
 
 mod context;
 mod meta;
+mod registry;
 mod r#trait;
 
 pub use context::SkillContext;
 pub use meta::{SkillCategory, SkillMeta};
+pub use registry::{SkillRegistry, SkillStatus};
 pub use r#trait::Skill;
