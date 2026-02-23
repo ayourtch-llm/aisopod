@@ -185,9 +185,10 @@ impl PluginApi {
     /// # Arguments
     ///
     /// * `hook` - The type of hook to register for
+    /// * `plugin_id` - The ID of the plugin registering the handler
     /// * `handler` - An `Arc` wrapping the hook handler implementation
-    pub fn register_hook(&mut self, hook: Hook, handler: Arc<dyn HookHandler>) {
-        self.hooks.push(PluginHookHandler::new(hook, handler));
+    pub fn register_hook(&mut self, hook: Hook, plugin_id: String, handler: Arc<dyn HookHandler>) {
+        self.hooks.push(PluginHookHandler::new(hook, plugin_id, handler));
     }
 }
 

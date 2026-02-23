@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use tracing::{info, warn};
 
-use crate::{Plugin, PluginContext};
+use crate::{Plugin, PluginContext, HookRegistry};
 
 /// Registry error types for plugin lifecycle operations.
 ///
@@ -115,12 +115,14 @@ pub enum RegistryError {
 ///     Ok(())
 /// }
 /// ```
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct PluginRegistry {
     /// Map of plugin ID to plugin instance.
     plugins: HashMap<String, Arc<dyn Plugin>>,
     /// Order in which plugins were registered (for ordered init and reverse-order shutdown).
     load_order: Vec<String>,
+    /// Registry for hook handlers.
+    hook_registry: HookRegistry,
 }
 
 impl PluginRegistry {
@@ -131,7 +133,18 @@ impl PluginRegistry {
         Self {
             plugins: HashMap::new(),
             load_order: Vec::new(),
+            hook_registry: HookRegistry::new(),
         }
+    }
+
+    /// Returns a reference to the [`HookRegistry`].
+    pub fn hook_registry(&self) -> &HookRegistry {
+        &self.hook_registry
+    }
+
+    /// Returns a mutable reference to the [`HookRegistry`].
+    pub fn hook_registry_mut(&mut self) -> &mut HookRegistry {
+        &mut self.hook_registry
     }
 
     /// Registers a plugin with the registry.
@@ -167,6 +180,35 @@ impl PluginRegistry {
         info!(plugin_id = %id, "Registering plugin");
         self.load_order.push(id.clone());
         self.plugins.insert(id, plugin);
+        Ok(())
+    }
+
+    /// Registers a plugin with hook transfer.
+    ///
+    /// This method first calls `register()` to register the plugin, then
+    /// runs the plugin's `register()` method with a `PluginApi`, and finally
+    /// transfers all hook registrations from the API to the internal `HookRegistry`.
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin` - An `Arc` wrapping the plugin instance
+    ///
+    /// # Errors
+    ///
+    /// Returns `RegistryError::DuplicatePlugin` if a plugin with the same
+    /// ID is already registered.
+    pub async fn register_with_hooks(&mut self, plugin: Arc<dyn Plugin>) -> Result<(), RegistryError> {
+        self.register(plugin.clone())?;
+        
+        // Create a PluginApi for this plugin to register hooks
+        let mut api = crate::PluginApi::new();
+        
+        // Call the plugin's register method
+        plugin.register(&mut api).ok();
+        
+        // Transfer hook registrations to the hook registry
+        self.hook_registry.transfer_from_api(&api);
+        
         Ok(())
     }
 

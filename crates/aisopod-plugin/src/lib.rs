@@ -134,7 +134,7 @@ pub use api::PluginApi;
 pub use command::PluginCommand;
 pub use context::PluginContext;
 pub use dynamic::{DiscoveredPlugin, DynamicPluginLoader, LoadError};
-pub use hook::{Hook, HookHandler, PluginHookHandler};
+pub use hook::{Hook, HookContext, HookHandler, HookRegistry, PluginHookHandler};
 pub use manifest::{ManifestError, PluginCapabilities, PluginCompatibility, PluginManifest, PluginManifestInfo};
 pub use meta::PluginMeta;
 pub use registry::{PluginRegistry, RegistryError};
