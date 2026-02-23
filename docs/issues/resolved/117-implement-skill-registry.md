@@ -96,14 +96,53 @@ The registry is required by skill discovery (Issue 118), skill-agent integration
 - Issue 116 (Skill trait, SkillMeta, and SkillCategory types)
 
 ## Acceptance Criteria
-- [ ] `SkillRegistry` struct is defined and publicly accessible
-- [ ] `register()` adds a skill and sets its initial status to `Ready`
-- [ ] `get()` returns a skill by ID
-- [ ] `list()` returns all registered skill IDs
-- [ ] `skills_for_agent()` returns the correct skills assigned to an agent
-- [ ] `SkillStatus` enum supports `Ready`, `Degraded`, `Failed`, and `Unloaded` variants
-- [ ] `status()` returns the current status for a given skill
-- [ ] `cargo check -p aisopod-plugin` compiles without errors
+- [x] `SkillRegistry` struct is defined and publicly accessible
+- [x] `register()` adds a skill and sets its initial status to `Ready`
+- [x] `get()` returns a skill by ID
+- [x] `list()` returns all registered skill IDs
+- [x] `skills_for_agent()` returns the correct skills assigned to an agent
+- [x] `SkillStatus` enum supports `Ready`, `Degraded`, `Failed`, and `Unloaded` variants
+- [x] `status()` returns the current status for a given skill
+- [x] `cargo check -p aisopod-plugin` compiles without errors
+
+## Resolution
+
+### Implementation Summary
+
+The `SkillRegistry` was implemented in `crates/aisopod-plugin/src/skills/registry.rs` with the following components:
+
+1. **SkillStatus enum** - All four lifecycle states (Ready, Degraded, Failed, Unloaded) with Serde serialization support
+
+2. **SkillRegistry struct** - Manages skills HashMap, agent_skills mapping, and statuses HashMap
+
+3. **Core Methods**:
+   - `new()` - Creates empty registry
+   - `register()` - Adds skills with Ready status
+   - `get()` - Retrieves skills by ID
+   - `list()` - Returns all registered skill IDs
+   - `assign_to_agent()` - Maps skills to agents
+   - `skills_for_agent()` - Returns skills assigned to an agent
+   - `status()` - Returns current skill status
+   - `set_status()` - Updates skill status
+
+4. **Re-exports** - `SkillRegistry` and `SkillStatus` re-exported from `skills/mod.rs`
+
+5. **Comprehensive Tests** - 14 unit tests covering all functionality including edge cases
+
+### Verification Results
+
+- **Build**: `cargo build -p aisopod-plugin` - ✅ PASS
+- **Check**: `cargo check -p aisopod-plugin` - ✅ PASS
+- **Tests**: 122 tests passed (including 14 new registry tests)
+- **Documentation**: `cargo doc -p aisopod-plugin` - ✅ PASS (3 warnings unrelated to registry)
+
+### Files Modified
+
+- `crates/aisopod-plugin/src/skills/registry.rs` - Created with full implementation
+- `crates/aisopod-plugin/src/skills/mod.rs` - Added re-exports
+- `docs/issues/resolved/117-implement-skill-registry.md` - Updated with resolution
+- `docs/learnings/117-implement-skill-registry.md` - Created learning documentation
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-24*
