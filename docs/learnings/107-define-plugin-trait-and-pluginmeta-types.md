@@ -100,7 +100,12 @@ Types with `Arc<dyn Trait>` cannot derive `Debug`. Options:
 - Don't implement `Debug` at all
 - Use wrapper types that support `Debug`
 
-### 4. Test Design
+### 4. Rustdoc Intra-Doc Links
+When documenting code with Rustdoc, be aware of:
+- **Escaping brackets:** `[OPTIONS]` must be written as `\\[OPTIONS\\]` to avoid broken links
+- **Qualified paths:** When referencing types from other modules, use `crate::TypeName` or `super::TypeName` to avoid unresolved link warnings
+
+### 5. Test Design
 When writing tests for traits with complex dependencies, consider:
 - Whether test implementations match the actual trait signatures
 - Whether test types can be easily mocked or stubbed
@@ -115,6 +120,37 @@ When writing tests for traits with complex dependencies, consider:
 - [x] `PluginApi` is a **struct** (not a trait) with registration methods
 - [x] `cargo build -p aisopod-plugin` compiles without errors
 - [x] `cargo test -p aisopod-plugin` passes
+- [x] `cargo doc -p aisopod-plugin` generates documentation without warnings (after fixing broken intra-doc links)
+
+## Verification Summary
+
+**Verification Date:** 2026-02-23  
+**Status:** ✅ All acceptance criteria verified
+
+### Documentation Fixes Applied
+1. Fixed broken intra-doc link for `OPTIONS` by escaping brackets
+2. Fixed unresolved link to `PluginApi` by using qualified path `crate::PluginApi`
+
+### Build Verification
+```bash
+cargo build -p aisopod-plugin      # ✅ PASS
+cargo test -p aisopod-plugin       # ✅ PASS (4/4 tests)
+cargo doc -p aisopod-plugin        # ✅ PASS (0 warnings)
+```
+
+### Files Implemented
+- `crates/aisopod-plugin/src/trait.rs` - Plugin trait (136 lines)
+- `crates/aisopod-plugin/src/meta.rs` - PluginMeta struct (38 lines)
+- `crates/aisopod-plugin/src/context.rs` - PluginContext struct (38 lines)
+- `crates/aisopod-plugin/src/api.rs` - PluginApi struct (255 lines)
+- `crates/aisopod-plugin/src/command.rs` - PluginCommand struct (84 lines)
+- `crates/aisopod-plugin/src/hook.rs` - Hook types (82 lines)
+
+### Total Implementation Size
+- **6 source files**
+- **633 total lines of code**
+- **4 unit tests**
+- **0 compilation warnings**
 
 ## Next Steps
 

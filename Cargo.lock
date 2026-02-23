@@ -281,10 +281,12 @@ dependencies = [
  "async-trait",
  "futures-core",
  "futures-util",
+ "semver",
  "serde 1.0.228",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "toml",
  "tracing",
 ]
 

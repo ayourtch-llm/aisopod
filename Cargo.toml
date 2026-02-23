@@ -25,3 +25,5 @@ walkdir = "2"
 regex = "1"
 chrono = { version = "0.4", features = ["serde"] }
 url = "2"
+semver = "1"
+toml = "0.8"

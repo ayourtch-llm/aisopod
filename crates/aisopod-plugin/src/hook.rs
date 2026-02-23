@@ -67,7 +67,7 @@ pub trait HookHandler: Send + Sync {
 /// A typed hook handler that can be registered with the plugin API.
 ///
 /// This struct wraps a [`HookHandler`] implementation and associates it
-/// with a specific hook type. It is used by the [`PluginApi`] to manage
+/// with a specific hook type. It is used by the [`crate::PluginApi`] to manage
 /// hook registrations.
 #[derive(Clone)]
 pub struct PluginHookHandler {

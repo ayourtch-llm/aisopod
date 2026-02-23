@@ -41,7 +41,7 @@ pub struct PluginCommand {
     /// The usage string showing how to invoke this command.
     ///
     /// This should include the command name and any expected arguments
-    /// or options (e.g., "plugin status [OPTIONS]").
+    /// or options (e.g., "plugin status \\[OPTIONS\\]").
     pub usage: String,
     /// Whether this command requires authentication.
     ///

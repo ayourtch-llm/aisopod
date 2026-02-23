@@ -18,12 +18,18 @@
 //! 4. **Initialization**: `Plugin::init()` is called with runtime context
 //! 5. **Shutdown**: `Plugin::shutdown()` is called during system shutdown
 //!
+//! ## Manifest Format
+//!
+//! Plugins can include a `aisopod.plugin.toml` manifest file that describes
+//! their identity, version, capabilities, and compatibility constraints.
+//! See the [`manifest`] module for details.
+//!
 //! ## Example
 //!
 //! This example shows the basic structure of a plugin:
 //!
 //! ```ignore
-//! use aisopod_plugin::{Plugin, PluginMeta, PluginContext, PluginApi};
+//! use aisopod_plugin::{Plugin, PluginMeta, PluginContext, PluginApi, manifest::PluginManifest};
 //! use async_trait::async_trait;
 //! use std::sync::Arc;
 //!
@@ -75,6 +81,7 @@
 //! ## Modules
 //!
 //! - [`meta`]: Plugin metadata types
+//! - [`manifest`]: Plugin manifest format and parser
 //! - [`context`]: Runtime context for plugins
 //! - [`trait`]: Core plugin trait definitions
 //! - [`api`]: Plugin API for capability registration
@@ -85,6 +92,7 @@ pub mod api;
 pub mod command;
 pub mod context;
 pub mod hook;
+pub mod manifest;
 pub mod meta;
 pub mod r#trait;
 
@@ -92,5 +100,6 @@ pub use api::PluginApi;
 pub use command::PluginCommand;
 pub use context::PluginContext;
 pub use hook::{Hook, HookHandler, PluginHookHandler};
+pub use manifest::{ManifestError, PluginCapabilities, PluginCompatibility, PluginManifest, PluginManifestInfo};
 pub use meta::PluginMeta;
 pub use r#trait::Plugin;
