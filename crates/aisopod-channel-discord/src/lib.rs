@@ -11,12 +11,26 @@
 //! - Self-message filtering to avoid loops
 //! - Allowlist filtering for guilds and channels
 //! - Multi-account support
+//! - Text message sending with Discord markdown formatting
+//! - Long message chunking (2000 char limit)
+//! - Rich embed support with builder
+//! - Media sending and receiving (attachments)
+//! - Typing indicators
+//! - Reply-to-message handling
+//! - Thread management (create, reply, detect)
+//! - Reaction handling (add, remove, events)
+//! - Guild and channel discovery
+//! - Message editing and deletion
 
 mod connection;
+mod features;
+mod media;
 mod receive;
+mod send;
+mod embeds;
 
 use aisopod_channel::adapters::{AccountConfig, AccountSnapshot, ChannelConfigAdapter};
-use aisopod_channel::message::{IncomingMessage, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo};
+use aisopod_channel::message::{IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, PeerInfo, PeerKind, SenderInfo, OutgoingMessage};
 use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
@@ -27,6 +41,12 @@ use tracing::{error, info, warn};
 // Re-export modules
 pub use connection::{DiscordClientHandle, DiscordEventHandler, create_client, start_client_task};
 pub use receive::{normalize_message, should_filter_message, check_mention_requirement, process_discord_message};
+
+// Re-export new modules
+pub use send::{send_message, chunk_text, SendOptions, SendMessageResult, formatting, DISCORD_MESSAGE_LIMIT};
+pub use embeds::{EmbedBuilder, build_tool_result_embed, build_error_embed, build_success_embed, build_info_embed, build_warning_embed, colors, MAX_EMBEDS};
+pub use media::{extract_media_from_attachments, create_attachment_from_path, send_media, send_media_batch, validate_media, download_attachments, MAX_FILE_SIZE};
+pub use features::{send_typing, create_thread, reply_in_thread, detect_thread_in_message, get_thread_info, add_reaction, remove_reaction, list_guilds, list_channels, find_channel_by_name, edit_message, delete_message, bulk_delete_messages};
 
 /// Configuration for a Discord bot account.
 #[derive(Debug, Clone, Serialize, Deserialize)]
