@@ -49,3 +49,4 @@ tracing.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+tokio = { workspace = true, features = ["full"] }

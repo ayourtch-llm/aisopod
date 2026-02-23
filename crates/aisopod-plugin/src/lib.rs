@@ -51,6 +51,17 @@
 //! }
 //! ```
 //!
+//! ## Configuration
+//!
+//! Plugins can define their own configuration schemas and receive configuration
+//! values from the main aisopod configuration under `plugins.<plugin-id>`.
+//!
+//! - [`config::PluginConfigSchema`] - JSON Schema for plugin configuration
+//! - [`config::PluginConfig`] - Resolved configuration for a plugin
+//! - [`config::ConfigReloadable`] - Trait for hot reload notifications
+//!
+//! See the [`config`] module for details.
+//!
 //! ## Security
 //!
 //! The plugin system includes security features for CLI command registration:
@@ -125,6 +136,7 @@
 //! - [`command`]: Plugin command types for CLI integration
 //! - [`hook`]: Lifecycle hook types
 //! - [`registry`]: Plugin registry for lifecycle management
+//! - [`config`]: Plugin configuration types
 //! - [`abi`]: ABI definitions for dynamic plugins
 //! - [`dynamic`]: Dynamic plugin loading from shared libraries
 //! - [`security`]: Security utilities for command registration
@@ -135,6 +147,7 @@ pub mod api;
 pub mod builtin;
 pub mod command;
 pub mod commands;
+pub mod config;
 pub mod context;
 pub mod dynamic;
 pub mod hook;
@@ -148,6 +161,7 @@ pub use abi::{ABI_VERSION, PluginAbiVersionFn, PluginCreateFn, PluginDestroyFn};
 pub use api::PluginApi;
 pub use command::PluginCommand;
 pub use commands::CommandRegistry;
+pub use config::{ConfigError, ConfigReloadable, PluginConfig, PluginConfigSchema};
 pub use context::PluginContext;
 pub use dynamic::{DiscoveredPlugin, DynamicPluginLoader, LoadError};
 pub use hook::{Hook, HookContext, HookHandler, HookRegistry, PluginHookHandler};
