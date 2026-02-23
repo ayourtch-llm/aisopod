@@ -22,7 +22,7 @@ base64 = "0.21"
 dashmap = "5.5"
 rust-embed = "8.0"
 mime_guess = "2.0"
-rustls = "0.22"
+rustls = { version = "0.23", features = ["ring"] }
 rustls-pemfile = "2.0"
 tokio-rustls = "0.26"
 
