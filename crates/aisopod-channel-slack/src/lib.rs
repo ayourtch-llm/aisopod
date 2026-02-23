@@ -21,8 +21,8 @@ mod receive;
 mod send;
 mod socket_mode;
 
-use aisopod_channel::adapters::{AccountConfig, AccountSnapshot, ChannelConfigAdapter};
-use aisopod_channel::message::{IncomingMessage, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo, OutgoingMessage};
+use aisopod_channel::adapters::{AccountConfig, AccountSnapshot, ChannelConfigAdapter, OutboundAdapter};
+use aisopod_channel::message::{IncomingMessage, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo, OutgoingMessage, MessageTarget};
 use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
@@ -33,9 +33,10 @@ use tracing::{error, info, warn};
 // Re-export modules
 pub use blocks::{Block, PlainText, Mrkdwn, SelectOption, OptionGroup, Confirm, OverflowOption, BlockType, SectionBlock, DividerBlock, ImageBlock, ActionsBlock, ContextBlock, HeaderBlock, FileBlock, CallBlock, BlockBuilder, BlockKit};
 pub use connection::{SlackClientHandle, create_client};
-pub use features::{ChannelInfo, ChannelPurpose, UserInfo, UserProfile, ThreadMessage, Reaction, ReactionsListResponse, build_list_channels_payload, build_typing_payload, send_thinking_message};
-pub use media::{FileInfo, UploadResponse, DownloadResponse, build_upload_payload, media_type_to_mime, mime_to_media_type};
+pub use features::{ChannelInfo, ChannelPurpose, UserInfo, UserProfile, ThreadMessage, Reaction, ReactionsListResponse, build_list_channels_payload, build_typing_payload, send_thinking_message, list_channels, get_channel_info, get_user_info, get_channel_members, get_thread_replies, get_thread_messages, add_reaction, remove_reaction};
+pub use media::{FileInfo, UploadResponse, DownloadResponse, build_upload_payload, media_type_to_mime, mime_to_media_type, upload_file, upload_file_from_path, download_file, get_file_info, list_files, delete_file};
 pub use receive::{normalize_message, should_filter_message, process_slack_message};
+pub use send::{SendOptions, SendMessageResponse, ResponseMetadata, markdown_to_mrkdwn, split_message, build_send_message_payload, send_text_message, send_message_with_blocks, edit_message, delete_message, send_ephemeral_message};
 pub use socket_mode::{SlackSocketModeConnection, SocketModeEvent, start_socket_mode_task};
 
 /// Configuration for a Slack bot account.
@@ -147,6 +148,8 @@ pub struct SlackChannel {
     capabilities: ChannelCapabilities,
     /// Current running tasks for graceful shutdown
     shutdown_signal: Option<Arc<tokio::sync::Notify>>,
+    /// Configuration adapter for channel management
+    config_adapter: SlackConfigAdapter,
 }
 
 impl SlackChannel {
@@ -198,12 +201,19 @@ impl SlackChannel {
         // Create an account without a connection (connection will be added when start() is called)
         let account = SlackAccount::new(account_id.to_string(), config);
 
+        let config_adapter = SlackConfigAdapter::new();
+        
+        // Create a SlackChannelWithConnection and add it to the config adapter
+        // Note: We don't have a connection yet, so we'll create a placeholder
+        // The connection will be added when start() is called
+
         Ok(Self {
             accounts: vec![],
             id,
             meta,
             capabilities,
             shutdown_signal: None,
+            config_adapter,
         })
     }
 
@@ -214,14 +224,18 @@ impl SlackChannel {
 
     /// Add a new account to the channel.
     pub fn add_account(&mut self, account: SlackChannelWithConnection) {
-        self.accounts.push(account);
+        self.accounts.push(account.clone());
+        self.config_adapter.add_account(account);
     }
 
     /// Remove an account by its ID.
     pub fn remove_account(&mut self, account_id: &str) -> bool {
-        let len = self.accounts.len();
+        let len_accounts = self.accounts.len();
         self.accounts.retain(|a| a.id() != account_id);
-        len != self.accounts.len()
+        
+        let len_config = self.config_adapter.remove_account(account_id);
+        
+        len_accounts != self.accounts.len() || len_config
     }
 
     /// Get an account with connection by its ID.
@@ -398,6 +412,160 @@ async fn start_socket_mode_task_for_connection(
     // The connection will be stopped by the shutdown signal when notify_one is called
 }
 
+// ============================================================================
+// OutboundAdapter Implementation
+// ============================================================================
+
+#[async_trait::async_trait]
+impl OutboundAdapter for SlackChannel {
+    /// Send a text message to the specified target.
+    async fn send_text(&self, target: &MessageTarget, text: &str) -> Result<()> {
+        // Get the account
+        let account = self.get_account(&target.account_id)
+            .ok_or_else(|| anyhow::anyhow!("Account not found: {}", target.account_id))?;
+
+        // Extract channel ID from target
+        let channel_id = target.peer.id.clone();
+
+        // Build the message text
+        let message = OutgoingMessage {
+            target: target.clone(),
+            content: MessageContent::Text(text.to_string()),
+            reply_to: None,
+        };
+
+        // Send using the connection
+        let account_with_conn = self.get_account_with_connection(&target.account_id)
+            .ok_or_else(|| anyhow::anyhow!("Account connection not found: {}", target.account_id))?;
+
+        account_with_conn.connection().send_message(&channel_id, text).await
+    }
+
+    /// Send media content to the specified target.
+    async fn send_media(&self, target: &MessageTarget, media: &Media) -> Result<()> {
+        // Get the account
+        let account = self.get_account(&target.account_id)
+            .ok_or_else(|| anyhow::anyhow!("Account not found: {}", target.account_id))?;
+
+        // Extract channel ID from target
+        let channel_id = target.peer.id.clone();
+
+        // Get file data
+        let file_data = media.data.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Media data is required for file upload"))?;
+
+        // Get filename from media or generate one
+        let filename = media.filename.as_deref().unwrap_or("file");
+
+        // Upload the file
+        let account_with_conn = self.get_account_with_connection(&target.account_id)
+            .ok_or_else(|| anyhow::anyhow!("Account connection not found: {}", target.account_id))?;
+
+        // Get the client handle from the connection
+        let client = account_with_conn.connection().client();
+
+        // Upload the file
+        media::upload_file(
+            client,
+            &[channel_id.clone()],
+            file_data,
+            filename,
+            None,
+            None,
+            None,
+        ).await?;
+
+        Ok(())
+    }
+}
+
+// ============================================================================
+// ChannelConfigAdapter Implementation
+// ============================================================================
+
+/// A config adapter for SlackChannel that implements ChannelConfigAdapter.
+#[derive(Clone)]
+pub struct SlackConfigAdapter {
+    /// The channel configuration
+    accounts: Arc<std::sync::RwLock<Vec<SlackChannelWithConnection>>>,
+}
+
+impl SlackConfigAdapter {
+    /// Create a new SlackConfigAdapter.
+    pub fn new() -> Self {
+        Self {
+            accounts: Arc::new(std::sync::RwLock::new(Vec::new())),
+        }
+    }
+
+    /// Add an account to the adapter.
+    pub fn add_account(&self, account: SlackChannelWithConnection) {
+        let mut accounts = self.accounts.write().unwrap();
+        accounts.push(account);
+    }
+
+    /// Remove an account from the adapter.
+    pub fn remove_account(&self, account_id: &str) -> bool {
+        let mut accounts = self.accounts.write().unwrap();
+        let len = accounts.len();
+        accounts.retain(|a| a.id() != account_id);
+        len != accounts.len()
+    }
+}
+
+impl Default for SlackConfigAdapter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait::async_trait]
+impl ChannelConfigAdapter for SlackConfigAdapter {
+    /// List all configured account IDs for this channel.
+    fn list_accounts(&self) -> Result<Vec<String>> {
+        let accounts = self.accounts.read().unwrap();
+        Ok(accounts.iter().map(|a| a.id().to_string()).collect())
+    }
+
+    /// Resolve an account by its ID to a full snapshot.
+    fn resolve_account(&self, id: &str) -> Result<AccountSnapshot> {
+        let accounts = self.accounts.read().unwrap();
+        let account = accounts.iter()
+            .find(|a| a.id() == id)
+            .ok_or_else(|| anyhow::anyhow!("Account not found: {}", id))?;
+        
+        Ok(AccountSnapshot {
+            id: account.id().to_string(),
+            channel: "slack".to_string(),
+            enabled: true,
+            connected: account.connection().is_connected(),
+        })
+    }
+
+    /// Enable an account by its ID.
+    fn enable_account(&self, _id: &str) -> Result<()> {
+        // Slack accounts are always enabled once created
+        Ok(())
+    }
+
+    /// Disable an account by its ID.
+    fn disable_account(&self, _id: &str) -> Result<()> {
+        // Slack accounts can't be disabled via config
+        Ok(())
+    }
+
+    /// Delete an account by its ID.
+    fn delete_account(&self, id: &str) -> Result<()> {
+        let mut accounts = self.accounts.write().unwrap();
+        let len = accounts.len();
+        accounts.retain(|a| a.id() != id);
+        if len == accounts.len() {
+            return Err(anyhow::anyhow!("Account not found: {}", id));
+        }
+        Ok(())
+    }
+}
+
 #[async_trait::async_trait]
 impl aisopod_channel::plugin::ChannelPlugin for SlackChannel {
     fn id(&self) -> &str {
@@ -413,8 +581,7 @@ impl aisopod_channel::plugin::ChannelPlugin for SlackChannel {
     }
 
     fn config(&self) -> &dyn ChannelConfigAdapter {
-        // Return a dummy implementation for now
-        unimplemented!("SlackChannel config adapter not yet implemented")
+        &self.config_adapter
     }
 
     fn security(&self) -> Option<&dyn aisopod_channel::adapters::SecurityAdapter> {

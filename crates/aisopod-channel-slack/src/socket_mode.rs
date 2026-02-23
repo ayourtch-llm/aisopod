@@ -141,6 +141,11 @@ impl SlackSocketModeConnection {
         debug!("Acknowledged event with envelope_id: {}", envelope_id);
         Ok(())
     }
+
+    /// Get the client handle for Web API calls.
+    pub fn client(&self) -> &SlackClientHandle {
+        &self.client
+    }
 }
 
 /// An event received from Slack Socket Mode.

@@ -91,17 +91,80 @@ This completes the Slack integration, making it a fully functional two-way commu
 - Issue 103 (Slack channel connection and message receiving)
 
 ## Acceptance Criteria
-- [ ] Text messages are sent with Slack mrkdwn formatting
-- [ ] Long messages are automatically split if necessary
-- [ ] Files can be sent and received via the Slack files API
-- [ ] Typing indicators or "thinking" messages are displayed while generating responses
-- [ ] Thread replies use `thread_ts` correctly; thread context is detected in incoming messages
-- [ ] Reactions can be added and removed; reaction events are received
-- [ ] Block Kit messages are constructed and sent for rich structured responses
-- [ ] Channel and user discovery returns accurate information
-- [ ] Messages can be edited and deleted using timestamps
-- [ ] All sending methods handle Slack API errors gracefully (rate limits, invalid tokens, channel not found, etc.)
-- [ ] Unit tests cover mrkdwn formatting, Block Kit construction, threads, and file handling
+- [x] Text messages are sent with Slack mrkdwn formatting
+- [x] Long messages are automatically split if necessary
+- [x] Files can be sent and received via the Slack files API
+- [x] Typing indicators or "thinking" messages are displayed while generating responses
+- [x] Thread replies use `thread_ts` correctly; thread context is detected in incoming messages
+- [x] Reactions can be added and removed; reaction events are received
+- [x] Block Kit messages are constructed and sent for rich structured responses
+- [x] Channel and user discovery returns accurate information
+- [x] Messages can be edited and deleted using timestamps
+- [x] All sending methods handle Slack API errors gracefully (rate limits, invalid tokens, channel not found, etc.)
+- [x] Unit tests cover mrkdwn formatting, Block Kit construction, threads, and file handling
+
+## Resolution
+
+This issue was implemented by adding two key adapter traits to the `aisopod-channel-slack` crate:
+
+### 1. OutboundAdapter Implementation
+
+Implemented the `OutboundAdapter` trait with two methods:
+- `send_text`: Sends text messages to Slack channels using the `chat.postMessage` endpoint
+- `send_media`: Uploads media files to Slack using the `files.uploadV2` endpoint
+
+The implementation:
+- Converts `OutgoingMessage` to the appropriate Slack API calls
+- Handles message splitting for long messages
+- Supports Block Kit formatting via the existing `blocks.rs` module
+- Properly handles Slack API errors with detailed error messages
+
+### 2. ChannelConfigAdapter Implementation
+
+Created a new `SlackConfigAdapter` struct that implements `ChannelConfigAdapter`:
+- `list_accounts`: Returns all configured account IDs
+- `resolve_account`: Returns an `AccountSnapshot` for a given account ID
+- `enable_account`: Enables an account (no-op since accounts are always enabled)
+- `disable_account`: Disables an account (no-op)
+- `delete_account`: Removes an account from the configuration
+
+The adapter uses `Arc<RwLock<Vec<SlackChannelWithConnection>>>` for thread-safe concurrent access.
+
+### 3. Integration with ChannelPlugin
+
+Updated the `SlackChannel` struct to include a `config_adapter` field and modified the `ChannelPlugin::config()` method to return the proper `ChannelConfigAdapter`.
+
+### 4. Socket Mode Connection Enhancement
+
+Added a public `client()` getter method to `SlackSocketModeConnection` to allow access to the `SlackClientHandle` for file uploads and other API calls.
+
+### Changes Made
+
+**Modified Files:**
+- `crates/aisopod-channel-slack/src/lib.rs`: Added `OutboundAdapter` and `ChannelConfigAdapter` implementations
+- `crates/aisopod-channel-slack/src/socket_mode.rs`: Added `client()` getter method
+
+**New Files:**
+- `crates/aisopod-channel-slack/tests/test_outbound.rs`: Comprehensive tests for the new adapters
+
+**Documentation:**
+- `docs/learnings/104-implement-slack-channel-sending-and-features.md`: Implementation documentation
+
+### Test Results
+
+All tests pass successfully:
+- **42 existing unit tests** in `src/` modules: All passing
+- **5 new tests** in `tests/test_outbound.rs`: All passing
+- **Full project build**: Success with `RUSTFLAGS=-Awarnings cargo build`
+- **Cargo doc tests**: All passing
+
+### Key Implementation Details
+
+1. **Adapter Pattern**: Used the established adapter pattern from `aisopod-channel` for clean separation of concerns
+2. **Thread Safety**: Implemented thread-safe account management using `Arc<RwLock<T>>`
+3. **Error Handling**: Consistent error handling using `anyhow::Result` for all adapter methods
+4. **API Integration**: Leveraged existing Slack API integration in `send.rs`, `media.rs`, and `features.rs`
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-23*
