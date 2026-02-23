@@ -37,6 +37,17 @@
 //! - [`AuthAdapter`] - Token/credential management
 //! - [`PairingAdapter`] - Device pairing
 //!
+//! ## Shared Utilities
+//!
+//! The crate includes a [`util`] module with shared utilities for all channel
+//! implementations:
+//!
+//! - [`util::NormalizedMarkdown`] - Cross-platform message formatting
+//! - [`util::MediaAttachment`] - Media transcoding utilities
+//! - [`util::RateLimiter`] - API rate limiting
+//! - [`util::ConnectionManager`] - Connection state management
+//! - [`util::ChannelError`] - Common error types
+//!
 //! ## Example
 //!
 //! ```rust,ignore
@@ -73,6 +84,7 @@ pub mod plugin;
 pub mod router;
 pub mod security;
 pub mod types;
+pub mod util;
 
 // Re-export message types
 pub use message::{
@@ -107,3 +119,12 @@ pub use adapters::{
 
 // Re-export channel registry
 pub use channel::{ChannelAlias, ChannelRegistry};
+
+// Re-export shared utilities
+pub use util::{
+    connection::{ConnectionManager, ConnectionState},
+    errors::ChannelError,
+    formatting::{from_discord_markdown, from_plain_text, from_slack_mrkdwn, from_telegram_markdown, NormalizedMarkdown},
+    media::{ensure_compatible_format, MediaAttachment, Platform},
+    rate_limit::{RateLimiter, RateLimitConfig, RateLimitError},
+};

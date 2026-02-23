@@ -92,6 +92,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "image",
+ "rand 0.8.5",
  "serde 1.0.228",
  "serde_json",
  "thiserror 2.0.18",
