@@ -86,13 +86,44 @@ This is the primary plugin loading strategy for production builds. It allows use
 - Issue 110 (PluginRegistry lifecycle management)
 
 ## Acceptance Criteria
-- [ ] Cargo feature flags are defined for each built-in plugin
-- [ ] `register_builtin_plugins()` conditionally registers plugins based on enabled features
-- [ ] Disabled plugins produce zero runtime overhead (no code included)
-- [ ] `list_available_builtins()` reports which plugins are compiled in
-- [ ] Building with `--features all-plugins` includes all built-in plugins
-- [ ] Building with no features produces a minimal binary
-- [ ] `cargo build -p aisopod-plugin` compiles without errors (with and without features)
+- [x] Cargo feature flags are defined for each built-in plugin
+- [x] `register_builtin_plugins()` conditionally registers plugins based on enabled features
+- [x] Disabled plugins produce zero runtime overhead (no code included)
+- [x] `list_available_builtins()` reports which plugins are compiled in
+- [x] Building with `--features all-plugins` includes all built-in plugins
+- [x] Building with no features produces a minimal binary
+- [x] `cargo build -p aisopod-plugin` compiles without errors (with and without features)
+
+---
+
+## Resolution
+
+The compiled-in plugin loading feature was implemented with the following changes:
+
+1. **Added feature flags** in `aisopod-plugin/Cargo.toml` for all built-in plugins:
+   - `plugin-telegram`, `plugin-discord`, `plugin-slack`, `plugin-whatsapp`, `plugin-openai`, `plugin-anthropic`
+   - `all-plugins` feature that enables all built-in plugins
+
+2. **Created `crates/aisopod-plugin/src/builtin.rs`** with:
+   - `register_builtin_plugins()` function that conditionally registers plugins based on enabled features
+   - `list_available_builtins()` helper function to report which plugins are compiled in
+   - Each plugin wrapped in `#[cfg(feature = "...")]` blocks for zero runtime overhead when disabled
+
+3. **Created stub provider plugins**:
+   - `aisopod-provider-openai` (stub crate with empty plugin implementation)
+   - `aisopod-provider-anthropic` (stub crate with empty plugin implementation)
+
+4. **Fixed circular dependency** by creating wrapper types in the plugin crate to avoid direct dependencies between provider plugins
+
+5. **Added comprehensive tests** for builtin plugin loading functionality
+
+6. **Exported all types** from `lib.rs` for external use
+
+7. **Verified all build configurations**:
+   - Default build (no features): Compiles successfully with minimal plugins
+   - `--features all-plugins`: Includes all built-in plugins
+   - `--features plugin-telegram,plugin-openai`: Selective plugin loading works correctly
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-23*
