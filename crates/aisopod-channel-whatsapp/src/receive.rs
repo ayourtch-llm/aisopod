@@ -66,6 +66,9 @@ pub struct WhatsAppMetadata {
     pub display_phone_number: String,
     /// The phone number ID.
     pub phone_number_id: String,
+    /// Optional chat information for group messages.
+    #[serde(default)]
+    pub chat: Option<String>,
 }
 
 /// A message received from WhatsApp.
@@ -227,20 +230,47 @@ pub fn normalize_message(
         .with_timezone(&Utc);
 
     // Determine peer info (DM vs Group)
-    // For now, we treat all messages as DMs since we don't have group chat info
-    // In the future, we could check for group metadata
-    let peer_info = PeerInfo {
-        id: from.to_string(),
-        kind: PeerKind::User,
-        title: None,
-    };
+    // Check if the message is in a group context by looking at the metadata's chat field
+    // In WhatsApp's API, group messages include a "chat" field with the group ID
+    let chat_id = message.content.get("chat")
+        .and_then(|v| v.as_object())
+        .and_then(|obj| obj.get("id"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
 
-    // Create sender info
-    let sender_info = SenderInfo {
-        id: from.to_string(),
-        display_name: None,
-        username: None,
-        is_bot: false,
+    let (peer_info, sender_info) = if let Some(group_id) = chat_id {
+        // This is a group message - use the group ID as the peer
+        // The sender is still the individual user who sent the message
+        let peer_info = PeerInfo {
+            id: group_id,
+            kind: PeerKind::Group,
+            title: None, // Group title would need to be fetched separately
+        };
+
+        let sender_info = SenderInfo {
+            id: from.to_string(),
+            display_name: None,
+            username: None,
+            is_bot: false,
+        };
+
+        (peer_info, sender_info)
+    } else {
+        // This is a DM - use the sender's phone number as the peer
+        let peer_info = PeerInfo {
+            id: from.to_string(),
+            kind: PeerKind::User,
+            title: None,
+        };
+
+        let sender_info = SenderInfo {
+            id: from.to_string(),
+            display_name: None,
+            username: None,
+            is_bot: false,
+        };
+
+        (peer_info, sender_info)
     };
 
     // Build the content based on message type
@@ -632,5 +662,158 @@ mod tests {
             content: HashMap::new(),
         };
         assert_eq!(image_msg.message_type(), "image");
+    }
+
+    #[test]
+    fn test_parse_group_message() {
+        // Group messages in WhatsApp Business API include a "chat" field with the group ID
+        // in the message object (not in metadata)
+        let payload = r#"{
+            "entry": [{
+                "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                "time": 1618907555000,
+                "changes": [{
+                    "field": "messages",
+                    "value": {
+                        "messaging_product": "whatsapp",
+                        "metadata": {
+                            "display_phone_number": "15550000000",
+                            "phone_number_id": "123456789"
+                        },
+                        "messages": [{
+                            "id": "wamid.HBgNNTU1MDAwMDAwMBUA",
+                            "timestamp": "1618907554",
+                            "from": "15551234567",
+                            "type": "text",
+                            "text": {
+                                "body": "Hello, group!"
+                            },
+                            "chat": {
+                                "id": "332020202020202020"
+                            }
+                        }]
+                    }
+                }]
+            }]
+        }"#;
+
+        let result = parse_webhook_payload(payload, "test-account", "whatsapp", None);
+        assert!(result.is_ok(), "Failed to parse: {:?}", result);
+        let messages = result.unwrap();
+        assert_eq!(messages.len(), 1);
+        
+        // Verify it's recognized as a group message
+        assert_eq!(messages[0].peer.kind, PeerKind::Group);
+        assert_eq!(messages[0].peer.id, "332020202020202020");
+        
+        // Verify the sender is still the individual user
+        assert_eq!(messages[0].sender.id, "15551234567");
+        
+        // Verify the content
+        if let MessageContent::Text(text) = &messages[0].content {
+            assert_eq!(*text, "Hello, group!");
+        } else {
+            panic!("Expected Text content");
+        }
+    }
+
+    #[test]
+    fn test_parse_group_image_message() {
+        let payload = r#"{
+            "entry": [{
+                "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                "time": 1618907555000,
+                "changes": [{
+                    "field": "messages",
+                    "value": {
+                        "messaging_product": "whatsapp",
+                        "metadata": {
+                            "display_phone_number": "15550000000",
+                            "phone_number_id": "123456789"
+                        },
+                        "messages": [{
+                            "id": "wamid.HBgNNTU1MDAwMDAwMBUA",
+                            "timestamp": "1618907554",
+                            "from": "15551234567",
+                            "type": "image",
+                            "image": {
+                                "id": "12345",
+                                "mime_type": "image/jpeg",
+                                "caption": "Check out this image in a group!"
+                            },
+                            "chat": {
+                                "id": "441010101010101010"
+                            }
+                        }]
+                    }
+                }]
+            }]
+        }"#;
+
+        let result = parse_webhook_payload(payload, "test-account", "whatsapp", None);
+        assert!(result.is_ok(), "Failed to parse: {:?}", result);
+        let messages = result.unwrap();
+        assert_eq!(messages.len(), 1);
+        
+        // Verify it's recognized as a group message
+        assert_eq!(messages[0].peer.kind, PeerKind::Group);
+        assert_eq!(messages[0].peer.id, "441010101010101010");
+        
+        // Check the media content
+        if let MessageContent::Media(media) = &messages[0].content {
+            assert_eq!(media.media_type, MediaType::Image);
+            assert_eq!(media.mime_type, Some("image/jpeg".to_string()));
+        } else {
+            panic!("Expected Media content");
+        }
+    }
+
+    #[test]
+    fn test_parse_multiple_group_messages() {
+        let payload = r#"{
+            "entry": [{
+                "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                "time": 1618907555000,
+                "changes": [{
+                    "field": "messages",
+                    "value": {
+                        "messaging_product": "whatsapp",
+                        "metadata": {
+                            "display_phone_number": "15550000000",
+                            "phone_number_id": "123456789"
+                        },
+                        "messages": [
+                            {
+                                "id": "msg1",
+                                "timestamp": "1618907554",
+                                "from": "15551234567",
+                                "type": "text",
+                                "text": {"body": "First message in group"},
+                                "chat": {"id": "553030303030303030"}
+                            },
+                            {
+                                "id": "msg2",
+                                "timestamp": "1618907555",
+                                "from": "15551234568",
+                                "type": "text",
+                                "text": {"body": "Second message in group"},
+                                "chat": {"id": "553030303030303030"}
+                            }
+                        ]
+                    }
+                }]
+            }]
+        }"#;
+
+        let result = parse_webhook_payload(payload, "test-account", "whatsapp", None);
+        assert!(result.is_ok(), "Failed to parse: {:?}", result);
+        let messages = result.unwrap();
+        assert_eq!(messages.len(), 2);
+        
+        // Verify both are group messages
+        assert_eq!(messages[0].peer.kind, PeerKind::Group);
+        assert_eq!(messages[1].peer.kind, PeerKind::Group);
+        assert_eq!(messages[0].peer.id, "553030303030303030");
+        assert_eq!(messages[1].peer.id, "553030303030303030");
     }
 }
