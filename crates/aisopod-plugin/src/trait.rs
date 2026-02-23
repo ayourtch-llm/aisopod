@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use std::error::Error;
 
-use crate::{PluginContext, PluginMeta};
+use crate::{PluginApi, PluginContext, PluginMeta};
 
 /// The core trait that all plugins must implement.
 ///
@@ -25,8 +25,7 @@ use crate::{PluginContext, PluginMeta};
 ///
 /// # Example
 ///
-/// This example shows the basic structure of a plugin. Note that the `PluginApi`
-/// type referenced in `register()` is not yet implemented - see Issue 108.
+/// This example shows the basic structure of a plugin:
 ///
 /// ```ignore
 /// use aisopod_plugin::{Plugin, PluginMeta, PluginContext};
@@ -63,8 +62,8 @@ use crate::{PluginContext, PluginMeta};
 ///         &self.meta
 ///     }
 ///
-///     fn register(&self, _api: &mut dyn crate::r#trait::PluginApi) -> Result<(), Box<dyn std::error::Error>> {
-///         // TODO: Issue 108 - PluginApi struct not yet implemented
+///     fn register(&self, _api: &mut PluginApi) -> Result<(), Box<dyn std::error::Error>> {
+///         // Register capabilities with the API
 ///         Ok(())
 ///     }
 ///
@@ -96,12 +95,17 @@ pub trait Plugin: Send + Sync + std::fmt::Debug {
     /// any plugin is initialized. It allows plugins to register handlers,
     /// commands, or other capabilities with the system's API.
     ///
+    /// # Arguments
+    ///
+    /// * `api` - A mutable reference to the [`PluginApi`] for registering
+    ///   the plugin's capabilities
+    ///
     /// # Errors
     ///
     /// Returns an error if registration fails due to missing dependencies,
     /// invalid configuration, or other issues. The plugin system will
     /// consider the plugin failed if this returns an error.
-    fn register(&self, _api: &mut dyn PluginApi) -> Result<(), Box<dyn Error>>;
+    fn register(&self, api: &mut PluginApi) -> Result<(), Box<dyn Error>>;
 
     /// Called after all plugins are registered to perform initialization.
     ///
@@ -109,11 +113,15 @@ pub trait Plugin: Send + Sync + std::fmt::Debug {
     /// such as connecting to databases, starting background tasks, or
     /// loading cached data.
     ///
+    /// # Arguments
+    ///
+    /// * `ctx` - The [`PluginContext`] containing runtime information
+    ///
     /// # Errors
     ///
     /// Returns an error if initialization fails. The plugin will be
     /// considered failed and may be excluded from the active plugin set.
-    async fn init(&self, _ctx: &PluginContext) -> Result<(), Box<dyn Error>>;
+    async fn init(&self, ctx: &PluginContext) -> Result<(), Box<dyn Error>>;
 
     /// Called during graceful shutdown.
     ///
@@ -127,14 +135,3 @@ pub trait Plugin: Send + Sync + std::fmt::Debug {
     /// process itself.
     async fn shutdown(&self) -> Result<(), Box<dyn Error>>;
 }
-
-/// The API interface available to plugins during registration.
-///
-/// This trait provides the interface through which plugins can register
-/// their capabilities with the system during the `register()` phase.
-///
-/// # Note
-///
-/// This is a minimal placeholder. As the plugin system grows, more methods
-/// will be added to this trait to support various plugin capabilities.
-pub trait PluginApi: Send + Sync {}

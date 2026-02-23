@@ -20,11 +20,10 @@
 //!
 //! ## Example
 //!
-//! This example shows the basic structure of a plugin. Note that the `PluginApi`
-//! type referenced in `register()` is not yet implemented - see Issue 108.
+//! This example shows the basic structure of a plugin:
 //!
 //! ```ignore
-//! use aisopod_plugin::{Plugin, PluginMeta, PluginContext};
+//! use aisopod_plugin::{Plugin, PluginMeta, PluginContext, PluginApi};
 //! use async_trait::async_trait;
 //! use std::sync::Arc;
 //!
@@ -58,8 +57,8 @@
 //!         &self.meta
 //!     }
 //!
-//!     fn register(&self, _api: &mut dyn crate::r#trait::PluginApi) -> Result<(), Box<dyn std::error::Error>> {
-//!         // TODO: Issue 108 - PluginApi struct not yet implemented
+//!     fn register(&self, api: &mut PluginApi) -> Result<(), Box<dyn std::error::Error>> {
+//!         // Register capabilities with the API
 //!         Ok(())
 //!     }
 //!
@@ -78,11 +77,20 @@
 //! - [`meta`]: Plugin metadata types
 //! - [`context`]: Runtime context for plugins
 //! - [`trait`]: Core plugin trait definitions
+//! - [`api`]: Plugin API for capability registration
+//! - [`command`]: Plugin command types for CLI integration
+//! - [`hook`]: Lifecycle hook types
 
+pub mod api;
+pub mod command;
 pub mod context;
+pub mod hook;
 pub mod meta;
 pub mod r#trait;
 
+pub use api::PluginApi;
+pub use command::PluginCommand;
 pub use context::PluginContext;
+pub use hook::{Hook, HookHandler, PluginHookHandler};
 pub use meta::PluginMeta;
 pub use r#trait::Plugin;

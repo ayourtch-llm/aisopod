@@ -273,9 +273,14 @@ dependencies = [
 name = "aisopod-plugin"
 version = "0.1.0"
 dependencies = [
+ "aisopod-channel",
+ "aisopod-provider",
  "aisopod-shared",
+ "aisopod-tools",
  "anyhow",
  "async-trait",
+ "futures-core",
+ "futures-util",
  "serde 1.0.228",
  "serde_json",
  "thiserror 2.0.18",
