@@ -1,0 +1,23 @@
+[package]
+name = "aisopod-channel-whatsapp"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+aisopod-channel = { path = "../aisopod-channel" }
+aisopod-shared = { path = "../aisopod-shared" }
+aisopod-config = { path = "../aisopod-config" }
+tokio = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true }
+async-trait = { workspace = true }
+axum = { version = "0.7", features = ["json", "macros", "query"] }
+serde_urlencoded = "0.1"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
