@@ -13,8 +13,12 @@
 //! - Bot token authentication with `auth.test`
 //! - App token authentication for Socket Mode connection
 
+mod blocks;
 mod connection;
+mod features;
+mod media;
 mod receive;
+mod send;
 mod socket_mode;
 
 use aisopod_channel::adapters::{AccountConfig, AccountSnapshot, ChannelConfigAdapter};
@@ -27,7 +31,10 @@ use std::sync::Arc;
 use tracing::{error, info, warn};
 
 // Re-export modules
+pub use blocks::{Block, PlainText, Mrkdwn, SelectOption, OptionGroup, Confirm, OverflowOption, BlockType, SectionBlock, DividerBlock, ImageBlock, ActionsBlock, ContextBlock, HeaderBlock, FileBlock, CallBlock, BlockBuilder, BlockKit};
 pub use connection::{SlackClientHandle, create_client};
+pub use features::{ChannelInfo, ChannelPurpose, UserInfo, UserProfile, ThreadMessage, Reaction, ReactionsListResponse, build_list_channels_payload, build_typing_payload, send_thinking_message};
+pub use media::{FileInfo, UploadResponse, DownloadResponse, build_upload_payload, media_type_to_mime, mime_to_media_type};
 pub use receive::{normalize_message, should_filter_message, process_slack_message};
 pub use socket_mode::{SlackSocketModeConnection, SocketModeEvent, start_socket_mode_task};
 

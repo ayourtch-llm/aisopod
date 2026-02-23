@@ -20,6 +20,8 @@ reqwest = { workspace = true }
 async-trait = { workspace = true }
 url = "2"
 futures-util.workspace = true
+base64 = "0.22.1"
+regex.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

@@ -110,6 +110,29 @@ impl SlackClientHandle {
 
         Ok(response)
     }
+
+    /// Make a generic GET request to the Slack Web API.
+    ///
+    /// This is a convenience method for making arbitrary GET requests
+    /// to the Slack API.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - The API endpoint URL
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(reqwest::Response)` - The HTTP response
+    /// * `Err(anyhow::Error)` - An error if the request fails
+    pub async fn get(&self, url: &str) -> Result<reqwest::Response> {
+        let response = self.client
+            .get(url)
+            .header("Authorization", format!("Bearer {}", self.bot_token))
+            .send()
+            .await?;
+
+        Ok(response)
+    }
 }
 
 /// Response from the `auth.test` endpoint.
