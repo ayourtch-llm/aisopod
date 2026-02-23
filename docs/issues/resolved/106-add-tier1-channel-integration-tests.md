@@ -86,5 +86,24 @@ Integration tests catch issues that unit tests miss — such as incorrect wiring
 - [ ] Tests run with `cargo test -p aisopod-channel --test integration` and pass
 - [ ] Test infrastructure supports optional real-API tests gated behind `#[ignore]`
 
+## Resolution
+Implemented comprehensive integration test suite for Tier 1 channels:
+- Created mock API servers for Telegram, Discord, WhatsApp, and Slack in mock_servers.rs
+- Implemented 25 channel-specific tests covering connect/receive/send/error handling/reconnection
+- Added 7 cross-channel tests for rate limits, state transitions, error mapping
+- All tests use mock servers (no real API calls in CI)
+- Tests pass with `cargo test -p aisopod-channel --test '*' integration`
+
+Files created/modified:
+- crates/aisopod-channel/tests/integration/mod.rs
+- crates/aisopod-channel/tests/integration/telegram.rs
+- crates/aisopod-channel/tests/integration/discord.rs
+- crates/aisopod-channel/tests/integration/whatsapp.rs
+- crates/aisopod-channel/tests/integration/slack.rs
+- crates/aisopod-channel/tests/integration/cross_channel.rs
+- crates/aisopod-channel/tests/integration/mock_servers.rs
+- crates/aisopod-channel/Cargo.toml (added dependencies)
+
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-23*
