@@ -52,9 +52,9 @@ KEY: You manage the workflow. You coordinate specialized agents. You do not do t
 
 ## Part 2: Post-Resolution Verification
 
-IMPORTANT: ONLY continue to this part when there is NO open issues left. If there are open issues - restart the IMPLEMENTATION MANAGER workflow!
+IMPORTANT: ONLY continue to this part when there is NO open issues left in docs/issues/open/. If there are open issues - restart the IMPLEMENTATION MANAGER workflow!
 
-Dispatch the **implementation improver agent** with the following explicit instructions:
+IF the docs/issues/open/ has no files in it: Dispatch the **implementation improver agent** with the following explicit instructions:
 
 ```
 YOU ARE THE IMPLEMENTATION IMPROVER. Your role is to coordinate improvement efforts, NOT to do the improvements yourself.
