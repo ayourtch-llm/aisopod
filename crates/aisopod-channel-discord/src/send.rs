@@ -8,7 +8,6 @@ use anyhow::{anyhow, Result};
 use serenity::{
     all::{ChannelId, CreateMessage, Message, MessageId},
     builder::{CreateEmbed, CreateEmbedFooter, CreateActionRow},
-    client::Context,
 };
 use std::time::Duration;
 
@@ -52,7 +51,7 @@ pub struct SendMessageResult {
 ///
 /// # Arguments
 ///
-/// * `ctx` - The serenity context for making API calls
+/// * `cache_http` - Implementation of CacheHttp trait (can be &Context, Arc<Client>, or &Http)
 /// * `channel_id` - The target channel ID
 /// * `text` - The text content to send
 /// * `options` - Additional options for the message
@@ -62,7 +61,7 @@ pub struct SendMessageResult {
 /// * `Ok(SendMessageResult)` - The result of sending the message
 /// * `Err(anyhow::Error)` - An error if sending fails
 pub async fn send_message(
-    ctx: &Context,
+    cache_http: impl serenity::http::CacheHttp + Clone,
     channel_id: ChannelId,
     text: &str,
     options: Option<SendOptions>,
@@ -72,7 +71,7 @@ pub async fn send_message(
     // Check if message needs chunking (2000 char limit)
     if text.len() <= DISCORD_MESSAGE_LIMIT {
         // Single message fits, send it directly
-        let message = create_discord_message(ctx, channel_id, text, &options).await?;
+        let message = create_discord_message(cache_http.clone(), channel_id, text, &options).await?;
         Ok(SendMessageResult {
             message_id: message.id,
             was_chunked: false,
@@ -80,13 +79,13 @@ pub async fn send_message(
         })
     } else {
         // Message needs to be chunked
-        chunk_and_send(ctx, channel_id, text, options).await
+        chunk_and_send(cache_http, channel_id, text, options).await
     }
 }
 
 /// Create and send a Discord message with the given content and options.
 async fn create_discord_message(
-    ctx: &Context,
+    cache_http: impl serenity::http::CacheHttp,
     channel_id: ChannelId,
     text: &str,
     options: &SendOptions,
@@ -117,7 +116,7 @@ async fn create_discord_message(
     }
 
     let message = channel_id
-        .send_message(&ctx.http, msg_builder)
+        .send_message(cache_http, msg_builder)
         .await
         .map_err(|e| anyhow!("Failed to send Discord message: {}", e))?;
 
@@ -126,7 +125,7 @@ async fn create_discord_message(
 
 /// Chunk a long message and send it as multiple parts.
 async fn chunk_and_send(
-    ctx: &Context,
+    cache_http: impl serenity::http::CacheHttp + Clone,
     channel_id: ChannelId,
     text: &str,
     options: SendOptions,
@@ -150,7 +149,7 @@ async fn chunk_and_send(
             chunk_options.embeds.clear();
         }
 
-        let message = create_discord_message(ctx, channel_id, chunk, &chunk_options).await?;
+        let message = create_discord_message(cache_http.clone(), channel_id, chunk, &chunk_options).await?;
         final_message_id = Some(message.id);
     }
 

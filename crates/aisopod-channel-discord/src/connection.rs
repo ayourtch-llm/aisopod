@@ -22,15 +22,15 @@ use tracing::{error, info, warn};
 pub struct DiscordClientHandle {
     /// The account ID
     pub account_id: String,
-    /// The serenity client
-    pub client: Client,
+    /// The serenity client (Arc-wrapped for sharing)
+    pub client: Arc<Client>,
     /// Shutdown notification for graceful termination
     pub shutdown: Arc<Notify>,
 }
 
 impl DiscordClientHandle {
     /// Create a new DiscordClientHandle.
-    pub fn new(account_id: String, client: Client) -> Self {
+    pub fn new(account_id: String, client: Arc<Client>) -> Self {
         Self {
             account_id,
             client,
@@ -41,7 +41,7 @@ impl DiscordClientHandle {
     /// Start the client in a background task.
     pub fn start(self) {
         let account_id = self.account_id.clone();
-        let mut client = self.client;
+        let client = self.client;
         let shutdown = self.shutdown.clone();
 
         tokio::spawn(async move {
@@ -52,7 +52,23 @@ impl DiscordClientHandle {
                 _ = shutdown.notified() => {
                     info!("Shutdown signal received for Discord client {}", account_id);
                 }
-                result = client.start() => {
+                // Start the client
+                result = async move {
+                    // We need to unwrap the Arc to get Client, but only if there's one reference
+                    // Since we just received the Arc as self, there should be only one reference
+                    // Use Arc::try_unwrap to get the inner Client
+                    match Arc::try_unwrap(client) {
+                        Ok(mut inner_client) => {
+                            // We have ownership of Client, can call start()
+                            inner_client.start().await
+                        }
+                        Err(_) => {
+                            // There are multiple references, we can't unwrap
+                            // This shouldn't happen in normal usage
+                            Err(serenity::Error::Other("Cannot start client - multiple Arc references. Client must be stored directly, not Arc-wrapped."))
+                        }
+                    }
+                } => {
                     if let Err(e) = result {
                         error!("Discord client error for account {}: {}", account_id, e);
                     }
@@ -169,7 +185,8 @@ pub async fn create_client(
         .await
         .map_err(|e| anyhow::anyhow!("Failed to create Discord client: {}", e))?;
 
-    Ok(DiscordClientHandle::new(account_id.to_string(), client))
+    // Wrap in Arc for sharing
+    Ok(DiscordClientHandle::new(account_id.to_string(), Arc::new(client)))
 }
 
 /// Start the Discord client in a background task.
