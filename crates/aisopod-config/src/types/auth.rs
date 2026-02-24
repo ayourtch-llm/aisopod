@@ -71,6 +71,9 @@ pub struct AuthProfile {
     /// Provider type
     #[serde(default)]
     pub provider: String,
+    /// Provider endpoint (optional)
+    #[serde(default)]
+    pub endpoint: Option<String>,
 }
 
 impl Default for AuthConfig {

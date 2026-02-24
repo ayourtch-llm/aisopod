@@ -5,12 +5,13 @@
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
-use std::collections::BTreeMap;
 use std::io::{self, Write};
 use std::path::Path;
 
 use aisopod_config::load_config;
 use aisopod_config::AisopodConfig;
+use aisopod_config::sensitive::Sensitive;
+use aisopod_config::types::AuthProfile;
 
 /// Authentication command arguments
 #[derive(Args)]
@@ -138,14 +139,15 @@ fn save_config(config: &AisopodConfig, config_path: Option<String>) -> Result<()
 /// Add or update a provider in the config
 fn add_provider(config: &mut AisopodConfig, provider_name: &str, endpoint: &str, api_key: &str) {
     // Check if provider already exists
-    if let Some(provider) = config.models.providers.iter_mut().find(|p| p.name == provider_name) {
-        provider.endpoint = endpoint.to_string();
-        provider.api_key = api_key.to_string();
+    if let Some(profile) = config.auth.profiles.iter_mut().find(|p| p.name == provider_name) {
+        profile.endpoint = Some(endpoint.to_string());
+        profile.api_key = Sensitive::new(api_key.to_string());
     } else {
-        config.models.providers.push(aisopod_config::types::ModelProvider {
+        config.auth.profiles.push(AuthProfile {
             name: provider_name.to_string(),
-            endpoint: endpoint.to_string(),
-            api_key: api_key.to_string(),
+            api_key: Sensitive::new(api_key.to_string()),
+            provider: provider_name.to_string(),
+            endpoint: Some(endpoint.to_string()),
         });
     }
 }
@@ -208,14 +210,12 @@ pub fn run_auth_status(config_path: Option<String>) -> Result<()> {
     println!("{:<15} {:<15} {:<20}", "Provider", "Status", "Details");
     println!("{}", "-".repeat(50));
 
-    let providers = ["openai", "anthropic", "google", "azure", "local"];
-    for provider in providers {
-        let has_key = config.models.providers.iter().any(|p| {
-            p.name == provider && !p.api_key.is_empty()
-        });
+    // Get providers from auth.profiles
+    for profile in &config.auth.profiles {
+        let has_key = !profile.api_key.expose().is_empty();
         let status = if has_key { "Configured" } else { "Not set" };
         let detail = if has_key { "API key set" } else { "Run 'aisopod auth setup'" };
-        println!("{:<15} {:<15} {:<20}", provider, status, detail);
+        println!("{:<15} {:<15} {:<20}", profile.name, status, detail);
     }
 
     Ok(())

@@ -24,6 +24,7 @@ pub use agents::AgentDefaults;
 pub use agents::AgentsConfig;
 pub use auth::AuthConfig;
 pub use auth::AuthMode;
+pub use auth::AuthProfile;
 pub use auth::PasswordCredential;
 pub use auth::TokenCredential;
 pub use bindings::AgentBinding;

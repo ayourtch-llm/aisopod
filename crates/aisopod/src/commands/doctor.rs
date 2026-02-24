@@ -5,10 +5,10 @@
 
 use anyhow::Result;
 use clap::Args;
+use std::io::{self, Write};
 use std::path::Path;
 
-use aisopod_config::load_config;
-use aisopod_gateway::GatewayStatus;
+use aisopod_config::{load_config, default_config_path, AisopodConfig};
 
 /// Doctor command arguments
 #[derive(Args)]
@@ -64,18 +64,18 @@ pub async fn run_doctor(args: DoctorArgs, config_path: Option<String>) -> Result
     print_diagnostic("Configuration file", config_ok, config_err);
     if config_ok { passed += 1; } else { failed += 1; }
 
-    // Check 2: At least one model provider configured
+    // Check 2: At least one authentication profile configured
     if let Ok(ref config) = config_result {
-        let providers_ok = !config.models.providers.is_empty();
-        print_diagnostic("Model providers configured", providers_ok, None);
-        if providers_ok { passed += 1; } else { failed += 1; }
+        let auth_profiles_ok = !config.auth.profiles.is_empty();
+        print_diagnostic("Authentication profiles configured", auth_profiles_ok, None);
+        if auth_profiles_ok { passed += 1; } else { failed += 1; }
 
-        // Check 3: API keys are set for configured providers
-        for provider in &config.models.providers {
+        // Check 3: API keys are set for configured auth profiles
+        for profile in &config.auth.profiles {
             // Check if API key is set (non-empty)
-            let key_set = !provider.api_key.is_empty();
+            let key_set = !profile.api_key.expose().is_empty();
             print_diagnostic(
-                &format!("  {} API key", provider.name),
+                &format!("  {} API key", profile.name),
                 key_set,
                 if key_set { None } else { Some("API key not configured".to_string()) },
             );
@@ -85,10 +85,14 @@ pub async fn run_doctor(args: DoctorArgs, config_path: Option<String>) -> Result
         // Check 4: Gateway connectivity
         let client = reqwest::Client::new();
         let gw_url = gateway_http_url(&config.gateway);
-        let gw_ok = client.get(format!("{}/health", gw_url))
+        let gw_ok = match client.get(format!("{}/health", gw_url))
             .timeout(std::time::Duration::from_secs(5))
-            .send().await
-            .is_ok();
+            .send()
+            .await
+        {
+            Ok(response) => response.status().is_success(),
+            Err(_) => false,
+        };
         print_diagnostic("Gateway reachable", gw_ok,
             if gw_ok { None } else { Some("Gateway is not running".to_string()) });
         if gw_ok { passed += 1; } else { failed += 1; }
@@ -105,9 +109,13 @@ pub async fn run_doctor(args: DoctorArgs, config_path: Option<String>) -> Result
     }
 
     println!("\n{} passed, {} failed", passed, failed);
-    Ok(if failed > 0 {
-        anyhow::bail!("{} diagnostic check(s) failed", failed);
-    })
+    
+    if failed > 0 {
+        writeln!(io::stderr(), "{} diagnostic check(s) failed", failed)?;
+        std::process::exit(1);
+    }
+    
+    Ok(())
 }
 
 /// Print a diagnostic check result
