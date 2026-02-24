@@ -16,6 +16,7 @@ use std::path::Path;
 use aisopod_config::load_config;
 use aisopod_config::types::AisopodConfig;
 use aisopod_session::{SessionFilter, SessionStore};
+use crate::output::Output;
 
 /// Information about a session.
 ///
@@ -137,24 +138,22 @@ pub async fn list_sessions(
     let summaries = store.list("admin", &filter)?;
 
     if summaries.is_empty() {
-        println!("No sessions found.");
+        let output = Output::new(false);
+        output.info("No sessions found.");
         return Ok(());
     }
 
     // Convert to SessionInfo
     let sessions: Vec<SessionInfo> = summaries.iter().map(SessionInfo::from_summary).collect();
 
-    // Display header
-    println!("{:<36} {:<15} {:<12} {:<20}", "Session ID", "Agent", "Channel", "Last Active");
-    println!("{}", "-".repeat(83));
-
-    // Display sessions
-    for session in sessions {
-        println!(
-            "{:<36} {:<15} {:<12} {:<20}",
-            session.id, session.agent_id, session.channel, session.last_active
-        );
-    }
+    // Display using table format
+    let output = Output::new(false);
+    let headers = ["Session ID", "Agent", "Channel", "Last Active"];
+    let rows: Vec<Vec<String>> = sessions
+        .iter()
+        .map(|s| vec![s.id.clone(), s.agent_id.clone(), s.channel.clone(), s.last_active.clone()])
+        .collect();
+    output.print_table(&headers, rows);
 
     Ok(())
 }
@@ -168,6 +167,7 @@ pub async fn clear_sessions(
 
     let store_path = build_session_store_path(&config);
     let store = SessionStore::new(Path::new(&store_path))?;
+    let output = Output::new(false);
 
     match session_id {
         Some(id) => {
@@ -179,7 +179,7 @@ pub async fn clear_sessions(
             let sessions = store.list("admin", &filter)?;
             
             if sessions.is_empty() {
-                println!("Session '{}' not found.", id);
+                output.error(&format!("Session '{}' not found.", id));
                 return Ok(());
             }
 
@@ -189,7 +189,7 @@ pub async fn clear_sessions(
                 count += 1;
             }
             
-            println!("Cleared {} session(s) with ID '{}'.", count, id);
+            output.success(&format!("Cleared {} session(s) with ID '{}'.", count, id));
         }
         None => {
             // Clear all sessions - prompt for confirmation
@@ -202,9 +202,9 @@ pub async fn clear_sessions(
                     store.delete("admin", &session.key)?;
                 }
 
-                println!("All sessions cleared.");
+                output.success("All sessions cleared.");
             } else {
-                println!("Cancelled.");
+                output.info("Cancelled.");
             }
         }
     }
@@ -228,13 +228,15 @@ pub async fn run(args: SessionsArgs, config_path: Option<String>) -> Result<()> 
 /// Reset all sessions (top-level command)
 pub async fn run_reset(config_path: Option<String>) -> Result<()> {
     let confirm = prompt("This will reset ALL sessions and conversation history. Continue? (yes/no): ")?;
+    let output = Output::new(false);
+    
     if confirm != "yes" {
-        println!("Cancelled.");
+        output.info("Cancelled.");
         return Ok(());
     }
 
     clear_sessions(None, config_path).await?;
-    println!("All sessions have been reset.");
+    output.success("All sessions have been reset.");
     Ok(())
 }
 

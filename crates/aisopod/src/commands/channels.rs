@@ -52,6 +52,7 @@ use std::path::Path;
 use aisopod_config::load_config;
 use aisopod_config::sensitive::Sensitive;
 use aisopod_config::types::{AisopodConfig, ChannelConnection, Channel};
+use crate::output::Output;
 
 /// Channel management command arguments
 #[derive(Args)]
@@ -198,24 +199,25 @@ fn check_channel_status(channel: &Channel) -> &'static str {
 /// List all configured channels
 pub async fn list_channels(config_path: Option<String>) -> Result<()> {
     let config = load_config_or_default(config_path.as_deref())?;
+    let output = Output::new(false);
 
     let channels = &config.channels.channels;
 
     if channels.is_empty() {
-        println!("No channels configured. Run 'aisopod channels setup <channel>' to add one.");
+        output.info("No channels configured. Run 'aisopod channels setup <channel>' to add one.");
         return Ok(());
     }
 
-    println!("{:<15} {:<12} {:<30}", "Channel", "Status", "Details");
-    println!("{}", "-".repeat(57));
-
-    for channel in channels {
-        let status = check_channel_status(channel);
-        println!(
-            "{:<15} {:<12} {:<30}",
-            channel.channel_type, status, channel.name
-        );
-    }
+    let headers = ["Channel", "Status", "Details"];
+    let rows: Vec<Vec<String>> = channels
+        .iter()
+        .map(|c| {
+            let status = check_channel_status(c);
+            vec![c.channel_type.clone(), status.to_string(), c.name.clone()]
+        })
+        .collect();
+    
+    output.print_table(&headers, rows);
 
     Ok(())
 }
@@ -223,6 +225,7 @@ pub async fn list_channels(config_path: Option<String>) -> Result<()> {
 /// Setup a channel with interactive wizard
 pub fn setup_channel(channel_type: &ChannelType, config_path: Option<String>) -> Result<()> {
     let mut config = load_config_or_default(config_path.as_deref())?;
+    let output = Output::new(false);
 
     match channel_type {
         ChannelType::Telegram => {
@@ -331,7 +334,7 @@ pub fn setup_channel(channel_type: &ChannelType, config_path: Option<String>) ->
     }
 
     save_config(&config, config_path)?;
-    println!("\nChannel '{}' configured successfully!", channel_type.as_str());
+    output.success(&format!("Channel '{}' configured successfully!", channel_type.as_str()));
     Ok(())
 }
 

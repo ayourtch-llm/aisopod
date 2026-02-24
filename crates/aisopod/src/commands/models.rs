@@ -18,6 +18,7 @@ use aisopod_provider::registry::ProviderRegistry;
 use aisopod_provider::trait_module::ModelProvider;
 use aisopod_provider::types::ModelInfo;
 use std::collections::HashMap;
+use crate::output::Output;
 
 /// Model management command arguments
 #[derive(Args)]
@@ -123,26 +124,34 @@ pub async fn list_models(
 
     let catalog = ModelCatalog::new(registry, Duration::from_secs(60));
     let models = catalog.list_all().await?;
+    let output = Output::new(json);
 
     if models.is_empty() {
-        if json {
-            println!("[]");
-        } else {
-            println!("No models found.");
-        }
+        output.info("No models found.");
         return Ok(());
     }
 
+    // Group models by provider for human-readable output
+    let mut models_by_provider: HashMap<String, Vec<ModelInfo>> = HashMap::new();
+
+    for model in &models {
+        let provider_name = model.provider.clone();
+        models_by_provider
+            .entry(provider_name)
+            .or_insert_with(Vec::new)
+            .push(model.clone());
+    }
+
     if json {
-        // JSON output mode
+        // JSON output mode - collect all models into a single JSON array
         let models_json: Vec<serde_json::Value> = models
             .iter()
             .map(|model| {
                 serde_json::to_value(model).unwrap_or_else(|_| {
                     serde_json::json!({
-                        "id": model.id,
-                        "name": model.name,
-                        "provider": model.provider,
+                        "id": model.id.clone(),
+                        "name": model.name.clone(),
+                        "provider": model.provider.clone(),
                         "context_window": model.context_window,
                         "supports_vision": model.supports_vision,
                         "supports_tools": model.supports_tools
@@ -150,19 +159,19 @@ pub async fn list_models(
                 })
             })
             .collect();
-        println!("{}", serde_json::to_string_pretty(&models_json)?);
+        // Extract values for table
+        let rows: Vec<Vec<String>> = models_json
+            .iter()
+            .map(|m| {
+                vec![
+                    m.get("name").unwrap_or(&json!("")).as_str().unwrap_or("").to_string(),
+                    m.get("provider").unwrap_or(&json!("")).as_str().unwrap_or("").to_string(),
+                    m.get("context_window").unwrap_or(&json!("")).to_string(),
+                ]
+            })
+            .collect();
+        output.print_table(&["Model", "Provider", "Context Window"], rows);
         return Ok(());
-    }
-
-    // Group models by provider for human-readable output
-    let mut models_by_provider: HashMap<String, Vec<ModelInfo>> = HashMap::new();
-
-    for model in models {
-        let provider_name = model.provider.clone();
-        models_by_provider
-            .entry(provider_name)
-            .or_insert_with(Vec::new)
-            .push(model);
     }
 
     // Print models grouped by provider
@@ -201,6 +210,7 @@ pub async fn list_models(
 pub async fn switch_model(model_id: &str, config_path: Option<String>, json: bool) -> Result<()> {
     let config_path = config_path.as_deref().unwrap_or("aisopod-config.json5");
     let config = load_config(Path::new(config_path))?;
+    let output = Output::new(json);
     
     // Check if the model exists in any provider
     let found = {
@@ -222,15 +232,8 @@ pub async fn switch_model(model_id: &str, config_path: Option<String>, json: boo
             models.iter().map(|m| format!("  {}", m.id)).collect::<Vec<_>>().join("\n")
         );
         
-        if json {
-            let error_json = serde_json::json!({
-                "error": error_message,
-                "available_models": models.iter().map(|m| m.id.clone()).collect::<Vec<_>>()
-            });
-            return Err(anyhow::anyhow!("{}", serde_json::to_string_pretty(&error_json)?));
-        } else {
-            return Err(anyhow::anyhow!(error_message));
-        }
+        output.error(&error_message);
+        return Err(anyhow::anyhow!("Model not found"));
     }
 
     // Load the config for modification
@@ -243,16 +246,7 @@ pub async fn switch_model(model_id: &str, config_path: Option<String>, json: boo
     let content = serde_json::to_string_pretty(&config)?;
     std::fs::write(config_path, content)?;
 
-    if json {
-        let result_json = serde_json::json!({
-            "success": true,
-            "model": model_id,
-            "message": format!("Switched default agent model to: {}", model_id)
-        });
-        println!("{}", serde_json::to_string_pretty(&result_json)?);
-    } else {
-        println!("Switched default agent model to: {}", model_id);
-    }
+    output.success(&format!("Switched default agent model to: {}", model_id));
 
     Ok(())
 }

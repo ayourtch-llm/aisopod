@@ -4,6 +4,7 @@
 
 mod cli;
 mod commands;
+mod output;
 
 use anyhow::Result;
 

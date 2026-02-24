@@ -60,7 +60,13 @@ pub enum Commands {
     /// Reset all sessions
     Reset,
     /// Generate shell completions
-    Completions,
+    Completions(crate::commands::completions::CompletionsArgs),
+    /// Interactive onboarding wizard for first-time users
+    Onboarding {
+        /// Path to configuration file
+        #[arg(long)]
+        config: Option<String>,
+    },
 }
 
 /// Main entry point for CLI processing.
@@ -104,7 +110,8 @@ pub fn run_cli() {
                 }
                 crate::commands::models::ModelsCommands::Switch { model, json } => {
                     let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-                    rt.block_on(crate::commands::models::switch_model(&model, cli.config, json)).expect("Models switch command failed");
+                    let json_output = json || cli.json;
+                    rt.block_on(crate::commands::models::switch_model(&model, cli.config, json_output)).expect("Models switch command failed");
                 }
             }
         }
@@ -129,6 +136,11 @@ pub fn run_cli() {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
             rt.block_on(crate::commands::sessions::run_reset(cli.config)).expect("Reset command failed");
         }
-        Commands::Completions => todo!("completions command"),
+        Commands::Completions(args) => {
+            crate::commands::completions::run(args);
+        }
+        Commands::Onboarding { config } => {
+            crate::commands::onboarding::run_onboarding(config).expect("Onboarding command failed");
+        }
     }
 }
