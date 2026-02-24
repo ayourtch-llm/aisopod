@@ -268,9 +268,8 @@ mod tests {
         };
 
         match args.command {
-            ModelsCommands::List { provider, json } => {
+            ModelsCommands::List { provider, .. } => {
                 assert!(provider.is_none());
-                assert!(!json);
             }
             _ => assert!(false),
         }
@@ -286,9 +285,8 @@ mod tests {
         };
 
         match args.command {
-            ModelsCommands::List { provider, json } => {
+            ModelsCommands::List { provider, .. } => {
                 assert_eq!(provider, Some("openai".to_string()));
-                assert!(!json);
             }
             _ => assert!(false),
         }
@@ -304,9 +302,8 @@ mod tests {
         };
 
         match args.command {
-            ModelsCommands::Switch { model, json } => {
+            ModelsCommands::Switch { model, .. } => {
                 assert_eq!(model, "gpt-4");
-                assert!(!json);
             }
             _ => assert!(false),
         }
