@@ -285,7 +285,6 @@ async fn test_stub_endpoints_return_501() {
         "/v1/responses",
         "/hooks",
         "/tools/invoke",
-        "/status",
     ];
 
     for endpoint in endpoints {
