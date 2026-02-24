@@ -8,8 +8,9 @@ use std::path::PathBuf;
 fn main() {
     println!("cargo:rerun-if-changed=../ui");
 
-    // Check if UI should be built (skip if NO_BUILD_UI is set)
-    if env::var("NO_BUILD_UI").is_ok() {
+    // Check if UI should be built (skip if AISOPOD_BUILD_UI is not set)
+    // This allows development mode without rebuilding the UI on every cargo build
+    if env::var("AISOPOD_BUILD_UI").is_err() {
         return;
     }
 

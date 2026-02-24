@@ -36,6 +36,18 @@ export default defineConfig(() => {
       host: true,
       port: 5173,
       strictPort: true,
+      proxy: {
+        // Proxy API requests to the aisopod gateway
+        "/api": {
+          target: "http://localhost:18789",
+          changeOrigin: true,
+        },
+        // Proxy WebSocket connections to the gateway
+        "/ws": {
+          target: "ws://localhost:18789",
+          ws: true,
+        },
+      },
     },
   };
 });
