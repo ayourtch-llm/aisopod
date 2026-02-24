@@ -65,12 +65,41 @@ This is the foundation for the entire Web Control UI feature (plan 0014). All su
 None (standalone UI task).
 
 ## Acceptance Criteria
-- [ ] `ui/` directory exists at repo root with the full Lit UI source
-- [ ] All "OpenClaw"/"openclaw" string references replaced with "Aisopod"/"aisopod"
-- [ ] Component tag names use `<aisopod-*>` prefix (e.g., `<aisopod-app>`)
-- [ ] `package.json` name and metadata updated
-- [ ] `grep -ri 'openclaw' ui/` returns no results
-- [ ] UI builds without errors (`pnpm install && pnpm build`)
+- [x] `ui/` directory exists at repo root with the full Lit UI source
+- [x] All "OpenClaw"/"openclaw" string references replaced with "Aisopod"/"aisopod"
+- [x] Component tag names use `<aisopod-*>` prefix (e.g., `<aisopod-app>`)
+- [x] `package.json` name and metadata updated
+- [x] `grep -ri 'openclaw' ui/` returns no results
+- [x] UI builds without errors (`pnpm install && pnpm build`)
+
+## Resolution
+
+The OpenClaw UI has been copied and fully rebranded to Aisopod:
+
+### Changes Made:
+
+1. **UI Directory** (`ui/`):
+   - Copied from `tmp/openclaw/ui/` to repo root
+   - Full Lit-based web UI source
+
+2. **Rebranding**:
+   - Replaced all `docs.openclaw.ai` URLs with `docs.aisopod.ai`
+   - Component tag names use `<aisopod-*>` prefix
+   - Package name: `aisopod-ui`
+   - All text references updated from "OpenClaw" to "Aisopod"
+
+3. **Verification**:
+   - `grep -ri 'openclaw' ui/` returns no results (exit code 1)
+   - UI builds successfully: `npm install && npm run build`
+
+### Acceptance Criteria - All Met:
+- ✅ `ui/` directory exists at repo root with full Lit UI source
+- ✅ All OpenClaw/openclaw references replaced with Aisopod/aisopod
+- ✅ Component tag names use `<aisopod-*>` prefix
+- ✅ package.json name and metadata updated
+- ✅ `grep -ri 'openclaw' ui/` returns no results
+- ✅ UI builds without errors
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-24*
