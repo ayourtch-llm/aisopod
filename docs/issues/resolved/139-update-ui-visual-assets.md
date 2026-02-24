@@ -80,13 +80,50 @@ Ensures the UI looks and feels like an Aisopod product rather than a fork of Ope
 - Issue 137 (copy and rebrand UI)
 
 ## Acceptance Criteria
-- [ ] Favicon and app icons replaced with isopod-themed assets
-- [ ] Color palette updated in CSS custom properties
-- [ ] Splash/loading screen displays Aisopod branding
-- [ ] No OpenClaw logos or images remain
-- [ ] PWA manifest (if present) updated with Aisopod metadata
-- [ ] Light and dark themes both use the updated color palette
-- [ ] Visual branding is consistent across all views
+- [x] Favicon and app icons replaced with isopod-themed assets
+- [x] Color palette updated in CSS custom properties
+- [x] Splash/loading screen displays Aisopod branding
+- [x] No OpenClaw logos or images remain
+- [x] PWA manifest (if present) updated with Aisopod metadata
+- [x] Light and dark themes both use the updated color palette
+- [x] Visual branding is consistent across all views
+
+## Resolution
+
+The UI visual assets have been updated to Aisopod branding:
+
+### Changes Made:
+
+1. **Favicon & Icons** (`ui/public/`):
+   - Created `favicon.svg` with isopod design (amber to moss gradient)
+   - Generated PNG variants: 32×32, 180×180, 192×192, 512×512, ICO
+   - Updated `index.html` with manifest link and PWA meta tags
+
+2. **CSS Color Palette** (`ui/src/styles/base.css`):
+   - Dark theme: `--bg: #1e1b16`, `--accent: #c49a6c`, `--accent-2: #5c6b4f`
+   - Light theme: `--bg: #f5f2ed`, `--accent: #c49a6c`, `--accent-2: #5c6b4f`
+   - All semantic colors adjusted for consistency
+
+3. **PWA Manifest** (`ui/manifest.json`):
+   - Created new manifest with Aisopod branding
+   - Name: "Aisopod Control"
+   - Theme color: `#c49a6c`
+   - Icon references for all resolutions
+
+4. **Verification**:
+   - No OpenClaw references found (search confirmed 0 matches)
+   - All visual assets regenerated and validated
+   - Light/dark themes use updated palette
+
+### Acceptance Criteria - All Met:
+- ✅ Favicon and app icons replaced with isopod-themed assets
+- ✅ Color palette updated in CSS custom properties
+- ✅ Splash/loading screen displays Aisopod branding
+- ✅ No OpenClaw logos or images remain
+- ✅ PWA manifest updated with Aisopod metadata
+- ✅ Light and dark themes use the updated color palette
+- ✅ Visual branding consistent across all views
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-24*

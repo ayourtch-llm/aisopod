@@ -1,0 +1,24 @@
+{
+  "name": "Aisopod Control",
+  "short_name": "Aisopod",
+  "description": "Gateway Dashboard for Aisopod Assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f2ed",
+  "theme_color": "#c49a6c",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
