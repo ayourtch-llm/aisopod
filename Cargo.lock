@@ -47,6 +47,8 @@ dependencies = [
  "aisopod-tools",
  "anyhow",
  "clap",
+ "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",

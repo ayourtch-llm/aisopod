@@ -4,11 +4,21 @@
 //! (JSON5, JSON, TOML) and auto-detect the format based on file extension.
 
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 
 use crate::AisopodConfig;
+
+/// Default configuration file name
+pub const DEFAULT_CONFIG_FILE: &str = "aisopod-config.json5";
+
+/// Get the default configuration file path.
+///
+/// Returns the path to the default config file in the current working directory.
+pub fn default_config_path() -> PathBuf {
+    std::env::current_dir().expect("Failed to get current directory").join(DEFAULT_CONFIG_FILE)
+}
 
 /// Load a configuration file, auto-detecting format from extension.
 ///

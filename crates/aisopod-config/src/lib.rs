@@ -24,6 +24,7 @@ pub mod watcher;
 
 pub use env::expand_env_vars;
 pub use generate::{generate_config_with_format, generate_default_config, ConfigFormat};
+pub use loader::default_config_path;
 pub use loader::load_config;
 pub use loader::load_config_json5;
 pub use loader::load_config_json5_str;
@@ -36,3 +37,6 @@ pub use types::ModelFallback;
 pub use validation::ValidationError;
 pub use watcher::diff_sections;
 pub use watcher::ConfigWatcher;
+
+/// Default configuration file name
+pub const DEFAULT_CONFIG_FILE: &str = "aisopod-config.json5";

@@ -161,6 +161,7 @@ mod tests {
                 max_subagent_depth: 3,
                 subagent_allowed_models: None,
                 system_prompt: "Default system prompt".to_string(),
+                skills: Vec::new(),
             },
             Agent {
                 id: "agent2".to_string(),
@@ -172,6 +173,7 @@ mod tests {
                 max_subagent_depth: 3,
                 subagent_allowed_models: None,
                 system_prompt: "Default system prompt".to_string(),
+                skills: Vec::new(),
             },
         ];
         let errors = config.validate().unwrap_err();

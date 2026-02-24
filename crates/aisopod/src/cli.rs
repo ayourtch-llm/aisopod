@@ -32,7 +32,7 @@ pub enum Commands {
     /// Start the HTTP+WS gateway server
     Gateway(crate::commands::gateway::GatewayArgs),
     /// Manage agents
-    Agent,
+    Agent(crate::commands::agent::AgentArgs),
     /// Send a message
     Message,
     /// Manage configuration
@@ -69,7 +69,9 @@ pub fn run_cli() {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
             rt.block_on(crate::commands::gateway::run(args, cli.config)).expect("Gateway command failed");
         }
-        Commands::Agent => todo!("agent command"),
+        Commands::Agent(args) => {
+            crate::commands::agent::run(args, cli.config).expect("Agent command failed");
+        }
         Commands::Message => todo!("message command"),
         Commands::Config => todo!("config command"),
         Commands::Status => todo!("status command"),

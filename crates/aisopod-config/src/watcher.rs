@@ -372,6 +372,7 @@ mod tests {
             max_subagent_depth: 3,
             subagent_allowed_models: None,
             system_prompt: "Default system prompt".to_string(),
+            skills: Vec::new(),
         });
 
         let changed = diff_sections(&old, &new);
