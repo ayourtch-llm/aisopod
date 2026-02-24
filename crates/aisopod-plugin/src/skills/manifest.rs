@@ -187,6 +187,8 @@ pub fn parse_manifest(path: &Path) -> Result<SkillManifest, ManifestError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::tempdir;
 
     #[test]
     fn test_skill_manifest_new() {
@@ -300,6 +302,124 @@ mod tests {
             let result = manifest.validate();
             assert!(result.is_ok(), "Platform {} should be valid", platform);
         }
+    }
+
+    #[test]
+    fn test_parse_manifest_with_all_fields() {
+        use std::path::PathBuf;
+        use tempfile::tempdir;
+
+        let dir = tempdir().unwrap();
+        let manifest_path = dir.path().join("skill.toml");
+        
+        let content = r#"
+id = "test-skill"
+name = "Test Skill"
+description = "A test skill"
+version = "1.0.0"
+category = "Productivity"
+required_env_vars = ["API_KEY", "SECRET"]
+required_binaries = ["curl", "jq"]
+platform = "linux"
+"#;
+        fs::write(&manifest_path, content).unwrap();
+
+        let manifest = parse_manifest(&manifest_path).unwrap();
+
+        assert_eq!(manifest.id, "test-skill");
+        assert_eq!(manifest.name, "Test Skill");
+        assert_eq!(manifest.description, "A test skill");
+        assert_eq!(manifest.version, "1.0.0");
+        assert_eq!(manifest.category, SkillCategory::Productivity);
+        assert_eq!(manifest.required_env_vars, vec!["API_KEY", "SECRET"]);
+        assert_eq!(manifest.required_binaries, vec!["curl", "jq"]);
+        assert_eq!(manifest.platform, Some("linux".to_string()));
+    }
+
+    #[test]
+    fn test_parse_manifest_default_optional_fields() {
+        use std::path::PathBuf;
+        use tempfile::tempdir;
+
+        let dir = tempdir().unwrap();
+        let manifest_path = dir.path().join("skill.toml");
+        
+        let content = r#"
+id = "minimal-skill"
+name = "Minimal Skill"
+description = "Minimal"
+version = "0.1.0"
+category = "Utility"
+"#;
+        fs::write(&manifest_path, content).unwrap();
+
+        let manifest = parse_manifest(&manifest_path).unwrap();
+
+        assert!(manifest.required_env_vars.is_empty());
+        assert!(manifest.required_binaries.is_empty());
+        assert!(manifest.platform.is_none());
+    }
+
+    #[test]
+    fn test_skill_manifest_validation_whitespace_name() {
+        let mut manifest = SkillManifest::default_for_test();
+        manifest.name = "   ".to_string();
+
+        let result = manifest.validate();
+        assert!(matches!(result, Err(ManifestError::MissingField("name"))));
+    }
+
+    #[test]
+    fn test_skill_manifest_validation_whitespace_version() {
+        let mut manifest = SkillManifest::default_for_test();
+        manifest.version = "   ".to_string();
+
+        let result = manifest.validate();
+        assert!(matches!(result, Err(ManifestError::MissingField("version"))));
+    }
+
+    #[test]
+    fn test_skill_manifest_validation_platform_uppercase() {
+        let mut manifest = SkillManifest::default_for_test();
+        manifest.platform = Some("LINUX".to_string());
+
+        // Note: platform validation is case-sensitive (as per the spec in validate())
+        // but we normalize in validate_requirements() for runtime checks
+        let result = manifest.validate();
+        assert!(result.is_err(), "Validation should reject uppercase platform");
+    }
+
+    #[test]
+    fn test_skill_manifest_debug() {
+        let manifest = SkillManifest::new(
+            "test",
+            "Test",
+            "Test",
+            "1.0.0",
+            SkillCategory::Utility,
+            vec![],
+            vec![],
+            None,
+        );
+        let debug_str = format!("{:?}", manifest);
+        assert!(debug_str.contains("SkillManifest"));
+    }
+
+    #[test]
+    fn test_skill_manifest_clone() {
+        let manifest = SkillManifest::new(
+            "test",
+            "Test",
+            "Test",
+            "1.0.0",
+            SkillCategory::Utility,
+            vec![],
+            vec![],
+            None,
+        );
+        let cloned = manifest.clone();
+        assert_eq!(manifest.id, cloned.id);
+        assert_eq!(manifest.name, cloned.name);
     }
 
     // Helper for tests

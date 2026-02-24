@@ -612,4 +612,62 @@ category = "Productivity"
 
         assert_eq!(dirs.len(), 2);
     }
+
+    #[test]
+    fn test_validate_requirements_with_both_env_and_binary() {
+        use crate::skills::SkillCategory;
+        use crate::skills::SkillManifest;
+
+        let manifest = SkillManifest::new(
+            "test-skill",
+            "Test Skill",
+            "A test skill",
+            "1.0.0",
+            SkillCategory::Utility,
+            vec!["PATH".to_string()],                  // PATH should exist
+            vec!["echo".to_string()],                  // echo should be available
+            None,
+        );
+
+        let result = validate_requirements(&manifest);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_requirements_missing_both_env_and_binary() {
+        use crate::skills::SkillCategory;
+        use crate::skills::SkillManifest;
+
+        let manifest = SkillManifest::new(
+            "test-skill",
+            "Test Skill",
+            "A test skill",
+            "1.0.0",
+            SkillCategory::Utility,
+            vec!["NONEXISTENT_VAR_ABC123".to_string()],
+            vec!["nonexistent_bin_xyz789".to_string()],
+            None,
+        );
+
+        let result = validate_requirements(&manifest);
+        assert!(result.is_err());
+
+        let errors = result.unwrap_err();
+        // Should have errors for both missing env var and binary
+        assert!(errors.iter().any(|e| e.contains("NONEXISTENT_VAR_ABC123")));
+        assert!(errors.iter().any(|e| e.contains("nonexistent_bin_xyz789")));
+        assert_eq!(errors.len(), 2);
+    }
+
+    #[test]
+    fn test_is_binary_available_with_path() {
+        // Verify that binaries with full paths work
+        // This test may behave differently depending on the system
+        let result = is_binary_available("ls");
+        // ls should be available on Unix systems
+        #[cfg(unix)]
+        assert!(result);
+        #[cfg(not(unix))]
+        let _ = result; // Avoid unused variable warning
+    }
 }

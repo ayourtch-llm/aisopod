@@ -525,4 +525,60 @@ mod tests {
         assert!(failed_json.contains("Failed"));
         assert_eq!(unloaded_json, "\"Unloaded\"");
     }
+
+    #[test]
+    fn test_skills_for_agent_with_multiple_agents() {
+        let mut registry = SkillRegistry::new();
+        
+        let skill1 = Arc::new(TestSkill::new("skill-1")) as Arc<dyn Skill>;
+        let skill2 = Arc::new(TestSkill::new("skill-2")) as Arc<dyn Skill>;
+        let skill3 = Arc::new(TestSkill::new("skill-3")) as Arc<dyn Skill>;
+        
+        registry.register(skill1);
+        registry.register(skill2);
+        registry.register(skill3);
+        
+        registry.assign_to_agent("agent-1", vec!["skill-1".to_string(), "skill-2".to_string()]);
+        registry.assign_to_agent("agent-2", vec!["skill-2".to_string(), "skill-3".to_string()]);
+        
+        let agent1_skills = registry.skills_for_agent("agent-1");
+        let agent2_skills = registry.skills_for_agent("agent-2");
+        
+        assert_eq!(agent1_skills.len(), 2);
+        assert_eq!(agent2_skills.len(), 2);
+        
+        let agent1_ids: Vec<&str> = agent1_skills.iter().map(|s| s.id()).collect();
+        let agent2_ids: Vec<&str> = agent2_skills.iter().map(|s| s.id()).collect();
+        
+        assert!(agent1_ids.contains(&"skill-1"));
+        assert!(agent1_ids.contains(&"skill-2"));
+        assert!(agent2_ids.contains(&"skill-2"));
+        assert!(agent2_ids.contains(&"skill-3"));
+    }
+
+    #[test]
+    fn test_skill_registry_with_all_status_types() {
+        let mut registry = SkillRegistry::new();
+        
+        let skill1 = Arc::new(TestSkill::new("skill-ready")) as Arc<dyn Skill>;
+        let skill2 = Arc::new(TestSkill::new("skill-degraded")) as Arc<dyn Skill>;
+        let skill3 = Arc::new(TestSkill::new("skill-failed")) as Arc<dyn Skill>;
+        
+        registry.register(skill1);
+        registry.register(skill2);
+        registry.register(skill3);
+        
+        // Set different statuses
+        registry.set_status("skill-degraded", SkillStatus::Degraded {
+            reason: "Missing API key".to_string(),
+        });
+        registry.set_status("skill-failed", SkillStatus::Failed {
+            error: "Initialization failed".to_string(),
+        });
+        
+        // Verify all statuses
+        assert!(matches!(registry.status("skill-ready"), Some(SkillStatus::Ready)));
+        assert!(matches!(registry.status("skill-degraded"), Some(SkillStatus::Degraded { .. })));
+        assert!(matches!(registry.status("skill-failed"), Some(SkillStatus::Failed { .. })));
+    }
 }
