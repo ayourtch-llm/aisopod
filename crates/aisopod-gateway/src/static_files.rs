@@ -9,7 +9,7 @@ use axum::{
     http::{header, StatusCode, Uri},
     response::IntoResponse,
 };
-use rust_embed::RustEmbed;
+use rust_embed::{Embed, RustEmbed};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -20,11 +20,8 @@ use aisopod_config::types::WebUiConfig;
 /// The assets are embedded at compile time from the `web-ui/dist` directory
 /// which should be at the workspace root.
 #[derive(RustEmbed)]
-#[folder = "../../web-ui/dist"]
+#[folder = "/home/ayourtch/rust/aisopod/web-ui/dist"]
 struct Assets;
-
-// Import the Embed trait to use Assets::get()
-use rust_embed::Embed;
 
 /// Static file serving state
 #[derive(Clone)]
@@ -71,13 +68,19 @@ pub fn get_content_type(path: &str) -> &'static str {
 
 /// Check if a filename contains a hash segment (for cache control)
 fn has_hash_in_filename(path: &str) -> bool {
-    // Look for hash patterns like .abc123 or abc123def456 in the filename
+    // Look for hash patterns like .abc123def or abc123def456 in the filename
     let filename = path.rsplit('/').next().unwrap_or(path);
-    // Hash segments are typically 8+ hex characters
+    // Hash segments are typically 8+ characters of alphanumeric or hyphen
     // Pattern: filename.abc123.ext or filename.abc123def456.ext
+    // Accept alphanumeric chars (base64-like) for hash detection
     filename
         .split('.')
-        .any(|part| part.chars().all(|c| c.is_ascii_hexdigit()) && part.len() >= 8)
+        .any(|part| {
+            part.len() >= 8
+                && part
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        })
 }
 
 /// Determine cache control header value based on file type

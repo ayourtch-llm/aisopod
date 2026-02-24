@@ -42,7 +42,8 @@ async fn test_serve_css_file() {
     let config = WebUiConfig::default();
     let state = StaticFileState::new(config);
 
-    let uri = "/styles/main.css".parse().unwrap();
+    // Use the actual embedded CSS file path
+    let uri = "/assets/index-BQE4UcBt.css".parse().unwrap();
     let response = static_handler(axum::extract::State(state.clone()), uri).await;
 
     let response = response.into_response();
@@ -59,7 +60,8 @@ async fn test_serve_js_file() {
     let config = WebUiConfig::default();
     let state = StaticFileState::new(config);
 
-    let uri = "/scripts/main.js".parse().unwrap();
+    // Use the actual embedded JS file path
+    let uri = "/assets/index-BoczOECE.js".parse().unwrap();
     let response = static_handler(axum::extract::State(state.clone()), uri).await;
 
     let response = response.into_response();
@@ -79,8 +81,8 @@ async fn test_serve_hashed_asset() {
     let config = WebUiConfig::default();
     let state = StaticFileState::new(config);
 
-    // Hashed asset should have long-lived cache
-    let uri = "/assets/main.abc123def456.js".parse().unwrap();
+    // Use the actual hashed asset from the web UI build
+    let uri = "/assets/index-BQE4UcBt.css".parse().unwrap();
     let response = static_handler(axum::extract::State(state.clone()), uri).await;
 
     let response = response.into_response();
@@ -157,7 +159,8 @@ async fn test_png_file_content_type() {
     let config = WebUiConfig::default();
     let state = StaticFileState::new(config);
 
-    let uri = "/assets/logo.png".parse().unwrap();
+    // Use an actual embedded PNG file path
+    let uri = "/icon-192.png".parse().unwrap();
     let response = static_handler(axum::extract::State(state.clone()), uri).await;
 
     let response = response.into_response();
