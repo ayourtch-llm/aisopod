@@ -3,6 +3,7 @@
 pub mod agent;
 pub mod channels;
 pub mod config;
+pub mod daemon;
 pub mod gateway;
 pub mod message;
 pub mod models;

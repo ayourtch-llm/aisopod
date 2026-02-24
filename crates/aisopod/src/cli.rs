@@ -52,7 +52,7 @@ pub enum Commands {
     /// Manage sessions
     Sessions(crate::commands::sessions::SessionsArgs),
     /// Manage background daemon
-    Daemon,
+    Daemon(crate::commands::daemon::DaemonArgs),
     /// Run system diagnostics
     Doctor,
     /// Manage authentication
@@ -115,7 +115,9 @@ pub fn run_cli() {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
             rt.block_on(crate::commands::sessions::run(args, cli.config)).expect("Sessions command failed");
         }
-        Commands::Daemon => todo!("daemon command"),
+        Commands::Daemon(args) => {
+            crate::commands::daemon::run(args).expect("Daemon command failed");
+        }
         Commands::Doctor => todo!("doctor command"),
         Commands::Auth => todo!("auth command"),
         Commands::Reset => {

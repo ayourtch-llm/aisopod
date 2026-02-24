@@ -212,5 +212,59 @@ pub fn tail_logs(lines: usize, follow: bool) -> anyhow::Result<()> {
 - [ ] `aisopod daemon logs --follow` streams log output in real time
 - [ ] Unsupported platforms produce a clear error message
 
+## Resolution
+
+The daemon management commands have been implemented with the following changes:
+
+### Files Created/Modified:
+
+1. **Created `crates/aisopod/src/commands/daemon.rs`** - Complete implementation of daemon management commands:
+   - `DaemonArgs` struct with subcommand parsing
+   - `DaemonCommands` enum with Install, Start, Stop, Status, and Logs variants
+   - Platform detection using `cfg!(target_os = "linux")` and `cfg!(target_os = "macos")`
+   - Systemd service file generation and installation on Linux
+   - LaunchAgent plist generation and installation on macOS
+   - Log tailing support with line count and follow options
+
+2. **Modified `crates/aisopod/src/cli.rs`**:
+   - Changed `Commands::Daemon` from a unit variant to `Commands::Daemon(DaemonArgs)`
+   - Added dispatch case for `Commands::Daemon(args)` that calls `daemon::run(args)`
+
+3. **Modified `crates/aisopod/src/commands/mod.rs`**:
+   - Added `pub mod daemon;` to export the daemon module
+
+4. **Modified `crates/aisopod/Cargo.toml`**:
+   - Added `dirs = "5.0"` dependency for home directory detection
+
+### Key Implementation Details:
+
+- **Platform-specific service management**:
+  - Linux: Uses `systemctl` commands (enable, start, stop, status, daemon-reload)
+  - macOS: Uses `launchctl` with plist files in user's LaunchAgents directory
+
+- **Service file locations**:
+  - Linux: `/etc/systemd/system/aisopod.service`
+  - macOS: `~/Library/LaunchAgents/com.aisopod.daemon.plist`
+
+- **Log handling**:
+  - Linux: Uses `journalctl` to tail systemd journal
+  - macOS: Uses `tail` to read from `/usr/local/var/log/aisopod.log`
+
+- **Error handling**: Returns clear error messages for unsupported platforms
+
+### Tests:
+All 29 tests pass successfully including 4 new daemon-specific tests:
+- `test_daemon_args_default`
+- `test_daemon_commands_enum`
+- `test_daemon_logs_args`
+- `test_daemon_logs_default_args`
+
+### Verified:
+- `cargo build` passes
+- `cargo test -p aisopod` passes
+- `RUSTFLAGS=-Awarnings cargo build` passes
+- `RUSTFLAGS=-Awarnings cargo test -p aisopod` passes
+
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-24*

@@ -27,6 +27,8 @@ pub use auth::AuthMode;
 pub use auth::PasswordCredential;
 pub use auth::TokenCredential;
 pub use bindings::AgentBinding;
+pub use channels::Channel;
+pub use channels::ChannelConnection;
 pub use channels::ChannelsConfig;
 pub use env::EnvConfig;
 pub use gateway::BindConfig;

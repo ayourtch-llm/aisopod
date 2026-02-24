@@ -27,6 +27,7 @@ chrono.workspace = true
 rpassword = "7.4.0"
 reqwest = { version = "0.12", features = ["json"] }
 crossterm = "0.27"
+dirs = "5.0"
 
 [dev-dependencies]
 tempfile.workspace = true
