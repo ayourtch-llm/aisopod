@@ -98,13 +98,13 @@ pub fn run_cli() {
         }
         Commands::Models(args) => {
             match args.command {
-                crate::commands::models::ModelsCommands::List { provider } => {
+                crate::commands::models::ModelsCommands::List { provider, json } => {
                     let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-                    rt.block_on(crate::commands::models::list_models(provider, cli.config)).expect("Models list command failed");
+                    rt.block_on(crate::commands::models::list_models(provider, cli.config, json)).expect("Models list command failed");
                 }
-                crate::commands::models::ModelsCommands::Switch { model } => {
+                crate::commands::models::ModelsCommands::Switch { model, json } => {
                     let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-                    rt.block_on(crate::commands::models::switch_model(&model, cli.config)).expect("Models switch command failed");
+                    rt.block_on(crate::commands::models::switch_model(&model, cli.config, json)).expect("Models switch command failed");
                 }
             }
         }

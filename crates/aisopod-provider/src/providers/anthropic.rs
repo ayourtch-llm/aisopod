@@ -70,6 +70,11 @@ impl AnthropicProvider {
         Some(&self.base_url)
     }
 
+    /// Returns the API key used for authentication.
+    pub fn api_key(&self) -> &str {
+        &self.api_key
+    }
+
     /// Converts a core [`Message`] to an Anthropic message.
     fn convert_message(&self, message: &Message) -> Option<AnthropicMessage> {
         let role = match message.role {

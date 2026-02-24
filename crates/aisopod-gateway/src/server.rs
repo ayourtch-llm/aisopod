@@ -25,7 +25,7 @@ use crate::client::ClientRegistry;
 use crate::middleware::{
     auth_middleware, rate_limit_middleware, AuthConfigData, RateLimitConfig, RateLimiter,
 };
-use crate::routes::api_routes;
+use crate::routes::{api_routes, GatewayStatusState};
 use crate::static_files::{get_cache_control, get_content_type, StaticFileState};
 use crate::tls::{is_tls_enabled, load_tls_config};
 use crate::ws::ws_routes;
@@ -260,12 +260,16 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
         .layer(axum::middleware::from_fn(auth_middleware));
 
     eprintln!("=== MIDDLEWARE STACK BUILT === layers: 7");
+    
+    // Create status state with initial counts (will be updated by agents/channels)
+    let status_state = Arc::new(GatewayStatusState::new(0, 0, 0));
+    
     // Build the main app - order matters: static_router first (with 404 for API paths),
     // then API routes, then WebSocket routes
     let app = Router::new()
         .route("/health", get(health))
         .nest_service("/", static_router)
-        .merge(api_routes())
+        .merge(api_routes(Some(status_state.clone())))
         .merge(ws_routes(handshake_timeout))
         .layer(middleware_stack);
 

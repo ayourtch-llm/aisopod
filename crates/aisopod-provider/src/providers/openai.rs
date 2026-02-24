@@ -80,6 +80,11 @@ impl OpenAIProvider {
         }
     }
 
+    /// Returns the API key used for authentication.
+    pub fn api_key(&self) -> &str {
+        &self.api_key
+    }
+
     /// Adds an authentication profile for key rotation.
     pub fn add_profile(&mut self, profile: AuthProfile) {
         let mut manager = self.profile_manager.lock().unwrap();

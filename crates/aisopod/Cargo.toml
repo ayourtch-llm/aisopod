@@ -23,6 +23,8 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 serde_json.workspace = true
 rpassword = "7.4.0"
+reqwest = { version = "0.12", features = ["json"] }
+crossterm = "0.27"
 
 [dev-dependencies]
 tempfile.workspace = true

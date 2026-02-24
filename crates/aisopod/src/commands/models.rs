@@ -5,6 +5,7 @@
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
+use serde_json::{json, Value};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -33,11 +34,17 @@ pub enum ModelsCommands {
         /// Filter by provider name
         #[arg(long)]
         provider: Option<String>,
+        /// Output in JSON format
+        #[arg(long)]
+        json: bool,
     },
     /// Switch the primary model for the default agent
     Switch {
         /// Model identifier (e.g., gpt-4, claude-3-opus)
         model: String,
+        /// Output in JSON format
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -110,6 +117,7 @@ async fn load_config_and_registry(
 pub async fn list_models(
     provider_filter: Option<String>,
     config_path: Option<String>,
+    json: bool,
 ) -> Result<()> {
     let (config, registry) = load_config_and_registry(config_path.as_deref()).await?;
 
@@ -117,11 +125,36 @@ pub async fn list_models(
     let models = catalog.list_all().await?;
 
     if models.is_empty() {
-        println!("No models found.");
+        if json {
+            println!("[]");
+        } else {
+            println!("No models found.");
+        }
         return Ok(());
     }
 
-    // Group models by provider
+    if json {
+        // JSON output mode
+        let models_json: Vec<serde_json::Value> = models
+            .iter()
+            .map(|model| {
+                serde_json::to_value(model).unwrap_or_else(|_| {
+                    serde_json::json!({
+                        "id": model.id,
+                        "name": model.name,
+                        "provider": model.provider,
+                        "context_window": model.context_window,
+                        "supports_vision": model.supports_vision,
+                        "supports_tools": model.supports_tools
+                    })
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&models_json)?);
+        return Ok(());
+    }
+
+    // Group models by provider for human-readable output
     let mut models_by_provider: HashMap<String, Vec<ModelInfo>> = HashMap::new();
 
     for model in models {
@@ -165,7 +198,7 @@ pub async fn list_models(
 }
 
 /// Switch the primary model for the default agent
-pub async fn switch_model(model_id: &str, config_path: Option<String>) -> Result<()> {
+pub async fn switch_model(model_id: &str, config_path: Option<String>, json: bool) -> Result<()> {
     let config_path = config_path.as_deref().unwrap_or("aisopod-config.json5");
     let config = load_config(Path::new(config_path))?;
     
@@ -183,11 +216,21 @@ pub async fn switch_model(model_id: &str, config_path: Option<String>) -> Result
         let catalog = ModelCatalog::new(registry, Duration::from_secs(60));
         let models = catalog.list_all().await?;
         
-        return Err(anyhow::anyhow!(
+        let error_message = format!(
             "Model '{}' not found in any configured provider. Available models:\n{}",
             model_id,
             models.iter().map(|m| format!("  {}", m.id)).collect::<Vec<_>>().join("\n")
-        ));
+        );
+        
+        if json {
+            let error_json = serde_json::json!({
+                "error": error_message,
+                "available_models": models.iter().map(|m| m.id.clone()).collect::<Vec<_>>()
+            });
+            return Err(anyhow::anyhow!("{}", serde_json::to_string_pretty(&error_json)?));
+        } else {
+            return Err(anyhow::anyhow!(error_message));
+        }
     }
 
     // Load the config for modification
@@ -200,7 +243,16 @@ pub async fn switch_model(model_id: &str, config_path: Option<String>) -> Result
     let content = serde_json::to_string_pretty(&config)?;
     std::fs::write(config_path, content)?;
 
-    println!("Switched default agent model to: {}", model_id);
+    if json {
+        let result_json = serde_json::json!({
+            "success": true,
+            "model": model_id,
+            "message": format!("Switched default agent model to: {}", model_id)
+        });
+        println!("{}", serde_json::to_string_pretty(&result_json)?);
+    } else {
+        println!("Switched default agent model to: {}", model_id);
+    }
 
     Ok(())
 }
@@ -212,12 +264,13 @@ mod tests {
     #[test]
     fn test_models_args_default() {
         let args = ModelsArgs {
-            command: ModelsCommands::List { provider: None },
+            command: ModelsCommands::List { provider: None, json: false },
         };
 
         match args.command {
-            ModelsCommands::List { provider } => {
+            ModelsCommands::List { provider, json } => {
                 assert!(provider.is_none());
+                assert!(!json);
             }
             _ => assert!(false),
         }
@@ -228,12 +281,14 @@ mod tests {
         let args = ModelsArgs {
             command: ModelsCommands::List {
                 provider: Some("openai".to_string()),
+                json: false,
             },
         };
 
         match args.command {
-            ModelsCommands::List { provider } => {
+            ModelsCommands::List { provider, json } => {
                 assert_eq!(provider, Some("openai".to_string()));
+                assert!(!json);
             }
             _ => assert!(false),
         }
@@ -244,12 +299,14 @@ mod tests {
         let args = ModelsArgs {
             command: ModelsCommands::Switch {
                 model: "gpt-4".to_string(),
+                json: false,
             },
         };
 
         match args.command {
-            ModelsCommands::Switch { model } => {
+            ModelsCommands::Switch { model, json } => {
                 assert_eq!(model, "gpt-4");
+                assert!(!json);
             }
             _ => assert!(false),
         }
