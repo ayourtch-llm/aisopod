@@ -13,6 +13,10 @@ plugin-whatsapp = ["dep:aisopod-channel-whatsapp"]
 # Provider plugins
 plugin-openai = ["dep:aisopod-provider-openai"]
 plugin-anthropic = ["dep:aisopod-provider-anthropic"]
+# Skill plugins
+skill-healthcheck = []
+skill-session-logs = []
+skill-model-usage = []
 # Meta feature to enable all plugins
 all-plugins = [
     "plugin-telegram",
@@ -21,6 +25,12 @@ all-plugins = [
     "plugin-whatsapp",
     "plugin-openai",
     "plugin-anthropic",
+]
+# Meta feature to enable all skills
+all-skills = [
+    "skill-healthcheck",
+    "skill-session-logs",
+    "skill-model-usage",
 ]
 
 [dependencies]
@@ -50,3 +60,4 @@ tracing.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 tokio = { workspace = true, features = ["full"] }
+futures.workspace = true

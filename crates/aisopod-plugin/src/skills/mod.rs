@@ -11,6 +11,18 @@
 //! - [`SkillCategory`]: Category classification for skills.
 //! - [`SkillContext`]: Runtime context provided to skills during initialization.
 //!
+//! # Manifest Types
+//!
+//! - [`SkillManifest`]: Parsed skill manifest from `skill.toml` files.
+//! - [`ManifestError`]: Error types for manifest parsing.
+//! - [`parse_manifest`]: Function to parse a skill manifest from file.
+//!
+//! # Discovery Types
+//!
+//! - [`discover_skill_dirs`]: Function to scan directories for skills.
+//! - [`validate_requirements`]: Function to check skill requirements.
+//! - [`load_skills`]: Function to orchestrate the full discovery pipeline.
+//!
 //! # Registry Types
 //!
 //! - [`SkillRegistry`]: Central registry for skill discovery and lifecycle management.
@@ -69,11 +81,15 @@
 //! ```
 
 mod context;
+mod discovery;
+mod manifest;
 mod meta;
 mod registry;
 mod r#trait;
 
 pub use context::SkillContext;
+pub use discovery::{discover_skill_dirs, validate_requirements, load_skills, DiscoveryError, DiscoveryResult, DiscoveredSkill};
+pub use manifest::{SkillManifest, ManifestError, parse_manifest};
 pub use meta::{SkillCategory, SkillMeta};
 pub use registry::{SkillRegistry, SkillStatus};
 pub use r#trait::Skill;

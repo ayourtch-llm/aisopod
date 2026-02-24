@@ -285,6 +285,7 @@ dependencies = [
  "aisopod-tools",
  "anyhow",
  "async-trait",
+ "futures",
  "futures-core",
  "futures-util",
  "libloading",
