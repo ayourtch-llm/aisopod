@@ -48,9 +48,9 @@ pub enum Commands {
     /// Manage models
     Models(crate::commands::models::ModelsArgs),
     /// Manage channels
-    Channels,
+    Channels(crate::commands::channels::ChannelsArgs),
     /// Manage sessions
-    Sessions,
+    Sessions(crate::commands::sessions::SessionsArgs),
     /// Manage background daemon
     Daemon,
     /// Run system diagnostics
@@ -108,12 +108,20 @@ pub fn run_cli() {
                 }
             }
         }
-        Commands::Channels => todo!("channels command"),
-        Commands::Sessions => todo!("sessions command"),
+        Commands::Channels(args) => {
+            crate::commands::channels::run(args, cli.config).expect("Channels command failed");
+        }
+        Commands::Sessions(args) => {
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+            rt.block_on(crate::commands::sessions::run(args, cli.config)).expect("Sessions command failed");
+        }
         Commands::Daemon => todo!("daemon command"),
         Commands::Doctor => todo!("doctor command"),
         Commands::Auth => todo!("auth command"),
-        Commands::Reset => todo!("reset command"),
+        Commands::Reset => {
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+            rt.block_on(crate::commands::sessions::run_reset(cli.config)).expect("Reset command failed");
+        }
         Commands::Completions => todo!("completions command"),
     }
 }
