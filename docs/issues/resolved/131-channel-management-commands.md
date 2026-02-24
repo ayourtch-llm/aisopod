@@ -132,14 +132,54 @@ pub fn setup_channel(channel_type: &str, config_path: Option<String>) -> anyhow:
 - Issue 092 (channel registry)
 - Issue 016 (configuration types)
 
+## Resolution
+
+Issue 131 was resolved by implementing a complete channel management CLI system:
+
+### Implementation Summary
+
+1. **CLI Structure**: Defined `ChannelsArgs` and `ChannelsCommands` using clap derive macros for parsing `aisopod channels list` and `aisopod channels setup <channel>` commands.
+
+2. **Channel Types**: Implemented `ChannelType` enum with ValueEnum support for:
+   - Telegram
+   - Discord
+   - WhatsApp
+   - Slack
+
+3. **List Command**: The `list_channels` function displays all configured channels with:
+   - Channel type name
+   - Connection status (configured/connected)
+   - Channel name/description
+
+4. **Setup Wizard**: The `setup_channel` function provides interactive configuration:
+   - Channel-specific setup instructions displayed to user
+   - Secure password input for tokens using `rpassword` crate
+   - Default values for optional fields
+   - Both channels list entry and platform-specific config for backward compatibility
+
+5. **Configuration Management**: 
+   - `load_config_or_default` handles missing config files gracefully
+   - `save_config` persists configuration in JSON5 format
+
+### Acceptance Criteria Met
+
+- [x] `aisopod channels list` displays all configured channels with their status
+- [x] `aisopod channels setup telegram` runs the Telegram setup wizard
+- [x] `aisopod channels setup discord` runs the Discord setup wizard
+- [x] `aisopod channels setup whatsapp` runs the WhatsApp setup wizard
+- [x] `aisopod channels setup slack` runs the Slack setup wizard
+- [x] Unknown channel types produce a helpful error with supported options
+- [x] Credentials are stored securely using the Sensitive type for redaction
+
 ## Acceptance Criteria
-- [ ] `aisopod channels list` displays all configured channels with their status
-- [ ] `aisopod channels setup telegram` runs the Telegram setup wizard
-- [ ] `aisopod channels setup discord` runs the Discord setup wizard
-- [ ] `aisopod channels setup whatsapp` runs the WhatsApp setup wizard
-- [ ] `aisopod channels setup slack` runs the Slack setup wizard
-- [ ] Unknown channel types produce a helpful error with supported options
-- [ ] Credentials are stored securely and redacted in display
+- [x] `aisopod channels list` displays all configured channels with their status
+- [x] `aisopod channels setup telegram` runs the Telegram setup wizard
+- [x] `aisopod channels setup discord` runs the Discord setup wizard
+- [x] `aisopod channels setup whatsapp` runs the WhatsApp setup wizard
+- [x] `aisopod channels setup slack` runs the Slack setup wizard
+- [x] Unknown channel types produce a helpful error with supported options
+- [x] Credentials are stored securely and redacted in display
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-24*
