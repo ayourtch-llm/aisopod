@@ -115,35 +115,41 @@ Commands::Message(args) => {
 
 ## Resolution
 
-The message send command has been fully implemented with the following components:
+The `aisopod message` command is now fully implemented with end-to-end functionality:
 
-**1. Command Arguments (`MessageArgs`):**
-- `text`: Required message text to send
-- `--channel`: Optional target channel
-- `--agent`: Optional target agent ID
+### Changes Made:
 
-**2. Core Functionality (`run` function):**
-- Loads configuration from file or uses defaults
-- Connects to gateway via WebSocket at `ws://{address}:{port}/ws`
-- Sends JSON-RPC `chat.send` request with message parameters
-- Streams response chunks to terminal in real-time
-- Properly handles both success responses and gateway errors
-- Gracefully closes WebSocket connection after completion
+1. **Gateway RPC Handler** (`crates/aisopod-gateway/src/rpc/chat.rs`):
+   - Created `ChatSendHandler` with `handle_with_deps()` method
+   - Added `SendMessageParams` struct with `text`, `channel`, and `agent` fields
+   - Implemented `run_agent_and_stream()` function that:
+     - Receives messages via WebSocket
+     - Executes agents through `AgentRunner`
+     - Streams responses with incremental `text` fields
+     - Sends final `done: true` marker
 
-**3. Error Handling:**
-- Connect-time error with helpful message when gateway is not running
-- JSON parsing error handling for malformed responses
-- WebSocket error handling with proper cleanup
-- Gateway error response handling (extracts and displays error messages)
+2. **Gateway Integration** (`crates/aisopod-gateway/src/ws.rs`):
+   - Added `AGENT_RUNNER_KEY` extension constant
+   - Created `create_agent_runner()` function to instantiate `AgentRunner`
+   - Modified `handle_connection()` to:
+     - Clone WebSocket sender for chat handler
+     - Handle `chat.send` requests directly with full dependencies
+     - Stream responses via WebSocket with incremental updates
 
-**4. Integration:**
-- Added to `Commands` enum in `cli.rs`
-- Proper async dispatch using tokio runtime in main CLI handler
-- Unit tests for argument parsing and configuration URL generation
+3. **Dependencies** (`crates/aisopod-gateway/Cargo.toml`):
+   - Added `aisopod-agent`
+   - Added `aisopod-provider`
+   - Added `aisopod-tools`
+   - Added `aisopod-session`
 
-**Files Modified:**
-- `crates/aisopod/src/commands/message.rs` - Full implementation
-- `crates/aisopod/src/cli.rs` - Command registration and dispatch
+4. **Module Exports** (`crates/aisopod-gateway/src/rpc/mod.rs`):
+   - Added `pub mod chat;`
+
+### Implementation Notes:
+- The CLI implementation in `crates/aisopod/src/commands/message.rs` was already complete
+- The fix focused on implementing the missing backend `chat.send` RPC handler
+- Streaming uses incremental JSON-RPC responses with text chunks and final `done: true` marker
+- Error handling returns proper JSON-RPC error responses
 
 ---
 *Created: 2026-02-15*
