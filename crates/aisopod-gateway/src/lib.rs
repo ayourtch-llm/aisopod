@@ -14,3 +14,4 @@ pub mod tls;
 pub mod ws;
 
 pub use server::run;
+pub use server::run_with_config;

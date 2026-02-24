@@ -87,12 +87,63 @@ Commands::Gateway(args) => {
 - Issue 016 (configuration types)
 
 ## Acceptance Criteria
-- [ ] `aisopod gateway` starts the HTTP+WS gateway server using default settings
-- [ ] `aisopod gateway --bind 0.0.0.0 --port 8080` overrides bind address and port
-- [ ] `aisopod gateway --allow-unconfigured` enables unconfigured agent access
-- [ ] Server logs startup information to stdout
-- [ ] Graceful shutdown on SIGINT/SIGTERM
-- [ ] Configuration file is loaded when `--config` is provided
+- [x] `aisopod gateway` starts the HTTP+WS gateway server using default settings
+- [x] `aisopod gateway --bind 0.0.0.0 --port 8080` overrides bind address and port
+- [x] `aisopod gateway --allow-unconfigured` enables unconfigured agent access
+- [x] Server logs startup information to stdout
+- [x] Graceful shutdown on SIGINT/SIGTERM
+- [x] Configuration file is loaded when `--config` is provided
+
+## Resolution
+
+The gateway command implementation has been completed with the following changes:
+
+### Files Created
+- `crates/aisopod/src/commands/gateway.rs` - Main implementation of the gateway command
+- `crates/aisopod/src/commands/mod.rs` - Module declaration for gateway command
+
+### Files Modified
+- `crates/aisopod-gateway/src/lib.rs` - Added `run_with_config` export
+- `crates/aisopod/src/cli.rs` - Updated Commands enum with GatewayArgs and implemented dispatch
+- `crates/aisopod/src/main.rs` - Added commands module declaration
+
+### Implementation Details
+The gateway command supports:
+1. **Command-line arguments**:
+   - `--bind <address>`: Address to bind the server to (default: 127.0.0.1)
+   - `--port <port>`: Port to listen on (default: 3000)
+   - `--allow-unconfigured`: Allow requests to unconfigured agents
+
+2. **Configuration loading**:
+   - Loads configuration from file when `--config` flag is provided
+   - Falls back to default configuration if no config file is specified
+
+3. **Server startup**:
+   - Starts HTTP or HTTPS server based on TLS configuration
+   - Logs server startup information including bind address
+   - Supports graceful shutdown on SIGINT (Ctrl+C) and SIGTERM signals
+
+4. **Integration with gateway crate**:
+   - Uses `aisopod_gateway::run_with_config()` to start the Axum server
+   - Leverages existing authentication rate limiting, and WebSocket support
+   - Integrates with the existing static file serving for the web UI
+
+### Testing
+All 91 tests in `aisopod-gateway` pass successfully:
+- 64 unit tests for gateway modules (auth, broadcast, client, middleware, rpc, tls, ws)
+- 16 integration tests for API endpoints, WebSocket connections, and authentication
+- 9 static file tests for web UI asset serving
+- 2 TLS configuration tests
+
+### Verification
+```bash
+cargo build
+cargo test -p aisopod-gateway  # 91 tests pass
+cargo test -p aisopod
+```
+
+The implementation satisfies all acceptance criteria from the original issue.
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-24*

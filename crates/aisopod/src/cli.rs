@@ -30,7 +30,7 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Start the HTTP+WS gateway server
-    Gateway,
+    Gateway(crate::commands::gateway::GatewayArgs),
     /// Manage agents
     Agent,
     /// Send a message
@@ -61,11 +61,14 @@ pub enum Commands {
 
 /// Main entry point for CLI processing.
 pub fn run_cli() {
-    let _cli = Cli::parse();
+    let cli = Cli::parse();
 
-    // Dispatch to subcommand stubs
-    match _cli.command {
-        Commands::Gateway => todo!("gateway command"),
+    // Dispatch to subcommand handlers
+    match cli.command {
+        Commands::Gateway(args) => {
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+            rt.block_on(crate::commands::gateway::run(args, cli.config)).expect("Gateway command failed");
+        }
         Commands::Agent => todo!("agent command"),
         Commands::Message => todo!("message command"),
         Commands::Config => todo!("config command"),
