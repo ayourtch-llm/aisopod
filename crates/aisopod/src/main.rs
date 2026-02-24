@@ -2,6 +2,7 @@
 //!
 //! Main entry point for the aisopod application.
 
+mod client;
 mod cli;
 mod commands;
 mod output;
