@@ -40,6 +40,9 @@ pub struct Agent {
     /// Optional allowlist of models that subagents can use
     #[serde(default)]
     pub subagent_allowed_models: Option<Vec<String>>,
+    /// List of skill IDs to assign to this agent
+    #[serde(default)]
+    pub skills: Vec<String>,
 }
 
 /// Default maximum depth for subagent spawning
@@ -73,6 +76,7 @@ impl Default for Agent {
             system_prompt: String::new(),
             max_subagent_depth: default_max_subagent_depth(),
             subagent_allowed_models: None,
+            skills: Vec::new(),
         }
     }
 }

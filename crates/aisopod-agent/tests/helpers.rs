@@ -314,6 +314,7 @@ pub fn test_config() -> AisopodConfig {
                     system_prompt: "You are a helpful assistant.".to_string(),
                     max_subagent_depth: 3,
                     subagent_allowed_models: None,
+                    skills: Vec::new(),
                 },
                 aisopod_config::types::Agent {
                     id: "test-agent".to_string(),
@@ -325,6 +326,7 @@ pub fn test_config() -> AisopodConfig {
                     system_prompt: "You are a test agent.".to_string(),
                     max_subagent_depth: 3,
                     subagent_allowed_models: None,
+                    skills: Vec::new(),
                 },
                 aisopod_config::types::Agent {
                     id: "fallback-agent".to_string(),
@@ -336,6 +338,7 @@ pub fn test_config() -> AisopodConfig {
                     system_prompt: "You are a fallback agent.".to_string(),
                     max_subagent_depth: 3,
                     subagent_allowed_models: None,
+                    skills: Vec::new(),
                 },
             ],
         },
@@ -378,6 +381,7 @@ pub fn test_config_with_fallbacks() -> AisopodConfig {
         system_prompt: "You are a fallback agent.".to_string(),
         max_subagent_depth: 3,
         subagent_allowed_models: None,
+        skills: Vec::new(),
     });
 
     config

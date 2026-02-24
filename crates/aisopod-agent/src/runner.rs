@@ -12,6 +12,7 @@ use tokio::sync::broadcast;
 use crate::abort::{AbortHandle, AbortRegistry};
 use crate::memory::{inject_memory_context, MemoryConfig};
 use crate::resolution;
+use crate::skills_integration::SkillRegistry;
 use crate::types::{AgentEvent, AgentRunParams, AgentRunResult};
 use aisopod_memory::{MemoryManager, MemoryQueryPipeline};
 
@@ -36,6 +37,7 @@ pub trait SubagentRunnerExt {
 /// - Session store for conversation state
 /// - Abort registry for tracking and cancelling active sessions
 /// - Optional memory components for memory integration
+/// - Optional skill registry for skill integration
 ///
 /// # Example
 ///
@@ -85,6 +87,8 @@ pub struct AgentRunner {
     memory_manager: Option<Arc<MemoryManager>>,
     /// Memory configuration
     memory_config: MemoryConfig,
+    /// Optional skill registry for resolving and managing skills assigned to agents
+    skills: Option<Arc<SkillRegistry>>,
 }
 
 impl AgentRunner {
@@ -112,6 +116,7 @@ impl AgentRunner {
             memory_pipeline: None,
             memory_manager: None,
             memory_config: MemoryConfig::default(),
+            skills: None,
         }
     }
 
@@ -141,6 +146,7 @@ impl AgentRunner {
             memory_pipeline: None,
             memory_manager: None,
             memory_config: MemoryConfig::default(),
+            skills: None,
         }
     }
 
@@ -181,6 +187,7 @@ impl AgentRunner {
             memory_pipeline: Some(memory_pipeline),
             memory_manager: Some(memory_manager),
             memory_config: MemoryConfig::default(),
+            skills: None,
         }
     }
 
@@ -223,6 +230,157 @@ impl AgentRunner {
             memory_pipeline: Some(memory_pipeline),
             memory_manager: Some(memory_manager),
             memory_config: MemoryConfig::default(),
+            skills: None,
+        }
+    }
+
+    /// Creates a new `AgentRunner` with skill integration.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The agent configuration.
+    /// * `providers` - The provider registry for model access.
+    /// * `tools` - The tool registry for tool execution.
+    /// * `sessions` - The session store for conversation state.
+    /// * `skills` - The skill registry for resolving skills assigned to agents.
+    pub fn new_with_skills(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        skills: Arc<SkillRegistry>,
+    ) -> Self {
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: None,
+            abort_registry: Arc::new(AbortRegistry::new()),
+            memory_pipeline: None,
+            memory_manager: None,
+            memory_config: MemoryConfig::default(),
+            skills: Some(skills),
+        }
+    }
+
+    /// Creates a new `AgentRunner` with skill integration and usage tracker.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The agent configuration.
+    /// * `providers` - The provider registry for model access.
+    /// * `tools` - The tool registry for tool execution.
+    /// * `sessions` - The session store for conversation state.
+    /// * `skills` - The skill registry for resolving skills assigned to agents.
+    /// * `usage_tracker` - The usage tracker for recording token usage.
+    pub fn new_with_skills_and_usage_tracker(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        skills: Arc<SkillRegistry>,
+        usage_tracker: Arc<crate::usage::UsageTracker>,
+    ) -> Self {
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: Some(usage_tracker),
+            abort_registry: Arc::new(AbortRegistry::new()),
+            memory_pipeline: None,
+            memory_manager: None,
+            memory_config: MemoryConfig::default(),
+            skills: Some(skills),
+        }
+    }
+
+    /// Creates a new `AgentRunner` with skill integration and memory.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The agent configuration.
+    /// * `providers` - The provider registry for model access.
+    /// * `tools` - The tool registry for tool execution.
+    /// * `sessions` - The session store for conversation state.
+    /// * `skills` - The skill registry for resolving skills assigned to agents.
+    /// * `memory_pipeline` - The memory query pipeline for querying memories.
+    /// * `memory_manager` - The memory manager for storing memories.
+    pub fn new_with_skills_and_memory(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        skills: Arc<SkillRegistry>,
+        memory_pipeline: Arc<MemoryQueryPipeline>,
+        memory_manager: Arc<MemoryManager>,
+    ) -> Self {
+        // Register the memory tool with the tools registry
+        let memory_tool = Arc::new(crate::memory::MemoryTool::new(
+            memory_pipeline.clone(),
+            memory_manager.clone(),
+        ));
+        let mut tools_ref = Arc::into_inner(tools).unwrap();
+        tools_ref.register(memory_tool);
+        let tools = Arc::new(tools_ref);
+
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: None,
+            abort_registry: Arc::new(AbortRegistry::new()),
+            memory_pipeline: Some(memory_pipeline),
+            memory_manager: Some(memory_manager),
+            memory_config: MemoryConfig::default(),
+            skills: Some(skills),
+        }
+    }
+
+    /// Creates a new `AgentRunner` with skill integration, memory, and usage tracker.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The agent configuration.
+    /// * `providers` - The provider registry for model access.
+    /// * `tools` - The tool registry for tool execution.
+    /// * `sessions` - The session store for conversation state.
+    /// * `skills` - The skill registry for resolving skills assigned to agents.
+    /// * `memory_pipeline` - The memory query pipeline for querying memories.
+    /// * `memory_manager` - The memory manager for storing memories.
+    /// * `usage_tracker` - The usage tracker for recording token usage.
+    pub fn new_with_skills_memory_and_usage_tracker(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        skills: Arc<SkillRegistry>,
+        memory_pipeline: Arc<MemoryQueryPipeline>,
+        memory_manager: Arc<MemoryManager>,
+        usage_tracker: Arc<crate::usage::UsageTracker>,
+    ) -> Self {
+        // Register the memory tool with the tools registry
+        let memory_tool = Arc::new(crate::memory::MemoryTool::new(
+            memory_pipeline.clone(),
+            memory_manager.clone(),
+        ));
+        let mut tools_ref = Arc::into_inner(tools).unwrap();
+        tools_ref.register(memory_tool);
+        let tools = Arc::new(tools_ref);
+
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: Some(usage_tracker),
+            abort_registry: Arc::new(AbortRegistry::new()),
+            memory_pipeline: Some(memory_pipeline),
+            memory_manager: Some(memory_manager),
+            memory_config: MemoryConfig::default(),
+            skills: Some(skills),
         }
     }
 
@@ -265,6 +423,11 @@ impl AgentRunner {
     pub fn with_memory_config(mut self, config: MemoryConfig) -> Self {
         self.memory_config = config;
         self
+    }
+
+    /// Gets the skills registry if enabled.
+    pub fn skills_registry(&self) -> Option<&Arc<SkillRegistry>> {
+        self.skills.as_ref()
     }
 
     /// Registers an active session with its abort handle.
@@ -335,47 +498,70 @@ impl AgentRunner {
     /// Returns the final result of the agent run, or an error if
     /// the run failed.
     pub async fn run_and_get_result(&self, params: AgentRunParams) -> Result<AgentRunResult> {
-        let pipeline = if self.has_memory() {
-            // Use memory-enabled pipeline
-            let memory_pipeline = self.memory_pipeline.clone().unwrap();
-            let memory_manager = self.memory_manager.clone().unwrap();
+        let pipeline = if let (Some(memory_pipeline), Some(memory_manager)) = 
+            (self.memory_pipeline.clone(), self.memory_manager.clone())
+        {
+            // Use memory-enabled pipeline with skills if available
             if let Some(ref tracker) = self.usage_tracker {
-                crate::pipeline::AgentPipeline::new_with_memory_and_usage_tracker(
+                crate::pipeline::AgentPipeline::new_with_skills_memory_and_usage_tracker(
                     self.config.clone(),
                     self.providers.clone(),
                     self.tools.clone(),
                     self.sessions.clone(),
+                    self.skills.clone().unwrap(),
                     memory_pipeline,
                     memory_manager,
                     tracker.clone(),
                 )
             } else {
-                crate::pipeline::AgentPipeline::new_with_memory(
+                crate::pipeline::AgentPipeline::new_with_skills_and_memory(
                     self.config.clone(),
                     self.providers.clone(),
                     self.tools.clone(),
                     self.sessions.clone(),
+                    self.skills.clone().unwrap(),
                     memory_pipeline,
                     memory_manager,
                 )
             }
         } else if let Some(ref tracker) = self.usage_tracker {
             // Use pipeline with usage tracker only
-            crate::pipeline::AgentPipeline::new_with_usage_tracker(
-                self.config.clone(),
-                self.providers.clone(),
-                self.tools.clone(),
-                self.sessions.clone(),
-                tracker.clone(),
-            )
+            if let Some(ref skills) = self.skills {
+                crate::pipeline::AgentPipeline::new_with_skills_and_usage_tracker(
+                    self.config.clone(),
+                    self.providers.clone(),
+                    self.tools.clone(),
+                    self.sessions.clone(),
+                    skills.clone(),
+                    tracker.clone(),
+                )
+            } else {
+                crate::pipeline::AgentPipeline::new_with_usage_tracker(
+                    self.config.clone(),
+                    self.providers.clone(),
+                    self.tools.clone(),
+                    self.sessions.clone(),
+                    tracker.clone(),
+                )
+            }
         } else {
-            // Use basic pipeline
-            crate::pipeline::AgentPipeline::new(
-                self.config.clone(),
-                self.providers.clone(),
-                self.tools.clone(),
-                self.sessions.clone(),
-            )
+            // Use basic pipeline with skills if available
+            if let Some(ref skills) = self.skills {
+                crate::pipeline::AgentPipeline::new_with_skills(
+                    self.config.clone(),
+                    self.providers.clone(),
+                    self.tools.clone(),
+                    self.sessions.clone(),
+                    skills.clone(),
+                )
+            } else {
+                crate::pipeline::AgentPipeline::new(
+                    self.config.clone(),
+                    self.providers.clone(),
+                    self.tools.clone(),
+                    self.sessions.clone(),
+                )
+            }
         };
         // Create a dummy event channel that we ignore
         let (event_tx, _) = tokio::sync::mpsc::channel(100);
@@ -406,6 +592,7 @@ impl AgentRunner {
         let memory_pipeline = self.memory_pipeline.clone();
         let memory_manager = self.memory_manager.clone();
         let usage_tracker = self.usage_tracker.clone();
+        let skills = self.skills.clone();
 
         // Spawn the pipeline execution
         tokio::spawn(async move {
@@ -414,14 +601,37 @@ impl AgentRunner {
             {
                 // Use memory-enabled pipeline
                 if let Some(tracker) = usage_tracker {
-                    crate::pipeline::AgentPipeline::new_with_memory_and_usage_tracker(
+                    if let Some(skills) = skills {
+                        crate::pipeline::AgentPipeline::new_with_skills_memory_and_usage_tracker(
+                            config,
+                            providers,
+                            tools,
+                            sessions,
+                            skills,
+                            memory_pipeline,
+                            memory_manager,
+                            tracker,
+                        )
+                    } else {
+                        crate::pipeline::AgentPipeline::new_with_memory_and_usage_tracker(
+                            config,
+                            providers,
+                            tools,
+                            sessions,
+                            memory_pipeline,
+                            memory_manager,
+                            tracker,
+                        )
+                    }
+                } else if let Some(skills) = skills {
+                    crate::pipeline::AgentPipeline::new_with_skills_and_memory(
                         config,
                         providers,
                         tools,
                         sessions,
+                        skills,
                         memory_pipeline,
                         memory_manager,
-                        tracker,
                     )
                 } else {
                     crate::pipeline::AgentPipeline::new_with_memory(
@@ -434,16 +644,29 @@ impl AgentRunner {
                     )
                 }
             } else if let Some(tracker) = usage_tracker {
-                crate::pipeline::AgentPipeline::new_with_usage_tracker(
-                    config, providers, tools, sessions, tracker,
-                )
+                if let Some(skills) = skills {
+                    crate::pipeline::AgentPipeline::new_with_skills_and_usage_tracker(
+                        config, providers, tools, sessions, skills, tracker,
+                    )
+                } else {
+                    crate::pipeline::AgentPipeline::new_with_usage_tracker(
+                        config, providers, tools, sessions, tracker,
+                    )
+                }
             } else {
-                crate::pipeline::AgentPipeline::new(config, providers, tools, sessions)
+                if let Some(skills) = skills {
+                    crate::pipeline::AgentPipeline::new_with_skills(
+                        config, providers, tools, sessions, skills,
+                    )
+                } else {
+                    crate::pipeline::AgentPipeline::new(config, providers, tools, sessions)
+                }
             };
             if let Err(e) = pipeline.execute(&params, &event_tx).await {
+                let error_message: String = e.to_string();
                 let _ = event_tx
                     .send(crate::types::AgentEvent::Error {
-                        message: e.to_string(),
+                        message: error_message,
                     })
                     .await;
             }

@@ -12,6 +12,7 @@ pub mod pipeline;
 pub mod prompt;
 pub mod resolution;
 pub mod runner;
+pub mod skills_integration;
 pub mod subagent;
 pub mod transcript;
 pub mod types;
@@ -38,6 +39,7 @@ pub use resolution::{
     ModelChain, ResolutionConfig,
 };
 pub use runner::{AgentRunner, SubagentRunnerExt};
+pub use skills_integration::{collect_skill_tools, merge_skill_prompts, resolve_agent_skills, Skill, SkillContext, SkillMeta, SkillRegistry};
 pub use subagent::{spawn_subagent, ResourceBudget, SubagentSpawnParams};
 pub use transcript::{repair_transcript, ProviderKind};
 pub use types::{AgentEvent, AgentRunParams, AgentRunResult, SessionMetadata, UsageReport};

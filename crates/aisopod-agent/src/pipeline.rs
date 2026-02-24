@@ -14,6 +14,7 @@ use crate::abort::AbortHandle;
 use crate::resolution::{
     resolve_agent_config, resolve_agent_model, resolve_session_agent_id, ModelChain,
 };
+use crate::skills_integration::SkillRegistry;
 use crate::types::{AgentEvent, AgentRunParams, AgentRunResult, ToolCallRecord, UsageReport};
 use crate::{failover, prompt, transcript, usage};
 use aisopod_provider::ToolDefinition;
@@ -67,6 +68,8 @@ pub struct AgentPipeline {
     memory_pipeline: Option<Arc<aisopod_memory::MemoryQueryPipeline>>,
     /// Optional memory manager for post-run memory extraction
     memory_manager: Option<Arc<aisopod_memory::MemoryManager>>,
+    /// Skill registry for resolving and managing skills assigned to agents
+    skills: Option<Arc<SkillRegistry>>,
 }
 
 impl AgentPipeline {
@@ -86,6 +89,7 @@ impl AgentPipeline {
             abort_registry: None,
             memory_pipeline: None,
             memory_manager: None,
+            skills: None,
         }
     }
 
@@ -106,6 +110,7 @@ impl AgentPipeline {
             abort_registry: None,
             memory_pipeline: None,
             memory_manager: None,
+            skills: None,
         }
     }
 
@@ -127,6 +132,7 @@ impl AgentPipeline {
             abort_registry: Some(abort_registry),
             memory_pipeline: None,
             memory_manager: None,
+            skills: None,
         }
     }
 
@@ -148,6 +154,7 @@ impl AgentPipeline {
             abort_registry: None,
             memory_pipeline: Some(memory_pipeline),
             memory_manager: Some(memory_manager),
+            skills: None,
         }
     }
 
@@ -170,6 +177,7 @@ impl AgentPipeline {
             abort_registry: None,
             memory_pipeline: Some(memory_pipeline),
             memory_manager: Some(memory_manager),
+            skills: None,
         }
     }
 
@@ -193,6 +201,97 @@ impl AgentPipeline {
             abort_registry: Some(abort_registry),
             memory_pipeline: Some(memory_pipeline),
             memory_manager: Some(memory_manager),
+            skills: None,
+        }
+    }
+
+    /// Creates a new AgentPipeline with the given skill registry.
+    pub fn new_with_skills(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        skills: Arc<SkillRegistry>,
+    ) -> Self {
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: None,
+            abort_registry: None,
+            memory_pipeline: None,
+            memory_manager: None,
+            skills: Some(skills),
+        }
+    }
+
+    /// Creates a new AgentPipeline with the given skill registry and usage tracker.
+    pub fn new_with_skills_and_usage_tracker(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        skills: Arc<SkillRegistry>,
+        usage_tracker: Arc<usage::UsageTracker>,
+    ) -> Self {
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: Some(usage_tracker),
+            abort_registry: None,
+            memory_pipeline: None,
+            memory_manager: None,
+            skills: Some(skills),
+        }
+    }
+
+    /// Creates a new AgentPipeline with the given skill registry and memory integration.
+    pub fn new_with_skills_and_memory(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        skills: Arc<SkillRegistry>,
+        memory_pipeline: Arc<aisopod_memory::MemoryQueryPipeline>,
+        memory_manager: Arc<aisopod_memory::MemoryManager>,
+    ) -> Self {
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: None,
+            abort_registry: None,
+            memory_pipeline: Some(memory_pipeline),
+            memory_manager: Some(memory_manager),
+            skills: Some(skills),
+        }
+    }
+
+    /// Creates a new AgentPipeline with the given skill registry, memory integration, and usage tracker.
+    pub fn new_with_skills_memory_and_usage_tracker(
+        config: Arc<aisopod_config::AisopodConfig>,
+        providers: Arc<aisopod_provider::ProviderRegistry>,
+        tools: Arc<aisopod_tools::ToolRegistry>,
+        sessions: Arc<aisopod_session::SessionStore>,
+        skills: Arc<SkillRegistry>,
+        memory_pipeline: Arc<aisopod_memory::MemoryQueryPipeline>,
+        memory_manager: Arc<aisopod_memory::MemoryManager>,
+        usage_tracker: Arc<usage::UsageTracker>,
+    ) -> Self {
+        Self {
+            config,
+            providers,
+            tools,
+            sessions,
+            usage_tracker: Some(usage_tracker),
+            abort_registry: None,
+            memory_pipeline: Some(memory_pipeline),
+            memory_manager: Some(memory_manager),
+            skills: Some(skills),
         }
     }
 
@@ -209,6 +308,11 @@ impl AgentPipeline {
     /// Gets the abort registry if enabled.
     pub fn abort_registry(&self) -> Option<&Arc<crate::abort::AbortRegistry>> {
         self.abort_registry.as_ref()
+    }
+
+    /// Gets the skills registry if enabled.
+    pub fn skills_registry(&self) -> Option<&Arc<SkillRegistry>> {
+        self.skills.as_ref()
     }
 
     /// Returns true if memory integration is enabled.
@@ -282,7 +386,7 @@ impl AgentPipeline {
         let model_chain = resolve_agent_model(&self.config, &agent_id)?;
 
         // 4. Prepare tool schemas for the agent - convert to ToolDefinition
-        let tool_definitions: Vec<ToolDefinition> = self
+        let mut tool_definitions: Vec<ToolDefinition> = self
             .tools
             .schemas()
             .iter()
@@ -294,9 +398,29 @@ impl AgentPipeline {
             })
             .collect();
 
-        // 5. Inject memory context before building system prompt
+        // 5. Resolve skills and integrate them into tools and prompts
+        let skills = if let Some(ref skill_registry) = self.skills {
+            crate::skills_integration::resolve_agent_skills(&agent_config, skill_registry)
+        } else {
+            Vec::new()
+        };
+
+        // Add skill tools to the tool definitions
+        let skill_tools: Vec<ToolDefinition> = crate::skills_integration::collect_skill_tools(&skills)
+            .iter()
+            .map(|tool| {
+                let name = tool.name().to_string();
+                let description = tool.description().to_string();
+                let parameters = tool.parameters_schema().clone();
+                ToolDefinition::new(name, description, parameters)
+            })
+            .collect();
+        tool_definitions.extend(skill_tools);
+
+        // 6. Merge skill prompts into system prompt
         let system_prompt = {
             let base_prompt = self.build_system_prompt(&agent_config, &tool_definitions);
+            let merged = crate::skills_integration::merge_skill_prompts(&base_prompt, &skills);
             if self.has_memory() {
                 // Use default memory config for now - could be made configurable
                 let default_config = crate::memory::MemoryConfig::default();
@@ -305,11 +429,11 @@ impl AgentPipeline {
                     &agent_id,
                     &params.messages,
                     &default_config,
-                    &base_prompt,
+                    &merged,
                 )
                 .await
             } else {
-                base_prompt
+                merged
             }
         };
 
@@ -366,6 +490,7 @@ impl AgentPipeline {
     }
 
     /// Builds the system prompt from agent config and tool schemas.
+    /// This method does NOT merge skill prompts - use execute() for that integration.
     fn build_system_prompt(
         &self,
         agent_config: &aisopod_config::types::Agent,
