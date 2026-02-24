@@ -1,3 +1,4 @@
+use anyhow::Result;
 use async_trait::async_trait;
 use std::error::Error;
 use std::sync::Arc;
@@ -76,7 +77,7 @@ use aisopod_tools::Tool;
 ///         vec![Arc::new(MyTool::new())]
 ///     }
 ///
-///     async fn init(&self, _ctx: &SkillContext) -> Result<(), Box<dyn Error>> {
+///     async fn init(&self, _ctx: &SkillContext) -> Result<()> {
 ///         Ok(())
 ///     }
 /// }

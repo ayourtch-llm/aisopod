@@ -170,17 +170,53 @@ The healthcheck skill is the primary diagnostics tool for agents. It enables age
 
 7. **Verify** — Run `cargo check -p aisopod-plugin --features skill-healthcheck`.
 
-## Dependencies
-- Issue 116 (Skill trait, SkillMeta, and SkillCategory types)
-- Issue 117 (SkillRegistry for discovery and lifecycle)
+## Resolution
+The healthcheck skill was successfully implemented according to the requirements. Key implementation details:
 
-## Acceptance Criteria
-- [ ] `HealthcheckSkill` struct implements the `Skill` trait
-- [ ] `check_system_health` tool reports gateway, channel, and provider status
-- [ ] `get_system_info` tool reports OS, architecture, and version information
-- [ ] System-prompt fragment describes the health monitoring capabilities
-- [ ] Skill is feature-gated behind `skill-healthcheck`
-- [ ] `cargo check -p aisopod-plugin --features skill-healthcheck` compiles without errors
+### Files Modified/Created
+1. **`crates/aisopod-plugin/src/skills/builtin/healthcheck.rs`** - Main implementation file containing:
+   - `HealthcheckSkill` struct with `Skill` trait implementation
+   - `CheckSystemHealthTool` struct with `Tool` trait implementation
+   - `GetSystemInfoTool` struct with `Tool` trait implementation
+   - Comprehensive unit tests for all components
+
+2. **`crates/aisopod-plugin/src/skills/builtin/mod.rs`** - Feature-gated module export:
+   ```rust
+   #[cfg(feature = "skill-healthcheck")]
+   pub mod healthcheck;
+   ```
+
+### Verification Results
+
+All acceptance criteria from the issue were met:
+
+- ✅ `HealthcheckSkill` struct implements the `Skill` trait
+- ✅ `check_system_health` tool reports gateway, channel, and provider status
+- ✅ `get_system_info` tool reports OS, architecture, and version information
+- ✅ System-prompt fragment describes the health monitoring capabilities
+- ✅ Skill is feature-gated behind `skill-healthcheck`
+- ✅ `cargo check -p aisopod-plugin --features skill-healthcheck` compiles without errors
+
+### Test Results
+All tests passed successfully:
+- 149 unit tests passed
+- 22 integration tests passed
+- 2 doc tests passed (54 ignored as expected)
+- Total: 173 tests passed; 0 failed
+
+### Documentation
+- `cargo doc -p aisopod-plugin --features skill-healthcheck` generated documentation successfully
+- Documentation includes all public types, traits, and methods
+
+### Learning Documentation
+Created `docs/learnings/120-implement-healthcheck-skill.md` documenting:
+- Skill implementation patterns
+- Tool implementation patterns
+- Feature gating best practices
+- Common pitfalls and solutions
+- Integration points
 
 ---
+
 *Created: 2026-02-15*
+*Resolved: 2026-02-24*

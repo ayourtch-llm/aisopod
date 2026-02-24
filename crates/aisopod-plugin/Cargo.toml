@@ -46,6 +46,7 @@ aisopod-provider-openai = { path = "../aisopod-provider-openai", optional = true
 aisopod-provider-anthropic = { path = "../aisopod-provider-anthropic", optional = true }
 anyhow.workspace = true
 async-trait.workspace = true
+chrono = "0.4"
 futures-core.workspace = true
 futures-util.workspace = true
 libloading = "0.8"
