@@ -111,12 +111,73 @@ Commands::Agent(args) => commands::agent::run(args, cli.config)?,
 - Issue 063 (agent resolution)
 
 ## Acceptance Criteria
-- [ ] `aisopod agent list` displays all configured agents
-- [ ] `aisopod agent add <id>` prompts interactively and saves a new agent to config
-- [ ] `aisopod agent delete <id>` removes an agent from the configuration
-- [ ] `aisopod agent identity <id>` displays the agent's full configuration
-- [ ] Proper error messages for missing agents or duplicate IDs
-- [ ] Changes persist to the configuration file
+- [x] `aisopod agent list` displays all configured agents
+- [x] `aisopod agent add <id>` prompts interactively and saves a new agent to config
+- [x] `aisopod agent delete <id>` removes an agent from the configuration
+- [x] `aisopod agent identity <id>` displays the agent's full configuration
+- [x] Proper error messages for missing agents or duplicate IDs
+- [x] Changes persist to the configuration file
+
+## Resolution
+
+### Implementation Summary
+
+The agent management commands were implemented in `crates/aisopod/src/commands/agent.rs` with the following features:
+
+1. **CLI Interface**: Implemented `AgentArgs` and `AgentCommands` using clap for parsing
+2. **Agent Commands**:
+   - `list`: Lists all configured agents with ID and name
+   - `add <id>`: Interactive prompts for name, model, workspace, sandbox, subagents, and system prompt
+   - `delete <id>`: Removes agent by ID with proper error handling
+   - `identity <id>`: Displays full agent configuration
+
+3. **Config Persistence**: 
+   - Added `default_config_path()` function in `aisopod-config/src/loader.rs`
+   - Added `DEFAULT_CONFIG_FILE` constant in `aisopod-config/src/lib.rs`
+   - `load_config_or_default()` and `save_config()` use consistent paths
+   - Config files are written as pretty-printed JSON
+
+4. **Error Handling**:
+   - Duplicate ID detection: "Agent with ID '...' already exists."
+   - Missing agent: "Agent with ID '...' not found."
+
+### Files Modified
+
+- `crates/aisopod-config/src/lib.rs`: Exported `default_config_path()` and `DEFAULT_CONFIG_FILE`
+- `crates/aisopod-config/src/loader.rs`: Implemented `default_config_path()` function
+- `crates/aisopod/src/commands/agent.rs`: Full implementation of agent commands
+- `crates/aisopod/src/cli.rs`: Added `Agent` variant to `Commands` enum
+- `crates/aisopod/src/main.rs`: Dispatched to agent command handler
+
+### Test Results
+
+```
+cargo test -p aisopod-config
+  running 55 tests ... ok
+  running 23 env tests ... ok
+  running 8 load_json5 tests ... ok
+  running 7 load_toml tests ... ok
+  running 4 doc tests ... ok
+
+cargo test -p aisopod
+  running 4 agent command tests ... ok
+
+cargo build -p aisopod
+  Build successful with no warnings
+```
+
+### Verification Checklist
+
+| Item | Status |
+|------|--------|
+| All acceptance criteria met | ✅ |
+| Tests pass for aisopod-config | ✅ (97 tests) |
+| Tests pass for aisopod | ✅ (4 tests) |
+| Build passes without errors | ✅ |
+| Config file consistency verified | ✅ |
+| Error handling verified | ✅ |
+| Learning documentation created | ✅ |
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-24*
