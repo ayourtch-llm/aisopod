@@ -5,6 +5,8 @@
 
 use clap::{Parser, Subcommand};
 
+use crate::commands;
+
 /// Top-level CLI arguments.
 #[derive(Parser)]
 #[command(name = "aisopod")]
@@ -38,11 +40,13 @@ pub enum Commands {
     /// Manage configuration
     Config(crate::commands::config::ConfigArgs),
     /// Show system status
-    Status,
+    Status(crate::commands::status::StatusArgs),
     /// Run health check
-    Health,
+    Health(crate::commands::status::HealthArgs),
+    /// Display live dashboard
+    Dashboard,
     /// Manage models
-    Models,
+    Models(crate::commands::models::ModelsArgs),
     /// Manage channels
     Channels,
     /// Manage sessions
@@ -80,9 +84,30 @@ pub fn run_cli() {
         Commands::Config(args) => {
             crate::commands::config::run(args, cli.config).expect("Config command failed");
         }
-        Commands::Status => todo!("status command"),
-        Commands::Health => todo!("health command"),
-        Commands::Models => todo!("models command"),
+        Commands::Status(args) => {
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+            rt.block_on(crate::commands::status::run_status(args, cli.config, cli.json)).expect("Status command failed");
+        }
+        Commands::Health(args) => {
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+            rt.block_on(crate::commands::status::run_health(cli.config, args.json)).expect("Health command failed");
+        }
+        Commands::Dashboard => {
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+            rt.block_on(crate::commands::status::run_dashboard(cli.config)).expect("Dashboard command failed");
+        }
+        Commands::Models(args) => {
+            match args.command {
+                crate::commands::models::ModelsCommands::List { provider } => {
+                    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+                    rt.block_on(crate::commands::models::list_models(provider, cli.config)).expect("Models list command failed");
+                }
+                crate::commands::models::ModelsCommands::Switch { model } => {
+                    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+                    rt.block_on(crate::commands::models::switch_model(&model, cli.config)).expect("Models switch command failed");
+                }
+            }
+        }
         Commands::Channels => todo!("channels command"),
         Commands::Sessions => todo!("sessions command"),
         Commands::Daemon => todo!("daemon command"),

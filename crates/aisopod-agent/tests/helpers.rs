@@ -349,6 +349,7 @@ pub fn test_config() -> AisopodConfig {
                 primary: "mock/test-model".to_string(),
                 fallbacks: vec!["mock/fallback-model".to_string()],
             }],
+            default_provider: String::new(),
         },
         bindings: vec![aisopod_config::types::AgentBinding {
             agent_id: "test-agent".to_string(),
