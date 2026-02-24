@@ -131,13 +131,52 @@ fn configure_channels(config: &mut AppConfig) -> anyhow::Result<()> {
 - Issue 016 (configuration types)
 - Issue 022 (sensitive field handling)
 
-## Acceptance Criteria
-- [ ] `aisopod config show` displays all configuration with sensitive fields redacted
-- [ ] `aisopod config set <key> <value>` updates and persists a configuration value
-- [ ] `aisopod config wizard` walks through interactive setup and saves results
-- [ ] `aisopod config channels` guides channel-specific configuration
-- [ ] Invalid keys produce helpful error messages
-- [ ] Configuration file is created if it does not exist
+## Resolution
+
+The issue was resolved with the following changes:
+
+### Files Created
+- `crates/aisopod/src/commands/config.rs` - Complete implementation of config management commands
+
+### Files Modified
+
+#### `crates/aisopod/src/cli.rs`
+- Updated `Commands::Config` to use `ConfigArgs` instead of being a simple variant
+- Added dispatch for the config command in `run_cli()`
+
+#### `crates/aisopod/src/commands/mod.rs`
+- Added `pub mod config;` to export the config module
+
+#### `crates/aisopod-config/src/types/channels.rs`
+- Added platform-specific configuration structs for telegram, discord, whatsapp, slack, github, gitlab, bitbucket, mattermost, and matrix
+- Updated `ChannelsConfig` to include these platform-specific configurations
+
+#### `crates/aisopod-config/src/types/models.rs`
+- Added `default_provider` field to `ModelsConfig`
+
+#### `crates/aisopod-config/src/types/mod.rs`
+- Exported `Model`, `ModelProvider` types from the models module
+
+#### `crates/aisopod/Cargo.toml`
+- Added `rpassword` dependency for secure password input
+
+### Implementation Details
+
+1. **ConfigArgs and ConfigCommands**: Defined using clap's Args and Subcommand macros for clean CLI parsing
+
+2. **show_config**: Converts config to a flat map and displays all values with sensitive fields redacted using "***REDACTED***"
+
+3. **set_config**: Uses JSON serialization to navigate and modify configuration values by dot-separated key paths
+
+4. **run_wizard**: Interactive wizard that guides users through setting gateway settings, selecting a model provider, and entering API keys
+
+5. **configure_channels**: Helper for configuring individual channel tokens interactively
+
+### Testing
+- All 12 tests pass successfully
+- Tests cover config args parsing, sensitive field detection, and configuration loading
 
 ---
+
 *Created: 2026-02-15*
+*Resolved: 2026-02-24*

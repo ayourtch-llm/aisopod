@@ -12,6 +12,9 @@ pub struct ModelsConfig {
     /// Model fallback configuration
     #[serde(default)]
     pub fallbacks: Vec<ModelFallback>,
+    /// Default model provider name
+    #[serde(default)]
+    pub default_provider: String,
 }
 
 /// Model definition

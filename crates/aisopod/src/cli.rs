@@ -34,9 +34,9 @@ pub enum Commands {
     /// Manage agents
     Agent(crate::commands::agent::AgentArgs),
     /// Send a message
-    Message,
+    Message(crate::commands::message::MessageArgs),
     /// Manage configuration
-    Config,
+    Config(crate::commands::config::ConfigArgs),
     /// Show system status
     Status,
     /// Run health check
@@ -72,8 +72,14 @@ pub fn run_cli() {
         Commands::Agent(args) => {
             crate::commands::agent::run(args, cli.config).expect("Agent command failed");
         }
-        Commands::Message => todo!("message command"),
-        Commands::Config => todo!("config command"),
+        Commands::Message(args) => {
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+            rt.block_on(crate::commands::message::run(args, cli.config))
+                .expect("Message command failed");
+        }
+        Commands::Config(args) => {
+            crate::commands::config::run(args, cli.config).expect("Config command failed");
+        }
         Commands::Status => todo!("status command"),
         Commands::Health => todo!("health command"),
         Commands::Models => todo!("models command"),
