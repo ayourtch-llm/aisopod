@@ -125,13 +125,60 @@ pub async fn run_dashboard(config_path: Option<String>) -> anyhow::Result<()> {
 - Issue 124 (clap CLI framework)
 - Issue 026 (gateway health endpoint)
 
-## Acceptance Criteria
-- [ ] `aisopod status` shows gateway status, agent count, channel count, and session count
-- [ ] `aisopod health` runs health checks and reports pass/fail for each
-- [ ] `aisopod dashboard` displays a live-updating status view
-- [ ] Commands handle gracefully when gateway is not running
-- [ ] JSON output mode (`--json`) returns structured data
-- [ ] Exit code is non-zero when health checks fail
+## Resolution
+
+The status and health commands have been fully implemented with the following components:
+
+**1. Status Command (`aisopod status`):**
+- Shows gateway status (running, unhealthy, or not running)
+- Fetches and displays detailed system information when gateway is running:
+  - Agent count
+  - Active channel count
+  - Active session count
+  - Gateway uptime (formatted as human-readable string)
+- Supports `--json` flag for structured JSON output
+- Uses the `/health` and `/status` endpoints from the gateway API
+
+**2. Health Check Command (`aisopod health`):**
+- Runs three health checks:
+  - Gateway reachable via HTTP `/health` endpoint
+  - Configuration file is valid (passes schema and semantic validation)
+  - At least one agent is configured
+- Outputs check results with checkmark (✓) or cross (✗) symbols
+- Supports `--json` flag for structured JSON output
+- Sets non-zero exit code when any health check fails
+- Overall status shows HEALTHY or UNHEALTHY based on all checks
+
+**3. Dashboard Command (`aisopod dashboard`):**
+- Displays a live-updating status view
+- Clears terminal screen and refreshes status every 2 seconds
+- Provides real-time monitoring of system state
+- Uses ANSI escape codes for screen clearing and cursor positioning
+
+**4. Duration Formatting Utility:**
+- `format_duration()` function converts seconds to human-readable format
+- Handles various time scales:
+  - Seconds: `30s`
+  - Minutes: `1m 30s`
+  - Hours: `2h 15m`
+  - Days: `1d 2h`
+
+**5. Error Handling:**
+- Gracefully handles gateway not running (connection refused)
+- Provides meaningful error messages for different failure modes
+- Proper JSON parsing with error propagation
+- Configurable config file path with sensible defaults
+
+**Files Modified:**
+- `crates/aisopod/src/commands/status.rs` - Full implementation of all commands
+- `crates/aisopod/src/cli.rs` - Command registration and dispatch
+- `crates/aisopod/src/commands/mod.rs` - Module exports
+
+**Tests:**
+- Unit tests for `format_duration()` covering all time ranges
+- Integration with gateway API endpoints
+- JSON output format validation
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-24*
