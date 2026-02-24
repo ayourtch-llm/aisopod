@@ -15,4 +15,5 @@ pub mod ws;
 
 pub use server::run;
 pub use server::run_with_config;
+pub use server::build_app;
 pub use routes::{GatewayStatus, GatewayStatusState};

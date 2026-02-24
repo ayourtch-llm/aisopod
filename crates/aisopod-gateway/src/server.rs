@@ -350,3 +350,137 @@ pub async fn run(config: &GatewayConfig) -> Result<()> {
     };
     run_with_config(&aisopod_config).await
 }
+
+/// Build the Axum application for testing purposes
+///
+/// This function creates the same app as run_with_config but returns it
+/// instead of starting the server, allowing integration tests to use axum-test.
+pub async fn build_app() -> Router {
+    use axum::{Router, routing::get};
+    use serde_json::json;
+    
+    // Create a minimal config for testing
+    let config = AisopodConfig::default();
+    
+    let gateway_config = &config.gateway;
+    
+    // Create rate limiter with default config
+    let rate_limit_config = RateLimitConfig::new(100, Duration::from_secs(60));
+    let rate_limiter = Arc::new(RateLimiter::new(rate_limit_config));
+    
+    // Spawn the cleanup task (but don't wait for it - just let it run)
+    let cleanup_limiter = rate_limiter.clone();
+    tokio::spawn(async move {
+        cleanup_limiter.cleanup_loop().await;
+    });
+    
+    // Create auth config data
+    let auth_config_data = AuthConfigData::new(config.auth.clone());
+    
+    // Create client registry
+    let client_registry = Arc::new(ClientRegistry::new());
+    
+    // Create broadcaster
+    let broadcaster = Arc::new(Broadcaster::new(128));
+    
+    // Setup static file serving state
+    let web_ui_config = gateway_config.web_ui.clone();
+    let static_state = StaticFileState::new(web_ui_config.clone());
+    
+    // Create status state
+    let status_state = Arc::new(GatewayStatusState::new(0, 0, 0));
+    
+    // Build the middleware stack (same as in run_with_config)
+    let middleware_stack = tower::ServiceBuilder::new()
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                .on_response(DefaultOnResponse::new().level(Level::INFO)),
+        )
+        .layer(axum::middleware::from_fn(
+            |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                async move {
+                    let conn_info = req
+                        .extensions()
+                        .get::<ConnectInfo<SocketAddr>>()
+                        .cloned()
+                        .unwrap_or(ConnectInfo(std::net::SocketAddr::new(
+                            std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
+                            0,
+                        )));
+                    req.extensions_mut().insert(conn_info);
+                    next.run(req).await
+                }
+            },
+        ))
+        .layer(axum::middleware::from_fn(
+            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                let config_data = auth_config_data.clone();
+                async move {
+                    req.extensions_mut().insert(config_data);
+                    next.run(req).await
+                }
+            },
+        ))
+        .layer(axum::middleware::from_fn(
+            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                let rate_limiter = rate_limiter.clone();
+                async move {
+                    req.extensions_mut().insert(rate_limiter);
+                    next.run(req).await
+                }
+            },
+        ))
+        .layer(axum::middleware::from_fn(rate_limit_middleware))
+        .layer(axum::middleware::from_fn(
+            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                let registry = client_registry.clone();
+                async move {
+                    req.extensions_mut().insert(registry);
+                    next.run(req).await
+                }
+            },
+        ))
+        .layer(axum::middleware::from_fn(
+            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                let broadcaster = broadcaster.clone();
+                async move {
+                    req.extensions_mut().insert(broadcaster);
+                    next.run(req).await
+                }
+            },
+        ))
+        .layer(axum::middleware::from_fn(auth_middleware));
+    
+    // Create static router
+    let static_router = Router::new()
+        .route("/", get(static_file_handler))
+        .route("/*path", get(static_file_handler))
+        .with_state(static_state);
+    
+    // Build the app
+    let app = Router::new()
+        .route("/health", get(health))
+        .nest_service("/", static_router)
+        .merge(api_routes(Some(status_state)))
+        .merge(ws_routes(None))
+        .layer(middleware_stack);
+    
+    // Build CORS layer
+    let cors_origins = web_ui_config.cors_origins;
+    let cors = if cors_origins.is_empty() {
+        CorsLayer::permissive()
+    } else {
+        CorsLayer::new()
+            .allow_origin(
+                cors_origins
+                    .iter()
+                    .map(|s| s.parse().unwrap())
+                    .collect::<Vec<_>>(),
+            )
+            .allow_methods(tower_http::cors::Any)
+            .allow_headers(tower_http::cors::Any)
+    };
+    
+    app.layer(cors)
+}
