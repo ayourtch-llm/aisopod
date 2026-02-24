@@ -6,6 +6,10 @@ edition.workspace = true
 [dependencies]
 aisopod-config = { path = "../aisopod-config" }
 aisopod-shared = { path = "../aisopod-shared" }
+aisopod-agent = { path = "../aisopod-agent" }
+aisopod-provider = { path = "../aisopod-provider" }
+aisopod-tools = { path = "../aisopod-tools" }
+aisopod-session = { path = "../aisopod-session" }
 axum = { version = "0.7", features = ["ws"] }
 axum-server = { version = "0.8", features = ["tls-rustls"] }
 tokio = { version = "1", features = ["full"] }

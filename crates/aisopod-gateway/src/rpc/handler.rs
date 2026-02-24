@@ -4,6 +4,7 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 use crate::broadcast::Subscription;
+use crate::rpc::chat::ChatSendHandler;
 use crate::rpc::types;
 
 /// Request context for RPC method handlers
@@ -120,12 +121,17 @@ impl Default for MethodRouter {
     }
 }
 
-/// Create a default router with placeholder handlers for all 24 method namespaces
+/// Create a default router with placeholder handlers for all method namespaces
 /// plus gateway.subscribe for subscription management
+///
+/// Note: The `chat.send` method is implemented in `chat.rs` and requires
+/// runtime dependencies (AgentRunner, WebSocket sender) that are injected
+/// directly into the WebSocket connection handler via ws.rs.
+/// The placeholder in this router will never be invoked for chat.send.
 pub fn default_router() -> MethodRouter {
     let mut router = MethodRouter::new();
 
-    // Define all 24 method namespaces (grouped by category)
+    // Define all method namespaces (grouped by category)
     let namespaces = vec![
         // Agent methods (4)
         "agent.create",

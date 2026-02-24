@@ -1,5 +1,6 @@
 //! JSON-RPC 2.0 types and parsing functionality
 
+pub mod chat;
 pub mod handler;
 pub mod types;
 

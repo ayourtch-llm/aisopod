@@ -7,6 +7,7 @@ use axum::{
 };
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
@@ -14,7 +15,7 @@ use uuid::Uuid;
 use crate::auth::AuthInfo;
 use crate::broadcast::Broadcaster;
 use crate::client::{ClientRegistry, GatewayClient};
-use crate::rpc::{self, MethodRouter, RequestContext};
+use crate::rpc::{self, chat::ChatSendHandler, MethodRouter, RequestContext};
 
 /// Default handshake timeout in seconds
 pub const DEFAULT_HANDSHAKE_TIMEOUT_SECS: u64 = 5;
@@ -30,6 +31,44 @@ pub const CLIENT_REGISTRY_KEY: &str = "aisopod.client.registry";
 
 /// Extension key for Broadcaster
 pub const BROADCASTER_KEY: &str = "aisopod.broadcast.broadcaster";
+
+/// Extension key for AgentRunner
+pub const AGENT_RUNNER_KEY: &str = "aisopod.gateway.agent_runner";
+
+/// Build a complete agent dependencies stack for the gateway
+///
+/// This function creates the necessary dependencies for agent execution:
+/// - Config: From the aisopod-config crate
+/// - ProviderRegistry: For LLM provider access
+/// - ToolRegistry: For tool execution
+/// - SessionStore: For conversation state management
+/// - AgentRunner: The main agent execution orchestrator
+pub fn create_agent_runner() -> Arc<aisopod_agent::AgentRunner> {
+    // Create configuration (will be replaced with actual config loading in production)
+    let config = Arc::new(aisopod_config::AisopodConfig::default());
+    
+    // Create provider registry
+    let providers = Arc::new(aisopod_provider::ProviderRegistry::new());
+    
+    // Create tool registry with built-in tools
+    let mut tools = aisopod_tools::ToolRegistry::new();
+    aisopod_tools::register_all_tools(&mut tools);
+    let tools = Arc::new(tools);
+    
+    // Create session store (in-memory for now)
+    let sessions = Arc::new(
+        aisopod_session::SessionStore::new_in_memory()
+            .expect("Failed to create in-memory session store"),
+    );
+
+    // Create the agent runner with all dependencies
+    Arc::new(aisopod_agent::AgentRunner::new(
+        config,
+        providers,
+        tools,
+        sessions,
+    ))
+}
 
 /// Build the WebSocket routes with configurable timeout
 pub fn ws_routes(handshake_timeout: Option<u64>) -> Router {
@@ -99,6 +138,12 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
         .get::<std::sync::Arc<Broadcaster>>()
         .cloned();
 
+    // Create agent runner for this connection
+    let agent_runner = create_agent_runner();
+    
+    // Clone the agent runner for use in the loop
+    let agent_runner_for_loop = Arc::clone(&agent_runner);
+
     // Generate unique connection ID
     let conn_id = Uuid::new_v4().to_string();
     let start_time = std::time::Instant::now();
@@ -113,6 +158,9 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
 
     // Create RPC method router for dispatching requests
     let method_router = std::sync::Arc::new(MethodRouter::default());
+
+    // Clone tx for use in chat.send handler (since tx will be moved into GatewayClient)
+    let tx_for_chat = tx.clone();
 
     // Register client if we have auth info and registry
     // The sender is moved into the client and also used in the main loop
@@ -176,28 +224,75 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
                         // Try to parse as JSON-RPC request
                         match rpc::parse(&text) {
                             Ok(request) => {
-                                // Create request context
-                                let ctx = RequestContext::new(conn_id.clone(), remote_addr);
-
-                                // Dispatch to appropriate handler
-                                let response = method_router.dispatch(ctx, request);
-                                eprintln!("=== WS DISPATCHED RESPONSE: {:?} ===", response);
-
-                                // Serialize response to JSON
-                                let response_text = match serde_json::to_string(&response) {
-                                    Ok(json) => json,
-                                    Err(e) => {
-                                        error!(conn_id = %conn_id, "Failed to serialize response: {}", e);
-                                        continue;
+                                // Check if this is a chat.send request
+                                if request.method == "chat.send" {
+                                    // Handle chat.send specially with full dependencies
+                                    let chat_handler = ChatSendHandler;
+                                    let ws_sender = std::sync::Arc::new(tx_for_chat.clone());
+                                    
+                                    // Use the agent runner we already have
+                                    if let Some(agent_runner) = Some(Arc::clone(&agent_runner_for_loop)) {
+                                        // Call the handler directly with full dependencies
+                                        let response = chat_handler.handle_with_deps(
+                                            conn_id.clone(),
+                                            request.params,
+                                            agent_runner,
+                                            ws_sender,
+                                        );
+                                        
+                                        // Serialize response to JSON
+                                        let response_text = match serde_json::to_string(&response) {
+                                            Ok(json) => json,
+                                            Err(e) => {
+                                                error!(conn_id = %conn_id, "Failed to serialize response: {}", e);
+                                                continue;
+                                            }
+                                        };
+                                        
+                                        // Send response back to client
+                                        if let Err(e) = ws_tx.send(Message::Text(response_text)).await {
+                                            error!(conn_id = %conn_id, "Failed to send RPC response: {}", e);
+                                            break;
+                                        }
+                                        eprintln!("=== WS SENT CHAT.SEND RESPONSE ===");
+                                    } else {
+                                        // AgentRunner not available
+                                        let error_response = serde_json::json!({
+                                            "jsonrpc": "2.0",
+                                            "error": {
+                                                "code": 500,
+                                                "message": "AgentRunner not available"
+                                            },
+                                            "id": conn_id
+                                        });
+                                        let error_text = serde_json::to_string(&error_response).unwrap();
+                                        if let Err(e) = ws_tx.send(Message::Text(error_text)).await {
+                                            error!(conn_id = %conn_id, "Failed to send error response: {}", e);
+                                            break;
+                                        }
                                     }
-                                };
+                                } else {
+                                    // Handle other methods via method router
+                                    let ctx = RequestContext::new(conn_id.clone(), remote_addr);
+                                    let response = method_router.dispatch(ctx, request);
+                                    eprintln!("=== WS DISPATCHED RESPONSE: {:?} ===", response);
 
-                                // Send response back to client
-                                if let Err(e) = ws_tx.send(Message::Text(response_text)).await {
-                                    error!(conn_id = %conn_id, "Failed to send RPC response: {}", e);
-                                    break;
+                                    // Serialize response to JSON
+                                    let response_text = match serde_json::to_string(&response) {
+                                        Ok(json) => json,
+                                        Err(e) => {
+                                            error!(conn_id = %conn_id, "Failed to serialize response: {}", e);
+                                            continue;
+                                        }
+                                    };
+
+                                    // Send response back to client
+                                    if let Err(e) = ws_tx.send(Message::Text(response_text)).await {
+                                        error!(conn_id = %conn_id, "Failed to send RPC response: {}", e);
+                                        break;
+                                    }
+                                    eprintln!("=== WS SENT RESPONSE ===");
                                 }
-                                eprintln!("=== WS SENT RESPONSE ===");
                             }
                             Err(rpc_error_response) => {
                                 eprintln!("=== WS PARSE ERROR: {:?} ===", rpc_error_response);
