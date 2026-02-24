@@ -5,3 +5,9 @@
 
 #[cfg(feature = "skill-healthcheck")]
 pub mod healthcheck;
+
+#[cfg(feature = "skill-session-logs")]
+pub mod session_logs;
+
+#[cfg(feature = "skill-model-usage")]
+pub mod model_usage;

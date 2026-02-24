@@ -1,3 +1,6 @@
 # Citations
 teloxide-chat-struct:/home/ayourtch/rust/aisopod/.apchat-large-outputs/fetch_url-20260222-162451-fb3bf178-9f53-44ca-b320-60e91b6ca8e1.txt:pub has_aggressive_anti_spam_enabled: bool,
 103-implementation-slack-channel-connection-and-receiving:docs/issues/resolved/103-implement-slack-channel-connection-and-receiving.md:# Issue 103: Implement Slack Channel — Connection and Message Receiving
+session-logs-impl:crates/aisopod-plugin/src/skills/builtin/session_logs.rs:Session logs skill implementation.
+model-usage-impl:crates/aisopod-plugin/src/skills/builtin/model_usage.rs:Model usage skill implementation.
+learnings-121:docs/learnings/121-implement-session-logs-and-model-usage-skills.md:Learning: Implementing Skills with Feature Flags

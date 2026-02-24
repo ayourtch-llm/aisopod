@@ -94,4 +94,9 @@ pub use manifest::{SkillManifest, ManifestError, parse_manifest};
 pub use meta::{SkillCategory, SkillMeta};
 pub use registry::{SkillRegistry, SkillStatus};
 pub use r#trait::Skill;
+#[cfg(feature = "skill-healthcheck")]
 pub use builtin::healthcheck;
+#[cfg(feature = "skill-session-logs")]
+pub use builtin::session_logs;
+#[cfg(feature = "skill-model-usage")]
+pub use builtin::model_usage;
