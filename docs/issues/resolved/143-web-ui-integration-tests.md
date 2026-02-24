@@ -175,14 +175,79 @@ Integration tests catch regressions in UI serving, routing, and connectivity. Wi
 - Issue 142 (development mode setup)
 
 ## Acceptance Criteria
-- [ ] Test: root URL serves `index.html` with `text/html` content type
-- [ ] Test: static assets served with correct MIME types
-- [ ] Test: SPA fallback returns `index.html` for unknown client-side routes
-- [ ] Test: deep routes (`/chat`, `/agents`, `/config`, etc.) all return `index.html`
-- [ ] Test: WebSocket connection to `/ws` succeeds
-- [ ] Test: theme support markup present in served HTML
-- [ ] All integration tests pass with `cargo test`
-- [ ] Tests run in CI pipeline
+- [x] Test: root URL serves `index.html` with `text/html` content type
+- [x] Test: static assets served with correct MIME types
+- [x] Test: SPA fallback returns `index.html` for unknown client-side routes
+- [x] Test: deep routes (`/chat`, `/agents`, `/config`, etc.) all return `index.html`
+- [x] Test: WebSocket connection to `/ws` succeeds
+- [x] Test: theme support markup present in served HTML
+- [x] All integration tests pass with `cargo test`
+- [x] Tests run in CI pipeline
+
+## Resolution
+
+### Changes Made
+
+1. **Added axum-test and serde_json to dev-dependencies** (`crates/aisopod-gateway/Cargo.toml`):
+   - Added `axum-test = "16"` for testing HTTP requests
+   - Added `serde_json = "1"` for JSON parsing in tests
+
+2. **Created build_app() function** (`crates/aisopod-gateway/src/server.rs`):
+   - Extracted app building logic into a reusable `build_app()` function
+   - Returns `Router` that can be used by tests
+   - Includes all middleware and routes
+
+3. **Exported build_app** (`crates/aisopod-gateway/src/lib.rs`):
+   - Added `pub use server::build_app;` to make it accessible for tests
+
+4. **Created ui_integration.rs** (`crates/aisopod-gateway/tests/ui_integration.rs`):
+   - 13 comprehensive integration tests covering:
+     - Static file serving (HTML, JS, CSS, PNG)
+     - SPA fallback routing
+     - WebSocket connectivity
+     - Theme support in HTML
+     - Health endpoint
+     - Cache headers verification
+     - API routes returning 404
+
+5. **Created learnings documentation** (`docs/learnings/143-web-ui-integration-tests.md`):
+   - Documented key patterns for testing Axum applications
+   - Captured API differences with axum-test v16
+   - Explained WebSocket testing patterns
+   - Provided code examples and common pitfalls
+
+### Test Results
+
+All tests pass successfully:
+
+```
+running 13 tests
+test test_health_endpoint ... ok
+test test_api_routes_return_not_found ... ok
+test test_serves_index_html ... ok
+test test_index_html_cache_headers ... ok
+test test_deep_spa_fallback_with_query_params ... ok
+test test_index_html_contains_theme_support ... ok
+test test_png_asset_served ... ok
+test test_spa_fallback_serves_index ... ok
+test test_spa_fallback_deep_routes ... ok
+test test_serves_css_with_correct_mime ... ok
+test test_static_file_cache_headers ... ok
+test test_serves_js_assets ... ok
+test test_websocket_connection ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+```
+
+### Learnings Captured
+
+1. **axum-test v16 API differences**: Use `status_code()` instead of `status()`
+2. **Manual WebSocket testing**: For full WebSocket support, manual server creation is needed
+3. **Testable app design**: Separating `build_app()` from server startup enables comprehensive testing
+4. **SPA fallback testing**: Verify index.html is returned for unknown non-API routes
+5. **Cache header patterns**: Hashed assets get immutable caching, index.html gets no-cache
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-24*
+
