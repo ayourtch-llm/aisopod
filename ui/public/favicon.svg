@@ -1,22 +1,23 @@
 <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="lobster-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ff4d4d"/>
-      <stop offset="100%" stop-color="#991b1b"/>
+    <linearGradient id="isopod-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c49a6c"/>
+      <stop offset="100%" stop-color="#5c6b4f"/>
     </linearGradient>
   </defs>
-  <!-- Body -->
-  <path d="M60 10 C30 10 15 35 15 55 C15 75 30 95 45 100 L45 110 L55 110 L55 100 C55 100 60 102 65 100 L65 110 L75 110 L75 100 C90 95 105 75 105 55 C105 35 90 10 60 10Z" fill="url(#lobster-gradient)"/>
-  <!-- Left Grip -->
-  <path d="M20 45 C5 40 0 50 5 60 C10 70 20 65 25 55 C28 48 25 45 20 45Z" fill="url(#lobster-gradient)"/>
-  <!-- Right Grip -->
-  <path d="M100 45 C115 40 120 50 115 60 C110 70 100 65 95 55 C92 48 95 45 100 45Z" fill="url(#lobster-gradient)"/>
-  <!-- Antenna -->
-  <path d="M45 15 Q35 5 30 8" stroke="#ff4d4d" stroke-width="3" stroke-linecap="round"/>
-  <path d="M75 15 Q85 5 90 8" stroke="#ff4d4d" stroke-width="3" stroke-linecap="round"/>
-  <!-- Eyes -->
-  <circle cx="45" cy="35" r="6" fill="#050810"/>
-  <circle cx="75" cy="35" r="6" fill="#050810"/>
-  <circle cx="46" cy="34" r="2.5" fill="#00e5cc"/>
-  <circle cx="76" cy="34" r="2.5" fill="#00e5cc"/>
+  <!-- Body - Isopod shape (armored segments) -->
+  <path d="M60 20 C40 20 30 40 30 60 C30 80 40 95 50 100 L50 110 L70 110 L70 100 C80 95 90 80 90 60 C90 40 80 20 60 20Z" fill="url(#isopod-gradient)"/>
+  <!-- Segment lines - Isopod armored segments -->
+  <path d="M45 45 L75 45" stroke="#5c6b4f" stroke-width="2" opacity="0.6"/>
+  <path d="M40 60 L80 60" stroke="#5c6b4f" stroke-width="2" opacity="0.6"/>
+  <path d="M35 75 L85 75" stroke="#5c6b4f" stroke-width="2" opacity="0.6"/>
+  <!-- Left antennae -->
+  <path d="M30 30 Q20 20 25 25" stroke="#5c6b4f" stroke-width="3" stroke-linecap="round"/>
+  <path d="M32 28 Q15 15 20 20" stroke="#c49a6c" stroke-width="2" stroke-linecap="round"/>
+  <!-- Right antennae -->
+  <path d="M90 30 Q100 20 95 25" stroke="#5c6b4f" stroke-width="3" stroke-linecap="round"/>
+  <path d="M88 28 Q105 15 100 20" stroke="#c49a6c" stroke-width="2" stroke-linecap="round"/>
+  <!-- Eyes - Simple dots -->
+  <circle cx="42" cy="45" r="3" fill="#2d2d2d"/>
+  <circle cx="78" cy="45" r="3" fill="#2d2d2d"/>
 </svg>
