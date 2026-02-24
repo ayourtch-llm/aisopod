@@ -230,5 +230,78 @@ Tests are critical for maintaining confidence in the skills system as it evolves
 - [ ] Built-in Tier 1 skills (healthcheck, session-logs, model-usage) are tested
 - [ ] All tests pass with `cargo test -p aisopod-plugin`
 
+## Resolution
+
+The skills system unit tests have been fully implemented with comprehensive coverage:
+
+### Implementation Details
+
+1. **Mock Skill Struct**: Created `TestSkill` in `registry.rs` and `mod.rs` for testing purposes, implementing the `Skill` trait with configurable fields.
+
+2. **SkillRegistry Tests**: Implemented 17 tests covering:
+   - Registration, lookup, and listing
+   - Agent assignment and retrieval
+   - Status management (Ready, Degraded, Failed, Unloaded)
+   - Edge cases (overwrites, unregistered skills)
+
+3. **Manifest Parsing Tests**: Implemented 19 tests for:
+   - TOML parsing and validation
+   - Required field checking
+   - Whitespace validation
+   - Platform constraint validation
+
+4. **Discovery Tests**: Implemented 14 tests for:
+   - Directory scanning
+   - Multiple skill discovery
+   - Requirement validation (env vars, binaries, platform)
+   - Empty and invalid directory handling
+
+5. **Requirement Validation Tests**: Both passing and failing cases tested:
+   - Missing environment variables
+   - Missing binaries
+   - Platform mismatches
+   - Successful validation
+
+6. **Skill-Agent Integration Tests**: Implemented 6 tests for:
+   - Prompt merging with base prompts
+   - Empty and multiple skill fragments
+   - Order preservation
+   - Newline handling
+
+7. **Built-in Tier 1 Skills Tests**: Implemented 22 tests across:
+   - Healthcheck skill (7 tests)
+   - Session logs skill (7 tests)
+   - Model usage skill (8 tests)
+   - Each covering initialization, prompt fragments, tools, and execution
+
+### Test Results
+
+```
+✅ Build: cargo build -p aisopod-plugin passes
+✅ Tests: cargo test -p aisopod-plugin --features all-skills passes
+   - 194 unit tests passed
+   - 22 integration tests passed
+   - 59 doc tests (2 passed, 57 ignored for examples)
+✅ Documentation: cargo doc -p aisopod-plugin generates successfully
+```
+
+### Files Modified
+
+- `crates/aisopod-plugin/src/skills/registry.rs` - Registry tests
+- `crates/aisopod-plugin/src/skills/manifest.rs` - Manifest tests
+- `crates/aisopod-plugin/src/skills/discovery.rs` - Discovery tests
+- `crates/aisopod-plugin/src/skills/mod.rs` - Prompt merging tests
+- `crates/aisopod-plugin/src/skills/builtin/healthcheck.rs` - Healthcheck tests
+- `crates/aisopod-plugin/src/skills/builtin/session_logs.rs` - Session logs tests
+- `crates/aisopod-plugin/src/skills/builtin/model_usage.rs` - Model usage tests
+- `crates/aisopod-plugin/src/skills/scaffold.rs` - Scaffolding tests
+
+### Important Notes
+
+- Built-in skill tests require the `all-skills` feature flag: `cargo test --features all-skills`
+- Documentation generation shows only warnings about pre-existing broken intra-doc links
+- All code follows existing patterns and conventions in the codebase
+
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-24*
