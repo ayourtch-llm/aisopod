@@ -122,5 +122,42 @@ fn main() {
 - [ ] Each subcommand stub is reachable (panics with `todo!` for now)
 - [ ] Code compiles with no warnings
 
+## Resolution
+
+The clap CLI framework was successfully implemented with the following components:
+
+### Implementation Details
+
+1. **Dependency Configuration**: Added `clap` with `derive` feature to the binary crate's `Cargo.toml`
+
+2. **CLI Module Structure**: Created `crates/aisopod/src/cli.rs` with:
+   - Top-level `Cli` struct using `#[derive(Parser)]`
+   - Global flags: `--config`, `--verbose`, `--json`
+   - `Commands` enum with 14 subcommand variants using `#[derive(Subcommand)]`
+
+3. **Subcommand Stubs**: All 14 planned subcommands implemented as stubs:
+   - Gateway, Agent, Message, Config, Status, Health
+   - Models, Channels, Sessions, Daemon, Doctor
+   - Auth, Reset, Completions
+
+4. **Entry Point**: Updated `src/main.rs` to call `cli::run_cli()` which parses arguments and dispatches to subcommand handlers
+
+5. **Module Organization**: Used single-file `cli.rs` approach (avoiding the `cli/` directory ambiguity that caused E0761 errors)
+
+### Verification
+
+The implementation was verified by:
+- Running `cargo build -p aisopod` - successful compilation
+- Running `cargo test -p aisopod` - tests pass
+- Manual verification with `aisopod --help` showing all 14 subcommands
+- Verification that global flags are accepted at top level
+
+### Related Files
+
+- `crates/aisopod/src/cli.rs` - CLI definition
+- `crates/aisopod/src/main.rs` - Entry point
+- `docs/learnings/124-clap-cli-framework.md` - Learning summary
+
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-24*
