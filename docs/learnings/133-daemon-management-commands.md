@@ -232,9 +232,50 @@ Potential improvements for future work:
 4. **Health checks**: Add integration with gateway health endpoints
 5. **Multi-user support**: Support installing system-wide vs user-level services
 
+## Issue Verification Process
+
+### Files to Verify When Resolving an Issue
+
+When verifying issue implementation, check:
+
+1. **Issue file**: `docs/issues/resolved/NNN-description.md`
+   - Contains original requirements and resolution summary
+   - Should include acceptance criteria checklist
+
+2. **Implementation files**:
+   - Main implementation (e.g., `crates/aisopod/src/commands/daemon.rs`)
+   - CLI integration (e.g., `crates/aisopod/src/cli.rs`)
+   - Module exports (e.g., `crates/aisopod/src/commands/mod.rs`)
+   - Dependencies (e.g., `crates/aisopod/Cargo.toml`)
+
+3. **Test files**:
+   - Unit tests in implementation file
+   - All tests pass (`cargo test -p aisopod`)
+
+### Acceptance Criteria Checklist
+
+Before marking issue resolved:
+- [ ] `cargo build` passes for all targets
+- [ ] `cargo test` passes for all tests
+- [ ] `RUSTFLAGS=-Awarnings cargo build` passes
+- [ ] `cargo clippy -p <crate>` passes
+- [ ] `aisopod <command> --help` displays correct usage
+- [ ] All listed acceptance criteria from issue file pass
+
+### Code Review Checklist
+
+For daemon management commands specifically:
+- [ ] Platform detection uses correct `cfg!` attributes
+- [ ] Error messages are descriptive and actionable
+- [ ] Temporary value lifetimes handled correctly
+- [ ] Service file locations are platform-appropriate
+- [ ] Home directory detection handles missing home directory
+- [ ] Command arguments match expected patterns (Args/Subcommand)
+
 ## References
 
 - [systemd Documentation](https://www.freedesktop.org/software/systemd/manual/systemd.syntax.html)
 - [launchd Documentation](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html)
 - [Clap Documentation](https://docs.rs/clap/latest/clap/)
 - [Anyhow Documentation](https://docs.rs/anyhow/latest/anyhow/)
+- [Issue Tracking Process](../../issues/README.md)
