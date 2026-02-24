@@ -7,5 +7,6 @@ mod cli;
 use anyhow::Result;
 
 fn main() -> Result<()> {
-    cli::run_cli()
+    cli::run_cli();
+    Ok(())
 }
