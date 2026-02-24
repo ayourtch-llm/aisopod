@@ -18,6 +18,7 @@ mod plugins;
 mod session;
 mod skills;
 mod tools;
+mod sandbox;
 
 pub use agents::Agent;
 pub use agents::AgentDefaults;
@@ -50,6 +51,9 @@ pub use session::MessageConfig;
 pub use session::SessionConfig;
 pub use skills::SkillsConfig;
 pub use tools::ToolsConfig;
+pub use sandbox::SandboxConfig;
+pub use sandbox::SandboxRuntime;
+pub use sandbox::WorkspaceAccess;
 
 /// Root configuration struct that composes all configuration types
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

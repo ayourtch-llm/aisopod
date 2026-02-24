@@ -93,6 +93,10 @@ pub use builtins::{
     NoOpSessionManager, ScheduledJob, SessionManager, SessionTool, SubagentTool,
 };
 
+pub mod sandbox;
+pub use sandbox::config;
+pub use aisopod_config::types::{SandboxConfig, SandboxRuntime, WorkspaceAccess};
+
 /// Registers all built-in tools with the given registry.
 pub fn register_all_tools(registry: &mut ToolRegistry) {
     registry.register(Arc::new(BashTool::default()));
@@ -106,31 +110,6 @@ pub fn register_all_tools(registry: &mut ToolRegistry) {
         None,
     )));
     registry.register(Arc::new(SessionTool::new(Arc::new(NoOpSessionManager))));
-}
-
-/// Configuration for the sandbox environment in which tools may execute.
-///
-/// This type defines the isolation and resource constraints for tool execution.
-/// The exact fields and behavior are defined in a later issue.
-#[derive(Debug, Clone)]
-pub struct SandboxConfig {
-    /// The isolation mode for tool execution.
-    pub isolation_mode: SandboxIsolationMode,
-    /// Maximum CPU time allowed for tool execution (in seconds).
-    pub max_cpu_seconds: u64,
-    /// Maximum memory allowed for tool execution (in bytes).
-    pub max_memory_bytes: u64,
-}
-
-/// Isolation mode for sandboxed tool execution.
-#[derive(Debug, Clone)]
-pub enum SandboxIsolationMode {
-    /// No isolation - runs in the main process.
-    None,
-    /// Runs in a subprocess with restricted permissions.
-    Subprocess,
-    /// Runs in a containerized environment.
-    Container,
 }
 
 /// The result of a tool execution.

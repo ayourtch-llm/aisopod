@@ -355,6 +355,7 @@ pub fn test_config() -> AisopodConfig {
             agent_id: "test-agent".to_string(),
             channels: vec![],
             priority: 100,
+            sandbox: None,
         }],
         ..Default::default()
     }

@@ -230,6 +230,7 @@ fn test_resolution_with_priority() {
         agent_id: "fallback-agent".to_string(),
         channels: vec![],
         priority: 10, // Lower priority
+        sandbox: None,
     });
 
     let agent_id = resolve_session_agent_id(&config, "session_123").unwrap();
