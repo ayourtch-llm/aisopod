@@ -85,6 +85,14 @@
 //! - [`skills::SkillCategory`] - Category classification for skills
 //! - [`skills::SkillContext`] - Runtime context provided to skills during initialization
 //!
+//! ### Scaffolding
+//!
+//! The skills module also provides a scaffolding tool to generate new skills:
+//!
+//! - [`skills::scaffold_skill`] - Generate a new skill directory structure
+//! - [`skills::ScaffoldOptions`] - Configuration options for scaffolding
+//! - [`skills::to_pascal_case`] - Helper to convert kebab-case names to PascalCase
+//!
 //! ## Example
 //!
 //! This example shows the basic structure of a plugin:
@@ -185,4 +193,4 @@ pub use meta::PluginMeta;
 pub use registry::{PluginRegistry, RegistryError};
 pub use r#trait::Plugin;
 pub use security::{SecurityError, MAX_ARG_SIZE, RESERVED_COMMANDS, sanitize_argument, validate_command_name};
-pub use skills::{Skill, SkillCategory, SkillContext, SkillMeta};
+pub use skills::{Skill, SkillCategory, SkillContext, SkillMeta, scaffold_skill, ScaffoldOptions, to_pascal_case};

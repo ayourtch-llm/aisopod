@@ -87,6 +87,7 @@ mod meta;
 mod registry;
 mod r#trait;
 mod builtin;
+mod scaffold;
 
 pub use context::SkillContext;
 pub use discovery::{discover_skill_dirs, validate_requirements, load_skills, DiscoveryError, DiscoveryResult, DiscoveredSkill};
@@ -94,6 +95,7 @@ pub use manifest::{SkillManifest, ManifestError, parse_manifest};
 pub use meta::{SkillCategory, SkillMeta};
 pub use registry::{SkillRegistry, SkillStatus};
 pub use r#trait::Skill;
+pub use scaffold::{scaffold_skill, ScaffoldOptions, to_pascal_case};
 #[cfg(feature = "skill-healthcheck")]
 pub use builtin::healthcheck;
 #[cfg(feature = "skill-session-logs")]
