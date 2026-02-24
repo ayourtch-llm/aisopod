@@ -247,14 +247,59 @@ This is the core execution engine for sandbox isolation. Without it, agents cann
 - Issue 144 (sandbox configuration types)
 - Issue 052 (bash tool — execution patterns and `ExecutionResult` conventions)
 
-## Acceptance Criteria
-- [ ] `SandboxExecutor` creates containers using Docker or Podman CLI
-- [ ] Commands execute inside the container and stdout/stderr are captured
-- [ ] Workspace is mounted with correct permissions (read-only, read-write, or none)
-- [ ] Resource limits (`--memory`, `--cpus`) are passed to the container runtime
-- [ ] Timeout is enforced; long-running commands are killed
-- [ ] Containers are always cleaned up, even on error or timeout
-- [ ] Integration tests pass with Docker available (marked `#[ignore]` for CI without Docker)
+## Resolution
+
+The `SandboxExecutor` was implemented in `crates/aisopod-tools/src/sandbox/executor.rs` with the following features:
+
+### Implementation Details
+
+1. **Container Management Types**:
+   - `ContainerId`: A newtype wrapper around container ID strings
+   - `ExecutionResult`: Struct containing exit code, stdout, stderr, and timeout status
+   - `SandboxExecutor`: Main executor struct with runtime (Docker/Podman) configuration
+
+2. **Core Methods**:
+   - `create_container()`: Creates a container with resource limits (`--memory`, `--cpus`), network isolation (`--network none`), and workspace mounts
+   - `start_container()`: Starts a previously created container
+   - `execute()`: Runs commands inside containers with timeout enforcement
+   - `stop_container()`: Gracefully stops running containers
+   - `kill_container()`: Forcefully kills containers (used on timeout)
+   - `destroy_container()`: Removes containers after use
+
+3. **Convenience Method**:
+   - `run_one_shot()`: Automatically manages the full container lifecycle (create → start → execute → destroy), ensuring cleanup even on error or timeout
+
+4. **Workspace Mounting**:
+   - Supports three access modes: `ReadOnly`, `ReadWrite`, and `None`
+   - Mounts workspace directory as `/workspace` inside containers
+
+5. **Timeout Handling**:
+   - Uses `tokio::time::timeout` for execution timeouts
+   - Automatically kills containers on timeout with appropriate error messages
+
+### Files Modified/Created
+
+- **Created**: `crates/aisopod-tools/src/sandbox/executor.rs`
+- **Modified**: `crates/aisopod-tools/src/sandbox/mod.rs` - Added executor module export
+- **Modified**: `crates/aisopod-tools/src/sandbox/config.rs` - Added `SandboxRuntime` and `WorkspaceAccess` re-exports
+- **Modified**: `crates/aisopod-tools/src/lib.rs` - Added exports for new types
+
+### Testing
+
+- All existing tests continue to pass
+- Integration tests marked with `#[ignore]` for Docker/Podman
+- Unit tests for executor types (name, description, schema)
+
+### Acceptance Criteria Met
+
+- [x] `SandboxExecutor` creates containers using Docker or Podman CLI
+- [x] Commands execute inside the container and stdout/stderr are captured
+- [x] Workspace is mounted with correct permissions (read-only, read-write, or none)
+- [x] Resource limits (`--memory`, `--cpus`) are passed to the container runtime
+- [x] Timeout is enforced; long-running commands are killed
+- [x] Containers are always cleaned up, even on error or timeout
+- [x] Integration tests pass with Docker available (marked `#[ignore]` for CI without Docker)
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-25*
