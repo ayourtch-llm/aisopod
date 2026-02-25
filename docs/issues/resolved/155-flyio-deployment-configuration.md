@@ -72,5 +72,30 @@ Also create a deployment guide at `docs/deployment/flyio.md` covering:
 - [ ] Deployment guide is documented in `docs/deployment/flyio.md`
 - [ ] Machine size and region are sensible defaults
 
+## Resolution
+
+The issue was resolved by implementing the complete Fly.io deployment configuration:
+
+1. **Created `fly.toml`** at the repository root with the following configuration:
+   - App name: `aisopod`, primary_region: `iad`
+   - HTTP service on port 18789 with HTTPS enforcement (`force_https = true`)
+   - Auto-stop/auto-start machines enabled for cost optimization
+   - Health check configured on `/health` endpoint at port 18789
+   - Persistent volume mount: `aisopod_data` → `/data`
+   - Machine configuration: `shared-cpu-1x` with 512mb memory
+
+2. **Created deployment documentation** in `docs/deployment/flyio.md` covering:
+   - Fly CLI installation
+   - Running `fly launch` and `fly deploy`
+   - Creating persistent volumes with `fly volumes create`
+   - Setting secrets with `fly secrets set`
+   - Troubleshooting common issues
+
+3. **Verification**:
+   - Verified `cargo build` passes
+   - Verified `cargo test` passes
+   - All changes committed to the repository
+
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-25*
