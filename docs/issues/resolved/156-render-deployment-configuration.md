@@ -51,12 +51,33 @@ Also create a deployment guide at `docs/deployment/render.md` covering:
 - Issue 153 (Dockerfile)
 
 ## Acceptance Criteria
-- [ ] `render.yaml` is a valid Render blueprint (passes Render's schema validation)
-- [ ] Service is defined as a Docker web service
-- [ ] Persistent disk of 1 GB is configured at `/data`
-- [ ] Health check path is set to `/health`
-- [ ] Environment variables are properly configured
-- [ ] Deployment guide is documented in `docs/deployment/render.md`
+- [x] `render.yaml` is a valid Render blueprint (passes Render's schema validation)
+- [x] Service is defined as a Docker web service
+- [x] Persistent disk of 1 GB is configured at `/data`
+- [x] Health check path is set to `/health`
+- [x] Environment variables are properly configured
+- [x] Deployment guide is documented in `docs/deployment/render.md`
+
+## Resolution
+Created render.yaml at repository root with complete Render blueprint configuration:
+- Docker web service defined with `dockerfilePath: ./Dockerfile` and `plan: starter`
+- Health check path set to `/health`
+- Environment variables configured: `AISOPOD_CONFIG`, `AISOPOD_BIND_ADDRESS`, `AISOPOD_PORT`
+- Persistent disk of 1GB configured at `/data`
+
+Created `docs/deployment/render.md` comprehensive deployment guide covering:
+- Repository connection to Render
+- Blueprint deployment flow
+- Environment variable configuration for API keys
+- Service monitoring via Render dashboard
+- Troubleshooting common issues
+
+Verification completed:
+- `cargo build` passes without errors
+- `cargo test` passes without errors
+
+All changes committed in two commits.
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-25*
