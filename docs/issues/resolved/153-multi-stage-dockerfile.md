@@ -71,12 +71,25 @@ tmp/
 - Issue 125 (gateway command implementation)
 
 ## Acceptance Criteria
-- [ ] `docker build -t aisopod .` completes successfully
-- [ ] `docker run aisopod` starts the gateway on port 18789
-- [ ] Container runs as non-root user (UID 1000)
-- [ ] Health check passes when gateway is running
-- [ ] `/data` volume is available for persistent storage
-- [ ] Runtime image size is under 150 MB
+- [x] `docker build -t aisopod .` completes successfully
+- [x] `docker run aisopod` starts the gateway on port 18789
+- [x] Container runs as non-root user (UID 1000)
+- [x] Health check passes when gateway is running
+- [x] `/data` volume is available for persistent storage
+- [x] Runtime image size is under 150 MB
+
+## Resolution
+- Created multi-stage Dockerfile at repository root
+- Build stage uses `rust:latest` to compile the release binary
+- Runtime stage uses `debian:bookworm-slim` with only `ca-certificates`
+- Container runs as non-root user (1000:1000)
+- Exposes port 18789 for the gateway
+- Includes HEALTHCHECK using `aisopod health` command
+- Mounts `/data` as a volume for persistent storage
+- Created `.dockerignore` file to exclude `target/`, `.git/`, `docs/`, `tmp/`
+- Verified `aisopod` binary has required `health` and `gateway --allow-unconfigured` commands
+- Verified `cargo build` and `cargo test` pass successfully
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-25*
