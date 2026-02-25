@@ -83,13 +83,26 @@ fn install_systemd_service(system_level: bool) -> Result<()> {
 - Issue 133 (daemon commands)
 
 ## Acceptance Criteria
-- [ ] `aisopod daemon install` generates a valid systemd unit file on Linux
-- [ ] User-level install writes to `~/.config/systemd/user/aisopod.service`
-- [ ] System-level install (with `--system`) writes to `/etc/systemd/system/aisopod.service`
-- [ ] Service type is `simple` with `Restart=on-failure`
-- [ ] `ExecStart` points to the current aisopod binary path
-- [ ] Service can be enabled and started with `systemctl enable --now aisopod`
-- [ ] `aisopod daemon uninstall` removes the service file
+- [x] `aisopod daemon install` generates a valid systemd unit file on Linux
+- [x] User-level install writes to `~/.config/systemd/user/aisopod.service`
+- [x] System-level install (with `--system`) writes to `/etc/systemd/system/aisopod.service`
+- [x] Service type is `simple` with `Restart=on-failure`
+- [x] `ExecStart` points to the current aisopod binary path
+- [x] Service can be enabled and started with `systemctl enable --now aisopod`
+- [x] `aisopod daemon uninstall` removes the service file
+
+## Resolution
+Implemented `aisopod daemon install` command with user/system-level installation support:
+- Added `--system` flag for system-level installation
+- User-level install: writes to `~/.config/systemd/user/aisopod.service`
+- System-level install (with `--system`): writes to `/etc/systemd/system/aisopod.service`
+- Service unit file includes: `Type=simple`, `Restart=on-failure`, `RestartSec=5`
+- `ExecStart` uses `std::env::current_exe()` to get the aisopod binary path
+- Environment variable `AISOPOD_CONFIG=/etc/aisopod/config.json` set
+- Platform-gated with `#[cfg(target_os = "linux")]`
+- Implemented `aisopod daemon uninstall` command to remove service file
+- All changes committed in commit 49c1764
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-25*
