@@ -29,7 +29,7 @@ use crate::routes::{api_routes, device_token_routes, GatewayStatusState};
 use crate::static_files::{get_cache_control, get_content_type, StaticFileState};
 use crate::tls::{is_tls_enabled, load_tls_config};
 use crate::ws::ws_routes;
-use aisopod_config::types::{AisopodConfig, GatewayConfig};
+use aisopod_config::types::{AisopodConfig, AuthConfig, GatewayConfig};
 use rust_embed::RustEmbed;
 
 use crate::auth::DeviceTokenManager;
@@ -360,8 +360,13 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
                 }
             },
         ))
+        // Auth middleware - runs FIRST (innermost in the stack)
+        // It depends on auth_config_data being available in extensions
+        // AuthConfigDataInjector will be added AFTER this layer, so it runs BEFORE
+        // auth_middleware when requests come in (outer layers run first in tower)
+        .layer(axum::middleware::from_fn(auth_middleware))
         // Auth config data MUST be injected BEFORE auth_middleware runs
-        // By adding this layer BEFORE auth_middleware in the ServiceBuilder,
+        // By adding this layer AFTER auth_middleware in the ServiceBuilder,
         // it runs BEFORE auth_middleware in the request flow (outer layers run first)
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
@@ -381,9 +386,6 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
                 }
             },
         ))
-        // Auth middleware - runs SECOND (after AuthConfigDataInjector)
-        // It depends on auth_config_data being available in extensions
-        .layer(axum::middleware::from_fn(auth_middleware))
         // Secrets masking middleware - masks sensitive values in logs
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
@@ -506,12 +508,13 @@ pub async fn run(config: &GatewayConfig) -> Result<()> {
 ///
 /// This function creates the same app as run_with_config but returns it
 /// instead of starting the server, allowing integration tests to use axum-test.
-pub async fn build_app() -> Router {
+pub async fn build_app(auth_config: AuthConfig) -> Router {
     use axum::{Router, routing::get};
     use serde_json::json;
     
     // Create a minimal config for testing
-    let config = AisopodConfig::default();
+    let mut config = AisopodConfig::default();
+    config.auth = auth_config;
     
     let gateway_config = &config.gateway;
     
@@ -608,9 +611,12 @@ pub async fn build_app() -> Router {
         // it runs BEFORE auth_middleware in the request flow
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-                let config_data = auth_config_data.clone();
+                let config_data = auth_config_data.as_ref().clone();
                 async move {
+                    eprintln!("=== AUTH CONFIG DATA INJECTOR ===");
+                    eprintln!("Before insert, has config: {}", req.extensions().get::<AuthConfigData>().is_some());
                     req.extensions_mut().insert(config_data);
+                    eprintln!("After insert, has config: {}", req.extensions().get::<AuthConfigData>().is_some());
                     next.run(req).await
                 }
             },

@@ -15,18 +15,11 @@ use std::net::{SocketAddr, TcpListener};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::oneshot;
+use tokio::net::TcpStream;
 
 // ============================================================================
 // Test Helper Functions
 // ============================================================================
-
-/// Global counter for unique port allocation - each test gets its own port
-static PORT_COUNTER: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(40000);
-
-/// Find an available port for testing
-fn find_available_port() -> u16 {
-    PORT_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 40000
-}
 
 /// Wait for port to be released (helps with port reuse in parallel tests)
 fn wait_for_port_release(port: u16) {
@@ -41,33 +34,78 @@ fn wait_for_port_release(port: u16) {
     }
 }
 
+/// Test server guard that holds the shutdown channel to keep the server alive
+struct TestServer {
+    addr: SocketAddr,
+    _shutdown_tx: oneshot::Sender<()>,
+}
+
+impl TestServer {
+    fn addr(&self) -> SocketAddr {
+        self.addr
+    }
+}
+
+impl Drop for TestServer {
+    fn drop(&mut self) {
+        // Send shutdown signal when guard is dropped
+        // The sender is dropped which will cause the channel to close
+        // This will make the server's graceful shutdown detect the closed channel
+    }
+}
+
 /// Start the gateway server for integration tests with custom auth config
-async fn start_test_server_with_auth(config: AuthConfig) -> SocketAddr {
-    let app = build_app(config, None).await;
+/// Returns a TestServer guard that holds the shutdown channel
+async fn start_test_server_with_auth(config: AuthConfig) -> TestServer {
+    let app = build_app(config).await;
 
-    let addr: SocketAddr = format!("127.0.0.1:{}", find_available_port()).parse().unwrap();
+    // Bind to port 0 to get an available port from the OS
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("Failed to bind to port");
+    let addr = listener.local_addr().expect("Failed to get local address");
 
-    let (shutdown_tx, shutdown_rx) = oneshot::channel();
+    let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
 
-    let listener = tokio::net::TcpListener::bind(&addr).await.expect("Failed to bind to port");
+    // Clone the shutdown channel for the server task
+    let shutdown_rx_server = shutdown_rx;
 
     // Run the server in a background task
-    let server_task = tokio::spawn(async move {
-        axum::serve(listener, app)
+    let _server_task = tokio::spawn(async move {
+        let result = axum::serve(listener, app)
             .with_graceful_shutdown(async move {
-                shutdown_rx.await.ok();
+                shutdown_rx_server.await.ok();
             })
-            .await
-            .expect("Server error");
+            .await;
+        
+        // Log any server errors
+        if let Err(e) = result {
+            eprintln!("Server task error: {:?}", e);
+        }
     });
 
-    // Wait for server to be ready
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    // Wait for server to be ready by attempting to connect with retries
+    let max_retries = 50;
+    let retry_delay = Duration::from_millis(100);
+    
+    for attempt in 0..max_retries {
+        match TcpStream::connect(&addr).await {
+            Ok(_) => {
+                // Successfully connected - server is ready
+                // Close our side of the connection
+                break;
+            }
+            Err(_) => {
+                if attempt == max_retries - 1 {
+                    panic!("Server failed to become ready after {} attempts", max_retries);
+                }
+                tokio::time::sleep(retry_delay).await;
+            }
+        }
+    }
 
-    // Don't wait for shutdown, just return the address
-    let _shutdown_rx = shutdown_rx;
-
-    addr
+    // Return the server guard which holds the shutdown channel
+    TestServer { addr, _shutdown_tx: shutdown_tx }
 }
 
 /// Test server builder with token authentication
@@ -75,7 +113,7 @@ async fn build_test_server_with_token(
     token: &str,
     role: &str,
     scopes: Vec<&str>,
-) -> SocketAddr {
+) -> TestServer {
     let config = AuthConfig {
         gateway_mode: AuthMode::Token,
         tokens: vec![TokenCredential {
@@ -95,7 +133,7 @@ async fn build_test_server_with_password(
     password: &str,
     role: &str,
     scopes: Vec<&str>,
-) -> SocketAddr {
+) -> TestServer {
     let config = AuthConfig {
         gateway_mode: AuthMode::Password,
         passwords: vec![PasswordCredential {
@@ -111,7 +149,7 @@ async fn build_test_server_with_password(
 }
 
 /// Test server builder with no authentication
-async fn build_test_server_no_auth() -> SocketAddr {
+async fn build_test_server_no_auth() -> TestServer {
     let config = AuthConfig {
         gateway_mode: AuthMode::None,
         ..Default::default()
@@ -126,7 +164,8 @@ async fn build_test_server_no_auth() -> SocketAddr {
 
 #[tokio::test]
 async fn test_unauthenticated_request_rejected() {
-    let addr = build_test_server_with_token("test-token", "operator", vec!["chat:write"]).await;
+    let server = build_test_server_with_token("test-token", "operator", vec!["chat:write"]).await;
+    let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
 
@@ -150,7 +189,8 @@ async fn test_unauthenticated_request_rejected() {
 
 #[tokio::test]
 async fn test_authenticated_request_accepted() {
-    let addr = build_test_server_with_token("test-token", "operator", vec!["chat:write"]).await;
+    let server = build_test_server_with_token("test-token", "operator", vec!["chat:write"]).await;
+    let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
 
@@ -175,7 +215,8 @@ async fn test_authenticated_request_accepted() {
 
 #[tokio::test]
 async fn test_authenticated_password_request_accepted() {
-    let addr = build_test_server_with_password("admin", "password123", "operator", vec!["chat:write"]).await;
+    let server = build_test_server_with_password("admin", "password123", "operator", vec!["chat:write"]).await;
+    let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
 
@@ -200,7 +241,8 @@ async fn test_authenticated_password_request_accepted() {
 
 #[tokio::test]
 async fn test_insufficient_scope_rejected() {
-    let addr = build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
+    let server = build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
+    let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
 
@@ -228,7 +270,8 @@ async fn test_insufficient_scope_rejected() {
 
 #[tokio::test]
 async fn test_admin_scope_allows_all() {
-    let addr = build_test_server_with_token("admin-token", "admin", vec!["operator.admin"]).await;
+    let server = build_test_server_with_token("admin-token", "admin", vec!["operator.admin"]).await;
+    let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
 
@@ -255,7 +298,8 @@ async fn test_admin_scope_allows_all() {
 
 #[tokio::test]
 async fn test_no_auth_mode_allows_all() {
-    let addr = build_test_server_no_auth().await;
+    let server = build_test_server_no_auth().await;
+    let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
 
@@ -278,7 +322,8 @@ async fn test_no_auth_mode_allows_all() {
 
 #[tokio::test]
 async fn test_missing_token_rejected() {
-    let addr = build_test_server_with_token("test-token", "operator", vec![]).await;
+    let server = build_test_server_with_token("test-token", "operator", vec![]).await;
+    let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
 
@@ -300,7 +345,8 @@ async fn test_missing_token_rejected() {
 
 #[tokio::test]
 async fn test_missing_password_rejected() {
-    let addr = build_test_server_with_password("admin", "password123", "operator", vec![]).await;
+    let server = build_test_server_with_password("admin", "password123", "operator", vec![]).await;
+    let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
 
@@ -320,7 +366,8 @@ async fn test_missing_password_rejected() {
 
 #[tokio::test]
 async fn test_wrong_password_rejected() {
-    let addr = build_test_server_with_password("admin", "password123", "operator", vec![]).await;
+    let server = build_test_server_with_password("admin", "password123", "operator", vec![]).await;
+    let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
 
@@ -346,7 +393,8 @@ async fn test_wrong_password_rejected() {
 
 #[tokio::test]
 async fn test_health_endpoint_always_allowed() {
-    let addr = build_test_server_with_token("test-token", "operator", vec![]).await;
+    let server = build_test_server_with_token("test-token", "operator", vec![]).await;
+    let addr = server.addr();
 
     let url = format!("http://{}/health", addr);
 
@@ -361,7 +409,8 @@ async fn test_health_endpoint_always_allowed() {
 
 #[tokio::test]
 async fn test_read_method_requires_read_scope() {
-    let addr = build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
+    let server = build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
+    let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
 
@@ -385,7 +434,8 @@ async fn test_read_method_requires_read_scope() {
 
 #[tokio::test]
 async fn test_write_method_requires_write_scope() {
-    let addr = build_test_server_with_token("test-token", "operator", vec!["operator.write"]).await;
+    let server = build_test_server_with_token("test-token", "operator", vec!["operator.write"]).await;
+    let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
 
@@ -410,7 +460,8 @@ async fn test_write_method_requires_write_scope() {
 
 #[tokio::test]
 async fn test_insufficient_scope_for_write_method() {
-    let addr = build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
+    let server = build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
+    let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
 
