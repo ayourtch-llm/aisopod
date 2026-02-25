@@ -4,6 +4,7 @@
 //! This module provides authentication validation functions and the AuthInfo struct
 //! that carries user role and scopes through the request pipeline.
 
+mod device_tokens;
 mod password;
 mod tokens;
 
@@ -11,6 +12,7 @@ use aisopod_config::sensitive::Sensitive;
 use aisopod_config::types::{AuthConfig, AuthMode, PasswordCredential, TokenCredential};
 use std::collections::HashMap;
 
+pub use device_tokens::{DeviceToken, DeviceTokenInfo, DeviceTokenManager};
 pub use password::{hash_password, verify_password};
 pub use tokens::{generate_token, TokenStore};
 

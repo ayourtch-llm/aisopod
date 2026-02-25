@@ -10,7 +10,7 @@ use axum::{
 };
 use serde_json::json;
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::signal;
@@ -25,12 +25,14 @@ use crate::client::ClientRegistry;
 use crate::middleware::{
     auth_middleware, rate_limit_middleware, AuthConfigData, RateLimitConfig, RateLimiter,
 };
-use crate::routes::{api_routes, GatewayStatusState};
+use crate::routes::{api_routes, device_token_routes, GatewayStatusState};
 use crate::static_files::{get_cache_control, get_content_type, StaticFileState};
 use crate::tls::{is_tls_enabled, load_tls_config};
 use crate::ws::ws_routes;
 use aisopod_config::types::{AisopodConfig, GatewayConfig};
 use rust_embed::RustEmbed;
+
+use crate::auth::DeviceTokenManager;
 
 /// Embedded static assets from the web UI dist directory
 #[derive(RustEmbed)]
@@ -152,6 +154,18 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
     // Create the broadcast channel for gateway events
     let broadcaster = Arc::new(Broadcaster::new(128));
 
+    // Setup device token manager with storage in the config directory
+    let config_dir = gateway_config
+        .bind
+        .address
+        .to_string()
+        .replace([':', '/'], "-");
+    let token_store_path = std::path::PathBuf::from(format!(
+        "device-tokens-{}.toml",
+        config_dir.trim_start_matches('[').trim_end_matches(']')
+    ));
+    let device_token_manager = Arc::new(Mutex::new(DeviceTokenManager::new(token_store_path)));
+
     // Setup static file serving state
     let web_ui_config = gateway_config.web_ui.clone();
     let static_state = StaticFileState::new(web_ui_config.clone());
@@ -257,7 +271,17 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
         ))
         // Auth middleware - runs FIRST (innermost in the stack, outermost in request flow)
         // It depends on auth_config_data being available in extensions
-        .layer(axum::middleware::from_fn(auth_middleware));
+        .layer(axum::middleware::from_fn(auth_middleware))
+        // Device token manager middleware
+        .layer(axum::middleware::from_fn(
+            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                let device_token_manager = device_token_manager.clone();
+                async move {
+                    req.extensions_mut().insert(device_token_manager);
+                    next.run(req).await
+                }
+            },
+        ));
 
     eprintln!("=== MIDDLEWARE STACK BUILT === layers: 7");
     
@@ -265,10 +289,11 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
     let status_state = Arc::new(GatewayStatusState::new(0, 0, 0));
     
     // Build the main app - order matters: static_router first (with 404 for API paths),
-    // then API routes, then WebSocket routes
+    // then API routes, then WebSocket routes, then device token routes
     let app = Router::new()
         .route("/health", get(health))
         .nest_service("/", static_router)
+        .merge(device_token_routes())
         .merge(api_routes(Some(status_state.clone())))
         .merge(ws_routes(handshake_timeout))
         .layer(middleware_stack);
@@ -383,6 +408,10 @@ pub async fn build_app() -> Router {
     // Create broadcaster
     let broadcaster = Arc::new(Broadcaster::new(128));
     
+    // Setup device token manager with default storage path
+    let token_store_path = std::path::PathBuf::from("device-tokens.toml");
+    let device_token_manager = Arc::new(Mutex::new(DeviceTokenManager::new(token_store_path)));
+    
     // Setup static file serving state
     let web_ui_config = gateway_config.web_ui.clone();
     let static_state = StaticFileState::new(web_ui_config.clone());
@@ -450,7 +479,17 @@ pub async fn build_app() -> Router {
                 }
             },
         ))
-        .layer(axum::middleware::from_fn(auth_middleware));
+        .layer(axum::middleware::from_fn(auth_middleware))
+        // Device token manager middleware
+        .layer(axum::middleware::from_fn(
+            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                let device_token_manager = device_token_manager.clone();
+                async move {
+                    req.extensions_mut().insert(device_token_manager);
+                    next.run(req).await
+                }
+            },
+        ));
     
     // Create static router
     let static_router = Router::new()
@@ -462,6 +501,7 @@ pub async fn build_app() -> Router {
     let app = Router::new()
         .route("/health", get(health))
         .nest_service("/", static_router)
+        .merge(device_token_routes())
         .merge(api_routes(Some(status_state)))
         .merge(ws_routes(None))
         .layer(middleware_stack);

@@ -1,6 +1,6 @@
 #![allow(clippy::all)]
 use axum::{
-    extract::{ConnectInfo, MatchedPath, State, WebSocketUpgrade},
+    extract::{ConnectInfo, Extension, MatchedPath, State, WebSocketUpgrade},
     http::Method,
     response::IntoResponse,
     routing::get,
@@ -8,8 +8,22 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
+
+use crate::auth::DeviceTokenManager;
+use aisopod_config::types::AuthConfig;
+
+/// Build the device token management routes
+pub fn device_token_routes() -> Router {
+    use axum::routing::{get, post};
+
+    Router::new()
+        .route("/device-tokens", get(list_device_tokens))
+        .route("/device-tokens", post(issue_device_token))
+        .route("/device-tokens/revoke", post(revoke_device_token))
+        .route("/device-tokens/refresh", post(refresh_device_token))
+}
 
 /// Handler for not implemented endpoints
 pub async fn not_implemented(
@@ -121,6 +135,141 @@ pub fn api_routes(status_state: Option<Arc<GatewayStatusState>>) -> Router {
                 None => get(not_implemented),
             },
         )
+}
+
+/// Handler for listing device tokens
+pub async fn list_device_tokens(
+    Extension(manager): Extension<Arc<Mutex<DeviceTokenManager>>>,
+) -> Json<serde_json::Value> {
+    let mgr = manager.lock().unwrap();
+    let tokens = mgr.list();
+    Json(json!({
+        "tokens": tokens
+    }))
+}
+
+/// Request body for issuing a new device token
+#[derive(Debug, Deserialize)]
+pub struct IssueTokenRequest {
+    pub device_name: String,
+    pub device_id: Option<String>,
+    pub scopes: Vec<String>,
+}
+
+/// Response for issuing a new device token
+#[derive(Debug, Serialize)]
+pub struct IssueTokenResponse {
+    pub token: String,
+    pub device_id: String,
+    pub message: String,
+}
+
+/// Handler for issuing a new device token
+pub async fn issue_device_token(
+    Extension(manager): Extension<Arc<Mutex<DeviceTokenManager>>>,
+    Json(payload): Json<IssueTokenRequest>,
+) -> Json<serde_json::Value> {
+    let mut mgr = manager.lock().unwrap();
+    let device_id = payload.device_id.unwrap_or_else(|| {
+        format!(
+            "device-{}",
+            uuid::Uuid::new_v4().simple().to_string()
+        )
+    });
+
+    // Convert scope strings to Scope enums
+    let scopes: Vec<crate::auth::Scope> = payload
+        .scopes
+        .iter()
+        .filter_map(|s| match s.as_str() {
+            "operator.admin" => Some(crate::auth::Scope::OperatorAdmin),
+            "operator.read" => Some(crate::auth::Scope::OperatorRead),
+            "operator.write" => Some(crate::auth::Scope::OperatorWrite),
+            "operator.approvals" => Some(crate::auth::Scope::OperatorApprovals),
+            "operator.pairing" => Some(crate::auth::Scope::OperatorPairing),
+            _ => None,
+        })
+        .collect();
+
+    match mgr
+        .issue(payload.device_name, device_id.clone(), scopes)
+    {
+        Ok(token) => Json(json!(IssueTokenResponse {
+            token,
+            device_id,
+            message: "Device token issued successfully".to_string(),
+        })),
+        Err(e) => Json(json!({
+            "error": "failed to issue token",
+            "message": e.to_string()
+        })),
+    }
+}
+
+/// Response for revoking a device token
+#[derive(Debug, Serialize)]
+pub struct RevokeTokenResponse {
+    pub success: bool,
+    pub message: String,
+}
+
+/// Handler for revoking a device token
+pub async fn revoke_device_token(
+    Extension(manager): Extension<Arc<Mutex<DeviceTokenManager>>>,
+    Json(payload): Json<RevokeDeviceTokenRequest>,
+) -> Json<serde_json::Value> {
+    let mut mgr = manager.lock().unwrap();
+    match mgr.revoke(&payload.device_id) {
+        Ok(true) => Json(json!(RevokeTokenResponse {
+            success: true,
+            message: format!("Token for device '{}' revoked", payload.device_id),
+        })),
+        Ok(false) => Json(json!(RevokeTokenResponse {
+            success: false,
+            message: format!("No token found for device '{}'", payload.device_id),
+        })),
+        Err(e) => Json(json!({
+            "error": "failed to revoke token",
+            "message": e.to_string()
+        })),
+    }
+}
+
+/// Request body for revoking a device token
+#[derive(Debug, Deserialize)]
+pub struct RevokeDeviceTokenRequest {
+    pub device_id: String,
+}
+
+/// Response for refreshing a device token
+#[derive(Debug, Serialize)]
+pub struct RefreshTokenResponse {
+    pub token: String,
+    pub device_id: String,
+    pub message: String,
+}
+
+/// Handler for refreshing a device token
+pub async fn refresh_device_token(
+    Extension(manager): Extension<Arc<Mutex<DeviceTokenManager>>>,
+    Json(payload): Json<RevokeDeviceTokenRequest>,
+) -> Json<serde_json::Value> {
+    let mut mgr = manager.lock().unwrap();
+    match mgr.refresh(&payload.device_id) {
+        Ok(Some(token)) => Json(json!(RefreshTokenResponse {
+            token,
+            device_id: payload.device_id,
+            message: "Device token refreshed successfully".to_string(),
+        })),
+        Ok(None) => Json(json!({
+            "error": "no token found or token revoked",
+            "device_id": payload.device_id
+        })),
+        Err(e) => Json(json!({
+            "error": "failed to refresh token",
+            "message": e.to_string()
+        })),
+    }
 }
 
 /// Build WebSocket routes
