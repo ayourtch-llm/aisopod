@@ -15,7 +15,7 @@ use uuid::Uuid;
 use crate::auth::AuthInfo;
 use crate::broadcast::Broadcaster;
 use crate::client::{ClientRegistry, GatewayClient};
-use crate::rpc::{self, chat::ChatSendHandler, MethodRouter, RequestContext};
+use crate::rpc::{self, chat::ChatSendHandler, MethodRouter, RequestContext, ApprovalStore, ApprovalRequestHandler, ApprovalApproveHandler, ApprovalDenyHandler, ApprovalListHandler};
 
 /// Default handshake timeout in seconds
 pub const DEFAULT_HANDSHAKE_TIMEOUT_SECS: u64 = 5;
@@ -161,6 +161,24 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
 
     // Clone tx for use in chat.send handler (since tx will be moved into GatewayClient)
     let tx_for_chat = tx.clone();
+
+    // Create approval store for managing pending approval requests
+    let approval_store = std::sync::Arc::new(ApprovalStore::new());
+
+    // Register approval handlers with the method router if broadcaster is available
+    if let Some(broadcaster) = &broadcaster {
+        let store = approval_store.clone();
+        let broadcaster = broadcaster.clone();
+        
+        method_router.register("approval.request", 
+            ApprovalRequestHandler::with_deps(store.clone(), broadcaster.clone()));
+        method_router.register("approval.approve", 
+            ApprovalApproveHandler::with_store(store.clone()));
+        method_router.register("approval.deny", 
+            ApprovalDenyHandler::with_store(store.clone()));
+        method_router.register("approval.list", 
+            ApprovalListHandler::with_store(store.clone()));
+    }
 
     // Register client if we have auth info and registry
     // The sender is moved into the client and also used in the main loop

@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
-use crate::broadcast::Subscription;
+use crate::broadcast::{Broadcaster, GatewayEvent, Subscription};
+use crate::rpc::approval::{PendingApproval, ApprovalStatus, ApprovalRequestParams, ApprovalStore};
 use crate::rpc::chat::ChatSendHandler;
 use crate::rpc::types;
 
@@ -33,6 +34,13 @@ pub trait RpcMethod: Send + Sync {
     /// Handle an RPC request
     /// Returns an RpcResponse that will be sent back to the client
     fn handle(&self, ctx: &RequestContext, params: Option<serde_json::Value>)
+        -> types::RpcResponse;
+}
+
+/// Trait for RPC methods that need additional dependencies
+pub trait RpcMethodWithDeps: Send + Sync {
+    /// Handle an RPC request with dependencies
+    fn handle_with_deps(&self, conn_id: String, params: Option<serde_json::Value>)
         -> types::RpcResponse;
 }
 
@@ -67,6 +75,9 @@ impl RpcMethod for PlaceholderHandler {
 /// Method router that dispatches requests to the appropriate handler
 pub struct MethodRouter {
     methods: Arc<Mutex<HashMap<String, Arc<Box<dyn RpcMethod>>>>>,
+    /// Approval-specific dependencies (optional)
+    approval_store: Option<Arc<ApprovalStore>>,
+    broadcaster: Option<Arc<Broadcaster>>,
 }
 
 impl MethodRouter {
@@ -74,7 +85,16 @@ impl MethodRouter {
     pub fn new() -> Self {
         Self {
             methods: Arc::new(Mutex::new(HashMap::new())),
+            approval_store: None,
+            broadcaster: None,
         }
+    }
+
+    /// Set approval-specific dependencies for the router
+    pub fn with_approval_deps(mut self, store: Arc<ApprovalStore>, broadcaster: Arc<Broadcaster>) -> Self {
+        self.approval_store = Some(store);
+        self.broadcaster = Some(broadcaster);
+        self
     }
 
     /// Register a handler for a specific method name
@@ -128,6 +148,10 @@ impl Default for MethodRouter {
 /// runtime dependencies (AgentRunner, WebSocket sender) that are injected
 /// directly into the WebSocket connection handler via ws.rs.
 /// The placeholder in this router will never be invoked for chat.send.
+/// 
+/// Note: The `approval.request` method requires the approval store and broadcaster
+/// to be injected. These handlers are registered but will return errors until
+/// dependencies are set via MethodRouter::with_approval_deps().
 pub fn default_router() -> MethodRouter {
     let mut router = MethodRouter::new();
 
@@ -163,6 +187,11 @@ pub fn default_router() -> MethodRouter {
         "config.set",
         "config.validate",
         "config.reload",
+        // Approval methods (4)
+        "approval.request",
+        "approval.approve",
+        "approval.deny",
+        "approval.list",
     ];
 
     for namespace in namespaces {
@@ -216,6 +245,356 @@ impl RpcMethod for GatewaySubscribeHandler {
             serde_json::json!({
                 "status": "subscribed",
                 "events": subscription.event_types,
+            }),
+        )
+    }
+}
+
+/// Handler for approval.request RPC method.
+///
+/// This handler creates approval requests and broadcasts them to all
+/// connected WebSocket clients that have subscribed to the "approval" event type.
+pub struct ApprovalRequestHandler {
+    approval_store: Option<Arc<ApprovalStore>>,
+    broadcaster: Option<Arc<Broadcaster>>,
+}
+
+impl ApprovalRequestHandler {
+    /// Create a new approval request handler
+    pub fn new() -> Self {
+        Self {
+            approval_store: None,
+            broadcaster: None,
+        }
+    }
+
+    /// Create a new approval request handler with dependencies
+    pub fn with_deps(store: Arc<ApprovalStore>, broadcaster: Arc<Broadcaster>) -> Self {
+        Self {
+            approval_store: Some(store),
+            broadcaster: Some(broadcaster),
+        }
+    }
+}
+
+impl RpcMethod for ApprovalRequestHandler {
+    fn handle(
+        &self,
+        ctx: &RequestContext,
+        params: Option<serde_json::Value>,
+    ) -> types::RpcResponse {
+        // Get dependencies
+        let store = match &self.approval_store {
+            Some(store) => store.clone(),
+            None => return types::RpcResponse::error(
+                Some(serde_json::json!(ctx.conn_id.clone())),
+                -32602,
+                "Approval store not available",
+            ),
+        };
+
+        let broadcaster = match &self.broadcaster {
+            Some(b) => b.clone(),
+            None => return types::RpcResponse::error(
+                Some(serde_json::json!(ctx.conn_id.clone())),
+                -32602,
+                "Broadcaster not available",
+            ),
+        };
+
+        // Parse parameters inline
+        let params: ApprovalRequestParams = match params {
+            Some(p) => match serde_json::from_value::<ApprovalRequestParams>(p) {
+                Ok(p) => p,
+                Err(e) => {
+                    return types::RpcResponse::error(
+                        Some(serde_json::json!(ctx.conn_id.clone())),
+                        -32602,
+                        format!("Invalid parameters: {}", e)
+                    );
+                }
+            },
+            None => {
+                return types::RpcResponse::error(
+                    Some(serde_json::json!(ctx.conn_id.clone())),
+                    -32602,
+                    "Missing parameters"
+                );
+            }
+        };
+
+        // Create a new pending approval
+        let approval = PendingApproval::new(
+            params.agent_id,
+            params.operation,
+            params.risk_level,
+        );
+
+        // Store the approval request
+        store.store(approval.clone());
+
+        // Create and broadcast the approval event
+        let event = GatewayEvent::ApprovalRequired {
+            id: approval.id.clone(),
+            agent_id: approval.agent_id.clone(),
+            operation: approval.operation.clone(),
+            risk_level: approval.risk_level.clone(),
+        };
+
+        let broadcast_count = broadcaster.publish(event);
+
+        types::RpcResponse::success(
+            Some(serde_json::json!(ctx.conn_id.clone())),
+            serde_json::json!({
+                "status": "created",
+                "id": approval.id,
+                "broadcast_recipients": broadcast_count,
+                "message": format!("Approval request {} has been created and broadcast to {} operator(s)", approval.id, broadcast_count)
+            }),
+        )
+    }
+}
+
+/// Handler for approval.approve RPC method
+///
+/// This method allows operators to approve pending approval requests.
+pub struct ApprovalApproveHandler {
+    approval_store: Option<Arc<ApprovalStore>>,
+}
+
+impl ApprovalApproveHandler {
+    /// Create a new approval approve handler
+    pub fn new() -> Self {
+        Self { approval_store: None }
+    }
+
+    /// Create a new approval approve handler with approval store
+    pub fn with_store(store: Arc<ApprovalStore>) -> Self {
+        Self { approval_store: Some(store) }
+    }
+}
+
+impl RpcMethod for ApprovalApproveHandler {
+    fn handle(
+        &self,
+        ctx: &RequestContext,
+        params: Option<serde_json::Value>,
+    ) -> types::RpcResponse {
+        let id = match &params {
+            Some(p) => match p.get("id") {
+                Some(id_val) => match id_val.as_str() {
+                    Some(id) => id.to_string(),
+                    None => {
+                        return types::RpcResponse::error(
+                            Some(serde_json::json!(ctx.conn_id.clone())),
+                            -32602,
+                            "Invalid approval request ID: must be a string",
+                        );
+                    }
+                },
+                None => {
+                    return types::RpcResponse::error(
+                        Some(serde_json::json!(ctx.conn_id.clone())),
+                        -32602,
+                        "Missing 'id' parameter in approval.approve",
+                    );
+                }
+            },
+            None => {
+                return types::RpcResponse::error(
+                    Some(serde_json::json!(ctx.conn_id.clone())),
+                    -32602,
+                    "approval.approve requires parameters",
+                );
+            }
+        };
+
+        // Use the approval store if available
+        let store = match &self.approval_store {
+            Some(store) => store.clone(),
+            None => return types::RpcResponse::error(
+                Some(serde_json::json!(ctx.conn_id.clone())),
+                -32602,
+                "Approval store not available",
+            ),
+        };
+
+        // Remove and check if approval exists
+        match store.remove(&id) {
+            Some(mut approval) => {
+                approval.status = ApprovalStatus::Approved;
+
+                types::RpcResponse::success(
+                    Some(serde_json::json!(ctx.conn_id.clone())),
+                    serde_json::json!({
+                        "status": "approved",
+                        "id": id,
+                        "message": format!("Approval request {} has been approved", id)
+                    }),
+                )
+            }
+            None => {
+                types::RpcResponse::error(
+                    Some(serde_json::json!(ctx.conn_id.clone())),
+                    -32601,
+                    format!("Approval request {} not found or already processed", id),
+                )
+            }
+        }
+    }
+}
+
+/// Handler for approval.deny RPC method
+///
+/// This method allows operators to deny pending approval requests.
+pub struct ApprovalDenyHandler {
+    approval_store: Option<Arc<ApprovalStore>>,
+}
+
+impl ApprovalDenyHandler {
+    /// Create a new approval deny handler
+    pub fn new() -> Self {
+        Self { approval_store: None }
+    }
+
+    /// Create a new approval deny handler with approval store
+    pub fn with_store(store: Arc<ApprovalStore>) -> Self {
+        Self { approval_store: Some(store) }
+    }
+}
+
+impl RpcMethod for ApprovalDenyHandler {
+    fn handle(
+        &self,
+        ctx: &RequestContext,
+        params: Option<serde_json::Value>,
+    ) -> types::RpcResponse {
+        let id = match &params {
+            Some(p) => match p.get("id") {
+                Some(id_val) => match id_val.as_str() {
+                    Some(id) => id.to_string(),
+                    None => {
+                        return types::RpcResponse::error(
+                            Some(serde_json::json!(ctx.conn_id.clone())),
+                            -32602,
+                            "Invalid approval request ID: must be a string",
+                        );
+                    }
+                },
+                None => {
+                    return types::RpcResponse::error(
+                        Some(serde_json::json!(ctx.conn_id.clone())),
+                        -32602,
+                        "Missing 'id' parameter in approval.deny",
+                    );
+                }
+            },
+            None => {
+                return types::RpcResponse::error(
+                    Some(serde_json::json!(ctx.conn_id.clone())),
+                    -32602,
+                    "approval.deny requires parameters",
+                );
+            }
+        };
+
+        // Get the reason for denial (optional)
+        let reason = params
+            .as_ref()
+            .and_then(|p| p.get("reason"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("No reason provided")
+            .to_string();
+
+        // Use the approval store if available
+        let store = match &self.approval_store {
+            Some(store) => store.clone(),
+            None => return types::RpcResponse::error(
+                Some(serde_json::json!(ctx.conn_id.clone())),
+                -32602,
+                "Approval store not available",
+            ),
+        };
+
+        // Remove and check if approval exists
+        match store.remove(&id) {
+            Some(mut approval) => {
+                approval.status = ApprovalStatus::Denied;
+
+                types::RpcResponse::success(
+                    Some(serde_json::json!(ctx.conn_id.clone())),
+                    serde_json::json!({
+                        "status": "denied",
+                        "id": id,
+                        "reason": reason,
+                        "message": format!("Approval request {} has been denied", id)
+                    }),
+                )
+            }
+            None => {
+                types::RpcResponse::error(
+                    Some(serde_json::json!(ctx.conn_id.clone())),
+                    -32601,
+                    format!("Approval request {} not found or already processed", id),
+                )
+            }
+        }
+    }
+}
+
+/// Handler for approval.list RPC method
+///
+/// This method allows operators to list pending approval requests.
+pub struct ApprovalListHandler {
+    approval_store: Option<Arc<ApprovalStore>>,
+}
+
+impl ApprovalListHandler {
+    /// Create a new approval list handler
+    pub fn new() -> Self {
+        Self { approval_store: None }
+    }
+
+    /// Create a new approval list handler with approval store
+    pub fn with_store(store: Arc<ApprovalStore>) -> Self {
+        Self { approval_store: Some(store) }
+    }
+}
+
+impl RpcMethod for ApprovalListHandler {
+    fn handle(
+        &self,
+        ctx: &RequestContext,
+        _params: Option<serde_json::Value>,
+    ) -> types::RpcResponse {
+        let store = match &self.approval_store {
+            Some(store) => store.clone(),
+            None => return types::RpcResponse::error(
+                Some(serde_json::json!(ctx.conn_id.clone())),
+                -32602,
+                "Approval store not available",
+            ),
+        };
+
+        let approvals = store.list();
+
+        types::RpcResponse::success(
+            Some(serde_json::json!(ctx.conn_id.clone())),
+            serde_json::json!({
+                "approvals": approvals.iter().map(|a| serde_json::json!({
+                    "id": a.id,
+                    "agent_id": a.agent_id,
+                    "operation": a.operation,
+                    "risk_level": a.risk_level,
+                    "requested_at": a.requested_at,
+                    "status": match a.status {
+                        ApprovalStatus::Pending => "pending",
+                        ApprovalStatus::Approved => "approved",
+                        ApprovalStatus::Denied => "denied",
+                    }
+                })).collect::<Vec<_>>(),
+                "count": approvals.len(),
+                "message": format!("Found {} approval request(s)", approvals.len())
             }),
         )
     }
@@ -289,8 +668,8 @@ mod tests {
     fn test_default_router_method_count() {
         let router = default_router();
 
-        // Should have 25 methods registered (24 namespace handlers + gateway.subscribe)
-        assert_eq!(router.method_count(), 25);
+        // Should have 29 methods registered (24 original + gateway.subscribe + 4 approval methods)
+        assert_eq!(router.method_count(), 29);
     }
 
     #[test]

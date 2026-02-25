@@ -27,6 +27,7 @@ impl Default for Subscription {
                 "health".to_string(),
                 "agent".to_string(),
                 "chat".to_string(),
+                "approval".to_string(),
             ]),
         }
     }
@@ -78,6 +79,18 @@ pub enum GatewayEvent {
         /// Message content as JSON value
         message: Value,
     },
+    /// Approval request event for operator notification
+    #[serde(rename = "approval")]
+    ApprovalRequired {
+        /// Unique ID of the approval request
+        id: String,
+        /// Agent ID requesting approval
+        agent_id: String,
+        /// The operation requiring approval
+        operation: String,
+        /// The risk level of the operation
+        risk_level: String,
+    },
 }
 
 impl GatewayEvent {
@@ -88,6 +101,7 @@ impl GatewayEvent {
             GatewayEvent::Health { .. } => "health",
             GatewayEvent::Agent { .. } => "agent",
             GatewayEvent::Chat { .. } => "chat",
+            GatewayEvent::ApprovalRequired { .. } => "approval",
         }
     }
 }
@@ -195,6 +209,34 @@ mod tests {
             message: json!("hello"),
         };
         assert_eq!(event.event_type(), "chat");
+    }
+
+    #[test]
+    fn test_gateway_event_approval_type() {
+        let event = GatewayEvent::ApprovalRequired {
+            id: "req-123".to_string(),
+            agent_id: "agent-456".to_string(),
+            operation: "rm -rf /".to_string(),
+            risk_level: "Critical".to_string(),
+        };
+        assert_eq!(event.event_type(), "approval");
+    }
+
+    #[test]
+    fn test_gateway_event_approval_serialization() {
+        let event = GatewayEvent::ApprovalRequired {
+            id: "req-123".to_string(),
+            agent_id: "agent-456".to_string(),
+            operation: "rm -rf /".to_string(),
+            risk_level: "Critical".to_string(),
+        };
+
+        let json = serde_json::to_value(&event).unwrap();
+        assert_eq!(json["type"], "approval");
+        assert_eq!(json["id"], "req-123");
+        assert_eq!(json["agent_id"], "agent-456");
+        assert_eq!(json["operation"], "rm -rf /");
+        assert_eq!(json["risk_level"], "Critical");
     }
 
     #[test]

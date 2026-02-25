@@ -54,7 +54,7 @@ static REQUEST_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 /// Risk level of a dangerous operation.
 ///
 /// Used to determine the urgency and approval requirements for operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 pub enum RiskLevel {
     /// Low risk - minimal potential for harm (e.g., read-only operations).
     Low,
@@ -85,6 +85,113 @@ impl RiskLevel {
             RiskLevel::High => "High risk - significant potential for harm",
             RiskLevel::Critical => "Critical risk - potentially catastrophic consequences",
         }
+    }
+
+    /// Returns the default timeout for an approval request at this risk level.
+    pub fn default_timeout(&self) -> Duration {
+        match self {
+            RiskLevel::Low => Duration::from_secs(30),
+            RiskLevel::Medium => Duration::from_secs(60),
+            RiskLevel::High => Duration::from_secs(120),
+            RiskLevel::Critical => Duration::from_secs(300),
+        }
+    }
+
+    /// Classifies a command into a risk level based on its content.
+    ///
+    /// Safe commands like `ls`, `cat`, `echo`, etc. are classified as `Low`.
+    /// Dangerous commands like `rm -rf`, `dd`, etc. are classified as `Critical`.
+    /// Other commands are classified as `Medium` or `High` based on their potential impact.
+    pub fn classify(command: &str) -> Self {
+        let cmd = command.trim();
+        let first_word = cmd.split_whitespace().next().unwrap_or("").to_lowercase();
+
+        // Safe prefix patterns (multi-word commands)
+        let safe_prefixes = [
+            "git status",
+            "git log",
+            "git diff",
+            "git branch",
+            "git show",
+            "git remote",
+        ];
+
+        for prefix in safe_prefixes {
+            if cmd.starts_with(prefix) {
+                return RiskLevel::Low;
+            }
+        }
+
+        // Safe command patterns
+        let safe_commands = [
+            "ls",
+            "cat",
+            "echo",
+            "pwd",
+            "whoami",
+            "date",
+            "uname",
+            "wc",
+            "head",
+            "tail",
+            "grep",
+            "find",
+            "which",
+            "env",
+            "printenv",
+            "id",
+            "hostname",
+            "true",
+            "false",
+            "test",
+            "[",
+            "printf",
+        ];
+
+        if safe_commands.contains(&first_word.as_str()) {
+            return RiskLevel::Low;
+        }
+
+        // Dangerous patterns - Critical risk
+        let dangerous_critical = [
+            "rm -rf",
+            "mkfs",
+            "dd if=",
+            "> /dev/",
+            "chmod 777",
+            "chown root",
+        ];
+
+        for pattern in dangerous_critical {
+            if cmd.contains(pattern) {
+                return RiskLevel::Critical;
+            }
+        }
+
+        // Dangerous patterns - High risk
+        let dangerous_high = [
+            "rm ",
+            "rm\"",
+            "mv ",
+            "mv\"",
+            "chmod ",
+            "chown ",
+            "sudo ",
+            "su ",
+        ];
+
+        for pattern in dangerous_high {
+            if cmd.contains(pattern) {
+                return RiskLevel::High;
+            }
+        }
+
+        // Check for command chaining with dangerous operations
+        if cmd.contains("|") && (cmd.contains("curl") || cmd.contains("wget") || cmd.contains("curl\"") || cmd.contains("wget\"")) {
+            return RiskLevel::High;
+        }
+
+        RiskLevel::Medium
     }
 }
 
@@ -141,6 +248,21 @@ impl ApprovalRequest {
         }
     }
 
+    /// Creates a new approval request with auto-classified risk level.
+    ///
+    /// This method automatically determines the risk level based on the
+    /// operation content using the RiskLevel::classify function.
+    ///
+    /// # Arguments
+    ///
+    /// * `agent_id` - The ID of the agent making the request.
+    /// * `operation` - Description of the operation.
+    pub fn with_auto_classify(agent_id: impl Into<String>, operation: impl Into<String>) -> Self {
+        let operation = operation.into();
+        let risk_level = RiskLevel::classify(&operation);
+        Self::new(agent_id, operation, risk_level)
+    }
+
     /// Sets the timeout for this approval request.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
@@ -151,6 +273,39 @@ impl ApprovalRequest {
     pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
         self.metadata = Some(metadata);
         self
+    }
+}
+
+/// Rules for auto-approving low-risk operations.
+///
+/// This struct controls which risk levels are automatically approved
+/// without requiring user intervention. Operations at or below the
+/// configured risk level are auto-approved.
+#[derive(Debug, Clone)]
+pub struct AutoApproveRules {
+    /// The maximum risk level to auto-approve.
+    pub max_auto_approve_level: RiskLevel,
+}
+
+impl Default for AutoApproveRules {
+    fn default() -> Self {
+        Self {
+            max_auto_approve_level: RiskLevel::Low,
+        }
+    }
+}
+
+impl AutoApproveRules {
+    /// Creates a new AutoApproveRules with the specified max level.
+    pub fn new(max_auto_approve_level: RiskLevel) -> Self {
+        Self {
+            max_auto_approve_level,
+        }
+    }
+
+    /// Returns true if the given risk level should be auto-approved.
+    pub fn should_auto_approve(&self, risk_level: &RiskLevel) -> bool {
+        risk_level <= &self.max_auto_approve_level
     }
 }
 
@@ -169,6 +324,10 @@ pub enum ApprovalResponse {
     /// The approval request timed out.
     TimedOut,
 }
+
+/// Alias for ApprovalResponse for compatibility with the approval workflow.
+/// This is used in the ApprovalHandler trait and approval request processing.
+pub type ApprovalDecision = ApprovalResponse;
 
 impl ApprovalResponse {
     /// Returns true if the operation was approved.
@@ -651,5 +810,142 @@ mod tests {
         assert_eq!(summary.approved, 1);
         assert_eq!(summary.denied, 1);
         assert_eq!(summary.timed_out, 1);
+    }
+
+    #[test]
+    fn test_risk_level_classify_safe_commands() {
+        // Safe info commands
+        assert_eq!(RiskLevel::classify("echo hello"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("echo 'hello world'"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("pwd"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("date"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("whoami"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("hostname"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("id"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("uname -a"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("true"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("false"), RiskLevel::Low);
+
+        // Safe read commands
+        assert_eq!(RiskLevel::classify("ls"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("ls -la"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("ls -la /tmp"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("cat /etc/passwd"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("head -n 10 file.txt"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("tail -f log.txt"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("grep 'pattern' file.txt"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("find /tmp -name '*.txt'"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("wc -l file.txt"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("which python"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("env"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("printenv"), RiskLevel::Low);
+    }
+
+    #[test]
+    fn test_risk_level_classify_git_commands() {
+        // Git read-only commands
+        assert_eq!(RiskLevel::classify("git status"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("git log"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("git diff"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("git branch"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("git show HEAD"), RiskLevel::Low);
+        assert_eq!(RiskLevel::classify("git remote -v"), RiskLevel::Low);
+    }
+
+    #[test]
+    fn test_risk_level_classify_dangerous_critical() {
+        // Critical risk commands
+        assert_eq!(RiskLevel::classify("rm -rf /"), RiskLevel::Critical);
+        assert_eq!(RiskLevel::classify("rm -rf /tmp"), RiskLevel::Critical);
+        assert_eq!(RiskLevel::classify("mkfs /dev/sda1"), RiskLevel::Critical);
+        assert_eq!(RiskLevel::classify("dd if=/dev/zero of=/dev/sda"), RiskLevel::Critical);
+        assert_eq!(RiskLevel::classify("chmod 777 /"), RiskLevel::Critical);
+        assert_eq!(RiskLevel::classify("chown root:root /"), RiskLevel::Critical);
+    }
+
+    #[test]
+    fn test_risk_level_classify_dangerous_high() {
+        // High risk commands
+        assert_eq!(RiskLevel::classify("rm file.txt"), RiskLevel::High);
+        assert_eq!(RiskLevel::classify("mv file /etc"), RiskLevel::High);
+        assert_eq!(RiskLevel::classify("chmod 644 file"), RiskLevel::High);
+        assert_eq!(RiskLevel::classify("chown user:group file"), RiskLevel::High);
+        assert_eq!(RiskLevel::classify("sudo apt-get install"), RiskLevel::High);
+        assert_eq!(RiskLevel::classify("su root"), RiskLevel::High);
+        assert_eq!(RiskLevel::classify("curl http://example.com | bash"), RiskLevel::High);
+        assert_eq!(RiskLevel::classify("wget http://example.com | sh"), RiskLevel::High);
+    }
+
+    #[test]
+    fn test_risk_level_classify_medium() {
+        // Medium risk commands (other commands)
+        assert_eq!(RiskLevel::classify("python script.py"), RiskLevel::Medium);
+        assert_eq!(RiskLevel::classify("node app.js"), RiskLevel::Medium);
+        assert_eq!(RiskLevel::classify("docker run"), RiskLevel::Medium);
+        assert_eq!(RiskLevel::classify("npm install"), RiskLevel::Medium);
+    }
+
+    #[test]
+    fn test_risk_level_default_timeout() {
+        assert_eq!(RiskLevel::Low.default_timeout(), Duration::from_secs(30));
+        assert_eq!(RiskLevel::Medium.default_timeout(), Duration::from_secs(60));
+        assert_eq!(RiskLevel::High.default_timeout(), Duration::from_secs(120));
+        assert_eq!(RiskLevel::Critical.default_timeout(), Duration::from_secs(300));
+    }
+
+    #[test]
+    fn test_auto_approve_rules_default() {
+        let rules = AutoApproveRules::default();
+        assert_eq!(rules.max_auto_approve_level, RiskLevel::Low);
+    }
+
+    #[test]
+    fn test_auto_approve_rules_new() {
+        let rules = AutoApproveRules::new(RiskLevel::Medium);
+        assert_eq!(rules.max_auto_approve_level, RiskLevel::Medium);
+    }
+
+    #[test]
+    fn test_auto_approve_rules_should_auto_approve() {
+        let rules = AutoApproveRules::default();
+
+        // Low should be auto-approved
+        assert!(rules.should_auto_approve(&RiskLevel::Low));
+
+        // Medium, High, Critical should not be auto-approved
+        assert!(!rules.should_auto_approve(&RiskLevel::Medium));
+        assert!(!rules.should_auto_approve(&RiskLevel::High));
+        assert!(!rules.should_auto_approve(&RiskLevel::Critical));
+    }
+
+    #[test]
+    fn test_auto_approve_rules_with_higher_threshold() {
+        let rules = AutoApproveRules::new(RiskLevel::Medium);
+
+        // Low and Medium should be auto-approved
+        assert!(rules.should_auto_approve(&RiskLevel::Low));
+        assert!(rules.should_auto_approve(&RiskLevel::Medium));
+
+        // High and Critical should not be auto-approved
+        assert!(!rules.should_auto_approve(&RiskLevel::High));
+        assert!(!rules.should_auto_approve(&RiskLevel::Critical));
+    }
+
+    #[test]
+    fn test_approval_decision_alias() {
+        // Test that ApprovalDecision is an alias for ApprovalResponse
+        let decision: ApprovalDecision = ApprovalResponse::Approved;
+        assert!(decision.is_approved());
+    }
+
+    #[test]
+    fn test_risk_level_ordering() {
+        // Test that RiskLevel implements PartialOrd
+        assert!(RiskLevel::Low < RiskLevel::Medium);
+        assert!(RiskLevel::Medium < RiskLevel::High);
+        assert!(RiskLevel::High < RiskLevel::Critical);
+
+        assert!(RiskLevel::Low <= RiskLevel::Low);
+        assert!(RiskLevel::Medium >= RiskLevel::Low);
     }
 }
