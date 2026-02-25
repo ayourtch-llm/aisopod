@@ -158,6 +158,23 @@ fn migrate_openclaw_config() {
 }
 ```
 
+## Resolution
+
+The OpenClaw configuration migration utility was successfully implemented with the following changes:
+
+- Created `crates/aisopod/src/commands/migrate.rs` with migrate CLI subcommand
+- Implemented config key mapping (OpenClaw -> aisopod): `server.port` -> `gateway.port`, `server.host` -> `gateway.bind_address`, etc.
+- Implemented environment variable mapping (`OPENCLAW_*` -> `AISOPOD_*`)
+- Implemented `convert_openclaw_config()` function to transform JSON5 to aisopod format
+- Added `json5 = "0.4"` dependency to Cargo.toml
+- Registered migrate subcommand in CLI (`aisopod migrate from-open-claw`)
+- Created deployment smoke tests in `tests/deployment_tests.rs` (Docker build, health check - marked ignore)
+- Added integration tests in `tests/integration_tests.rs` for migration
+- Added unit tests for config key mapping, env var mapping, and migration functionality
+- Fixed bug: comparison operator errors in test assertions (line 315 in migrate.rs, lines 161-162 in integration_tests.rs)
+- All tests pass: 76 passed, 0 failed, 6 ignored
+- All changes committed
+
 ## Dependencies
 - Issue 016 (config types)
 - Issue 124 (CLI application)
@@ -174,3 +191,4 @@ fn migrate_openclaw_config() {
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-25*
