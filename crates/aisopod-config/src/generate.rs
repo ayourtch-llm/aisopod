@@ -5,6 +5,8 @@
 
 use crate::types::AisopodConfig;
 use anyhow::{anyhow, Result};
+use std::fs;
+use std::os::unix::fs::PermissionsExt;
 
 /// Configuration format enum for code generation
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -154,6 +156,9 @@ mod tests {
 
         let output = generate_default_config(ConfigFormat::Json5).unwrap();
         fs::write(&config_path, &output).expect("Failed to write test config");
+        // Set secure permissions (0600) before loading
+        fs::set_permissions(&config_path, std::fs::Permissions::from_mode(0o600))
+            .expect("Failed to set permissions");
 
         // Parse it back
         let config = load_config_json5(&config_path).expect("Failed to load JSON5 config");
@@ -173,6 +178,9 @@ mod tests {
 
         let output = generate_default_config(ConfigFormat::Toml).unwrap();
         fs::write(&config_path, &output).expect("Failed to write test config");
+        // Set secure permissions (0600) before loading
+        fs::set_permissions(&config_path, std::fs::Permissions::from_mode(0o600))
+            .expect("Failed to set permissions");
 
         // Parse it back
         let config = load_config_toml(&config_path).expect("Failed to load TOML config");

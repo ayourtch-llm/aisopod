@@ -179,6 +179,11 @@ impl GatewayTestConfig {
                 max_requests: self.rate_limit_max_requests,
                 window: self.rate_limit_window,
             },
+            request_size_limits: aisopod_config::types::RequestSizeLimitsConfig {
+                max_body_size: 10 * 1024 * 1024,  // 10MB default
+                max_headers_size: 8192,            // 8KB default
+                max_headers_count: 100,            // 100 headers default
+            },
         }
     }
 }

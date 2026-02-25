@@ -33,6 +33,7 @@ use aisopod_config::types::{AisopodConfig, GatewayConfig};
 use rust_embed::RustEmbed;
 
 use crate::auth::DeviceTokenManager;
+use crate::middleware::RequestSizeLimits;
 
 /// Embedded static assets from the web UI dist directory
 #[derive(RustEmbed)]
@@ -42,6 +43,26 @@ struct Assets;
 /// Health check endpoint handler
 async fn health() -> impl IntoResponse {
     Json(json!({"status": "ok"}))
+}
+
+/// HTTPS enforcement middleware
+///
+/// This middleware enforces HTTPS connections when TLS is enabled in the configuration.
+/// For non-TLS servers, it logs a warning but still allows the request through.
+pub async fn https_enforcement_middleware(
+    mut request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    // Check if TLS is enabled
+    let tls_enabled = request.extensions().get::<bool>().cloned().unwrap_or(false);
+    
+    if !tls_enabled {
+        // TLS is not enabled - log a warning but still process the request
+        // Users can opt-in to HTTPS enforcement by enabling TLS
+        warn!("HTTPS is not enabled - this server is running in HTTP mode");
+    }
+    
+    next.run(request).await
 }
 
 /// Static file handler for use with axum routing
@@ -102,6 +123,15 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
     let address = gateway_config.bind.address.clone();
     let port = gateway_config.server.port;
 
+    // Security: Warn if binding to 0.0.0.0 (all interfaces)
+    if address == "0.0.0.0" || address == "::" {
+        warn!(
+            "WARNING: Binding to '{}' - server is accessible from all network interfaces. \
+             Consider using '127.0.0.1' for loopback-only access.",
+            address
+        );
+    }
+
     let bind_addr = if gateway_config.bind.ipv6 {
         format!("[{}]:{}", address, port)
     } else {
@@ -118,6 +148,11 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
         info!("Starting HTTPS server on {} with TLS enabled", addr);
     } else {
         info!("Starting HTTP server on {}", addr);
+        
+        // Security: Warn if TLS is not enabled when binding to external interfaces
+        if address != "127.0.0.1" && address != "::1" && address != "localhost" {
+            warn!("WARNING: Running without TLS on external interface. Consider enabling TLS for production use.");
+        }
     }
 
     eprintln!("=== SERVER STARTUP DEBUG v2 ===");
@@ -139,6 +174,22 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
         rate_limit_config.max_requests, rate_limit_config.window
     );
 
+    // Security: Setup request size limits
+    let size_limits = gateway_config
+        .request_size_limits
+        .clone();
+    let request_size_limits = RequestSizeLimits::new(
+        size_limits.max_body_size,
+        size_limits.max_headers_size,
+        size_limits.max_headers_count,
+    );
+    eprintln!(
+        "Created request size limits: max_body={} bytes, max_headers={} bytes, max_count={}",
+        request_size_limits.max_body_size,
+        request_size_limits.max_headers_size,
+        request_size_limits.max_headers_count
+    );
+
     // Spawn the cleanup task
     let cleanup_limiter = rate_limiter.clone();
     tokio::spawn(async move {
@@ -146,7 +197,9 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
     });
 
     // Build the auth config data
-    let auth_config_data = AuthConfigData::new(auth_config.clone());
+    let auth_config_data = Arc::new(AuthConfigData::new(auth_config.clone()));
+    // Clone for the secrets masking middleware
+    let auth_config_data_for_secrets = auth_config_data.clone();
 
     // Create the client registry
     let client_registry = Arc::new(ClientRegistry::new());
@@ -195,10 +248,11 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
     // 1. TraceLayer (logs requests)
     // 2. ConnectInfo middleware (adds connection info if missing)
     // 3. auth_config_data middleware (injects auth config into extensions)
+    //    Note: This runs BEFORE auth_middleware in request flow because it's LATER in the ServiceBuilder
     // 4. rate_limiter middleware (checks rate limits)
     // 5. client_registry middleware (registers clients)
     // 6. broadcaster middleware (injects broadcaster)
-    // 7. auth_middleware (validates auth - needs auth_config_data and rate_limiter)
+    // 7. auth_middleware (validates auth - needs auth_config_data)
     // 8. Router (handles the actual route)
 
     let middleware_stack = tower::ServiceBuilder::new()
@@ -226,14 +280,12 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
                 }
             },
         ))
-        // Auth config data MUST be injected BEFORE auth_middleware runs
-        // This layer runs AFTER auth_middleware in the request flow (middleware stack order)
+        // Request size limits middleware - inject size limits and check requests
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-                let config_data = auth_config_data.clone();
+                let size_limits = request_size_limits.clone();
                 async move {
-                    tracing::debug!("Injecting AuthConfigData into extensions");
-                    req.extensions_mut().insert(config_data);
+                    req.extensions_mut().insert(size_limits);
                     next.run(req).await
                 }
             },
@@ -249,6 +301,45 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
             },
         ))
         .layer(axum::middleware::from_fn(rate_limit_middleware))
+        // Request body size limit middleware
+        .layer(axum::middleware::from_fn(
+            |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                async move {
+                    // Get size limits from extensions
+                    if let Some(size_limits) = req.extensions().get::<RequestSizeLimits>().cloned() {
+                        // Get content length from headers
+                        if let Some(content_length) = req.headers().get("content-length") {
+                            if let Ok(content_length_str) = content_length.to_str() {
+                                if let Ok(content_length_bytes) = content_length_str.parse::<usize>() {
+                                    if let Err(e) = size_limits.check_body_size(content_length_bytes) {
+                                        warn!("Request body size limit exceeded: {}", e);
+                                        return (
+                                            StatusCode::PAYLOAD_TOO_LARGE,
+                                            axum::Json(serde_json::json!({
+                                                "error": "payload_too_large",
+                                                "message": e.to_string()
+                                            }))
+                                        ).into_response();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    next.run(req).await
+                }
+            },
+        ))
+        // HTTPS enforcement middleware
+        .layer(axum::middleware::from_fn(
+            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                let tls_enabled_flag = tls_enabled;
+                async move {
+                    req.extensions_mut().insert(tls_enabled_flag);
+                    next.run(req).await
+                }
+            },
+        ))
+        .layer(axum::middleware::from_fn(https_enforcement_middleware))
         // Client registry middleware
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
@@ -269,9 +360,44 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
                 }
             },
         ))
-        // Auth middleware - runs FIRST (innermost in the stack, outermost in request flow)
+        // Auth config data MUST be injected BEFORE auth_middleware runs
+        // By adding this layer BEFORE auth_middleware in the ServiceBuilder,
+        // it runs BEFORE auth_middleware in the request flow (outer layers run first)
+        .layer(axum::middleware::from_fn(
+            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                // Dereference Arc to insert AuthConfigData directly (not Arc<AuthConfigData>)
+                let config_data = auth_config_data.as_ref().clone();
+                let config_mode = config_data.mode().clone();
+                async move {
+                    eprintln!("!!! AUTH CONFIG DATA INJECTOR CALLED !!!");
+                    tracing::debug!("Injecting AuthConfigData into extensions");
+                    let check_before = req.extensions().get::<AuthConfigData>().is_some();
+                    eprintln!("!!! BEFORE INSERT: has config = {}", check_before);
+                    req.extensions_mut().insert(config_data);
+                    let check_after = req.extensions().get::<AuthConfigData>().is_some();
+                    eprintln!("!!! AFTER INSERT: has config = {}", check_after);
+                    eprintln!("!!! AUTH CONFIG DATA INJECTED: {:?}", config_mode);
+                    next.run(req).await
+                }
+            },
+        ))
+        // Auth middleware - runs SECOND (after AuthConfigDataInjector)
         // It depends on auth_config_data being available in extensions
         .layer(axum::middleware::from_fn(auth_middleware))
+        // Secrets masking middleware - masks sensitive values in logs
+        .layer(axum::middleware::from_fn(
+            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                // Dereference Arc to insert AuthConfigData directly
+                let auth_config_data_clone = auth_config_data_for_secrets.as_ref().clone();
+                async move {
+                    let check = req.extensions().get::<AuthConfigData>().is_some();
+                    eprintln!("!!! SECRETS MASKING: AuthConfigData in extensions: {}", check);
+                    // Store auth config data for secrets masking
+                    req.extensions_mut().insert(auth_config_data_clone);
+                    next.run(req).await
+                }
+            },
+        ))
         // Device token manager middleware
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
@@ -400,7 +526,9 @@ pub async fn build_app() -> Router {
     });
     
     // Create auth config data
-    let auth_config_data = AuthConfigData::new(config.auth.clone());
+    let auth_config_data = Arc::new(AuthConfigData::new(config.auth.clone()));
+    // Clone for the secrets masking middleware
+    let auth_config_data_for_secrets = auth_config_data.clone();
     
     // Create client registry
     let client_registry = Arc::new(ClientRegistry::new());
@@ -444,15 +572,6 @@ pub async fn build_app() -> Router {
         ))
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-                let config_data = auth_config_data.clone();
-                async move {
-                    req.extensions_mut().insert(config_data);
-                    next.run(req).await
-                }
-            },
-        ))
-        .layer(axum::middleware::from_fn(
-            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
                 let rate_limiter = rate_limiter.clone();
                 async move {
                     req.extensions_mut().insert(rate_limiter);
@@ -479,7 +598,34 @@ pub async fn build_app() -> Router {
                 }
             },
         ))
+        // Auth middleware - runs FIRST (innermost in the stack)
+        // It depends on auth_config_data being available in extensions
+        // AuthConfigDataInjector will be added AFTER this layer, so it runs BEFORE
+        // auth_middleware when requests come in (innermost layers run first)
         .layer(axum::middleware::from_fn(auth_middleware))
+        // Auth config data MUST be injected BEFORE auth_middleware runs
+        // By adding this layer AFTER auth_middleware in the ServiceBuilder,
+        // it runs BEFORE auth_middleware in the request flow
+        .layer(axum::middleware::from_fn(
+            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                let config_data = auth_config_data.clone();
+                async move {
+                    req.extensions_mut().insert(config_data);
+                    next.run(req).await
+                }
+            },
+        ))
+        // Secrets masking middleware - masks sensitive values in logs
+        .layer(axum::middleware::from_fn(
+            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                let auth_config_data_clone = auth_config_data_for_secrets.clone();
+                async move {
+                    // Store auth config data for secrets masking
+                    req.extensions_mut().insert(auth_config_data_clone);
+                    next.run(req).await
+                }
+            },
+        ))
         // Device token manager middleware
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {

@@ -4,6 +4,8 @@
 //! (JSON5, JSON, TOML) and auto-detect the format based on file extension.
 
 use std::collections::HashSet;
+use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
@@ -18,6 +20,59 @@ pub const DEFAULT_CONFIG_FILE: &str = "aisopod-config.json5";
 /// Returns the path to the default config file in the current working directory.
 pub fn default_config_path() -> PathBuf {
     std::env::current_dir().expect("Failed to get current directory").join(DEFAULT_CONFIG_FILE)
+}
+
+/// Check if a file has insecure permissions (world-readable or group-readable)
+///
+/// # Arguments
+///
+/// * `path` - Path to the file to check
+///
+/// # Returns
+///
+/// * `Ok(())` if permissions are secure (0600 or 0640)
+/// * `Err(String)` if the file has world-readable permissions (security risk)
+///
+/// # Security Considerations
+///
+/// Configuration files often contain sensitive data like API keys, passwords,
+/// and tokens. Files should not be world-readable (permissions ending in 4, 5, 6, or 7).
+/// We recommend:
+/// - 0600 (owner read/write only) - most secure
+/// - 0640 (owner read/write, group read) - acceptable for multi-user systems
+fn check_file_permissions(path: &Path) -> Result<()> {
+    let metadata = fs::metadata(path)
+        .with_context(|| format!("Failed to get metadata for config file: {}", path.display()))?;
+    
+    let permissions = metadata.permissions();
+    let mode = permissions.mode();
+    
+    // Check if world-readable (others have read permission)
+    // Octal: 0004, Binary: 00000100
+    if mode & 0o004 != 0 {
+        return Err(anyhow!(
+            "Security violation: Config file '{}' is world-readable. \
+             This is a security risk as it may contain sensitive data. \
+             Please set permissions to 0600 (owner read/write only) or 0640 (owner read/write, group read). \
+             Current permissions: {:o} (octal)",
+            path.display(),
+            mode & 0o777
+        ));
+    }
+    
+    // Check if group-readable (we recommend 0640 max)
+    // Octal: 0040, Binary: 000100000
+    if mode & 0o040 != 0 {
+        tracing::warn!(
+            "Config file '{}' is group-readable. For maximum security, \
+             consider setting permissions to 0600 (owner read/write only). \
+             Current permissions: {:o} (octal)",
+            path.display(),
+            mode & 0o777
+        );
+    }
+    
+    Ok(())
 }
 
 /// Load a configuration file, auto-detecting format from extension.
@@ -39,10 +94,14 @@ pub fn default_config_path() -> PathBuf {
 ///
 /// Returns an error if:
 /// - The file cannot be read
+/// - The file has insecure permissions (world-readable)
 /// - The file format is unsupported
 /// - The file content cannot be parsed
 /// - The parsed content doesn't match the expected configuration structure
 pub fn load_config(path: &Path) -> Result<AisopodConfig> {
+    // Security: Check file permissions before reading
+    check_file_permissions(path)?;
+    
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
     match ext {
         "json" | "json5" => load_config_json5(path),
@@ -68,8 +127,12 @@ pub fn load_config(path: &Path) -> Result<AisopodConfig> {
 ///
 /// Returns an error if:
 /// - The file cannot be read
+/// - The file has insecure permissions (world-readable)
 /// - The file content cannot be parsed as valid TOML
 pub fn load_config_toml(path: &Path) -> Result<AisopodConfig> {
+    // Security: Check file permissions before reading
+    check_file_permissions(path)?;
+    
     let contents = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read config file: {}", path.display()))?;
     let mut value: serde_json::Value = toml::from_str(&contents)
@@ -171,6 +234,9 @@ pub fn load_config_toml_str(content: &str) -> Result<AisopodConfig> {
 }
 
 pub fn load_config_json5(path: &Path) -> Result<AisopodConfig> {
+    // Security: Check file permissions before reading
+    check_file_permissions(path)?;
+    
     let contents = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read config file: {}", path.display()))?;
     let mut value: serde_json::Value = json5::from_str(&contents)
@@ -212,8 +278,62 @@ pub fn load_config_json5(path: &Path) -> Result<AisopodConfig> {
 mod tests {
     use super::*;
     use std::fs;
+    use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
     use tempfile::TempDir;
+
+    // Security hardening tests for check_file_permissions
+    #[test]
+    fn test_check_file_permissions_secure() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let config_path = temp_dir.path().join("config.json5");
+        
+        // Write a config file with secure permissions (0600)
+        fs::write(&config_path, r#"{}"#).expect("Failed to write test config");
+        fs::set_permissions(&config_path, std::fs::Permissions::from_mode(0o600))
+            .expect("Failed to set permissions");
+        
+        let result = check_file_permissions(&config_path);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_file_permissions_world_readable() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let config_path = temp_dir.path().join("config.json5");
+        
+        // Write a config file with world-readable permissions
+        fs::write(&config_path, r#"{}"#).expect("Failed to write test config");
+        fs::set_permissions(&config_path, std::fs::Permissions::from_mode(0o644))
+            .expect("Failed to set permissions");
+        
+        let result = check_file_permissions(&config_path);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("world-readable"));
+        assert!(err.to_string().contains("security risk"));
+    }
+
+    #[test]
+    fn test_check_file_permissions_group_readable() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let config_path = temp_dir.path().join("config.json5");
+        
+        // Write a config file with group-readable permissions (should warn but not error)
+        fs::write(&config_path, r#"{}"#).expect("Failed to write test config");
+        fs::set_permissions(&config_path, std::fs::Permissions::from_mode(0o640))
+            .expect("Failed to set permissions");
+        
+        let result = check_file_permissions(&config_path);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_file_permissions_invalid_path() {
+        let invalid_path = PathBuf::from("/nonexistent/path/config.json5");
+        let result = check_file_permissions(&invalid_path);
+        assert!(result.is_err());
+    }
 
     #[test]
     fn test_load_config_json5_basic() {
@@ -239,6 +359,9 @@ mod tests {
 }
 "#;
         fs::write(&config_path, config_content).expect("Failed to write test config");
+        // Set secure permissions (0600) before loading
+        fs::set_permissions(&config_path, std::fs::Permissions::from_mode(0o600))
+            .expect("Failed to set permissions");
 
         // Load and verify
         let config = load_config_json5(&config_path).expect("Failed to load config");
@@ -254,6 +377,9 @@ mod tests {
 
         let config_content = r#"{ meta: { version: "2.0" } }"#;
         fs::write(&config_path, config_content).expect("Failed to write test config");
+        // Set secure permissions (0600) before loading
+        fs::set_permissions(&config_path, std::fs::Permissions::from_mode(0o600))
+            .expect("Failed to set permissions");
 
         let config = load_config(&config_path).expect("Failed to load config");
         assert_eq!(config.meta.version, "2.0");
@@ -266,6 +392,9 @@ mod tests {
 
         let config_content = r#"{ "meta": { "version": "3.0" } }"#;
         fs::write(&config_path, config_content).expect("Failed to write test config");
+        // Set secure permissions (0600) before loading
+        fs::set_permissions(&config_path, std::fs::Permissions::from_mode(0o600))
+            .expect("Failed to set permissions");
 
         let config = load_config(&config_path).expect("Failed to load config");
         assert_eq!(config.meta.version, "3.0");
@@ -275,6 +404,12 @@ mod tests {
     fn test_load_config_unsupported_extension() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let config_path = temp_dir.path().join("config.txt");
+
+        // The file might not exist, so we skip permission check for this test
+        // or just create an empty file with proper permissions
+        fs::write(&config_path, "").expect("Failed to write test config");
+        fs::set_permissions(&config_path, std::fs::Permissions::from_mode(0o600))
+            .expect("Failed to set permissions");
 
         let result = load_config(&config_path);
         assert!(result.is_err());
@@ -300,6 +435,9 @@ mod tests {
 }
 "#;
         fs::write(&config_path, config_content).expect("Failed to write test config");
+        // Set secure permissions (0600) before loading
+        fs::set_permissions(&config_path, std::fs::Permissions::from_mode(0o600))
+            .expect("Failed to set permissions");
 
         let config = load_config(&config_path).expect("Failed to load config");
         assert_eq!(config.meta.version, "4.0");
@@ -318,6 +456,9 @@ mod tests {
 }
 "#;
         fs::write(&config_path, config_content).expect("Failed to write test config");
+        // Set secure permissions (0600) before loading
+        fs::set_permissions(&config_path, std::fs::Permissions::from_mode(0o600))
+            .expect("Failed to set permissions");
 
         let config = load_config(&config_path).expect("Failed to load config");
         assert_eq!(config.meta.version, "5.0");

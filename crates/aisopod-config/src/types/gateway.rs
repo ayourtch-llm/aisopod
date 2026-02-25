@@ -21,6 +21,9 @@ pub struct GatewayConfig {
     /// Rate limiting configuration
     #[serde(default)]
     pub rate_limit: RateLimitConfig,
+    /// Request size limits for security
+    #[serde(default)]
+    pub request_size_limits: RequestSizeLimitsConfig,
 }
 
 impl Default for GatewayConfig {
@@ -32,6 +35,7 @@ impl Default for GatewayConfig {
             web_ui: WebUiConfig::default(),
             handshake_timeout: default_handshake_timeout(),
             rate_limit: RateLimitConfig::default(),
+            request_size_limits: RequestSizeLimitsConfig::default(),
         }
     }
 }
@@ -171,4 +175,40 @@ fn default_max_requests() -> u64 {
 
 fn default_window() -> u64 {
     60
+}
+
+/// Request size limits configuration for security
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RequestSizeLimitsConfig {
+    /// Maximum size of request body in bytes (default: 10MB)
+    #[serde(default = "default_max_body_size")]
+    pub max_body_size: usize,
+    /// Maximum size of headers in bytes (default: 8KB)
+    #[serde(default = "default_max_headers_size")]
+    pub max_headers_size: usize,
+    /// Maximum number of headers (default: 100)
+    #[serde(default = "default_max_headers_count")]
+    pub max_headers_count: usize,
+}
+
+impl Default for RequestSizeLimitsConfig {
+    fn default() -> Self {
+        Self {
+            max_body_size: default_max_body_size(),
+            max_headers_size: default_max_headers_size(),
+            max_headers_count: default_max_headers_count(),
+        }
+    }
+}
+
+fn default_max_body_size() -> usize {
+    10 * 1024 * 1024  // 10MB
+}
+
+fn default_max_headers_size() -> usize {
+    8192  // 8KB
+}
+
+fn default_max_headers_count() -> usize {
+    100
 }

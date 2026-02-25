@@ -4,6 +4,8 @@
 //! the sample fixture files.
 
 use aisopod_config::load_config;
+use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
 #[test]
@@ -44,6 +46,8 @@ port = 9090
 "#;
 
     std::fs::write(&config_path, config_content).expect("Failed to write test config");
+    fs::set_permissions(&config_path, fs::Permissions::from_mode(0o600))
+        .expect("Failed to set secure permissions");
 
     let config = load_config(&config_path).expect("Failed to load config");
     assert_eq!(config.meta.version, "2.0");
@@ -67,6 +71,8 @@ port = 8888
 "#;
 
     std::fs::write(&config_path, config_content).expect("Failed to write test config");
+    fs::set_permissions(&config_path, fs::Permissions::from_mode(0o600))
+        .expect("Failed to set secure permissions");
 
     let config = load_config(&config_path).expect("Failed to load config");
     assert_eq!(config.meta.version, "3.0");
@@ -90,6 +96,8 @@ port = 7777  # another inline comment
 "#;
 
     std::fs::write(&config_path, config_content).expect("Failed to write test config");
+    fs::set_permissions(&config_path, fs::Permissions::from_mode(0o600))
+        .expect("Failed to set secure permissions");
 
     let config = load_config(&config_path).expect("Failed to load config");
     assert_eq!(config.meta.version, "4.0");
@@ -122,6 +130,8 @@ version = "invalid"
 "#;
 
     std::fs::write(&config_path, config_content).expect("Failed to write test config");
+    fs::set_permissions(&config_path, fs::Permissions::from_mode(0o600))
+        .expect("Failed to set secure permissions");
 
     let result = load_config(&config_path);
     assert!(result.is_err());

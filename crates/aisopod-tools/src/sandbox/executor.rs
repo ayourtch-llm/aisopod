@@ -72,6 +72,10 @@ impl SandboxExecutor {
             cmd.args(["--cpus", &cpu.to_string()]);
         }
 
+        // Security: Non-root container execution
+        // By default, run containers as user 1000:1000 (non-root)
+        cmd.args(["--user", &config.user]);
+
         // Network access
         if !config.network_access {
             cmd.args(["--network", "none"]);
@@ -393,5 +397,27 @@ mod tests {
 
         let _ = executor.destroy_container(&id1).await;
         let _ = executor.destroy_container(&id2).await;
+    }
+
+    #[test]
+    fn test_sandbox_config_default_user() {
+        let config = SandboxConfig::default();
+        assert_eq!(config.user, "1000:1000");
+    }
+
+    #[test]
+    fn test_sandbox_config_custom_user() {
+        let config = SandboxConfig {
+            enabled: true,
+            runtime: SandboxRuntime::Docker,
+            image: "alpine:latest".to_string(),
+            workspace_access: WorkspaceAccess::ReadOnly,
+            network_access: true,
+            memory_limit: None,
+            cpu_limit: None,
+            user: "1001:1001".to_string(),
+            timeout: Duration::from_secs(60),
+        };
+        assert_eq!(config.user, "1001:1001");
     }
 }

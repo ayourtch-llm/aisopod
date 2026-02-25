@@ -36,6 +36,7 @@ pub use env::EnvConfig;
 pub use gateway::BindConfig;
 pub use gateway::GatewayConfig;
 pub use gateway::RateLimitConfig;
+pub use gateway::RequestSizeLimitsConfig;
 pub use gateway::ServerConfig;
 pub use gateway::TlsConfig;
 pub use gateway::WebUiConfig;

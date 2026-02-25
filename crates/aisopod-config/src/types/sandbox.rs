@@ -66,6 +66,10 @@ pub struct SandboxConfig {
     /// CPU limit as a fraction (e.g., 0.5 for 50% of one CPU core)
     pub cpu_limit: Option<f64>,
 
+    /// User ID and Group ID to run as (non-root)
+    #[serde(default = "default_user")]
+    pub user: String,
+
     /// Execution timeout
     #[serde(
         default = "default_timeout",
@@ -77,6 +81,10 @@ pub struct SandboxConfig {
 
 fn default_image() -> String {
     "ubuntu:latest".to_string()
+}
+
+fn default_user() -> String {
+    "1000:1000".to_string()
 }
 
 fn default_true() -> bool {
@@ -97,6 +105,7 @@ impl Default for SandboxConfig {
             network_access: true,
             memory_limit: None,
             cpu_limit: None,
+            user: default_user(),
             timeout: default_timeout(),
         }
     }
@@ -125,6 +134,7 @@ mod tests {
             network_access = false
             memory_limit = "256m"
             cpu_limit = 0.5
+            user = "1000:1000"
             timeout = "60s"
         "#;
         let config: SandboxConfig = toml::from_str(toml).unwrap();
@@ -143,10 +153,42 @@ mod tests {
             network_access: false,
             memory_limit: Some("256m".to_string()),
             cpu_limit: Some(0.5),
+            user: "1000:1000".to_string(),
             timeout: Duration::from_secs(60),
         };
         let toml_str = toml::to_string(&config).unwrap();
         assert!(toml_str.contains("enabled = true"));
         assert!(toml_str.contains("runtime = \"podman\""));
+        assert!(toml_str.contains("user = \"1000:1000\""));
+    }
+
+    #[test]
+    fn test_sandbox_config_with_user() {
+        let config = SandboxConfig {
+            enabled: true,
+            runtime: SandboxRuntime::Docker,
+            image: "alpine:latest".to_string(),
+            workspace_access: WorkspaceAccess::None,
+            network_access: false,
+            memory_limit: Some("256m".to_string()),
+            cpu_limit: Some(0.5),
+            user: "1000:1000".to_string(),
+            timeout: Duration::from_secs(60),
+        };
+        let toml_str = toml::to_string(&config).unwrap();
+        assert!(toml_str.contains("user = \"1000:1000\""));
+    }
+
+    #[test]
+    fn test_sandbox_config_deserialize_with_user() {
+        let toml = r#"
+            enabled = true
+            runtime = "docker"
+            image = "alpine:latest"
+            user = "1001:1001"
+            timeout = "60s"
+        "#;
+        let config: SandboxConfig = toml::from_str(toml).unwrap();
+        assert_eq!(config.user, "1001:1001");
     }
 }

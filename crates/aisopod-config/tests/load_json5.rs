@@ -4,6 +4,8 @@
 //! the sample fixture files.
 
 use aisopod_config::load_config;
+use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
 #[test]
@@ -33,6 +35,12 @@ mod include_directive_tests {
     use std::fs;
     use tempfile::TempDir;
 
+    // Helper function to set secure permissions on a config file
+    fn set_secure_permissions(path: &std::path::Path) {
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600))
+            .expect("Failed to set secure permissions on config file");
+    }
+
     #[test]
     fn test_load_config_with_include() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -49,6 +57,7 @@ mod include_directive_tests {
 }
 "#;
         fs::write(&fragment_path, fragment_content).expect("Failed to write fragment");
+        set_secure_permissions(&fragment_path);
 
         // Create main config with include
         let main_path = temp_dir.path().join("main.json5");
@@ -59,6 +68,7 @@ mod include_directive_tests {
 }}"#
         );
         fs::write(&main_path, main_content).expect("Failed to write main config");
+        set_secure_permissions(&main_path);
 
         // Load and verify
         let config = load_config(&main_path).expect("Failed to load config");
@@ -87,6 +97,7 @@ mod include_directive_tests {
 }
 "#;
         fs::write(&models_path, models_content).expect("Failed to write models fragment");
+        set_secure_permissions(&models_path);
 
         let tools_path = temp_dir.path().join("tools.json5");
         let tools_content = r#"
@@ -100,6 +111,7 @@ mod include_directive_tests {
 }
 "#;
         fs::write(&tools_path, tools_content).expect("Failed to write tools fragment");
+        set_secure_permissions(&tools_path);
 
         // Create main config with array include
         let main_path = temp_dir.path().join("main.json5");
@@ -110,6 +122,7 @@ mod include_directive_tests {
 }}"#
         );
         fs::write(&main_path, main_content).expect("Failed to write main config");
+        set_secure_permissions(&main_path);
 
         // Load and verify
         let config = load_config(&main_path).expect("Failed to load config");
@@ -132,6 +145,7 @@ mod include_directive_tests {
 }
 "#;
         fs::write(&a_path, a_content).expect("Failed to write a.json5");
+        set_secure_permissions(&a_path);
 
         let b_path = temp_dir.path().join("b.json5");
         let b_content = r#"
@@ -141,6 +155,7 @@ mod include_directive_tests {
 }
 "#;
         fs::write(&b_path, b_content).expect("Failed to write b.json5");
+        set_secure_permissions(&b_path);
 
         // Load should fail with circular include error
         let result = load_config(&a_path);
@@ -180,6 +195,7 @@ mod include_directive_tests {
 }
 "#;
         fs::write(&base_path, base_content).expect("Failed to write base.json5");
+        set_secure_permissions(&base_path);
 
         // Create nested include that includes base
         let nested_path = temp_dir.path().join("nested.json5");
@@ -190,6 +206,7 @@ mod include_directive_tests {
 }}"#
         );
         fs::write(&nested_path, nested_content).expect("Failed to write nested.json5");
+        set_secure_permissions(&nested_path);
 
         // Create main config that includes nested
         let main_path = temp_dir.path().join("main.json5");
@@ -200,6 +217,7 @@ mod include_directive_tests {
 }}"#
         );
         fs::write(&main_path, main_content).expect("Failed to write main.json5");
+        set_secure_permissions(&main_path);
 
         // Load and verify
         let config = load_config(&main_path).expect("Failed to load config");
@@ -227,6 +245,7 @@ mod include_directive_tests {
 }
 "#;
         fs::write(&fragment_path, fragment_content).expect("Failed to write fragment");
+        set_secure_permissions(&fragment_path);
 
         // Create main config with include
         let main_path = temp_dir.path().join("main.json5");
@@ -237,6 +256,7 @@ mod include_directive_tests {
 }}"#
         );
         fs::write(&main_path, main_content).expect("Failed to write main config");
+        set_secure_permissions(&main_path);
 
         // Set env var and load
         std::env::set_var("TEST_VERSION", "1.0");
@@ -260,6 +280,7 @@ mod include_directive_tests {
 }
 "#;
         fs::write(&fragment_path, fragment_content).expect("Failed to write fragment");
+        set_secure_permissions(&fragment_path);
 
         // Create main config with include
         let main_path = temp_dir.path().join("main.json5");
@@ -270,6 +291,7 @@ mod include_directive_tests {
 }}"#
         );
         fs::write(&main_path, main_content).expect("Failed to write main config");
+        set_secure_permissions(&main_path);
 
         // Load and verify @include is not in the deserialized config
         let config = load_config(&main_path).expect("Failed to load config");
