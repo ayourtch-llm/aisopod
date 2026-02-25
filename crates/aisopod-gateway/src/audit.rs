@@ -175,18 +175,23 @@ pub fn redact_sensitive(value: &str) -> String {
         return "<empty>".to_string();
     }
 
-    // Redact common patterns
-    let redacted = value
-        .replace("token", "******")
-        .replace("password", "******")
-        .replace("secret", "******")
-        .replace("key", "******");
+    // Check for highly sensitive patterns that warrant complete redaction
+    if value.to_lowercase().contains("password") || value.to_lowercase().contains("token") {
+        return "******".to_string();
+    }
 
-    // Redact full values that look like tokens or secrets
-    if redacted.len() > 20 {
-        format!("{}...", &redacted[..20])
+    // For other sensitive patterns (secret, key), truncate to 20 chars of original
+    if value.to_lowercase().contains("secret") || value.to_lowercase().contains("key") {
+        if value.len() > 20 {
+            format!("{}...", &value[..20])
+        } else {
+            value.to_string()
+        }
+    } else if value.len() > 20 {
+        // For long non-sensitive values, just truncate
+        format!("{}...", &value[..20])
     } else {
-        redacted
+        value.to_string()
     }
 }
 

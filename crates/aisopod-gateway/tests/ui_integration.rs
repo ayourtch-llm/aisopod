@@ -10,11 +10,12 @@ use axum_test::TestServer;
 use std::str::FromStr;
 
 // Import the gateway app builder
+use aisopod_config::types::AuthConfig;
 use aisopod_gateway::build_app;
 
 #[tokio::test]
 async fn test_serves_index_html() {
-    let app = build_app().await;
+    let app = build_app(AuthConfig::default()).await;
     let server = TestServer::new(app).unwrap();
 
     let response = server.get("/").await;
@@ -34,7 +35,7 @@ async fn test_serves_index_html() {
 
 #[tokio::test]
 async fn test_serves_js_assets() {
-    let app = build_app().await;
+    let app = build_app(AuthConfig::default()).await;
     let server = TestServer::new(app).unwrap();
 
     // Assuming Vite outputs a JS bundle — adjust path as needed
@@ -50,7 +51,7 @@ async fn test_serves_js_assets() {
 
 #[tokio::test]
 async fn test_serves_css_with_correct_mime() {
-    let app = build_app().await;
+    let app = build_app(AuthConfig::default()).await;
     let server = TestServer::new(app).unwrap();
 
     let response = server.get("/assets/index-BQE4UcBt.css").await;
@@ -73,7 +74,7 @@ async fn test_serves_css_with_correct_mime() {
 
 #[tokio::test]
 async fn test_spa_fallback_serves_index() {
-    let app = build_app().await;
+    let app = build_app(AuthConfig::default()).await;
     let server = TestServer::new(app).unwrap();
 
     // Unknown route should serve index.html for client-side routing
@@ -94,7 +95,7 @@ async fn test_spa_fallback_serves_index() {
 
 #[tokio::test]
 async fn test_spa_fallback_deep_routes() {
-    let app = build_app().await;
+    let app = build_app(AuthConfig::default()).await;
     let server = TestServer::new(app).unwrap();
 
     for route in ["/agents", "/channels", "/config", "/sessions", "/models"] {
@@ -111,7 +112,7 @@ async fn test_websocket_connection() {
     use futures::{SinkExt, StreamExt};
     use std::net::TcpStream;
     
-    let app = build_app().await;
+    let app = build_app(AuthConfig::default()).await;
     
     // Create a server manually since axum-test doesn't expose ws directly
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -152,7 +153,7 @@ async fn test_websocket_connection() {
 
 #[tokio::test]
 async fn test_index_html_contains_theme_support() {
-    let app = build_app().await;
+    let app = build_app(AuthConfig::default()).await;
     let server = TestServer::new(app).unwrap();
 
     let response = server.get("/").await;
@@ -168,7 +169,7 @@ async fn test_index_html_contains_theme_support() {
 
 #[tokio::test]
 async fn test_health_endpoint() {
-    let app = build_app().await;
+    let app = build_app(AuthConfig::default()).await;
     let server = TestServer::new(app).unwrap();
 
     let response = server.get("/health").await;
@@ -180,7 +181,7 @@ async fn test_health_endpoint() {
 
 #[tokio::test]
 async fn test_static_file_cache_headers() {
-    let app = build_app().await;
+    let app = build_app(AuthConfig::default()).await;
     let server = TestServer::new(app).unwrap();
 
     // Test hashed asset gets immutable cache header
@@ -207,7 +208,7 @@ async fn test_static_file_cache_headers() {
 
 #[tokio::test]
 async fn test_index_html_cache_headers() {
-    let app = build_app().await;
+    let app = build_app(AuthConfig::default()).await;
     let server = TestServer::new(app).unwrap();
 
     // Test index.html gets no-cache header
@@ -229,7 +230,7 @@ async fn test_index_html_cache_headers() {
 
 #[tokio::test]
 async fn test_api_routes_return_not_found() {
-    let app = build_app().await;
+    let app = build_app(AuthConfig::default()).await;
     let server = TestServer::new(app).unwrap();
 
     // API routes should not be handled by static file router
@@ -240,7 +241,7 @@ async fn test_api_routes_return_not_found() {
 
 #[tokio::test]
 async fn test_png_asset_served() {
-    let app = build_app().await;
+    let app = build_app(AuthConfig::default()).await;
     let server = TestServer::new(app).unwrap();
 
     let response = server.get("/icon-192.png").await;
@@ -257,7 +258,7 @@ async fn test_png_asset_served() {
 
 #[tokio::test]
 async fn test_deep_spa_fallback_with_query_params() {
-    let app = build_app().await;
+    let app = build_app(AuthConfig::default()).await;
     let server = TestServer::new(app).unwrap();
 
     // Unknown route with query parameters should still serve index.html
