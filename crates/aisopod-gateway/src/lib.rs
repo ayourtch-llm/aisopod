@@ -2,6 +2,7 @@
 //!
 //! API gateway functionality, request routing, and external interface management.
 
+pub mod audit;
 pub mod auth;
 pub mod broadcast;
 pub mod client;

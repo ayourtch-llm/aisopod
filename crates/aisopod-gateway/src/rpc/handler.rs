@@ -130,7 +130,8 @@ impl MethodRouter {
 
         // Check scope authorization before dispatching
         if let Some(auth_info) = ctx.auth_info() {
-            if let Err(error_response) = check_scope(auth_info, method_name) {
+            let client_ip = ctx.remote_addr.to_string();
+            if let Err(error_response) = check_scope(auth_info, method_name, &client_ip) {
                 return error_response;
             }
         }

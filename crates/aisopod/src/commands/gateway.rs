@@ -28,10 +28,15 @@ pub struct GatewayArgs {
 
 /// Run the gateway server with the given arguments and config path
 pub async fn run(args: GatewayArgs, config_path: Option<String>) -> Result<()> {
-    // Set up tracing subscriber to output to stdout
+    // Set up tracing subscriber to output to stdout with audit logging
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .with_target(true)
+        // Configure audit logging to use the "audit" target at INFO level
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "aisopod=info,audit=info".into()),
+        )
         .init();
 
     // Load configuration from file or use defaults

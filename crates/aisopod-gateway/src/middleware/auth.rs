@@ -15,12 +15,24 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use tracing::{debug, warn};
 
+use crate::audit::{log_auth_failure, log_auth_success};
 use crate::auth::{build_password_map, build_token_map, validate_basic, validate_token, AuthInfo};
 use crate::auth::{hash_password, verify_password, TokenStore};
 use aisopod_config::sensitive::Sensitive;
 
 /// Request extension key for AuthInfo
 pub const AUTH_INFO_KEY: &str = "aisopod.auth.info";
+
+/// Request extension key for client IP address
+const CLIENT_IP_KEY: &str = "aisopod.client_ip";
+
+/// Extract client IP from request extensions or use localhost as fallback
+fn get_client_ip(req: &axum::extract::Request) -> String {
+    req.extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|ci| ci.0.to_string())
+        .unwrap_or_else(|| "127.0.0.1:0".to_string())
+}
 
 /// Configuration for the auth middleware
 #[derive(Debug, Clone)]
@@ -232,6 +244,8 @@ pub async fn auth_middleware(
             let auth_value = match extract_authorization(header_map) {
                 Some(v) => v,
                 None => {
+                    let client_ip = get_client_ip(&request);
+                    log_auth_failure(&client_ip, "token", "missing authorization header");
                     eprintln!("Missing Authorization header");
                     return unauthorized_response("Missing Authorization header");
                 }
@@ -241,6 +255,8 @@ pub async fn auth_middleware(
             let token = match parse_bearer_token(&auth_value) {
                 Some(t) => t,
                 None => {
+                    let client_ip = get_client_ip(&request);
+                    log_auth_failure(&client_ip, "token", "invalid authorization header format");
                     eprintln!("Invalid Authorization header format");
                     return unauthorized_response("Invalid Authorization header format");
                 }
@@ -249,11 +265,15 @@ pub async fn auth_middleware(
 
             match config_data.validate_token(&token) {
                 Some(auth_info) => {
+                    let client_ip = get_client_ip(&request);
+                    log_auth_success(&client_ip, "token", &auth_info.role);
                     eprintln!("Token validation successful for role: {}", auth_info.role);
                     request.extensions_mut().insert(auth_info);
                     next.run(request).await
                 }
                 None => {
+                    let client_ip = get_client_ip(&request);
+                    log_auth_failure(&client_ip, "token", "invalid token");
                     eprintln!("Invalid token provided, returning 401");
                     unauthorized_response("Invalid token")
                 }
@@ -266,7 +286,9 @@ pub async fn auth_middleware(
             let auth_value = match extract_authorization(header_map) {
                 Some(v) => v,
                 None => {
+                    let client_ip = get_client_ip(&request);
                     warn!("Missing Authorization header for password auth");
+                    log_auth_failure(&client_ip, "password", "missing authorization header");
                     return unauthorized_response("Missing Authorization header");
                 }
             };
@@ -274,22 +296,28 @@ pub async fn auth_middleware(
             let (username, password) = match parse_basic_credentials(&auth_value) {
                 Some((u, p)) => (u, p),
                 None => {
+                    let client_ip = get_client_ip(&request);
                     warn!("Invalid Authorization header format for Basic auth");
+                    log_auth_failure(&client_ip, "password", "invalid authorization header format");
                     return unauthorized_response("Invalid Authorization header format");
                 }
             };
 
             match config_data.validate_basic(&username, &password) {
                 Some(auth_info) => {
+                    let client_ip = get_client_ip(&request);
                     debug!(
                         "Basic auth validation successful for user: {}, role: {}",
                         username, auth_info.role
                     );
+                    log_auth_success(&client_ip, "password", &auth_info.role);
                     request.extensions_mut().insert(auth_info);
                     next.run(request).await
                 }
                 None => {
+                    let client_ip = get_client_ip(&request);
                     warn!("Invalid credentials provided for user: {}", username);
+                    log_auth_failure(&client_ip, "password", &format!("invalid credentials for user {}", username));
                     unauthorized_response("Invalid credentials")
                 }
             }
