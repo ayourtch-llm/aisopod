@@ -22,7 +22,9 @@ tower-http = { version = "0.5", features = ["trace", "cors"] }
 tower = { version = "0.5", features = ["util"] }
 uuid = { version = "1", features = ["v4"] }
 futures-util = "0.3.31"
-base64 = "0.21"
+base64 = "0.22"
+rand = "0.8"
+argon2 = { version = "0.5", features = ["password-hash"] }
 dashmap = "5.5"
 rust-embed = "8.0"
 mime_guess = "2.0"

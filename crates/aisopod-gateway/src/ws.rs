@@ -182,7 +182,8 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
 
     // Register client if we have auth info and registry
     // The sender is moved into the client and also used in the main loop
-    let client = if let (Some(auth_info), Some(registry)) = (auth_info, client_registry.clone()) {
+    // Clone auth_info before moving it into GatewayClient
+    let client = if let (Some(auth_info), Some(registry)) = (auth_info.clone(), client_registry.clone()) {
         let sender = std::sync::Arc::new(tx);
         let client = GatewayClient::from_auth_info(conn_id.clone(), sender, remote_addr, auth_info);
         registry.on_connect(client.clone());
@@ -291,7 +292,8 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
                                     }
                                 } else {
                                     // Handle other methods via method router
-                                    let ctx = RequestContext::new(conn_id.clone(), remote_addr);
+                                    let auth_info = auth_info.clone().unwrap_or_default();
+                                    let ctx = RequestContext::with_auth(conn_id.clone(), remote_addr, auth_info);
                                     let response = method_router.dispatch(ctx, request);
                                     eprintln!("=== WS DISPATCHED RESPONSE: {:?} ===", response);
 

@@ -3,9 +3,11 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
+use crate::auth::AuthInfo;
 use crate::broadcast::{Broadcaster, GatewayEvent, Subscription};
 use crate::rpc::approval::{PendingApproval, ApprovalStatus, ApprovalRequestParams, ApprovalStore};
 use crate::rpc::chat::ChatSendHandler;
+use crate::rpc::middleware::auth::check_scope;
 use crate::rpc::types;
 
 /// Request context for RPC method handlers
@@ -15,6 +17,7 @@ pub struct RequestContext {
     pub remote_addr: SocketAddr,
     pub role: Option<String>,
     pub scopes: Vec<String>,
+    pub auth_info: Option<AuthInfo>,
 }
 
 impl RequestContext {
@@ -25,7 +28,24 @@ impl RequestContext {
             remote_addr,
             role: None,
             scopes: Vec::new(),
+            auth_info: None,
         }
+    }
+
+    /// Create a new request context with the given connection ID, remote address, and auth info
+    pub fn with_auth(conn_id: String, remote_addr: SocketAddr, auth_info: AuthInfo) -> Self {
+        Self {
+            conn_id,
+            remote_addr,
+            role: Some(auth_info.role.clone()),
+            scopes: auth_info.scopes.clone(),
+            auth_info: Some(auth_info),
+        }
+    }
+
+    /// Get the auth info if available
+    pub fn auth_info(&self) -> Option<&AuthInfo> {
+        self.auth_info.as_ref()
     }
 }
 
@@ -107,6 +127,14 @@ impl MethodRouter {
     /// Returns a response with -32601 if the method is not found
     pub fn dispatch(&self, ctx: RequestContext, req: types::RpcRequest) -> types::RpcResponse {
         let method_name = &req.method;
+
+        // Check scope authorization before dispatching
+        if let Some(auth_info) = ctx.auth_info() {
+            if let Err(error_response) = check_scope(auth_info, method_name) {
+                return error_response;
+            }
+        }
+
         let methods = self.methods.lock().unwrap();
 
         if let Some(handler) = methods.get(method_name) {

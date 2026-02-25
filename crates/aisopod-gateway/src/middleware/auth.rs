@@ -16,6 +16,7 @@ use std::net::SocketAddr;
 use tracing::{debug, warn};
 
 use crate::auth::{build_password_map, build_token_map, validate_basic, validate_token, AuthInfo};
+use crate::auth::{hash_password, verify_password, TokenStore};
 use aisopod_config::sensitive::Sensitive;
 
 /// Request extension key for AuthInfo
@@ -28,8 +29,12 @@ pub struct AuthConfigData {
     config: AuthConfig,
     /// Pre-computed token lookup map
     token_map: HashMap<String, AuthInfo>,
+    /// Token store for rotation support
+    token_store: Option<TokenStore>,
     /// Pre-computed password lookup map (username -> password -> auth_info)
     password_map: HashMap<String, HashMap<String, AuthInfo>>,
+    /// Flag indicating if passwords are hashed
+    passwords_hashed: bool,
 }
 
 impl AuthConfigData {
@@ -37,11 +42,25 @@ impl AuthConfigData {
     pub fn new(config: AuthConfig) -> Self {
         let token_map = build_token_map(&config);
         let password_map = build_password_map(&config);
+        
+        // Check if any password looks like a hash (starts with $argon2)
+        let passwords_hashed = config.passwords.iter().any(|cred| {
+            cred.password.expose().starts_with("$argon2")
+        });
+        
+        // Create token store if using token auth
+        let token_store = if config.gateway_mode == aisopod_config::types::AuthMode::Token {
+            config.tokens.first().map(|cred| TokenStore::new(cred.token.clone()))
+        } else {
+            None
+        };
 
         Self {
             config,
             token_map,
+            token_store,
             password_map,
+            passwords_hashed,
         }
     }
 
@@ -56,6 +75,24 @@ impl AuthConfigData {
             return None;
         }
 
+        // Check token store first (for rotation support)
+        if let Some(ref store) = self.token_store {
+            if store.validate(token) {
+                // Find the token credential to get role and scopes
+                return self.config.tokens.iter().find_map(|cred| {
+                    if cred.token == token {
+                        Some(AuthInfo {
+                            role: cred.role.clone(),
+                            scopes: cred.scopes.clone(),
+                        })
+                    } else {
+                        None
+                    }
+                });
+            }
+        }
+        
+        // Fallback to token map for direct lookup
         self.token_map.get(token).cloned()
     }
 
@@ -65,10 +102,28 @@ impl AuthConfigData {
             return None;
         }
 
-        if let Some(passwords) = self.password_map.get(username) {
-            passwords.get(password).cloned()
+        if self.passwords_hashed {
+            // Use hashed password verification
+            self.config.passwords.iter().find_map(|cred| {
+                if cred.username == username {
+                    match verify_password(password, &cred.password.expose()) {
+                        Ok(true) => Some(AuthInfo {
+                            role: cred.role.clone(),
+                            scopes: cred.scopes.clone(),
+                        }),
+                        Ok(false) | Err(_) => None,
+                    }
+                } else {
+                    None
+                }
+            })
         } else {
-            None
+            // Use plain password lookup
+            if let Some(passwords) = self.password_map.get(username) {
+                passwords.get(password).cloned()
+            } else {
+                None
+            }
         }
     }
 }

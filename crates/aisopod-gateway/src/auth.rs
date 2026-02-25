@@ -4,9 +4,18 @@
 //! This module provides authentication validation functions and the AuthInfo struct
 //! that carries user role and scopes through the request pipeline.
 
+mod password;
+mod tokens;
+
 use aisopod_config::sensitive::Sensitive;
 use aisopod_config::types::{AuthConfig, AuthMode, PasswordCredential, TokenCredential};
 use std::collections::HashMap;
+
+pub use password::{hash_password, verify_password};
+pub use tokens::{generate_token, TokenStore};
+
+pub mod scopes;
+pub use scopes::{Scope, required_scope};
 
 /// Authentication information extracted from a request
 ///
@@ -119,6 +128,65 @@ pub fn build_password_map(config: &AuthConfig) -> HashMap<String, HashMap<String
     }
 
     map
+}
+
+/// Validate a password against stored password hashes
+///
+/// This function checks if the provided password matches any of the stored
+/// password hashes using argon2 verification.
+pub fn validate_password_hash(
+    username: &str,
+    password: &str,
+    config: &AuthConfig,
+) -> Option<AuthInfo> {
+    if config.gateway_mode != AuthMode::Password {
+        return None;
+    }
+
+    config.passwords.iter().find_map(|cred| {
+        if cred.username == username {
+            // Check if password matches the stored hash
+            match verify_password(password, &cred.password.expose()) {
+                Ok(true) => Some(AuthInfo {
+                    role: cred.role.clone(),
+                    scopes: cred.scopes.clone(),
+                }),
+                Ok(false) | Err(_) => None,
+            }
+        } else {
+            None
+        }
+    })
+}
+
+/// Validate a token using TokenStore for rotation support
+///
+/// This function uses a TokenStore to validate tokens, supporting
+/// token rotation with a grace period.
+pub fn validate_token_with_store(
+    token: &str,
+    store: &TokenStore,
+    config: &AuthConfig,
+) -> Option<AuthInfo> {
+    if config.gateway_mode != AuthMode::Token {
+        return None;
+    }
+
+    if store.validate(token) {
+        // Find the token credential to get role and scopes
+        config.tokens.iter().find_map(|cred| {
+            if cred.token == token {
+                Some(AuthInfo {
+                    role: cred.role.clone(),
+                    scopes: cred.scopes.clone(),
+                })
+            } else {
+                None
+            }
+        })
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -288,5 +356,17 @@ mod tests {
 
         assert_eq!(auth_info.role, "");
         assert!(auth_info.scopes.is_empty());
+    }
+
+    #[test]
+    fn test_validate_password_hash_not_implemented() {
+        // This test is to ensure the function signature compiles
+        // Actual hashing tests are in the password module tests
+    }
+
+    #[test]
+    fn test_validate_token_with_store_not_implemented() {
+        // This test is to ensure the function signature compiles
+        // Actual token store tests are in the tokens module tests
     }
 }
