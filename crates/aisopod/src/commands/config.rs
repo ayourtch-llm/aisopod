@@ -5,13 +5,14 @@
 //! - set: Set a configuration value by key path
 //! - wizard: Run interactive setup wizard for first-time configuration
 //! - channels: Interactive channel configuration helper
+//! - init: Initialize a new configuration file from a template
 
 use anyhow::{anyhow, Context, Result};
     use clap::{Args, Subcommand};
     use serde_json::{Map, Value};
     use std::collections::BTreeMap;
     use std::io::{self, Write};
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use aisopod_config::load_config;
     use aisopod_config::sensitive::Sensitive;
@@ -40,6 +41,15 @@ pub enum ConfigCommands {
     Wizard,
     /// Interactive channel configuration
     Channels,
+    /// Initialize a new configuration file from a template
+    Init {
+        /// Template name (dev, production, docker)
+        #[arg(short, long)]
+        template: Option<String>,
+        /// Output file path
+        #[arg(short, long)]
+        output: Option<String>,
+    },
 }
 
 /// Prompt the user for input
@@ -385,6 +395,70 @@ fn configure_channels(config: &mut AisopodConfig) -> Result<()> {
     Ok(())
 }
 
+/// Get template content by name
+fn get_template_content(template_name: &str) -> Result<String> {
+    // Try multiple paths for templates:
+    // 1. config/templates/ (current directory - for development)
+    // 2. <workspace-root>/config/templates/ (for installed binaries)
+    // 3. <binary-dir>/../config/templates/ (alternative relative path)
+    let template_filename = format!("{}.json", template_name);
+    
+    // Path relative to workspace root (two levels up from crates/aisopod)
+    let workspace_root_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|p| p.join("config/templates").join(&template_filename));
+    
+    // Current working directory path
+    let cwd_path = Path::new("config/templates").join(&template_filename);
+    
+    // Try each path in order of preference
+    let possible_paths: Vec<PathBuf> = if let Some(ws_path) = workspace_root_path {
+        vec![cwd_path, ws_path]
+    } else {
+        vec![cwd_path]
+    };
+    
+    for template_path in &possible_paths {
+        if template_path.exists() {
+            return std::fs::read_to_string(template_path).map_err(|e| {
+                anyhow!("Failed to read template '{}': {}", template_name, e)
+            });
+        }
+    }
+    
+    Err(anyhow!(
+        "Template '{}' not found. Available templates: dev, production, docker",
+        template_name
+    ))
+}
+
+/// Initialize a new configuration file from a template
+fn init_config(template: Option<String>, output: Option<String>) -> Result<()> {
+    let template_name = template.as_deref().unwrap_or("dev");
+    
+    let template_content = get_template_content(template_name)?;
+    
+    // Determine output path
+    let output_path = if let Some(path) = output {
+        Path::new(&path).to_path_buf()
+    } else {
+        // Default to current directory
+        std::env::current_dir()?.join(aisopod_config::DEFAULT_CONFIG_FILE)
+    };
+    
+    // Write template content to output file
+    std::fs::write(&output_path, template_content)?;
+    
+    println!(
+        "Configuration initialized from '{}' template to '{}'",
+        template_name,
+        output_path.display()
+    );
+    
+    Ok(())
+}
+
 /// Run the configuration management command with the given arguments and config path
 pub fn run(args: ConfigArgs, config_path: Option<String>) -> Result<()> {
     let config_path_ref = config_path.as_deref();
@@ -404,6 +478,9 @@ pub fn run(args: ConfigArgs, config_path: Option<String>) -> Result<()> {
         }
         ConfigCommands::Channels => {
             configure_channels(&mut config)?;
+        }
+        ConfigCommands::Init { template, output } => {
+            init_config(template, output)?;
         }
     }
 
@@ -480,5 +557,41 @@ mod tests {
         let config = result.unwrap();
         // Default version is "1.0" not "1.0.0"
         assert_eq!(config.meta.version, "1.0");
+    }
+
+    #[test]
+    fn test_config_init_command() {
+        let args = ConfigArgs {
+            command: ConfigCommands::Init {
+                template: Some("dev".to_string()),
+                output: None,
+            },
+        };
+
+        match args.command {
+            ConfigCommands::Init { template, output } => {
+                assert_eq!(template, Some("dev".to_string()));
+                assert_eq!(output, None);
+            }
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn test_config_init_with_output() {
+        let args = ConfigArgs {
+            command: ConfigCommands::Init {
+                template: Some("production".to_string()),
+                output: Some("/path/to/config.json".to_string()),
+            },
+        };
+
+        match args.command {
+            ConfigCommands::Init { template, output } => {
+                assert_eq!(template, Some("production".to_string()));
+                assert_eq!(output, Some("/path/to/config.json".to_string()));
+            }
+            _ => assert!(false),
+        }
     }
 }

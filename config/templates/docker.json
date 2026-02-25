@@ -1,0 +1,123 @@
+{
+  "meta": {
+    "version": "1.0"
+  },
+  "auth": {
+    "api_keys": [],
+    "profiles": [],
+    "gateway_mode": "none",
+    "tokens": [],
+    "passwords": []
+  },
+  "env": {
+    "mappings": []
+  },
+  "agents": {
+    "agents": [],
+    "default": {
+      "model": "",
+      "workspace": "/workspace",
+      "sandbox": false
+    }
+  },
+  "models": {
+    "models": [],
+    "providers": [],
+    "fallbacks": []
+  },
+  "channels": {
+    "channels": [],
+    "default": {
+      "channel_type": ""
+    }
+  },
+  "tools": {
+    "bash": {
+      "enabled": false,
+      "working_dir": "",
+      "timeout": 300
+    },
+    "exec": {
+      "enabled": false,
+      "allowed_commands": []
+    },
+    "filesystem": {
+      "enabled": false,
+      "root": "",
+      "operations": []
+    }
+  },
+  "skills": {
+    "modules": [],
+    "settings": {
+      "timeout": 60,
+      "max_executions": 0
+    }
+  },
+  "plugins": {
+    "registry": [],
+    "settings": {
+      "auto_load": false,
+      "plugin_dir": "",
+      "load_timeout": 30
+    }
+  },
+  "session": {
+    "messages": {
+      "max_messages": 0,
+      "retention": "",
+      "format": ""
+    },
+    "compaction": {
+      "enabled": false,
+      "min_messages": 0,
+      "interval": 3600
+    }
+  },
+  "bindings": [],
+  "memory": {
+    "backend": {
+      "type": "",
+      "connection": "",
+      "database": ""
+    },
+    "settings": {
+      "memory_limit": 0,
+      "eviction_policy": "",
+      "ttl": 86400
+    }
+  },
+  "gateway": {
+    "server": {
+      "name": "",
+      "port": 18789,
+      "graceful_shutdown": false
+    },
+    "bind": {
+      "address": "0.0.0.0",
+      "ipv6": false
+    },
+    "tls": {
+      "enabled": false,
+      "cert_path": "",
+      "key_path": ""
+    },
+    "web_ui": {
+      "enabled": true,
+      "dist_path": "../web-ui/dist",
+      "cors_origins": [
+        "http://localhost:18789",
+        "http://localhost:5173"
+      ]
+    },
+    "handshake_timeout": 5,
+    "rate_limit": {
+      "max_requests": 100,
+      "window": 60
+    }
+  },
+  "data_dir": "/data",
+  "logging": {
+    "level": "info"
+  }
+}
