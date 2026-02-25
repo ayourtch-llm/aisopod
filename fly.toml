@@ -1,0 +1,32 @@
+app = "aisopod"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  AISOPOD_CONFIG = "/data/config/aisopod.json"
+
+[http_service]
+  internal_port = 18789
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+[mounts]
+  source = "aisopod_data"
+  destination = "/data"
+
+[[checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  path = "/health"
+  port = 18789
+  timeout = "5s"
+  type = "http"
