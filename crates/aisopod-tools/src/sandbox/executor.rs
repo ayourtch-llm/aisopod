@@ -12,6 +12,7 @@ use async_trait::async_trait;
 use tokio::process::Command;
 
 use crate::sandbox::config::{SandboxConfig, SandboxRuntime, WorkspaceAccess};
+use crate::sandbox::{WorkspaceError, WorkspaceGuard};
 
 /// A unique identifier for a container
 #[derive(Debug, Clone)]
@@ -146,20 +147,18 @@ impl SandboxExecutor {
         command: &str,
         working_dir: &Path,
     ) -> Result<ExecutionResult> {
+        let guard =
+            WorkspaceGuard::new(working_dir.to_path_buf(), config.workspace_access.clone())?;
+
+        // Validate the working directory path
+        let _ = guard.validate_path(working_dir)?;
+
         let mut cmd = Command::new(self.runtime_command());
         cmd.args(["exec"]);
 
-        // Mount workspace
-        match config.workspace_access {
-            WorkspaceAccess::ReadOnly => {
-                let mount = format!("{}:/workspace:ro", working_dir.display());
-                cmd.args(["-v", &mount]);
-            }
-            WorkspaceAccess::ReadWrite => {
-                let mount = format!("{}:/workspace:rw", working_dir.display());
-                cmd.args(["-v", &mount]);
-            }
-            WorkspaceAccess::None => {}
+        // Mount workspace based on guard settings
+        if let Some(mount_args) = guard.mount_args() {
+            cmd.args(&mount_args);
         }
 
         cmd.arg(&container_id.0);
@@ -267,6 +266,11 @@ impl SandboxExecutor {
         command: &str,
         working_dir: &Path,
     ) -> Result<ExecutionResult> {
+        // Validate workspace access before creating container
+        let guard =
+            WorkspaceGuard::new(working_dir.to_path_buf(), config.workspace_access.clone())?;
+        let _ = guard.validate_path(working_dir)?;
+
         let container_id = self.create_container(config).await?;
 
         // Start the container

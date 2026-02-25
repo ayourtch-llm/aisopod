@@ -197,14 +197,39 @@ Without proper access controls, a sandboxed agent could read or modify files out
 - Issue 144 (sandbox configuration types — `WorkspaceAccess` enum)
 - Issue 145 (container execution — `SandboxExecutor` integration)
 
+## Resolution
+The implementation was completed with the following changes:
+
+1. **Created `crates/aisopod-tools/src/sandbox/workspace.rs`** with:
+   - `WorkspaceGuard` struct that validates workspace paths
+   - `WorkspaceError` enum for validation errors
+   - `new()` constructor that canonicalizes the root path
+   - `validate_path()` method that:
+     - Resolves symlinks in path components
+     - Checks each component for symlinks pointing outside workspace
+     - Rejects paths that escape the workspace root
+   - `mount_args()` method that generates Docker/Podman volume mount arguments
+   - `bind_mount()` helper method for direct mount specification
+   - Comprehensive unit tests covering all access modes and edge cases
+
+2. **Exported WorkspaceGuard** from the sandbox module in `crates/aisopod-tools/src/sandbox/mod.rs`
+
+3. **Integrated with SandboxExecutor** in `crates/aisopod-tools/src/sandbox/executor.rs`:
+   - Updated `execute()` to use `WorkspaceGuard` for validation
+   - Updated `run_one_shot()` to validate workspace before container creation
+   - Both methods now reject paths that escape the workspace root
+
+4. **Added top-level exports** in `crates/aisopod-tools/src/lib.rs` for `WorkspaceGuard` and `WorkspaceError`
+
 ## Acceptance Criteria
-- [ ] `WorkspaceGuard` validates paths and rejects traversals outside the workspace root
-- [ ] Symlinks pointing outside the workspace are detected and rejected
-- [ ] `ReadOnly` access produces `:ro` mount flags
-- [ ] `ReadWrite` access produces `:rw` mount flags
-- [ ] `None` access skips the workspace mount entirely
-- [ ] Integration with `SandboxExecutor` uses `WorkspaceGuard` for all mount decisions
-- [ ] Unit tests cover valid paths, escape attempts, and all three access modes
+- [x] `WorkspaceGuard` validates paths and rejects traversals outside the workspace root
+- [x] Symlinks pointing outside the workspace are detected and rejected
+- [x] `ReadOnly` access produces `:ro` mount flags
+- [x] `ReadWrite` access produces `:rw` mount flags
+- [x] `None` access skips the workspace mount entirely
+- [x] Integration with `SandboxExecutor` uses `WorkspaceGuard` for all mount decisions
+- [x] Unit tests cover valid paths, escape attempts, and all three access modes
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-25*

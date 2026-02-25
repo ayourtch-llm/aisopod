@@ -96,7 +96,7 @@ pub use builtins::{
 pub mod sandbox;
 pub use sandbox::config;
 pub use aisopod_config::types::{SandboxConfig, SandboxRuntime, WorkspaceAccess};
-pub use sandbox::{ContainerId, ExecutionResult, SandboxExecutor};
+pub use sandbox::{ContainerId, ExecutionResult, SandboxExecutor, WorkspaceError, WorkspaceGuard};
 
 /// Registers all built-in tools with the given registry.
 pub fn register_all_tools(registry: &mut ToolRegistry) {

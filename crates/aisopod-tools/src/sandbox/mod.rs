@@ -5,6 +5,8 @@
 
 pub mod config;
 pub mod executor;
+pub mod workspace;
 
 pub use aisopod_config::types::{SandboxConfig, SandboxRuntime, WorkspaceAccess};
 pub use executor::{ContainerId, ExecutionResult, SandboxExecutor};
+pub use workspace::{WorkspaceError, WorkspaceGuard};
