@@ -160,6 +160,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "requires stdin interaction - would hang in CI"]
     fn test_prompt_with_default_empty() {
         // This test would need stdin mocking, so we just verify the function compiles
         // In a real test, we would mock stdin
@@ -167,6 +168,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires stdin interaction - would hang in CI"]
     fn test_prompt_select_valid() {
         // This test would need stdin mocking, so we just verify the function compiles
         let _result = prompt_select("Test", &["option1", "option2"]);
