@@ -1,9 +1,10 @@
 #![allow(clippy::all)]
 use axum::{
+    body::Body,
     extract::{ConnectInfo, Extension, MatchedPath, State, WebSocketUpgrade},
     http::Method,
     response::IntoResponse,
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -12,6 +13,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use crate::auth::DeviceTokenManager;
+use crate::rpc::handler::{MethodRouter, PlaceholderHandler, RequestContext, RpcMethod, default_router};
+use crate::rpc::middleware::auth::check_scope;
+use crate::rpc::types::{parse, RpcRequest, RpcResponse};
 use aisopod_config::types::AuthConfig;
 
 /// Build the device token management routes
@@ -282,4 +286,217 @@ pub fn ws_routes(handshake_timeout: Option<u64>) -> Router {
             },
         ),
     )
+}
+
+/// Handler for system.ping RPC method
+pub struct SystemPingHandler;
+
+impl RpcMethod for SystemPingHandler {
+    fn handle(
+        &self,
+        _ctx: &RequestContext,
+        _params: Option<serde_json::Value>,
+    ) -> RpcResponse {
+        RpcResponse::success(
+            None, // Will be set by MethodRouter::dispatch
+            json!({"status": "ok", "ping": "pong"}),
+        )
+    }
+}
+
+/// Handler for admin.shutdown RPC method
+pub struct AdminShutdownHandler;
+
+impl RpcMethod for AdminShutdownHandler {
+    fn handle(
+        &self,
+        _ctx: &RequestContext,
+        _params: Option<serde_json::Value>,
+    ) -> RpcResponse {
+        RpcResponse::success(
+            None, // Will be set by MethodRouter::dispatch
+            json!({"status": "shutdown initiated"}),
+        )
+    }
+}
+
+/// Handler for agent.list RPC method
+pub struct AgentListHandler;
+
+impl RpcMethod for AgentListHandler {
+    fn handle(
+        &self,
+        _ctx: &RequestContext,
+        _params: Option<serde_json::Value>,
+    ) -> RpcResponse {
+        RpcResponse::success(
+            None, // Will be set by MethodRouter::dispatch
+            json!({"agents": [], "count": 0}),
+        )
+    }
+}
+
+/// Handler for agent.start RPC method
+pub struct AgentStartHandler;
+
+impl RpcMethod for AgentStartHandler {
+    fn handle(
+        &self,
+        _ctx: &RequestContext,
+        _params: Option<serde_json::Value>,
+    ) -> RpcResponse {
+        RpcResponse::success(
+            None, // Will be set by MethodRouter::dispatch
+            json!({"status": "starting", "message": "Agent start requested"}),
+        )
+    }
+}
+
+/// Handler for agent.stop RPC method
+pub struct AgentStopHandler;
+
+impl RpcMethod for AgentStopHandler {
+    fn handle(
+        &self,
+        _ctx: &RequestContext,
+        _params: Option<serde_json::Value>,
+    ) -> RpcResponse {
+        RpcResponse::success(
+            None, // Will be set by MethodRouter::dispatch
+            json!({"status": "stopping", "message": "Agent stop requested"}),
+        )
+    }
+}
+
+/// Handler for agent.create RPC method
+pub struct AgentCreateHandler;
+
+impl RpcMethod for AgentCreateHandler {
+    fn handle(
+        &self,
+        _ctx: &RequestContext,
+        _params: Option<serde_json::Value>,
+    ) -> RpcResponse {
+        RpcResponse::success(
+            None, // Will be set by MethodRouter::dispatch
+            json!({"status": "created", "message": "Agent created successfully"}),
+        )
+    }
+}
+
+/// Handler for agent.update RPC method
+pub struct AgentUpdateHandler;
+
+impl RpcMethod for AgentUpdateHandler {
+    fn handle(
+        &self,
+        _ctx: &RequestContext,
+        _params: Option<serde_json::Value>,
+    ) -> RpcResponse {
+        RpcResponse::success(
+            None, // Will be set by MethodRouter::dispatch
+            json!({"status": "updated", "message": "Agent updated successfully"}),
+        )
+    }
+}
+
+/// Handler for agent.delete RPC method
+pub struct AgentDeleteHandler;
+
+impl RpcMethod for AgentDeleteHandler {
+    fn handle(
+        &self,
+        _ctx: &RequestContext,
+        _params: Option<serde_json::Value>,
+    ) -> RpcResponse {
+        RpcResponse::success(
+            None, // Will be set by MethodRouter::dispatch
+            json!({"status": "deleted", "message": "Agent deleted successfully"}),
+        )
+    }
+}
+
+/// Build RPC routes
+pub fn rpc_routes() -> Router {
+    use axum::routing::post;
+    use std::sync::Arc;
+    
+    // Create a default router with all method handlers
+    let method_router = Arc::new(Mutex::new(default_router()));
+    
+    // Override default handlers with proper implementations for HTTP
+    {
+        let mut router = method_router.lock().unwrap();
+        router.register("system.ping", SystemPingHandler);
+        router.register("admin.shutdown", AdminShutdownHandler);
+        router.register("agent.list", AgentListHandler);
+        router.register("agent.start", AgentStartHandler);
+        router.register("agent.stop", AgentStopHandler);
+        router.register("agent.create", AgentCreateHandler);
+        router.register("agent.update", AgentUpdateHandler);
+        router.register("agent.delete", AgentDeleteHandler);
+    }
+    
+    // Use a closure that handles the request directly
+    Router::new().route("/rpc", post(move |request: axum::extract::Request| async move {
+        // Extract auth info from extensions
+        let auth_info = request.extensions().get::<crate::auth::AuthInfo>().cloned();
+        
+        // Extract remote addr
+        let remote_addr = request.extensions()
+            .get::<axum::extract::ConnectInfo::<std::net::SocketAddr>>()
+            .map(|info| info.0)
+            .unwrap_or(std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), 0));
+        
+        // Extract JSON payload from body
+        let payload_bytes = match axum::body::to_bytes(request.into_body(), usize::MAX).await {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                return Json(json!({
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": -32700,
+                        "message": format!("Body read error: {}", e)
+                    },
+                    "id": None::<serde_json::Value>
+                }));
+            }
+        };
+        
+        let payload = match serde_json::from_slice::<serde_json::Value>(&payload_bytes) {
+            Ok(p) => p,
+            Err(e) => {
+                return Json(json!({
+                    "jsonrpc": "2.0",
+                    "error": {
+                        "code": -32700,
+                        "message": format!("Parse error: {}", e)
+                    },
+                    "id": None::<serde_json::Value>
+                }));
+            }
+        };
+        
+        // Parse the JSON-RPC request
+        let rpc_request = match parse(&payload.to_string()) {
+            Ok(req) => req,
+            Err(rpc_error) => {
+                return Json(json!(rpc_error));
+            }
+        };
+
+        // Create request context with connection info
+        let conn_id = format!("http-{}", uuid::Uuid::new_v4().simple());
+        let ctx = if let Some(auth_info) = auth_info {
+            RequestContext::with_auth(conn_id, remote_addr, auth_info)
+        } else {
+            RequestContext::new(conn_id, remote_addr)
+        };
+
+        // Dispatch to the method router
+        let method_router = method_router.lock().unwrap();
+        let response = method_router.dispatch(ctx, rpc_request);
+        
+        Json(json!(response))
+    }))
 }

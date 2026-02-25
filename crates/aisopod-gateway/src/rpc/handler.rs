@@ -139,7 +139,12 @@ impl MethodRouter {
         let methods = self.methods.lock().unwrap();
 
         if let Some(handler) = methods.get(method_name) {
-            handler.handle(&ctx, req.params)
+            let mut response = handler.handle(&ctx, req.params);
+            // Preserve the original request id if not set by the handler
+            if response.id.is_none() {
+                response.id = req.id;
+            }
+            response
         } else {
             types::RpcResponse::error(
                 req.id,
@@ -186,11 +191,13 @@ pub fn default_router() -> MethodRouter {
 
     // Define all method namespaces (grouped by category)
     let namespaces = vec![
-        // Agent methods (4)
+        // Agent methods (6)
         "agent.create",
         "agent.update",
         "agent.delete",
         "agent.list",
+        "agent.start",
+        "agent.stop",
         // Chat methods (4)
         "chat.create",
         "chat.send",
@@ -211,11 +218,12 @@ pub fn default_router() -> MethodRouter {
         "model.describe",
         "model.select",
         "model.feedback",
-        // Config methods (4)
+        // Config methods (5)
         "config.get",
         "config.set",
         "config.validate",
         "config.reload",
+        "config.update",
         // Approval methods (4)
         "approval.request",
         "approval.approve",
@@ -697,8 +705,8 @@ mod tests {
     fn test_default_router_method_count() {
         let router = default_router();
 
-        // Should have 29 methods registered (24 original + gateway.subscribe + 4 approval methods)
-        assert_eq!(router.method_count(), 29);
+        // Should have 32 methods registered (29 original + 3 new: agent.start, agent.stop, config.update)
+        assert_eq!(router.method_count(), 32);
     }
 
     #[test]

@@ -25,7 +25,7 @@ use crate::client::ClientRegistry;
 use crate::middleware::{
     auth_middleware, rate_limit_middleware, AuthConfigData, RateLimitConfig, RateLimiter,
 };
-use crate::routes::{api_routes, device_token_routes, GatewayStatusState};
+use crate::routes::{api_routes, device_token_routes, GatewayStatusState, rpc_routes};
 use crate::static_files::{get_cache_control, get_content_type, StaticFileState};
 use crate::tls::{is_tls_enabled, load_tls_config};
 use crate::ws::ws_routes;
@@ -417,13 +417,14 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
     let status_state = Arc::new(GatewayStatusState::new(0, 0, 0));
     
     // Build the main app - order matters: static_router first (with 404 for API paths),
-    // then API routes, then WebSocket routes, then device token routes
+    // then API routes, then WebSocket routes, then device token routes, then RPC routes
     let app = Router::new()
         .route("/health", get(health))
         .nest_service("/", static_router)
         .merge(device_token_routes())
         .merge(api_routes(Some(status_state.clone())))
         .merge(ws_routes(handshake_timeout))
+        .merge(rpc_routes())
         .layer(middleware_stack);
 
     // Build CORS layer based on web UI configuration
@@ -601,14 +602,9 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
                 }
             },
         ))
-        // Auth middleware - runs FIRST (innermost in the stack)
-        // It depends on auth_config_data being available in extensions
-        // AuthConfigDataInjector will be added AFTER this layer, so it runs BEFORE
-        // auth_middleware when requests come in (innermost layers run first)
-        .layer(axum::middleware::from_fn(auth_middleware))
         // Auth config data MUST be injected BEFORE auth_middleware runs
-        // By adding this layer AFTER auth_middleware in the ServiceBuilder,
-        // it runs BEFORE auth_middleware in the request flow
+        // By adding this layer BEFORE auth_middleware in the ServiceBuilder,
+        // it runs BEFORE auth_middleware in the request flow (outer layers run first)
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
                 let config_data = auth_config_data.as_ref().clone();
@@ -621,6 +617,9 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
                 }
             },
         ))
+        // Auth middleware - runs AFTER auth_config_data is injected
+        // It depends on auth_config_data being available in extensions
+        .layer(axum::middleware::from_fn(auth_middleware))
         // Secrets masking middleware - masks sensitive values in logs
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
@@ -656,6 +655,7 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
         .merge(device_token_routes())
         .merge(api_routes(Some(status_state)))
         .merge(ws_routes(None))
+        .merge(rpc_routes())
         .layer(middleware_stack);
     
     // Build CORS layer

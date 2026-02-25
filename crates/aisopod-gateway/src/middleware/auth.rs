@@ -187,6 +187,27 @@ fn unauthorized_response(message: &str) -> Response {
         .into_response()
 }
 
+/// Error response for unauthorized requests in JSON-RPC format
+fn unauthorized_rpc_response(message: &str) -> Response {
+    (
+        StatusCode::UNAUTHORIZED,
+        axum::Json(serde_json::json!({
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32603,
+                "message": message
+            },
+            "id": None::<serde_json::Value>
+        })),
+    )
+        .into_response()
+}
+
+/// Check if the request is for an RPC endpoint
+fn is_rpc_request(request: &axum::extract::Request) -> bool {
+    request.uri().path() == "/rpc"
+}
+
 /// Authentication middleware
 ///
 /// This middleware validates incoming requests based on the configured auth mode:
@@ -247,7 +268,11 @@ pub async fn auth_middleware(
                     let client_ip = get_client_ip(&request);
                     log_auth_failure(&client_ip, "token", "missing authorization header");
                     eprintln!("Missing Authorization header");
-                    return unauthorized_response("Missing Authorization header");
+                    return if is_rpc_request(&request) {
+                        unauthorized_rpc_response("Missing Authorization header")
+                    } else {
+                        unauthorized_response("Missing Authorization header")
+                    };
                 }
             };
             eprintln!("Auth value: {:?}", auth_value);
@@ -258,7 +283,11 @@ pub async fn auth_middleware(
                     let client_ip = get_client_ip(&request);
                     log_auth_failure(&client_ip, "token", "invalid authorization header format");
                     eprintln!("Invalid Authorization header format");
-                    return unauthorized_response("Invalid Authorization header format");
+                    return if is_rpc_request(&request) {
+                        unauthorized_rpc_response("Invalid Authorization header format")
+                    } else {
+                        unauthorized_response("Invalid Authorization header format")
+                    };
                 }
             };
             eprintln!("Token: {:?}", token);
@@ -275,7 +304,11 @@ pub async fn auth_middleware(
                     let client_ip = get_client_ip(&request);
                     log_auth_failure(&client_ip, "token", "invalid token");
                     eprintln!("Invalid token provided, returning 401");
-                    unauthorized_response("Invalid token")
+                    if is_rpc_request(&request) {
+                        unauthorized_rpc_response("Invalid token")
+                    } else {
+                        unauthorized_response("Invalid token")
+                    }
                 }
             }
         }
@@ -289,7 +322,11 @@ pub async fn auth_middleware(
                     let client_ip = get_client_ip(&request);
                     warn!("Missing Authorization header for password auth");
                     log_auth_failure(&client_ip, "password", "missing authorization header");
-                    return unauthorized_response("Missing Authorization header");
+                    return if is_rpc_request(&request) {
+                        unauthorized_rpc_response("Missing Authorization header")
+                    } else {
+                        unauthorized_response("Missing Authorization header")
+                    };
                 }
             };
 
@@ -299,7 +336,11 @@ pub async fn auth_middleware(
                     let client_ip = get_client_ip(&request);
                     warn!("Invalid Authorization header format for Basic auth");
                     log_auth_failure(&client_ip, "password", "invalid authorization header format");
-                    return unauthorized_response("Invalid Authorization header format");
+                    return if is_rpc_request(&request) {
+                        unauthorized_rpc_response("Invalid Authorization header format")
+                    } else {
+                        unauthorized_response("Invalid Authorization header format")
+                    };
                 }
             };
 
@@ -318,7 +359,11 @@ pub async fn auth_middleware(
                     let client_ip = get_client_ip(&request);
                     warn!("Invalid credentials provided for user: {}", username);
                     log_auth_failure(&client_ip, "password", &format!("invalid credentials for user {}", username));
-                    unauthorized_response("Invalid credentials")
+                    if is_rpc_request(&request) {
+                        unauthorized_rpc_response("Invalid credentials")
+                    } else {
+                        unauthorized_response("Invalid credentials")
+                    }
                 }
             }
         }

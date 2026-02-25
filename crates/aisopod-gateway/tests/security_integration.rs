@@ -164,11 +164,12 @@ async fn build_test_server_no_auth() -> TestServer {
 
 #[tokio::test]
 async fn test_unauthenticated_request_rejected() {
-    let server = build_test_server_with_token("test-token", "operator", vec!["chat:write"]).await;
+    let server = build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
     let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
 
+    // Request without token (unauthenticated)
     let response = reqwest::Client::new()
         .post(&url)
         .json(&json!({
@@ -189,7 +190,7 @@ async fn test_unauthenticated_request_rejected() {
 
 #[tokio::test]
 async fn test_authenticated_request_accepted() {
-    let server = build_test_server_with_token("test-token", "operator", vec!["chat:write"]).await;
+    let server = build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
     let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
@@ -215,7 +216,7 @@ async fn test_authenticated_request_accepted() {
 
 #[tokio::test]
 async fn test_authenticated_password_request_accepted() {
-    let server = build_test_server_with_password("admin", "password123", "operator", vec!["chat:write"]).await;
+    let server = build_test_server_with_password("admin", "password123", "operator", vec!["operator.read"]).await;
     let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
