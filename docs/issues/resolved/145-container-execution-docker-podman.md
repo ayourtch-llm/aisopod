@@ -302,4 +302,4 @@ The `SandboxExecutor` was implemented in `crates/aisopod-tools/src/sandbox/execu
 
 ---
 *Created: 2026-02-15*
-*Resolved: 2026-02-25*
+*Resolved: 2026-02-24*
