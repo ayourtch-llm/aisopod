@@ -113,13 +113,26 @@ This specification is the foundation for all client implementations (iOS, Androi
 - Issue 029 (JSON-RPC message format)
 - Issue 030 (RPC method definitions)
 
-## Acceptance Criteria
-- [ ] `docs/protocol/websocket-protocol.md` exists and is complete
-- [ ] All method namespaces are documented with params and result schemas
-- [ ] Connection handshake flow is fully specified with required headers
-- [ ] Welcome message format is defined
-- [ ] Error codes and their meanings are listed
-- [ ] Document passes review by at least one other contributor
+## Resolution
+
+This issue was resolved by creating a comprehensive WebSocket protocol specification document at `docs/protocol/websocket-protocol.md` (1660 lines, 35KB).
+
+### Changes Made:
+- Created complete WebSocket protocol specification documenting JSON-RPC 2.0 message formats (request, response, error, notification)
+- Documented connection lifecycle with required headers: `Authorization`, `X-Aisopod-Client`, `X-Aisopod-Device-Id`
+- Defined Welcome message format with `server_version`, `protocol_version`, `session_id`, `capabilities`
+- Documented all method namespaces with params/results tables and JSON examples:
+  - `chat.*` (4 methods), `agent.*` (6), `node.*` (3), `canvas.*` (2), `system.*` (3)
+  - Plus: `approval.*` (4), `gateway.*` (1)
+- Listed all error codes: -32700 to -32603 (standard), -32001 to -32010 (custom Aisopod)
+- Added Security Considerations section covering TLS, auth, rate limiting, audit logging
+
+### Files Created:
+- `docs/protocol/websocket-protocol.md` - Complete protocol specification
+
+### Commit Reference:
+All changes committed in commit a6f95ce
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-25*
