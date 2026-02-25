@@ -9,6 +9,7 @@ pub mod daemon;
 pub mod doctor;
 pub mod gateway;
 pub mod message;
+pub mod migrate;
 pub mod models;
 pub mod onboarding;
 pub mod sessions;

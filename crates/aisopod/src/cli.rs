@@ -67,6 +67,8 @@ pub enum Commands {
         #[arg(long)]
         config: Option<String>,
     },
+    /// Migrate configuration from other formats
+    Migrate(crate::commands::migrate::MigrateArgs),
 }
 
 /// Main entry point for CLI processing.
@@ -141,6 +143,9 @@ pub fn run_cli() {
         }
         Commands::Onboarding { config } => {
             crate::commands::onboarding::run_onboarding(config).expect("Onboarding command failed");
+        }
+        Commands::Migrate(args) => {
+            crate::commands::migrate::run_migrate(args).expect("Migrate command failed");
         }
     }
 }
