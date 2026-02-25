@@ -279,4 +279,4 @@ This issue implemented scope-based authorization for RPC methods. The implementa
 
 ---
 *Created: 2026-02-15*
-*Resolved: 2026-02-25*
+*Resolved: 2026-02-24*
