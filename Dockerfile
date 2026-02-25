@@ -2,8 +2,6 @@
 FROM rust:latest AS builder
 WORKDIR /app
 COPY . .
-
-# Build the release binary
 RUN cargo build --release
 
 # Runtime stage
