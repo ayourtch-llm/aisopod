@@ -167,7 +167,7 @@ Created `.github/workflows/release.yml` with a comprehensive CI/CD release pipel
 - Creates GitHub Release with auto-generated release notes
 - No conflicts with existing CI workflow
 - Verified YAML syntax and cargo build
-- All changes committed in commit 82232a8
+- All changes committed in commit e96ce79
 
 ---
 *Created: 2026-02-15*

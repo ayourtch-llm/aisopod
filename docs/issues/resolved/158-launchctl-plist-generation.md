@@ -1,15 +1,5 @@
 # Issue 158: Implement launchctl Plist Generation
 
-## Resolution
-This issue has been implemented with the following specifications:
-
-- Changed Label from `com.aisopod.daemon` to `com.aisopod.gateway`
-- Updated log directory from `/usr/local/var/log/` to `~/Library/Logs/aisopod/`
-- Updated stdout path to `~/Library/Logs/aisopod/aisopod.out.log`
-- Updated stderr path to `~/Library/Logs/aisopod/aisopod.err.log`
-- Added log directory creation using `std::fs::create_dir_all`
-- Used `$HOME` environment variable with fallback to `dirs::home_dir()`
-
 ## Summary
 Implement the `aisopod daemon install` command on macOS to generate and install a LaunchAgent plist file that manages the aisopod gateway as a background service with automatic startup and keep-alive.
 
@@ -127,6 +117,16 @@ Implemented `aisopod daemon install` command for macOS LaunchAgent plist generat
 - Added `libc = "0.2"` dependency to `Cargo.toml`
 - All changes committed
 
+This issue was originally resolved in commit 54be98e7bb75405fe606ac04c32ebd4cb33d4fbd.
+
+Additional changes made on 2026-02-26:
+- Added `WorkingDirectory` key with value `/tmp` to the plist (was missing)
+- Changed `launchctl unload` to `launchctl bootout` in `stop_daemon()` function
+- Changed `launchctl unload` to `launchctl bootout` in `uninstall_daemon()` function
+- Moved issue file from `docs/issues/open/` to `docs/issues/resolved/`
+- All tests pass with `cargo test --package aisopod`
+- Build passes with `cargo build`
+
 ---
 *Created: 2026-02-15*
-*Resolved: 2026-02-25*
+*Resolved: 2026-02-26*

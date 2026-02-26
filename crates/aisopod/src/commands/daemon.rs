@@ -157,13 +157,24 @@ WantedBy={wanted_by}
 
 /// Install launchctl service on macOS
 fn install_launchctl_service(exe_path: &Path) -> Result<()> {
+    let home = std::env::var("HOME")
+        .or_else(|_| {
+            dirs::home_dir()
+                .map(|h| h.to_string_lossy().to_string())
+                .ok_or_else(|| anyhow!("Cannot determine home directory"))
+        })?;
+
+    let log_dir = format!("{}/Library/Logs/aisopod", home);
+    std::fs::create_dir_all(&log_dir)
+        .with_context(|| format!("Failed to create log directory {}", log_dir))?;
+
     let plist = format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.aisopod.daemon</string>
+    <string>com.aisopod.gateway</string>
     <key>ProgramArguments</key>
     <array>
         <string>{}</string>
@@ -173,24 +184,24 @@ fn install_launchctl_service(exe_path: &Path) -> Result<()> {
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>WorkingDirectory</key>
+    <string>/tmp</string>
     <key>StandardOutPath</key>
-    <string>/usr/local/var/log/aisopod.log</string>
+    <string>{log_dir}/aisopod.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/usr/local/var/log/aisopod.err</string>
+    <string>{log_dir}/aisopod.err.log</string>
 </dict>
 </plist>
 "#,
         exe_path.display()
     );
 
-    let home_dir = dirs::home_dir().ok_or_else(|| anyhow!("Cannot determine home directory"))?;
-    let plist_path = home_dir.join("Library/LaunchAgents/com.aisopod.daemon.plist");
-
+    let plist_path = format!("{}/Library/LaunchAgents/com.aisopod.gateway.plist", home);
     std::fs::write(&plist_path, plist)
-        .with_context(|| format!("Failed to write plist file to {}", plist_path.display()))?;
+        .with_context(|| format!("Failed to write plist file to {}", plist_path))?;
 
-    println!("LaunchAgent plist installed at {}", plist_path.display());
-    println!("Start with: aisopod daemon start");
+    println!("Plist written to {}", plist_path);
+    println!("Run: launchctl load {}", plist_path);
     Ok(())
 }
 
@@ -224,9 +235,9 @@ pub fn stop_daemon() -> Result<()> {
     } else if cfg!(target_os = "macos") {
         let plist = plist_path()?;
         Command::new("launchctl")
-            .args(["unload", &plist])
+            .args(["bootout", &plist])
             .status()
-            .with_context(|| "Failed to unload launch agent")?;
+            .with_context(|| "Failed to bootout launch agent")?;
     } else {
         return Err(anyhow!("Daemon management not supported on this platform"));
     }
@@ -243,7 +254,7 @@ pub fn daemon_status() -> Result<()> {
             .with_context(|| "Failed to get aisopod service status")?;
     } else if cfg!(target_os = "macos") {
         Command::new("launchctl")
-            .args(["list", "com.aisopod.daemon"])
+            .args(["list", "com.aisopod.gateway"])
             .status()
             .with_context(|| "Failed to get launch agent status")?;
     } else {
@@ -265,9 +276,13 @@ pub fn tail_logs(lines: usize, follow: bool) -> Result<()> {
             .status()
             .with_context(|| "Failed to tail systemd logs")?;
     } else if cfg!(target_os = "macos") {
-        let log_path = "/usr/local/var/log/aisopod.log";
+        let log_dir = format!(
+            "{}/Library/Logs/aisopod",
+            std::env::var("HOME").unwrap_or_else(|_| dirs::home_dir().unwrap().to_string_lossy().to_string())
+        );
+        let log_path = format!("{}/aisopod.out.log", log_dir);
         let lines_arg = lines.to_string();
-        let mut args = vec!["-n", &lines_arg, log_path];
+        let mut args = vec!["-n", &lines_arg, &log_path];
         if follow {
             args.push("-f");
         }
@@ -283,11 +298,16 @@ pub fn tail_logs(lines: usize, follow: bool) -> Result<()> {
 
 /// Get the plist path for macOS
 fn plist_path() -> Result<String> {
-    let home = dirs::home_dir().ok_or_else(|| anyhow!("Cannot determine home directory"))?;
-    Ok(home
-        .join("Library/LaunchAgents/com.aisopod.daemon.plist")
-        .to_string_lossy()
-        .to_string())
+    let home = std::env::var("HOME")
+        .or_else(|_| {
+            dirs::home_dir()
+                .map(|h| h.to_string_lossy().to_string())
+                .ok_or_else(|| anyhow!("Cannot determine home directory"))
+        })?;
+    Ok(format!(
+        "{}/Library/LaunchAgents/com.aisopod.gateway.plist",
+        home
+    ))
 }
 
 /// Get the systemd service path based on level
@@ -364,13 +384,13 @@ pub fn uninstall_daemon() -> Result<()> {
             ));
         }
 
+        Command::new("launchctl")
+            .args(["bootout", &plist])
+            .status()
+            .with_context(|| "Failed to bootout launch agent")?;
+
         std::fs::remove_file(&plist_path_obj)
             .with_context(|| format!("Failed to remove plist file {}", plist))?;
-
-        Command::new("launchctl")
-            .args(["unload", &plist])
-            .status()
-            .with_context(|| "Failed to unload launch agent")?;
 
         println!("LaunchAgent uninstalled from {}", plist);
         Ok(())
