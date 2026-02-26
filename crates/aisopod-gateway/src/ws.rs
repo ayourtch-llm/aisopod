@@ -1,4 +1,6 @@
 #![allow(clippy::all)]
+pub mod version;
+
 use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
     response::IntoResponse,
@@ -90,21 +92,44 @@ pub async fn ws_handler(
         Duration::from_secs(handshake_timeout.unwrap_or(DEFAULT_HANDSHAKE_TIMEOUT_SECS));
 
     ws.on_upgrade(move |socket| async move {
-        // Use tokio::time::timeout to enforce the handshake timeout
-        match tokio::time::timeout(
-            handshake_timeout_duration,
-            handle_connection(socket, request),
-        )
-        .await
-        {
-            Ok(()) => {
-                // Connection completed normally
+        // Extract protocol version from headers
+        let version_header = request
+            .headers()
+            .get("X-Aisopod-Protocol-Version")
+            .and_then(|v| v.to_str().ok());
+
+        // Check version compatibility
+        match version::negotiate_version(version_header) {
+            Ok(_client_version) => {
+                // Version is compatible - handle connection
+                // Use tokio::time::timeout to enforce the handshake timeout
+                match tokio::time::timeout(
+                    handshake_timeout_duration,
+                    handle_connection(socket, request),
+                )
+                .await
+                {
+                    Ok(()) => {
+                        // Connection completed normally
+                    }
+                    Err(_) => {
+                        warn!(
+                            "WebSocket handshake timed out after {} seconds",
+                            handshake_timeout_duration.as_secs()
+                        );
+                    }
+                }
             }
-            Err(_) => {
+            Err(err) => {
+                // Version incompatible - send error response before closing
                 warn!(
-                    "WebSocket handshake timed out after {} seconds",
-                    handshake_timeout_duration.as_secs()
+                    "Protocol version negotiation failed: {}",
+                    err
                 );
+                
+                // Create a new WebSocket connection for error messaging
+                // We need to handle this by sending an error message then closing
+                handle_connection_with_error(socket, request, err).await;
             }
         }
     })
@@ -460,4 +485,88 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
     if let Some(registry) = client_registry {
         registry.on_disconnect(&conn_id);
     }
+}
+
+/// Handle WebSocket connection with a version negotiation error
+///
+/// This function sends a JSON-RPC error message to the client and then closes the connection.
+async fn handle_connection_with_error(ws: WebSocket, request: axum::extract::Request, err: version::VersionNegotiationError) {
+    // Extract connection metadata from request
+    let remote_addr = extract_remote_addr(&request);
+
+    // Generate unique connection ID
+    let conn_id = Uuid::new_v4().to_string();
+
+    warn!(conn_id = %conn_id, "Starting WebSocket connection with version error");
+
+    // Split the WebSocket into sink and stream halves
+    let (mut ws_tx, mut ws_rx) = ws.split();
+
+    // Create error response based on the error type
+    let error_response = match &err {
+        version::VersionNegotiationError::Incompatible { server, client } => {
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32010,
+                    "message": "Protocol version mismatch",
+                    "data": {
+                        "server_version": server.to_string(),
+                        "client_version": client.to_string(),
+                        "hint": "Please upgrade/downgrade your client to match the server version"
+                    }
+                }
+            })
+        }
+        version::VersionNegotiationError::ParseError(_) => {
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32010,
+                    "message": "Invalid protocol version",
+                    "data": {
+                        "hint": "Please send a valid version in the X-Aisopod-Protocol-Version header (e.g., 1.0)"
+                    }
+                }
+            })
+        }
+    };
+
+    let error_text = match serde_json::to_string(&error_response) {
+        Ok(json) => json,
+        Err(e) => {
+            error!(conn_id = %conn_id, "Failed to serialize error response: {}", e);
+            // If we can't serialize, just close the connection
+            return;
+        }
+    };
+
+    // Send the error message
+    if let Err(e) = ws_tx.send(Message::Text(error_text)).await {
+        warn!(conn_id = %conn_id, "Failed to send error response: {}", e);
+    }
+
+    // Close the connection after sending the error
+    if let Err(e) = ws_tx.send(Message::Close(None)).await {
+        warn!(conn_id = %conn_id, "Failed to send close frame: {}", e);
+    }
+
+    // Read any remaining messages to complete the close handshake
+    while let Some(msg) = ws_rx.next().await {
+        match msg {
+            Ok(Message::Close(_)) => {
+                debug!(conn_id = %conn_id, "Received close frame, connection closed");
+                break;
+            }
+            Ok(_) => {
+                // Ignore other messages
+            }
+            Err(e) => {
+                error!(conn_id = %conn_id, "WebSocket error during error handling: {}", e);
+                break;
+            }
+        }
+    }
+
+    info!(conn_id = %conn_id, "WebSocket connection closed due to version error");
 }
