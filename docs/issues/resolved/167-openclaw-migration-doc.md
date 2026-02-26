@@ -90,5 +90,21 @@ Without this document, any team migrating from OpenClaw will face unnecessary fr
 - [ ] New and removed features are documented
 - [ ] Document passes review for accuracy
 
+## Resolution
+The migration guide was created at `docs/protocol/migration-from-openclaw.md` (17KB, ~570 lines). The document includes:
+
+- **Overview section** introducing the migration guide
+- **Method Name Changes table** with 16+ mappings (e.g., `claw.execute` → `node.invoke`, `claw.describe` → `node.describe`)
+- **Parameter Changes** documented with before/after JSON examples
+- **Authentication Changes** detailed with header mapping, new required headers, and device pairing requirements
+- **Environment Variable Renames** with 10 mappings (`OPENCLAW_*` → `AISOPOD_*`)
+- **Protocol Version Mapping** explaining OpenClaw v1 → aisopod v1 transition
+- **New Features** section listing 7 capabilities (device pairing, canvas protocol, approval workflow, etc.)
+- **Removed Features** section documenting 3 discontinued capabilities
+- **Migration utility** implemented at `crates/aisopod/src/commands/migrate.rs` with 7 tested functions
+
+All changes have been committed to the repository.
+
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-25*
