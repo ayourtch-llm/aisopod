@@ -20,7 +20,7 @@ chrono = { version = "0.4", features = ["serde"] }
 async-trait.workspace = true
 rusqlite = { version = "0.31", features = ["bundled", "load_extension"] }
 sqlite-vec = { version = "0.1.7-alpha.10" }
-uuid = { version = "1.0", features = ["v4"] }
+uuid = { workspace = true }
 reqwest = { version = "0.12", features = ["json"] }
 lancedb = { version = "0.15", optional = true }
 arrow-schema = { version = "53", optional = true }

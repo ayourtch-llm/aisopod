@@ -1,6 +1,23 @@
 [workspace]
 resolver = "2"
-members = ["crates/aisopod-plugin", "crates/aisopod-shared", "crates/aisopod-config", "crates/aisopod-provider", "crates/aisopod-tools", "crates/aisopod-session", "crates/aisopod-memory", "crates/aisopod-agent", "crates/aisopod-channel", "crates/aisopod-gateway", "crates/aisopod", "crates/aisopod-channel-telegram", "crates/aisopod-channel-discord", "crates/aisopod-channel-whatsapp", "crates/aisopod-channel-slack"]
+members = [
+    "crates/aisopod-plugin",
+    "crates/aisopod-shared",
+    "crates/aisopod-config",
+    "crates/aisopod-provider",
+    "crates/aisopod-tools",
+    "crates/aisopod-session",
+    "crates/aisopod-memory",
+    "crates/aisopod-agent",
+    "crates/aisopod-channel",
+    "crates/aisopod-gateway",
+    "crates/aisopod",
+    "crates/aisopod-channel-telegram",
+    "crates/aisopod-channel-discord",
+    "crates/aisopod-channel-whatsapp",
+    "crates/aisopod-channel-slack",
+    "crates/aisopod-client",
+]
 
 [workspace.package]
 edition = "2021"
@@ -29,3 +46,4 @@ url = "2"
 semver = "1"
 toml = "0.8"
 clap = { version = "4", features = ["derive"] }
+uuid = { version = "1", features = ["v4", "serde", "std"] }
