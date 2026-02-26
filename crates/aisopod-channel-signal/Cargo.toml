@@ -1,0 +1,33 @@
+[package]
+name = "aisopod-channel-signal"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+aisopod-channel = { path = "../aisopod-channel" }
+aisopod-shared = { path = "../aisopod-shared" }
+aisopod-config = { path = "../aisopod-config" }
+tokio = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+regex = { workspace = true }
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.21"
+futures = "0.3"
+tempfile = "3"
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+[features]
+default = []

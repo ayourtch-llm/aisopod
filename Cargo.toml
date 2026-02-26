@@ -16,6 +16,7 @@ members = [
     "crates/aisopod-channel-discord",
     "crates/aisopod-channel-whatsapp",
     "crates/aisopod-channel-slack",
+    "crates/aisopod-channel-signal",
     "crates/aisopod-client",
 ]
 
