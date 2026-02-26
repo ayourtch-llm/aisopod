@@ -120,12 +120,32 @@ The canvas protocol enables agents to present rich, interactive experiences beyo
 - Issue 034 (event broadcasting for forwarding interactions)
 
 ## Acceptance Criteria
-- [ ] Server can send `canvas.update` with Create/Update/Destroy actions to clients
-- [ ] Clients can send `canvas.interact` events back to the server
-- [ ] Canvas state is tracked per connection (active canvases map)
-- [ ] Destroying a canvas removes it from state
-- [ ] Interactions for unknown canvas IDs return an error
-- [ ] Unit tests cover canvas lifecycle and interaction forwarding
+- [x] Server can send `canvas.update` with Create/Update/Destroy actions to clients
+- [x] Clients can send `canvas.interact` events back to the server
+- [x] Canvas state is tracked per connection (active canvases map)
+- [x] Destroying a canvas removes it from state
+- [x] Interactions for unknown canvas IDs return an error
+- [x] Unit tests cover canvas lifecycle and interaction forwarding
+
+## Resolution
+The Canvas Protocol was implemented as follows:
+
+1. **Created `crates/aisopod-gateway/src/rpc/canvas.rs`** with the complete Canvas Protocol implementation including:
+   - Canvas types: `CanvasUpdateParams`, `CanvasAction` (Create/Update/Destroy), `CanvasContent`, `CanvasInteractParams`, `CanvasInteractResult`
+   - `CanvasState` struct with `create_or_update`, `destroy`, `get`, `exists`, `len`, `is_empty` methods
+
+2. **Implemented `canvas.update`** as a server-initiated message (not registered as RPC handler) - the server sends canvas updates directly to clients
+
+3. **Implemented `canvas.interact`** as a client-initiated RPC call with `CanvasInteractHandler`
+
+4. **Updated `broadcast.rs`** with `GatewayEvent::CanvasInteraction` variant to forward interaction events to agents
+
+5. **Fixed test_default_router_contains_canvas_methods** to expect `METHOD_NOT_FOUND` for `canvas.update` (correct behavior since it's server-initiated)
+
+6. **All 18 canvas-related tests passing** confirming correct implementation
+
+7. All changes committed in commit 332b674
 
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-25*
