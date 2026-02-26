@@ -1,5 +1,15 @@
 # Issue 158: Implement launchctl Plist Generation
 
+## Resolution
+This issue has been implemented with the following specifications:
+
+- Changed Label from `com.aisopod.daemon` to `com.aisopod.gateway`
+- Updated log directory from `/usr/local/var/log/` to `~/Library/Logs/aisopod/`
+- Updated stdout path to `~/Library/Logs/aisopod/aisopod.out.log`
+- Updated stderr path to `~/Library/Logs/aisopod/aisopod.err.log`
+- Added log directory creation using `std::fs::create_dir_all`
+- Used `$HOME` environment variable with fallback to `dirs::home_dir()`
+
 ## Summary
 Implement the `aisopod daemon install` command on macOS to generate and install a LaunchAgent plist file that manages the aisopod gateway as a background service with automatic startup and keep-alive.
 
