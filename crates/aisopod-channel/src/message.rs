@@ -42,7 +42,7 @@ pub struct PeerInfo {
 /// Information about a message sender.
 ///
 /// This struct provides details about who sent a message.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SenderInfo {
     /// Sender's unique identifier.
     pub id: String,
