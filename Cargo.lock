@@ -264,6 +264,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "aisopod-channel-mattermost"
+version = "0.1.0"
+dependencies = [
+ "aisopod-channel",
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "futures",
+ "reqwest 0.12.28",
+ "serde 1.0.228",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.49.0",
+ "tokio-tungstenite 0.24.0",
+ "tracing",
+ "tracing-subscriber",
+ "url 2.5.8",
+]
+
+[[package]]
 name = "aisopod-channel-msteams"
 version = "0.1.0"
 dependencies = [
