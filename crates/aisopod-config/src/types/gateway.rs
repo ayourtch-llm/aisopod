@@ -24,6 +24,9 @@ pub struct GatewayConfig {
     /// Request size limits for security
     #[serde(default)]
     pub request_size_limits: RequestSizeLimitsConfig,
+    /// Pairing cleanup interval in seconds
+    #[serde(default = "default_pairing_cleanup_interval")]
+    pub pairing_cleanup_interval: u64,
 }
 
 impl Default for GatewayConfig {
@@ -36,6 +39,7 @@ impl Default for GatewayConfig {
             handshake_timeout: default_handshake_timeout(),
             rate_limit: RateLimitConfig::default(),
             request_size_limits: RequestSizeLimitsConfig::default(),
+            pairing_cleanup_interval: default_pairing_cleanup_interval(),
         }
     }
 }
@@ -211,4 +215,8 @@ fn default_max_headers_size() -> usize {
 
 fn default_max_headers_count() -> usize {
     100
+}
+
+fn default_pairing_cleanup_interval() -> u64 {
+    300  // 5 minutes
 }

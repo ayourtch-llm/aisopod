@@ -184,6 +184,7 @@ impl GatewayTestConfig {
                 max_headers_size: 8192,            // 8KB default
                 max_headers_count: 100,            // 100 headers default
             },
+            pairing_cleanup_interval: 300,  // 5 minutes default
         }
     }
 }

@@ -15,7 +15,8 @@ use uuid::Uuid;
 use crate::auth::AuthInfo;
 use crate::broadcast::Broadcaster;
 use crate::client::{ClientRegistry, GatewayClient};
-use crate::rpc::{self, chat::ChatSendHandler, MethodRouter, RequestContext, ApprovalStore, ApprovalRequestHandler, ApprovalApproveHandler, ApprovalDenyHandler, ApprovalListHandler};
+use crate::rpc::{self, chat::ChatSendHandler, MethodRouter, RequestContext, ApprovalStore, ApprovalRequestHandler, ApprovalApproveHandler, ApprovalDenyHandler, ApprovalListHandler, PairingStore, PairRequestHandler, PairConfirmHandler, PairRevokeHandler, CapabilityStore, NodeDescribeHandler, NodeInvokeHandler};
+use crate::auth::DeviceTokenManager;
 
 /// Default handshake timeout in seconds
 pub const DEFAULT_HANDSHAKE_TIMEOUT_SECS: u64 = 5;
@@ -138,6 +139,12 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
         .get::<std::sync::Arc<Broadcaster>>()
         .cloned();
 
+    // Get pairing store from extensions
+    let pairing_store = request
+        .extensions()
+        .get::<std::sync::Arc<PairingStore>>()
+        .cloned();
+
     // Create agent runner for this connection
     let agent_runner = create_agent_runner();
     
@@ -178,6 +185,43 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
             ApprovalDenyHandler::with_store(store.clone()));
         method_router.register("approval.list", 
             ApprovalListHandler::with_store(store.clone()));
+    }
+
+    // Register node.pair handlers if pairing store is available
+    if let Some(pairing_store_ref) = &pairing_store {
+        let pairing_store_for_request = pairing_store_ref.clone();
+        let pairing_store_for_confirm = pairing_store_ref.clone();
+        let pairing_store_for_revoke = pairing_store_ref.clone();
+        
+        // Note: token_manager is created per-connection, but it should be shared
+        // For now, create a fresh one. In production, this should also be shared.
+        let token_manager = std::sync::Arc::new(std::sync::Mutex::new(DeviceTokenManager::new(
+            std::path::PathBuf::from("device_tokens.toml")
+        )));
+        
+        let token_manager_for_request = token_manager.clone();
+        let token_manager_for_confirm = token_manager.clone();
+        
+        method_router.register("node.pair.request", 
+            PairRequestHandler::with_deps(pairing_store_for_request, token_manager_for_request));
+        method_router.register("node.pair.confirm", 
+            PairConfirmHandler::with_deps(pairing_store_for_confirm, token_manager_for_confirm));
+        method_router.register("node.pair.revoke", 
+            PairRevokeHandler::with_deps(token_manager));
+    }
+
+    // Create capability store for managing device capabilities
+    let capability_store = std::sync::Arc::new(CapabilityStore::new());
+
+    // Register node.describe handler
+    let node_describe_handler = NodeDescribeHandler::new();
+    method_router.register("node.describe", node_describe_handler);
+
+    // Register node.invoke handler
+    if let Some(client_registry_clone) = client_registry.clone() {
+        let capability_store_for_invoke = capability_store.clone();
+        let node_invoke_handler = NodeInvokeHandler::new(client_registry_clone, capability_store_for_invoke);
+        method_router.register("node.invoke", node_invoke_handler);
     }
 
     // Register client if we have auth info and registry
@@ -408,6 +452,9 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
     // Cleanup on disconnect with logging
     let duration = start_time.elapsed();
     info!(conn_id = %conn_id, duration_secs = %duration.as_secs(), "WebSocket connection closed");
+
+    // Remove device capabilities from the capability store
+    capability_store.remove(&conn_id);
 
     // Deregister client from registry
     if let Some(registry) = client_registry {

@@ -3,6 +3,7 @@
 //! This module provides the GatewayClient struct and ClientRegistry
 //! for tracking all active WebSocket connections.
 
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::time::Instant;
 
@@ -31,6 +32,19 @@ pub struct GatewayClient {
     pub connected_at: Instant,
     /// Event subscription filter for broadcast events
     pub subscription: Subscription,
+    /// Device capabilities advertised by this node (if role is "node")
+    pub device_capabilities: Option<Vec<DeviceCapability>>,
+}
+
+/// A capability that a device can advertise
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DeviceCapability {
+    /// Service name (e.g., "camera", "location", "calendar")
+    pub service: String,
+    /// List of method names supported by this service
+    pub methods: Vec<String>,
+    /// Optional description of the capability
+    pub description: Option<String>,
 }
 
 impl GatewayClient {
@@ -52,6 +66,7 @@ impl GatewayClient {
             scopes,
             connected_at: Instant::now(),
             subscription: Subscription::default(),
+            device_capabilities: None,
         }
     }
 
@@ -71,6 +86,7 @@ impl GatewayClient {
             scopes: auth_info.scopes,
             connected_at: Instant::now(),
             subscription: Subscription::default(),
+            device_capabilities: None,
         }
     }
 }

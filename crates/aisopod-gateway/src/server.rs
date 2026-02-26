@@ -22,6 +22,7 @@ use tracing::{info, warn};
 
 use crate::broadcast::Broadcaster;
 use crate::client::ClientRegistry;
+use crate::rpc::node_pair::{PairingStore, run_pairing_cleanup_task};
 use crate::middleware::{
     auth_middleware, rate_limit_middleware, AuthConfigData, RateLimitConfig, RateLimiter,
 };
@@ -207,6 +208,16 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
     // Create the broadcast channel for gateway events
     let broadcaster = Arc::new(Broadcaster::new(128));
 
+    // Create the pairing store for managing pending pairing requests
+    let pairing_store = Arc::new(PairingStore::new());
+
+    // Spawn the pairing cleanup task
+    let pairing_cleanup_interval = Duration::from_secs(gateway_config.pairing_cleanup_interval);
+    let pairing_store_for_cleanup = pairing_store.clone();
+    tokio::spawn(async move {
+        run_pairing_cleanup_task(pairing_store_for_cleanup, pairing_cleanup_interval).await;
+    });
+
     // Setup device token manager with storage in the config directory
     let config_dir = gateway_config
         .bind
@@ -356,6 +367,16 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
                 let broadcaster = broadcaster.clone();
                 async move {
                     req.extensions_mut().insert(broadcaster);
+                    next.run(req).await
+                }
+            },
+        ))
+        // Pairing store middleware
+        .layer(axum::middleware::from_fn(
+            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                let pairing_store = pairing_store.clone();
+                async move {
+                    req.extensions_mut().insert(pairing_store);
                     next.run(req).await
                 }
             },

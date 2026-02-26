@@ -86,6 +86,14 @@ pub mod error_codes {
     pub const INVALID_REQUEST: i32 = -32600;
     /// Method not found
     pub const METHOD_NOT_FOUND: i32 = -32601;
+    /// Auth error - connection is not authenticated
+    pub const AUTH_ERROR: i32 = -32003;
+    /// Not found - resource not found
+    pub const NOT_FOUND: i32 = -32004;
+    /// Method not allowed - service or method not declared
+    pub const METHOD_NOT_ALLOWED: i32 = -32005;
+    /// Internal error - internal gateway error
+    pub const INTERNAL_ERROR: i32 = -32006;
 }
 
 /// Parse a raw JSON-RPC request string into an RpcRequest

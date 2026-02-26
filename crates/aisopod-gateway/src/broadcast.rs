@@ -28,6 +28,7 @@ impl Default for Subscription {
                 "agent".to_string(),
                 "chat".to_string(),
                 "approval".to_string(),
+                "canvas".to_string(),
             ]),
         }
     }
@@ -91,6 +92,22 @@ pub enum GatewayEvent {
         /// The risk level of the operation
         risk_level: String,
     },
+    /// Canvas interaction event from client
+    #[serde(rename = "canvas")]
+    CanvasInteraction {
+        /// Connection ID of the client that sent the interaction
+        conn_id: String,
+        /// Canvas ID where the interaction occurred
+        canvas_id: String,
+        /// Type of event (e.g., "click", "input", "submit", "custom")
+        event_type: String,
+        /// Optional element ID within the canvas
+        #[serde(skip_serializing_if = "Option::is_none")]
+        element_id: Option<String>,
+        /// Optional event-specific payload data
+        #[serde(skip_serializing_if = "Option::is_none")]
+        data: Option<Value>,
+    },
 }
 
 impl GatewayEvent {
@@ -102,6 +119,7 @@ impl GatewayEvent {
             GatewayEvent::Agent { .. } => "agent",
             GatewayEvent::Chat { .. } => "chat",
             GatewayEvent::ApprovalRequired { .. } => "approval",
+            GatewayEvent::CanvasInteraction { .. } => "canvas",
         }
     }
 }
