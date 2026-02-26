@@ -81,6 +81,7 @@ pub enum ChannelType {
     Discord,
     Whatsapp,
     Slack,
+    Nextcloud,
 }
 
 impl ChannelType {
@@ -91,6 +92,7 @@ impl ChannelType {
             ChannelType::Discord => "discord",
             ChannelType::Whatsapp => "whatsapp",
             ChannelType::Slack => "slack",
+            ChannelType::Nextcloud => "nextcloud",
         }
     }
 }
@@ -213,7 +215,13 @@ pub async fn list_channels(config_path: Option<String>) -> Result<()> {
         .iter()
         .map(|c| {
             let status = check_channel_status(c);
-            vec![c.channel_type.clone(), status.to_string(), c.name.clone()]
+            // For Nextcloud, show server URL instead of connection endpoint
+            let details = if c.channel_type == "nextcloud" {
+                c.connection.endpoint.clone()
+            } else {
+                c.name.clone()
+            };
+            vec![c.channel_type.clone(), status.to_string(), details]
         })
         .collect();
     
@@ -331,6 +339,44 @@ pub fn setup_channel(channel_type: &ChannelType, config_path: Option<String>) ->
             config.channels.slack.token = Some(Sensitive::new(bot_token));
             config.channels.slack.signing_secret = Some(Sensitive::new(signing_secret));
         }
+        ChannelType::Nextcloud => {
+            println!("=== Nextcloud Talk Setup ===\n");
+            println!("1. Ensure you have a Nextcloud instance with the Talk app installed");
+            println!("2. Create an app password at: https://your-nextcloud/settings/user/security\n");
+
+            let server_url = prompt("Nextcloud server URL (e.g., https://cloud.example.com): ")?;
+            let username = prompt("Username: ")?;
+            let password = prompt_password("App password: ")?;
+            let rooms = prompt_with_default("Room tokens to join (comma-separated, leave blank for manual join)", "")?;
+            let name = prompt_with_default("Channel name (optional)", "nextcloud")?;
+
+            // Parse room tokens
+            let room_tokens: Vec<String> = if rooms.trim().is_empty() {
+                vec![]
+            } else {
+                rooms.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            };
+
+            // Add to channels list
+            let channel = Channel {
+                id: format!("nextcloud-{}", name),
+                name,
+                channel_type: "nextcloud".to_string(),
+                connection: ChannelConnection {
+                    endpoint: server_url.clone(),
+                    token: password.clone(),
+                },
+            };
+
+            config.channels.channels.push(channel);
+
+            // Also set a generic nextcloud config entry
+            // Note: We can't directly set nextcloud config in the current schema
+            // This would need to be extended to support Nextcloud-specific fields
+        }
     }
 
     save_config(&config, config_path)?;
@@ -389,11 +435,12 @@ mod tests {
     fn test_channel_type_value_enum() {
         use clap::ValueEnum;
         let types = ChannelType::value_variants();
-        assert_eq!(types.len(), 4);
+        assert_eq!(types.len(), 5);
         assert!(types.contains(&ChannelType::Telegram));
         assert!(types.contains(&ChannelType::Discord));
         assert!(types.contains(&ChannelType::Whatsapp));
         assert!(types.contains(&ChannelType::Slack));
+        assert!(types.contains(&ChannelType::Nextcloud));
     }
 
     #[test]

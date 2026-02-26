@@ -310,6 +310,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "aisopod-channel-nextcloud"
+version = "0.1.0"
+dependencies = [
+ "aisopod-channel",
+ "aisopod-config",
+ "aisopod-shared",
+ "anyhow",
+ "async-trait",
+ "bytes 1.11.1",
+ "chrono",
+ "futures-util",
+ "reqwest 0.12.28",
+ "serde 1.0.228",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.49.0",
+ "tracing",
+ "tracing-subscriber",
+ "url 2.5.8",
+ "urlencoding",
+]
+
+[[package]]
 name = "aisopod-channel-signal"
 version = "0.1.0"
 dependencies = [

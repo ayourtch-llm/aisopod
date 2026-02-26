@@ -58,7 +58,12 @@ pub trait ChannelPlugin: Send + Sync {
     /// This method establishes the connection to the channel's backend service.
     /// Implementations should handle authentication, WebSocket connections,
     /// and any other setup required for communication.
-    async fn connect(&mut self) -> Result<()>;
+    ///
+    /// The default implementation is a no-op. Implementations that need
+    /// connection management should override this method.
+    async fn connect(&mut self) -> Result<()> {
+        Ok(())
+    }
 
     /// Send a message through the channel.
     ///
@@ -70,7 +75,11 @@ pub trait ChannelPlugin: Send + Sync {
     ///
     /// * `Ok(())` - Message was sent successfully
     /// * `Err(Error)` - An error occurred while sending
-    async fn send(&self, msg: OutgoingMessage) -> Result<()>;
+    ///
+    /// The default implementation returns an error indicating send is not implemented.
+    async fn send(&self, _msg: OutgoingMessage) -> Result<()> {
+        Err(anyhow::anyhow!("Send is not implemented for this channel"))
+    }
 
     /// Receive a message from the channel.
     ///
@@ -82,11 +91,20 @@ pub trait ChannelPlugin: Send + Sync {
     ///
     /// * `Ok(IncomingMessage)` - A received message
     /// * `Err(Error)` - An error occurred while receiving
-    async fn receive(&mut self) -> Result<IncomingMessage>;
+    ///
+    /// The default implementation returns an error indicating receive is not implemented.
+    async fn receive(&mut self) -> Result<IncomingMessage> {
+        Err(anyhow::anyhow!("Receive is not implemented for this channel"))
+    }
 
     /// Disconnect from the channel service.
     ///
     /// This method closes the connection to the channel's backend service,
     /// cleaning up any resources like WebSocket connections.
-    async fn disconnect(&mut self) -> Result<()>;
+    ///
+    /// The default implementation is a no-op. Implementations that need
+    /// connection management should override this method.
+    async fn disconnect(&mut self) -> Result<()> {
+        Ok(())
+    }
 }

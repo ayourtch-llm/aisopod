@@ -7,7 +7,7 @@
     "profiles": [
       {
         "name": "local",
-        "api_key": "",
+        "api_key": "x",
         "provider": "local",
         "endpoint": "http://gx10-96b6:8000/"
       }
@@ -29,6 +29,20 @@
         "sandbox": false,
         "subagents": [],
         "system_prompt": "You are a helpful assistant.",
+        "max_subagent_depth": 3,
+        "subagent_allowed_models": null,
+        "skills": []
+      },
+      {
+        "id": "simple_agent",
+        "name": "SimpleAgent",
+        "model": "Qwen/Qwen3.5-27B",
+        "workspace": "/tmp/aisopod",
+        "sandbox": true,
+        "subagents": [
+          "simple"
+        ],
+        "system_prompt": "You are a very cheerful and simple agent.",
         "max_subagent_depth": 3,
         "subagent_allowed_models": null,
         "skills": []
@@ -156,7 +170,7 @@
       "graceful_shutdown": false
     },
     "bind": {
-      "address": "127.0.0.1",
+      "address": "100.93.92.138",
       "ipv6": false
     },
     "tls": {
@@ -169,6 +183,7 @@
       "dist_path": "../web-ui/dist",
       "cors_origins": [
         "http://192.168.0.201:8080",
+        "http://100.93.92.138:8080",
         "http://localhost:8080",
         "http://localhost:5173"
       ]
