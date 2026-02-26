@@ -128,3 +128,6 @@ pub use util::{
     media::{ensure_compatible_format, MediaAttachment, Platform},
     rate_limit::{RateLimiter, RateLimitConfig, RateLimitError},
 };
+
+// Re-export anyhow Result for convenience
+pub use anyhow::Result;

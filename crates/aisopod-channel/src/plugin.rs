@@ -6,6 +6,8 @@
 
 use crate::types::{ChannelCapabilities, ChannelMeta};
 use crate::adapters::{ChannelConfigAdapter, SecurityAdapter};
+use crate::message::{IncomingMessage, OutgoingMessage};
+use crate::Result;
 use async_trait::async_trait;
 
 /// The core trait that all channel plugins must implement.
@@ -50,4 +52,41 @@ pub trait ChannelPlugin: Send + Sync {
     /// such as sender allowlists and group mention requirements.
     /// Returns `None` if the channel doesn't implement security checks.
     fn security(&self) -> Option<&dyn SecurityAdapter>;
+
+    /// Connect to the channel service.
+    ///
+    /// This method establishes the connection to the channel's backend service.
+    /// Implementations should handle authentication, WebSocket connections,
+    /// and any other setup required for communication.
+    async fn connect(&mut self) -> Result<()>;
+
+    /// Send a message through the channel.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - The outgoing message to send
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - Message was sent successfully
+    /// * `Err(Error)` - An error occurred while sending
+    async fn send(&self, msg: OutgoingMessage) -> Result<()>;
+
+    /// Receive a message from the channel.
+    ///
+    /// This method should block until a message is available or an error occurs.
+    /// Implementations should use WebSocket events, polling, or other appropriate
+    /// mechanisms to receive incoming messages.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(IncomingMessage)` - A received message
+    /// * `Err(Error)` - An error occurred while receiving
+    async fn receive(&mut self) -> Result<IncomingMessage>;
+
+    /// Disconnect from the channel service.
+    ///
+    /// This method closes the connection to the channel's backend service,
+    /// cleaning up any resources like WebSocket connections.
+    async fn disconnect(&mut self) -> Result<()>;
 }
