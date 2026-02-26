@@ -1,163 +1,178 @@
-# Signal Channel Implementation
+# Learning 170: Signal Channel Implementation
 
 ## Overview
+This document captures key learnings and insights from implementing the Signal channel plugin (Issue #170) for aisopod.
 
-This document captures key learnings and design decisions from implementing the Signal channel plugin for aisopod.
+## Implementation Summary
 
-## Architecture
-
-The Signal channel plugin follows the standard aisopod channel plugin architecture:
+### Crate Structure
+The `aisopod-channel-signal` crate follows a well-organized modular design:
 
 ```
 crates/aisopod-channel-signal/
-├── Cargo.toml                      # Dependencies and package metadata
+├── Cargo.toml
 └── src/
-    ├── lib.rs                      # Main entry point and re-exports
-    ├── channel.rs                  # ChannelPlugin implementation
-    ├── config.rs                   # Configuration types
-    ├── outbound.rs                 # Message sending logic
-    ├── gateway.rs                  # Message receiving and parsing
-    └── runtime.rs                  # signal-cli daemon management
+    ├── lib.rs        # Module exports and documentation
+    ├── channel.rs    # ChannelPlugin trait implementation
+    ├── config.rs     # Configuration types
+    ├── gateway.rs    # Incoming message handling
+    ├── outbound.rs   # Outbound message sending
+    └── runtime.rs    # Signal CLI subprocess management
 ```
 
-## Key Design Decisions
+### Key Design Patterns
 
-### 1. signal-cli Integration
-
-The channel uses `signal-cli` as the underlying communication layer. signal-cli is a command-line tool for Signal that supports:
-- Message sending and receiving
-- Media attachment handling
-- Group management
-- JSON output format
-
-We communicate with signal-cli via subprocess calls to commands like:
-- `signal-cli -u <phone> send <recipient>`
-- `signal-cli -u <phone> daemon --json` (for background daemon)
-
-### 2. ChannelPlugin Trait Implementation
-
+#### 1. ChannelPlugin Trait Implementation
 The `SignalChannel` struct implements the `ChannelPlugin` trait with:
+- `id()` - Returns unique channel identifier
+- `meta()` - Returns metadata about the channel
+- `capabilities()` - Returns supported features (DM, Group, Media, etc.)
+- `config()` - Returns configuration adapter
+- `security()` - Returns security adapter
 
-- **id()**: Returns the channel identifier (`signal-<account_id>`)
-- **meta()**: Returns channel metadata (label, docs URL, UI hints)
-- **capabilities()**: Returns supported features (DMs, groups, media)
-- **config()**: Returns `ChannelConfigAdapter` for account management
-- **security()**: Returns `SecurityAdapter` for sender filtering
-
-### 3. State Management
-
-The channel maintains:
-- **Accounts**: Vector of `SignalAccount` structs with connection state
-- **Runtime**: `Arc<tokio::sync::Mutex<SignalRuntime>>` for daemon management
-- **Gateway**: `SignalGateway` for incoming message parsing
-- **Outbound**: `SignalOutbound` for message sending
-
-### 4. Async Design
-
-All operations use async/await for:
-- Non-blocking I/O for subprocess communication
-- Concurrent message handling
-- Graceful shutdown with `tokio::sync::Notify`
-
-## Features Implemented
-
-### Direct Messages
-- Phone number-based addressing
-- Message body parsing
-- Media attachment support
-
-### Group Messages
-- Group ID extraction from message metadata
-- Group name parsing
-- Member listing (via signal-cli)
-
-### Media Attachments
-- Download from URLs to temporary files
-- Support for images, audio, video, documents
-- MIME type detection
-
-### Disappearing Messages
-- Timer extraction from message metadata
-- Notification when messages expire
-- Configurable per-account
-
-### Security
-- Sender allowlist via `allowed_senders` config
-- Group monitoring via `monitored_groups` config
-
-## Configuration
-
-```toml
-[[channels]]
-type = "signal"
-account_id = "signal-main"
-enabled = true
-
-[channels.credentials]
-phone_number = "+1234567890"
-device_name = "aisopod-bot"
-disappearing_enabled = true
-disappearing_timer = 2592000  # 30 days
-include_media = true
-
-[channels.config]
-allowed_senders = ["+1234567890", "+0987654321"]
-monitored_groups = ["group-id-1", "group-id-2"]
+#### 2. Subprocess Management
+The `SignalRuntime` handles signal-cli daemon spawning:
+```rust
+// Spawns: signal-cli -u <phone_number> daemon --json
+// Uses JSON-RPC mode for bidirectional communication
 ```
 
-## Testing
+**Key Insight**: The daemon runs in JSON-RPC mode, which allows:
+- Bidirectional communication via stdin/stdout
+- Structured JSON message exchange
+- Better error handling than plain text
 
-Unit tests cover:
-- Phone number validation
-- Sender allowlist filtering
-- Phone number normalization
-- Message parsing (DMs and groups)
-- Media content handling
-- Disappearing message timer extraction
+#### 3. Message Parsing
+The `SignalGateway` parses incoming JSON messages:
+- Detects message type (`receive`, `receipt`, `contact`)
+- Maps Signal envelopes to `IncomingMessage` type
+- Handles both DMs and group messages
 
-Run tests with:
-```bash
-cargo test --package aisopod-channel-signal
+**Phone Number Identity Mapping**:
+```rust
+// Signal uses phone numbers as unique identifiers
+// Maps directly to aisopod's PeerInfo with PeerKind::User
 ```
 
-## Integration Points
+#### 4. Media Handling
+The `SignalOutbound` handles media attachments:
+- Downloads media from URLs or uses raw data
+- Creates temporary files for sending
+- Supports images, audio, video, and documents
 
-### aisopod-channel-core
-- Implements `ChannelPlugin` trait
-- Uses `IncomingMessage` and `MessageTarget` types
-- Integrates with `ChannelRegistry`
+**Key Insight**: Signal CLI requires file paths for attachments, not raw data. The implementation uses `tempfile` crate to create temporary files.
 
-### aisopod-gateway
-- Channel configuration loaded from config
-- Message routing via channel ID
-- Account lifecycle management
+### Acceptance Criteria Verification
 
-## Known Limitations
+| Criteria | Status | Notes |
+|----------|--------|-------|
+| Signal CLI subprocess spawns and connects | ✅ | `SignalRuntime::start_daemon()` |
+| Direct messages sent and received | ✅ | `SignalGateway::parse_message()` with DM support |
+| Group messages sent and received | ✅ | Group parsing with `SignalGroup` struct |
+| Media attachments work correctly | ✅ | `SignalOutbound::send_media()` |
+| Disappearing message timers detected | ✅ | `expires_in` field in `SignalMessage` |
+| Phone number identity mapped | ✅ | `PeerInfo` with phone number ID |
+| Graceful error handling | ✅ | `SignalError` enum with descriptive variants |
+| Unit tests present | ✅ | 18 tests covering all modules |
+| Integration test with mock output | ⚠️ | Tests use JSON strings directly, not true mocks |
 
-1. **Subprocess Overhead**: Each send/receive operation spawns a subprocess. This could be optimized with persistent daemon connections.
+### Testing Coverage
 
-2. **Signal-cli Dependency**: Requires signal-cli to be installed and configured separately.
+#### Unit Tests (18 tests)
+- **config.rs**: 6 tests
+  - Phone number validation
+  - Sender allowlist logic
+  - Phone number normalization
+  
+- **channel.rs**: 3 tests
+  - Account config defaults
+  - Channel registration type check
 
-3. **Media Download**: Media files are downloaded to temporary storage; in-memory handling could be more efficient.
+- **gateway.rs**: 4 tests
+  - DM message parsing
+  - Group message parsing
+  - Media attachment handling
+  - Disappearing timer extraction
 
-## Future Enhancements
+- **outbound.rs**: 2 tests
+  - Outbound creation
+  - Timeout configuration
 
-- WebSocket-based communication with signal-cli daemon
-- Message queue for outgoing messages
-- Improved error handling and retry logic
-- Group member discovery
-- Message editing and deletion
-- Read receipts and typing indicators
+- **runtime.rs**: 3 tests
+  - Runtime initialization
+  - Signal CLI path detection
+  - Default path resolution
 
-## Debugging
+#### Missing Integration Tests
+**Recommendation**: Add integration tests with:
+1. Mock signal-cli subprocess that returns predefined JSON responses
+2. Full message flow tests (send → receive → parse)
+3. Error scenarios (signal-cli unavailable, malformed JSON)
 
-Enable tracing for detailed logs:
-```bash
-RUST_LOG=trace ./aisopod
-```
+### Configuration Features
 
-## References
+#### SignalAccountConfig
+- Phone number validation (E.164 format)
+- Optional device name
+- Allowed senders list
+- Monitored groups list
+- Disappearing message settings
+- Signal CLI path customization
 
-- Signal CLI: https://github.com/AsamK/signal-cli
-- aisopod Channel Plugin: `crates/aisopod-channel/src/plugin.rs`
-- Similar implementations: `aisopod-channel-discord`, `aisopod-channel-whatsapp`
+#### SignalDaemonConfig
+- JSON-RPC port configuration
+- Operation timeout
+- Retry configuration
+- Data directory path
+
+### Common Patterns Identified
+
+1. **Error Handling**: Use `SignalError` enum for domain-specific errors
+2. **Message Normalization**: Signal messages map to `IncomingMessage` with metadata
+3. **Async-Await**: All I/O operations use async/await with tokio
+4. **Configuration Validation**: Phone numbers validated at construction time
+5. **Subprocess Safety**: Daemon processes are Arc-wrapped for thread safety
+
+### Lessons for Future Channel Implementations
+
+1. **Follow Existing Patterns**: The Telegram and Discord channels provide good templates
+2. **JSON-RPC is Preferred**: Many chat platforms use JSON-RPC (Signal, WhatsApp Business API)
+3. **Temporary Files for Media**: Use tempfile crate for attachment handling
+4. **Graceful Degradation**: When signal-cli unavailable, return clear error messages
+5. **Test JSON Parsing**: Most bugs are in JSON parsing; test edge cases
+6. **Metadata Preservation**: Preserve Signal-specific metadata (expires_in, group_id)
+
+### Known Limitations
+
+1. **No true integration tests**: Current tests use JSON strings directly
+2. **No concurrent daemon support**: Runtime could support multiple phone numbers
+3. **No reconnection logic**: If daemon crashes, manual restart needed
+4. **No read receipts**: Receipt handling not fully implemented
+
+### Recommendations
+
+1. Add integration test infrastructure with mock subprocess
+2. Implement automatic reconnection on daemon failure
+3. Add metrics/health monitoring for daemon status
+4. Consider adding connection pooling for multiple accounts
+5. Document signal-cli version requirements clearly
+
+### Reference Implementation Files
+
+- **Main trait**: `crates/aisopod-channel/src/plugin.rs`
+- **Message types**: `crates/aisopod-channel/src/message.rs`
+- **Type definitions**: `crates/aisopod-channel/src/types.rs`
+
+### Dependencies Used
+
+- `tokio` - Async runtime
+- `serde` / `serde_json` - JSON serialization
+- `tracing` - Logging
+- `thiserror` - Error types
+- `chrono` - Timestamp handling
+- `tempfile` - Media file handling
+- `reqwest` - HTTP for media downloads
+
+---
+*Created: 2026-02-26*
+*Issue: #170*

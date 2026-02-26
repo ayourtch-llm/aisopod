@@ -77,7 +77,7 @@ async fn test_auth_request_serialization() {
 
 #[tokio::test]
 async fn test_jsonrpc_request_serialization() {
-    use aisopod_client::message::RpcRequest;
+    use aisopod_client::RpcRequest;
 
     let request = RpcRequest::new(
         "chat.send",
@@ -97,7 +97,7 @@ async fn test_jsonrpc_request_serialization() {
 
 #[tokio::test]
 async fn test_jsonrpc_response_parsing() {
-    use aisopod_client::message::{parse_response, RpcResponse};
+    use aisopod_client::{parse_response, RpcResponse};
 
     let json = r#"{"jsonrpc":"2.0","result":{"message_id":"msg-789"},"id":"req-456"}"#;
     let response = parse_response(json).unwrap();
@@ -109,7 +109,7 @@ async fn test_jsonrpc_response_parsing() {
 
 #[tokio::test]
 async fn test_jsonrpc_error_response() {
-    use aisopod_client::message::parse_response;
+    use aisopod_client::parse_response;
 
     let json = r#"{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"},"id":"req-456"}"#;
     let response = parse_response(json).unwrap();
@@ -123,7 +123,7 @@ async fn test_jsonrpc_error_response() {
 
 #[tokio::test]
 async fn test_error_codes() {
-    use aisopod_client::message::error_codes;
+    use aisopod_client::error_codes;
 
     assert_eq!(error_codes::PARSE_ERROR, -32700);
     assert_eq!(error_codes::INVALID_REQUEST, -32600);
@@ -162,7 +162,7 @@ async fn test_client_config_serialization() {
 
 #[tokio::test]
 async fn test_device_capability_serialization() {
-    use aisopod_client::types::DeviceCapability;
+    use aisopod_client::DeviceCapability;
 
     let capability = DeviceCapability {
         service: "camera".to_string(),
@@ -179,7 +179,7 @@ async fn test_device_capability_serialization() {
 
 #[tokio::test]
 async fn test_device_info_serialization() {
-    use aisopod_client::types::{DeviceInfo, DeviceCapability};
+    use aisopod_client::{DeviceInfo, DeviceCapability};
 
     let capability = DeviceCapability {
         service: "location".to_string(),

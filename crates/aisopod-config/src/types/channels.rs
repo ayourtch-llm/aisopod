@@ -37,6 +37,9 @@ pub struct ChannelsConfig {
     /// Matrix-specific configuration
     #[serde(default)]
     pub matrix: MatrixConfig,
+    /// Microsoft Teams-specific configuration
+    #[serde(default)]
+    pub msteams: MsTeamsConfig,
 }
 
 /// Generic channel configuration for platforms with simple token auth
@@ -100,6 +103,23 @@ pub struct MatrixConfig {
     /// User ID
     #[serde(default)]
     pub user_id: Option<String>,
+}
+
+/// Microsoft Teams-specific configuration
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MsTeamsConfig {
+    /// Azure AD tenant ID
+    pub tenant_id: Option<Sensitive<String>>,
+    /// Azure AD client ID
+    pub client_id: Option<Sensitive<String>>,
+    /// Azure AD client secret
+    pub client_secret: Option<Sensitive<String>>,
+    /// Bot framework app ID (Microsoft App ID)
+    #[serde(default)]
+    pub bot_app_id: Option<String>,
+    /// Bot framework app password
+    #[serde(default)]
+    pub bot_app_password: Option<String>,
 }
 
 /// Channel definition

@@ -61,18 +61,23 @@ fn get_exe_path() -> Result<std::path::PathBuf> {
 }
 
 /// Install aisopod as a system service
+#[cfg(target_os = "linux")]
 pub fn install_daemon(args: InstallArgs) -> Result<()> {
     let exe_path = get_exe_path()?;
-
-    if cfg!(target_os = "linux") {
-        install_systemd_service(&exe_path, args.system)?;
-    } else if cfg!(target_os = "macos") {
-        install_launchctl_service(&exe_path)?;
-    } else {
-        return Err(anyhow!("Daemon installation not supported on this platform"));
-    }
-
+    install_systemd_service(&exe_path, args.system)?;
     Ok(())
+}
+
+#[cfg(target_os = "macos")]
+pub fn install_daemon(args: InstallArgs) -> Result<()> {
+    let exe_path = get_exe_path()?;
+    install_launchctl_service(&exe_path)?;
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+pub fn install_daemon(args: InstallArgs) -> Result<()> {
+    Err(anyhow!("Daemon installation not supported on this platform"))
 }
 
 /// Install systemd service on Linux
@@ -156,6 +161,7 @@ WantedBy={wanted_by}
 }
 
 /// Install launchctl service on macOS
+#[cfg(target_os = "macos")]
 fn install_launchctl_service(exe_path: &Path) -> Result<()> {
     let home = std::env::var("HOME")
         .or_else(|_| {
@@ -206,97 +212,124 @@ fn install_launchctl_service(exe_path: &Path) -> Result<()> {
 }
 
 /// Start the daemon service
+#[cfg(target_os = "linux")]
 pub fn start_daemon() -> Result<()> {
-    if cfg!(target_os = "linux") {
-        Command::new("systemctl")
-            .args(["start", "aisopod"])
-            .status()
-            .with_context(|| "Failed to start aisopod service")?;
-    } else if cfg!(target_os = "macos") {
-        let plist = plist_path()?;
-        Command::new("launchctl")
-            .args(["load", &plist])
-            .status()
-            .with_context(|| "Failed to load launch agent")?;
-    } else {
-        return Err(anyhow!("Daemon management not supported on this platform"));
-    }
+    Command::new("systemctl")
+        .args(["start", "aisopod"])
+        .status()
+        .with_context(|| "Failed to start aisopod service")?;
     println!("Daemon started.");
     Ok(())
 }
 
+#[cfg(target_os = "macos")]
+pub fn start_daemon() -> Result<()> {
+    let plist = plist_path()?;
+    Command::new("launchctl")
+        .args(["load", &plist])
+        .status()
+        .with_context(|| "Failed to load launch agent")?;
+    println!("Daemon started.");
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+pub fn start_daemon() -> Result<()> {
+    Err(anyhow!("Daemon management not supported on this platform"))
+}
+
 /// Stop the daemon service
+#[cfg(target_os = "linux")]
 pub fn stop_daemon() -> Result<()> {
-    if cfg!(target_os = "linux") {
-        Command::new("systemctl")
-            .args(["stop", "aisopod"])
-            .status()
-            .with_context(|| "Failed to stop aisopod service")?;
-    } else if cfg!(target_os = "macos") {
-        let plist = plist_path()?;
-        Command::new("launchctl")
-            .args(["bootout", &plist])
-            .status()
-            .with_context(|| "Failed to bootout launch agent")?;
-    } else {
-        return Err(anyhow!("Daemon management not supported on this platform"));
-    }
+    Command::new("systemctl")
+        .args(["stop", "aisopod"])
+        .status()
+        .with_context(|| "Failed to stop aisopod service")?;
     println!("Daemon stopped.");
     Ok(())
 }
 
-/// Show daemon status
-pub fn daemon_status() -> Result<()> {
-    if cfg!(target_os = "linux") {
-        Command::new("systemctl")
-            .args(["status", "aisopod"])
-            .status()
-            .with_context(|| "Failed to get aisopod service status")?;
-    } else if cfg!(target_os = "macos") {
-        Command::new("launchctl")
-            .args(["list", "com.aisopod.gateway"])
-            .status()
-            .with_context(|| "Failed to get launch agent status")?;
-    } else {
-        return Err(anyhow!("Daemon management not supported on this platform"));
-    }
+#[cfg(target_os = "macos")]
+pub fn stop_daemon() -> Result<()> {
+    let plist = plist_path()?;
+    Command::new("launchctl")
+        .args(["bootout", &plist])
+        .status()
+        .with_context(|| "Failed to bootout launch agent")?;
+    println!("Daemon stopped.");
     Ok(())
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+pub fn stop_daemon() -> Result<()> {
+    Err(anyhow!("Daemon management not supported on this platform"))
+}
+
+/// Show daemon status
+#[cfg(target_os = "linux")]
+pub fn daemon_status() -> Result<()> {
+    Command::new("systemctl")
+        .args(["status", "aisopod"])
+        .status()
+        .with_context(|| "Failed to get aisopod service status")?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+pub fn daemon_status() -> Result<()> {
+    Command::new("launchctl")
+        .args(["list", "com.aisopod.gateway"])
+        .status()
+        .with_context(|| "Failed to get launch agent status")?;
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+pub fn daemon_status() -> Result<()> {
+    Err(anyhow!("Daemon management not supported on this platform"))
 }
 
 /// Tail daemon logs
+#[cfg(target_os = "linux")]
 pub fn tail_logs(lines: usize, follow: bool) -> Result<()> {
-    if cfg!(target_os = "linux") {
-        let lines_arg = format!("--lines={}", lines);
-        let mut args = vec!["--unit=aisopod", &lines_arg];
-        if follow {
-            args.push("--follow");
-        }
-        Command::new("journalctl")
-            .args(&args)
-            .status()
-            .with_context(|| "Failed to tail systemd logs")?;
-    } else if cfg!(target_os = "macos") {
-        let log_dir = format!(
-            "{}/Library/Logs/aisopod",
-            std::env::var("HOME").unwrap_or_else(|_| dirs::home_dir().unwrap().to_string_lossy().to_string())
-        );
-        let log_path = format!("{}/aisopod.out.log", log_dir);
-        let lines_arg = lines.to_string();
-        let mut args = vec!["-n", &lines_arg, &log_path];
-        if follow {
-            args.push("-f");
-        }
-        Command::new("tail")
-            .args(&args)
-            .status()
-            .with_context(|| "Failed to tail logs")?;
-    } else {
-        return Err(anyhow!("Daemon management not supported on this platform"));
+    let lines_arg = format!("--lines={}", lines);
+    let mut args = vec!["--unit=aisopod", &lines_arg];
+    if follow {
+        args.push("--follow");
     }
+    Command::new("journalctl")
+        .args(&args)
+        .status()
+        .with_context(|| "Failed to tail systemd logs")?;
     Ok(())
 }
 
+#[cfg(target_os = "macos")]
+pub fn tail_logs(lines: usize, follow: bool) -> Result<()> {
+    let log_dir = format!(
+        "{}/Library/Logs/aisopod",
+        std::env::var("HOME").unwrap_or_else(|_| dirs::home_dir().unwrap().to_string_lossy().to_string())
+    );
+    let log_path = format!("{}/aisopod.out.log", log_dir);
+    let lines_arg = lines.to_string();
+    let mut args = vec!["-n", &lines_arg, &log_path];
+    if follow {
+        args.push("-f");
+    }
+    Command::new("tail")
+        .args(&args)
+        .status()
+        .with_context(|| "Failed to tail logs")?;
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+pub fn tail_logs(lines: usize, follow: bool) -> Result<()> {
+    Err(anyhow!("Daemon management not supported on this platform"))
+}
+
 /// Get the plist path for macOS
+#[cfg(target_os = "macos")]
 fn plist_path() -> Result<String> {
     let home = std::env::var("HOME")
         .or_else(|_| {
@@ -310,93 +343,91 @@ fn plist_path() -> Result<String> {
     ))
 }
 
-/// Get the systemd service path based on level
-fn get_systemd_service_path(system_level: bool) -> Result<PathBuf> {
-    if system_level {
-        Ok(PathBuf::from("/etc/systemd/system/aisopod.service"))
+// Removed unused function get_systemd_service_path
+
+/// Uninstall aisopod systemd service on Linux
+#[cfg(target_os = "linux")]
+pub fn uninstall_daemon() -> Result<()> {
+    // Try to detect whether the service was installed at user or system level
+    // by checking both locations
+    let system_path = PathBuf::from("/etc/systemd/system/aisopod.service");
+    let user_home = std::env::var("HOME")
+        .with_context(|| "Cannot determine home directory")?;
+    let user_path = PathBuf::from(&user_home).join(".config/systemd/user/aisopod.service");
+
+    let (service_path, system_level) = if system_path.exists() {
+        (system_path, true)
+    } else if user_path.exists() {
+        (user_path, false)
     } else {
-        let home = std::env::var("HOME")
-            .with_context(|| "Cannot determine home directory")?;
-        Ok(PathBuf::from(&home).join(".config/systemd/user/aisopod.service"))
-    }
+        return Err(anyhow!(
+            "aisopod service is not installed. No service file found."
+        ));
+    };
+
+    std::fs::remove_file(&service_path)
+        .with_context(|| format!("Failed to remove service file {}", service_path.display()))?;
+
+    // Disable the service
+    let disable_args = if system_level {
+        &["disable", "aisopod"][..]
+    } else {
+        &["--user", "disable", "aisopod"][..]
+    };
+    Command::new("systemctl")
+        .args(disable_args)
+        .status()
+        .with_context(|| "Failed to disable aisopod service")?;
+
+    // Reload systemd daemon
+    let daemon_reload_args = if system_level {
+        &["daemon-reload"][..]
+    } else {
+        &["--user", "daemon-reload"][..]
+    };
+    Command::new("systemctl")
+        .args(daemon_reload_args)
+        .status()
+        .with_context(|| "Failed to reload systemd daemon")?;
+
+    let uninstall_msg = if system_level {
+        "Systemd service"
+    } else {
+        "User-level systemd service"
+    };
+    println!("{} uninstalled from {}", uninstall_msg, service_path.display());
+    Ok(())
 }
 
-/// Uninstall aisopod system service
+/// Uninstall aisopod LaunchAgent on macOS
+#[cfg(target_os = "macos")]
 pub fn uninstall_daemon() -> Result<()> {
-    if cfg!(target_os = "linux") {
-        // Try to detect whether the service was installed at user or system level
-        // by checking both locations
-        let system_path = PathBuf::from("/etc/systemd/system/aisopod.service");
-        let user_home = std::env::var("HOME")
-            .with_context(|| "Cannot determine home directory")?;
-        let user_path = PathBuf::from(&user_home).join(".config/systemd/user/aisopod.service");
-
-        let (service_path, system_level) = if system_path.exists() {
-            (system_path, true)
-        } else if user_path.exists() {
-            (user_path, false)
-        } else {
-            return Err(anyhow!(
-                "aisopod service is not installed. No service file found."
-            ));
-        };
-
-        std::fs::remove_file(&service_path)
-            .with_context(|| format!("Failed to remove service file {}", service_path.display()))?;
-
-        // Disable the service
-        let disable_args = if system_level {
-            &["disable", "aisopod"][..]
-        } else {
-            &["--user", "disable", "aisopod"][..]
-        };
-        Command::new("systemctl")
-            .args(disable_args)
-            .status()
-            .with_context(|| "Failed to disable aisopod service")?;
-
-        // Reload systemd daemon
-        let daemon_reload_args = if system_level {
-            &["daemon-reload"][..]
-        } else {
-            &["--user", "daemon-reload"][..]
-        };
-        Command::new("systemctl")
-            .args(daemon_reload_args)
-            .status()
-            .with_context(|| "Failed to reload systemd daemon")?;
-
-        let uninstall_msg = if system_level {
-            "Systemd service"
-        } else {
-            "User-level systemd service"
-        };
-        println!("{} uninstalled from {}", uninstall_msg, service_path.display());
-        Ok(())
-    } else if cfg!(target_os = "macos") {
-        let plist = plist_path()?;
-        let plist_path_obj = PathBuf::from(&plist);
-        
-        if !plist_path_obj.exists() {
-            return Err(anyhow!(
-                "aisopod service is not installed. No plist file found at {}",
-                plist
-            ));
-        }
-
-        Command::new("launchctl")
-            .args(["bootout", &plist])
-            .status()
-            .with_context(|| "Failed to bootout launch agent")?;
-
-        std::fs::remove_file(&plist_path_obj)
-            .with_context(|| format!("Failed to remove plist file {}", plist))?;
-
-        println!("LaunchAgent uninstalled from {}", plist);
-        Ok(())
-    } else {
-        Err(anyhow!("Daemon uninstallation not supported on this platform"))
+    let plist = plist_path()?;
+    let plist_path_obj = PathBuf::from(&plist);
+    
+    if !plist_path_obj.exists() {
+        return Err(anyhow!(
+            "aisopod service is not installed. No plist file found at {}",
+            plist
+        ));
     }
+
+    Command::new("launchctl")
+        .args(["bootout", &plist])
+        .status()
+        .with_context(|| "Failed to bootout launch agent")?;
+
+    std::fs::remove_file(&plist_path_obj)
+        .with_context(|| format!("Failed to remove plist file {}", plist))?;
+
+    println!("LaunchAgent uninstalled from {}", plist);
+    Ok(())
+}
+
+/// Uninstall aisopod daemon not supported on other platforms
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+pub fn uninstall_daemon() -> Result<()> {
+    Err(anyhow!("Daemon uninstallation not supported on this platform"))
 }
 
 /// Run the daemon command with the given arguments

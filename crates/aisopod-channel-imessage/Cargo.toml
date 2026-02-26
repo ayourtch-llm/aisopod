@@ -1,0 +1,30 @@
+[package]
+name = "aisopod-channel-imessage"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+aisopod-channel = { path = "../aisopod-channel" }
+aisopod-config = { path = "../aisopod-config" }
+aisopod-shared = { path = "../aisopod-shared" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+url.workspace = true
+reqwest = { version = "0.12", features = ["json", "stream"] }
+base64 = "0.21"
+regex = "1"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+[features]
+default = []
+# Force BlueBubbles backend even on macOS (for testing)
+bluebubbles-only = []
