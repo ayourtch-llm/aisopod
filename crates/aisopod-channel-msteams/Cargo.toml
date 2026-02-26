@@ -1,0 +1,29 @@
+[package]
+name = "aisopod-channel-msteams"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+aisopod-channel = { path = "../aisopod-channel" }
+tokio = { workspace = true, features = ["full"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+async-trait = { workspace = true }
+axum = { version = "0.7", features = ["json", "macros"] }
+http = "1.1"
+url = { workspace = true }
+jsonwebtoken = "9.3"
+base64 = "0.22"
+reqwest = { workspace = true }
+serde_urlencoded = "0.1"
+urlencoding = "2.1"
+uuid = { version = "1", features = ["v4", "serde", "std"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+mockall = "0.13"
+axum-test = "14"
