@@ -101,5 +101,22 @@ This is the core of the app protocol — it turns every paired device into an ex
 - [ ] Invocations respect the configured timeout
 - [ ] Unit tests cover describe, invoke success, invoke errors, and timeout
 
+## Resolution
+Implemented `node.describe` and `node.invoke` RPC methods as specified in the issue:
+- Created `crates/aisopod-gateway/src/rpc/node_capabilities.rs` with `node.describe` and `node.invoke` RPC methods
+- Defined `DeviceCapability` struct with `service`, `methods`, and `description` fields
+- Implemented `NodeDescribeParams`, `NodeDescribeResult`, `NodeInvokeRequest`, and `NodeInvokeResult` types
+- Implemented `node.describe` handler that stores capabilities in `CapabilityStore` and validates authentication (returns error `-32003` for unpaired devices)
+- Implemented `node.invoke` handler that routes to target device and validates timeout (1-30000ms range)
+- Added `device_id` field to `NodeInvokeRequest` for targeted device routing
+- Enhanced `CapabilityStore` with `device_to_conn` mapping for efficient O(1) device-to-connection lookup
+- Implemented `get_conn_id_by_device_id()` method for efficient device→connection lookup
+- Fixed `get_target_conn_id()` to use `device_id` with fallback to service-based discovery
+- Added cleanup on disconnect with `capability_store.remove(&conn_id)`
+- Registered both methods with RPC router in `ws.rs`
+- All 43 unit tests passing
+- All changes committed
+
 ---
 *Created: 2026-02-15*
+*Resolved: 2026-02-25*
