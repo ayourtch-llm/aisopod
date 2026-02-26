@@ -21,6 +21,7 @@ members = [
     "crates/aisopod-channel-googlechat",
     "crates/aisopod-channel-msteams",
     "crates/aisopod-channel-matrix",
+    "crates/aisopod-channel-irc",
     "crates/aisopod-client",
 ]
 

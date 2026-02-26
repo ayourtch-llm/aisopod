@@ -1,0 +1,20 @@
+[package]
+name = "aisopod-channel-irc"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+aisopod-channel = { path = "../aisopod-channel" }
+aisopod-shared = { path = "../aisopod-shared" }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+futures = { workspace = true }
+irc = "0.14"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
