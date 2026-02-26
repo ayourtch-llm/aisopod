@@ -186,6 +186,30 @@ impl AisopodClient {
         self.request("node.pair.request", device_info).await
     }
 
+    /// Confirm node pairing with a code
+    pub async fn node_pair_confirm(
+        &mut self,
+        pair_id: &str,
+        code: &str,
+    ) -> Result<crate::types::PairConfirmResult> {
+        let params = serde_json::json!({
+            "pair_id": pair_id,
+            "code": code
+        });
+        self.request("node.pair.confirm", params).await
+    }
+
+    /// Revoke node pairing
+    pub async fn node_pair_revoke(
+        &mut self,
+        pair_id: &str,
+    ) -> Result<crate::types::PairRevokeResult> {
+        let params = serde_json::json!({
+            "pair_id": pair_id
+        });
+        self.request("node.pair.revoke", params).await
+    }
+
     /// Describe the node capabilities
     pub async fn node_describe(
         &mut self,
@@ -209,6 +233,25 @@ impl AisopodClient {
             |p| serde_json::json!({"node_id": node_id, "method": method, "params": p}),
         );
         self.request("node.invoke", params).await
+    }
+
+    /// Interact with a canvas
+    pub async fn canvas_interact(
+        &mut self,
+        canvas_id: &str,
+        interaction_type: &str,
+        data: Option<serde_json::Value>,
+    ) -> Result<serde_json::Value> {
+        let mut params = serde_json::json!({
+            "canvas_id": canvas_id,
+            "interaction_type": interaction_type
+        });
+        
+        if let Some(ref data_value) = data {
+            params["data"] = data_value.clone();
+        }
+        
+        self.request("canvas.interact", params).await
     }
 
     /// Start the background event loop

@@ -1,0 +1,24 @@
+[package]
+name = "aisopod-client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+futures = { workspace = true }
+tungstenite = "0.21"
+url = "2"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+
+[[test]]
+name = "conformance"
+path = "tests/conformance/mod.rs"
