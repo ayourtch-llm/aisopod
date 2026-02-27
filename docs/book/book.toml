@@ -1,0 +1,20 @@
+[book]
+authors = ["Aisopod Contributors"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Aisopod Documentation"
+
+[build]
+build-dir = "build"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "ayu"
+git-repository-url = "https://github.com/AIsopod/aisopod"
+edit-url-template = "https://github.com/AIsopod/aisopod/edit/main/docs/book/{path}"
+
+[output.html.search]
+enable = true
+limit-results = 30
+use-hierarchical-headings = true

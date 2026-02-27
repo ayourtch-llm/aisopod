@@ -48,3 +48,13 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --all -- --check
+
+  docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mdBook
+        run: cargo install mdbook --version 0.4.37 --locked
+      - name: Build docs
+        run: mdbook build docs/book

@@ -13,7 +13,7 @@ use common::test_group_peer;
 // Re-export channel types for tests
 use aisopod_channel_matrix::{MatrixAccountConfig, MatrixAuth, MatrixChannel};
 use aisopod_channel_irc::{IrcConfig, IrcChannel};
-use aisopod_channel_mattermost::{MattermostConfig, MattermostChannel};
+use aisopod_channel_mattermost::{MattermostAuth, MattermostConfig, MattermostChannel};
 use aisopod_channel_nextcloud::{NextcloudConfig, NextcloudChannel};
 use aisopod_channel_twitch::{TwitchConfig, TwitchChannel};
 use aisopod_channel_nostr::{NostrConfig, NostrChannel};
