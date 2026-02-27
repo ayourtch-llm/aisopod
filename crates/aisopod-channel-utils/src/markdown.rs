@@ -55,6 +55,8 @@ pub enum MarkdownNode {
     Bold(Vec<MarkdownNode>),
     /// Italic text
     Italic(Vec<MarkdownNode>),
+    /// Underline text (Discord-specific, rendered as italic in Telegram)
+    Underline(Vec<MarkdownNode>),
     /// Strikethrough text
     Strikethrough(Vec<MarkdownNode>),
     /// Inline code
@@ -82,7 +84,8 @@ pub enum MarkdownNode {
 /// Parse markdown string to AST based on source format.
 pub fn parse_markdown(input: &str, format: &MarkdownFormat) -> Vec<MarkdownNode> {
     match format {
-        MarkdownFormat::Discord | MarkdownFormat::Telegram => parse_standard_markdown(input),
+        MarkdownFormat::Discord => parse_standard_markdown_with_underline(input),
+        MarkdownFormat::Telegram => parse_standard_markdown(input),
         MarkdownFormat::Slack => parse_slack_markdown(input),
         MarkdownFormat::Html => parse_html(input),
         MarkdownFormat::Plain => vec![MarkdownNode::Text(input.to_string())],
@@ -137,9 +140,152 @@ fn parse_standard_markdown(input: &str) -> Vec<MarkdownNode> {
                 &[]
             };
 
-            // First check for 3-char delimiters (*** or ___ or ~~~)
-            if let ['*', '*', '*'] | ['_', '_', '_'] = three {
-                // Bold and italic
+            // First check for 3-char delimiters (*** or ~~~) - ___ is italic in Telegram
+            if let ['*', '*', '*'] = three {
+                // Bold and italic (3 asterisks)
+                let end = find_matching_delimiter(&chars, i, 3);
+                if end > i {
+                    let content = &chars[i + 3..end];
+                    let text: String = content.iter().collect();
+                    nodes.push(MarkdownNode::Bold(vec![MarkdownNode::Italic(vec![
+                        MarkdownNode::Text(text),
+                    ])]));
+                    i = end + 3;
+                    continue;
+                }
+            } else if let ['_', '_', '_'] = three {
+                // Italic (3 underscores) in Telegram
+                let end = find_matching_delimiter(&chars, i, 3);
+                if end > i {
+                    let content = &chars[i + 3..end];
+                    let text: String = content.iter().collect();
+                    nodes.push(MarkdownNode::Italic(vec![MarkdownNode::Text(text)]));
+                    i = end + 3;
+                    continue;
+                }
+            } else if let ['~', '~', '~'] = three {
+                // Strikethrough (3 chars)
+                let end = find_matching_delimiter(&chars, i, 3);
+                if end > i {
+                    let content = &chars[i + 3..end];
+                    let text: String = content.iter().collect();
+                    nodes.push(MarkdownNode::Strikethrough(vec![MarkdownNode::Text(text)]));
+                    i = end + 3;
+                    continue;
+                }
+            } else if let ['*', '*'] = two {
+                // Bold (2 asterisks)
+                let end = find_matching_delimiter(&chars, i, 2);
+                if end > i {
+                    let content = &chars[i + 2..end];
+                    let text: String = content.iter().collect();
+                    nodes.push(MarkdownNode::Bold(vec![MarkdownNode::Text(text)]));
+                    i = end + 2;
+                    continue;
+                }
+            } else if let ['_', '_'] = two {
+                // Italic (2 underscores) in Telegram
+                let end = find_matching_delimiter(&chars, i, 2);
+                if end > i {
+                    let content = &chars[i + 2..end];
+                    let text: String = content.iter().collect();
+                    nodes.push(MarkdownNode::Italic(vec![MarkdownNode::Text(text)]));
+                    i = end + 2;
+                    continue;
+                }
+            } else if let ['~', '~'] = two {
+                // Strikethrough (2-char delimiter)
+                let end = find_matching_delimiter(&chars, i, 2);
+                if end > i {
+                    let content = &chars[i + 2..end];
+                    let text: String = content.iter().collect();
+                    nodes.push(MarkdownNode::Strikethrough(vec![MarkdownNode::Text(text)]));
+                    i = end + 2;
+                    continue;
+                }
+            } else if (chars[i] == '*' || chars[i] == '_') && (i + 1 >= chars.len() || chars[i] != chars[i + 1]) {
+                // Italic (single * or _, but not ** or __)
+                let end = find_matching_delimiter(&chars, i, 1);
+                if end > i {
+                    let content = &chars[i + 1..end];
+                    let text: String = content.iter().collect();
+                    nodes.push(MarkdownNode::Italic(vec![MarkdownNode::Text(text)]));
+                    i = end + 1;
+                    continue;
+                }
+            }
+        }
+
+        // Regular text
+        let start = i;
+        while i < chars.len() && !is_special_char(chars[i]) {
+            i += 1;
+        }
+        if i > start {
+            let text: String = chars[start..i].iter().collect();
+            nodes.push(MarkdownNode::Text(text));
+        }
+
+        // Handle newlines
+        if i < chars.len() && chars[i] == '\n' {
+            nodes.push(MarkdownNode::Newline);
+            i += 1;
+        }
+    }
+
+    nodes
+}
+
+/// Parse Discord markdown format with underline support.
+/// Discord uses __...__ for underline, which is not natively supported in Telegram.
+fn parse_standard_markdown_with_underline(input: &str) -> Vec<MarkdownNode> {
+    let mut nodes = Vec::new();
+    let chars: Vec<char> = input.chars().collect();
+    let mut i = 0;
+    let max_iterations = chars.len() * 10; // Safety limit
+    let mut iterations = 0;
+
+    while i < chars.len() {
+        iterations += 1;
+        if iterations > max_iterations {
+            break;
+        }
+
+        // Check for code blocks first
+        if i + 3 < chars.len() && chars[i..i + 3] == ['`', '`', '`'] {
+            nodes.push(parse_code_block(&chars, &mut i));
+            continue;
+        }
+
+        // Check for inline code
+        if chars[i] == '`' {
+            if let Some((code, end)) = parse_inline_code(&chars, i) {
+                nodes.push(MarkdownNode::Code(code));
+                i = end;
+                continue;
+            }
+        }
+
+        // Check for links
+        if chars[i] == '[' {
+            if let Some(link) = parse_link(&chars, &mut i) {
+                nodes.push(link);
+                continue;
+            }
+        }
+
+        // Check for bold/italic/strikethrough/underline
+        if i + 1 < chars.len() {
+            let two = &chars[i..i + 2];
+            let three = if i + 2 < chars.len() {
+                &chars[i..i + 3]
+            } else {
+                &[]
+            };
+
+            // First check for 3-char delimiters
+            if let ['*', '*', '*'] = three {
+                // Bold and italic (3 asterisks)
                 let end = find_matching_delimiter(&chars, i, 3);
                 if end > i {
                     let content = &chars[i + 3..end];
@@ -160,13 +306,23 @@ fn parse_standard_markdown(input: &str) -> Vec<MarkdownNode> {
                     i = end + 3;
                     continue;
                 }
-            } else if let ['*', '*'] | ['_', '_'] = two {
-                // Bold (2-char delimiter)
+            } else if let ['*', '*'] = two {
+                // Bold (2 asterisks)
                 let end = find_matching_delimiter(&chars, i, 2);
                 if end > i {
                     let content = &chars[i + 2..end];
                     let text: String = content.iter().collect();
                     nodes.push(MarkdownNode::Bold(vec![MarkdownNode::Text(text)]));
+                    i = end + 2;
+                    continue;
+                }
+            } else if let ['_', '_'] = two {
+                // Underline (2 underscores) in Discord
+                let end = find_matching_delimiter(&chars, i, 2);
+                if end > i {
+                    let content = &chars[i + 2..end];
+                    let text: String = content.iter().collect();
+                    nodes.push(MarkdownNode::Underline(vec![MarkdownNode::Text(text)]));
                     i = end + 2;
                     continue;
                 }
@@ -331,7 +487,7 @@ fn parse_html(input: &str) -> Vec<MarkdownNode> {
                     if let Some(end) = find_html_end_tag(&chars, i, &tag) {
                         let content = chars[i + tag.len()..end].iter().collect::<String>();
                         nodes.push(MarkdownNode::Bold(vec![MarkdownNode::Text(content)]));
-                        i = end;
+                        i = end + 4; // Move past </b>
                         continue;
                     }
                 }
@@ -340,7 +496,7 @@ fn parse_html(input: &str) -> Vec<MarkdownNode> {
                     if let Some(end) = find_html_end_tag(&chars, i, &tag) {
                         let content = chars[i + tag.len()..end].iter().collect::<String>();
                         nodes.push(MarkdownNode::Italic(vec![MarkdownNode::Text(content)]));
-                        i = end;
+                        i = end + 4; // Move past </i>
                         continue;
                     }
                 }
@@ -349,7 +505,7 @@ fn parse_html(input: &str) -> Vec<MarkdownNode> {
                     if let Some(end) = find_html_end_tag(&chars, i, &tag) {
                         let content = chars[i + tag.len()..end].iter().collect::<String>();
                         nodes.push(MarkdownNode::Strikethrough(vec![MarkdownNode::Text(content)]));
-                        i = end;
+                        i = end + 4; // Move past </s>
                         continue;
                     }
                 }
@@ -700,6 +856,9 @@ pub fn render_markdown(nodes: &[MarkdownNode], format: &MarkdownFormat) -> Strin
             MarkdownNode::Italic(children) => {
                 output.push_str(&render_italic(children, format));
             }
+            MarkdownNode::Underline(children) => {
+                output.push_str(&render_underline(children, format));
+            }
             MarkdownNode::Strikethrough(children) => {
                 output.push_str(&render_strikethrough(children, format));
             }
@@ -751,13 +910,27 @@ fn render_italic(children: &[MarkdownNode], format: &MarkdownFormat) -> String {
     let content = render_markdown(children, format);
 
     match format {
-        MarkdownFormat::Discord => format!("_{}_", content),
+        MarkdownFormat::Discord => format!("*{}*", content), // Discord uses *...* for italic
         MarkdownFormat::Slack => format!("_{}_", content),
-        MarkdownFormat::Telegram => format!("_{}_", content),
+        MarkdownFormat::Telegram => format!("__{}__", content), // Telegram uses __...__ for italic
         MarkdownFormat::Html => format!("<i>{}</i>", content),
         MarkdownFormat::Plain => content,
         MarkdownFormat::Matrix => format!("_{}_", content),
         MarkdownFormat::Irc => format!("\x1D{}\x1D", content),
+    }
+}
+
+fn render_underline(children: &[MarkdownNode], format: &MarkdownFormat) -> String {
+    let content = render_markdown(children, format);
+
+    match format {
+        MarkdownFormat::Discord => format!("__{}__", content),
+        MarkdownFormat::Slack => format!("_{}_", content), // Slack uses single underscore
+        MarkdownFormat::Telegram => format!("__{}__", content), // Telegram uses __...__ for italic (no native underline)
+        MarkdownFormat::Html => format!("__{}__", content), // Keep underline syntax for HTML
+        MarkdownFormat::Plain => content,
+        MarkdownFormat::Matrix => format!("__{}__", content),
+        MarkdownFormat::Irc => format!("\x1F{}\x1F", content),
     }
 }
 
