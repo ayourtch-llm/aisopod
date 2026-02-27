@@ -96,7 +96,7 @@ impl NextcloudChannel {
     ///
     /// * `Ok(NextcloudChannel)` - The channel if configuration is valid
     /// * `Err(anyhow::Error)` - An error if the configuration is invalid
-    pub async fn new(config: NextcloudConfig, account_id: &str) -> Result<Self> {
+    pub fn new(config: NextcloudConfig, account_id: &str) -> Result<Self> {
         // Validate configuration
         if config.server_url.is_empty() {
             return Err(anyhow::anyhow!("Nextcloud server URL is required"));
@@ -456,7 +456,7 @@ mod tests {
     async fn test_config_validation() {
         // Test empty config fails
         let config = NextcloudConfig::default();
-        let result = NextcloudChannel::new(config, "test").await;
+        let result = NextcloudChannel::new(config, "test");
         assert!(result.is_err());
     }
 
@@ -470,7 +470,7 @@ mod tests {
             poll_interval_secs: 10,
         };
         
-        let result = NextcloudChannel::new(config, "test").await;
+        let result = NextcloudChannel::new(config, "test");
         assert!(result.is_err());
     }
 
@@ -484,7 +484,7 @@ mod tests {
             poll_interval_secs: 10,
         };
         
-        let result = NextcloudChannel::new(config, "test").await;
+        let result = NextcloudChannel::new(config, "test");
         assert!(result.is_err());
     }
 
@@ -498,7 +498,7 @@ mod tests {
             poll_interval_secs: 10,
         };
         
-        let result = NextcloudChannel::new(config, "test").await;
+        let result = NextcloudChannel::new(config, "test");
         assert!(result.is_err());
     }
 
@@ -513,7 +513,7 @@ mod tests {
         };
         
         // This should succeed (API validation happens at connect time)
-        let result = NextcloudChannel::new(config, "test").await;
+        let result = NextcloudChannel::new(config, "test");
         assert!(result.is_ok());
     }
 }

@@ -11,6 +11,8 @@ use tokio::sync::oneshot;
 use tokio_tungstenite::{accept_async, WebSocketStream};
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{info, warn};
+use futures_util::stream::StreamExt;
+use serde::{Serialize, Deserialize};
 
 /// State for the Nostr mock server
 #[derive(Clone, Default)]
@@ -37,7 +39,7 @@ impl MockNostrState {
 }
 
 /// A Nostr event
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NostrEvent {
     pub id: String,
     pub pubkey: String,
@@ -114,7 +116,8 @@ impl MockNostrServer {
             _shutdown_tx: Some(shutdown_tx),
         };
 
-        (server.addr, server)
+        let addr = server.addr.clone();
+        (addr, server)
     }
 
     /// Get all events stored by the relay
@@ -148,17 +151,20 @@ async fn handle_nostr_client(
         .await
         .expect("Failed to accept WebSocket");
 
-    let (mut ws_sender, ws_receiver) = ws_stream.split();
+    // Use futures_util::stream::StreamExt for split
+    use futures_util::stream::StreamExt;
+    let (ws_sender, ws_receiver) = ws_stream.split();
 
     // Spawn reader task
     let reader_state = state.clone();
     let reader_handle = tokio::spawn(async move {
-        let mut receiver = ws_receiver;
+        use futures_util::stream::StreamExt;
+        let mut receiver: futures_util::stream::SplitStream<WebSocketStream<tokio::net::TcpStream>> = ws_receiver;
 
         while let Some(msg) = receiver.next().await {
             match msg {
                 Ok(msg) => {
-                    if let Some(text) = msg.to_text() {
+                    if let Ok(text) = msg.to_text() {
                         handle_nostr_message(text, &reader_state).await;
                     }
                 }
@@ -173,6 +179,10 @@ async fn handle_nostr_client(
     // Spawn writer task to send periodic NOSTR messages
     let writer_state = state.clone();
     let writer_handle = tokio::spawn(async move {
+        use tokio_tungstenite::tungstenite::Message;
+        use futures_util::sink::SinkExt;
+        use futures_util::stream::StreamExt;
+        let mut ws_sender = ws_sender;
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
         loop {
             interval.tick().await;

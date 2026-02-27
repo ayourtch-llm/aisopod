@@ -6,6 +6,8 @@
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::ops::Deref;
+use tokio::io::AsyncBufReadExt;
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio_tungstenite::{accept_async, WebSocketStream};
@@ -112,7 +114,7 @@ impl MockTwitchServer {
                             Ok((socket, _addr)) => {
                                 info!("Twitch client connected from {}", _addr);
                                 let state = state_clone.clone();
-                                let socket = tokio::sync::Mutex::new(socket);
+                                // Pass the socket directly to the handler
                                 tokio::spawn(handle_twitch_client(socket, state));
                             }
                             Err(e) => {
@@ -136,24 +138,32 @@ impl MockTwitchServer {
             _shutdown_tx: Some(shutdown_tx),
         };
 
-        (server.addr, server)
+        let addr = server.addr.clone();
+        (addr, server)
     }
 }
 
 /// Handle a Twitch client connection
 async fn handle_twitch_client(
-    socket: tokio::sync::Mutex<tokio::net::TcpStream>,
+    mut socket: tokio::net::TcpStream,
     state: MockTwitchState,
 ) {
-    let socket = socket.lock().await;
-    let (reader, mut writer) = socket.into_split();
-
+    use tokio::io::{AsyncRead, AsyncWrite};
+    use tokio::io::AsyncWriteExt;
+    use tokio::net::TcpStream;
+    
+    // Split the stream into reader and writer halves
+    let (reader, mut writer) = tokio::io::split(socket);
+    
     // Spawn reader task
     let reader_state = state.clone();
     let reader_handle = tokio::spawn(async move {
-        let mut buf = Vec::new();
+        use tokio::io::{AsyncRead, AsyncReadExt};
+        use tokio::io::AsyncBufReadExt;
+        
         let mut reader = tokio::io::BufReader::new(reader);
-
+        
+        let mut buf = Vec::new();
         loop {
             buf.clear();
             match reader.read_until(b'\n', &mut buf).await {
@@ -173,6 +183,7 @@ async fn handle_twitch_client(
     // Spawn writer task to send periodic PINGs
     let writer_state = state.clone();
     let writer_handle = tokio::spawn(async move {
+        use tokio::io::AsyncWriteExt;
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
         loop {
             interval.tick().await;

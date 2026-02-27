@@ -106,7 +106,7 @@ impl MockMattermostServer {
         });
 
         let server = Self {
-            url: server_url,
+            url: server_url.clone(),
             state,
             _handle: handle,
             _shutdown_tx: Some(shutdown_tx),
@@ -199,7 +199,7 @@ async fn mock_create_post(
     }
 
     let post = MattermostPost {
-        channel_id,
+        channel_id: channel_id.clone(),
         message: payload.get("message").and_then(|m| m.as_str()).unwrap_or("").to_string(),
         root_id: None,
         parent_id: None,

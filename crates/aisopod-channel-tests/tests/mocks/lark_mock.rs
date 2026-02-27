@@ -112,7 +112,7 @@ impl MockLarkServer {
         });
 
         let server = Self {
-            url: server_url,
+            url: server_url.clone(),
             state,
             _handle: handle,
             _shutdown_tx: Some(shutdown_tx),

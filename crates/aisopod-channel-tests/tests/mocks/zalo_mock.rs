@@ -53,20 +53,20 @@ pub struct ZaloMessage {
 }
 
 /// Zalo recipient
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct ZaloRecipient {
     #[serde(rename = "user_id")]
     pub user_id: String,
 }
 
 /// Zalo message content
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct ZaloMessageContent {
     pub attachment: ZaloAttachment,
 }
 
 /// Zalo attachment
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct ZaloAttachment {
     #[serde(rename = "type")]
     pub type_field: String,
@@ -129,7 +129,7 @@ impl MockZaloServer {
         });
 
         let server = Self {
-            url: server_url,
+            url: server_url.clone(),
             state,
             _handle: handle,
             _shutdown_tx: Some(shutdown_tx),
@@ -221,13 +221,13 @@ async fn mock_send_batch(
     info!("Mock Zalo send batch endpoint called");
 
     // Extract messages
-    let messages_data = payload.get("messages").and_then(|v| v.as_array()).unwrap_or(&[]);
+    let messages_data: Vec<&serde_json::Value> = payload.get("messages").and_then(|v| v.as_array()).map_or(vec![], |v| v.iter().collect());
     
     // Count batch messages
     let mut batch_count = state.send_count.lock().unwrap();
     *batch_count += messages_data.len();
 
-    for msg in messages_data {
+    for msg in &messages_data {
         let recipient = msg.get("recipient").cloned().unwrap_or_else(|| {
             serde_json::json!({
                 "user_id": "test_user"

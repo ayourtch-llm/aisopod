@@ -115,7 +115,7 @@ impl MockLineServer {
         });
 
         let server = Self {
-            url: server_url,
+            url: server_url.clone(),
             state,
             _handle: handle,
             _shutdown_tx: Some(shutdown_tx),
@@ -155,10 +155,10 @@ async fn mock_push_message(
 
     // Extract message data
     let to = payload.get("to").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let messages = payload.get("messages").and_then(|v| v.as_array()).unwrap_or(&[]);
+    let messages: Vec<&serde_json::Value> = payload.get("messages").and_then(|v| v.as_array()).map_or(vec![], |v| v.iter().collect());
     
-    for msg in messages {
-        let message_type = msg.get("type").and_then(|v| v.as_str()).unwrap_or("text");
+    for msg in &messages {
+        let message_type = msg.get("type").and_then(|v| v.as_str()).unwrap_or("text").to_string();
         let text = msg.get("text").and_then(|v| v.as_str()).map(|s| s.to_string());
 
         let line_msg = LineMessage {
@@ -201,12 +201,12 @@ async fn mock_reply_message(
     }
 
     // Extract message data
-    let messages = payload.get("messages").and_then(|v| v.as_array()).unwrap_or(&[]);
+    let messages: Vec<&serde_json::Value> = payload.get("messages").and_then(|v| v.as_array()).map_or(vec![], |v| v.iter().collect());
     
     let to = payload.get("to").and_then(|v| v.as_str()).unwrap_or("").to_string();
     
-    for msg in messages {
-        let message_type = msg.get("type").and_then(|v| v.as_str()).unwrap_or("text");
+    for msg in &messages {
+        let message_type = msg.get("type").and_then(|v| v.as_str()).unwrap_or("text").to_string();
         let text = msg.get("text").and_then(|v| v.as_str()).map(|s| s.to_string());
 
         let line_msg = LineMessage {
@@ -236,18 +236,18 @@ async fn mock_multicast(
     info!("Mock LINE multicast endpoint called");
 
     // Extract message data
-    let to = payload.get("to").and_then(|v| v.as_array()).unwrap_or(&[]);
-    let messages = payload.get("messages").and_then(|v| v.as_array()).unwrap_or(&[]);
+    let to: Vec<&serde_json::Value> = payload.get("to").and_then(|v| v.as_array()).map_or(vec![], |v| v.iter().collect());
+    let messages: Vec<&serde_json::Value> = payload.get("messages").and_then(|v| v.as_array()).map_or(vec![], |v| v.iter().collect());
     
     // For multicast, we count the number of recipients
     let recipient_count = to.len();
     let mut push_count = state.push_count.lock().unwrap();
     *push_count += recipient_count;
 
-    for recipient in to {
+    for recipient in &to {
         let recipient_str = recipient.as_str().unwrap_or("").to_string();
-        for msg in messages.iter() {
-            let message_type = msg.get("type").and_then(|v| v.as_str()).unwrap_or("text");
+        for msg in &messages {
+            let message_type = msg.get("type").and_then(|v| v.as_str()).unwrap_or("text").to_string();
             let text = msg.get("text").and_then(|v| v.as_str()).map(|s| s.to_string());
 
             let line_msg = LineMessage {
@@ -277,7 +277,7 @@ async fn mock_broadcast(
     info!("Mock LINE broadcast endpoint called");
 
     // Extract message data
-    let messages = payload.get("messages").and_then(|v| v.as_array()).unwrap_or(&[]);
+    let messages: Vec<&serde_json::Value> = payload.get("messages").and_then(|v| v.as_array()).map_or(vec![], |v| v.iter().collect());
     
     // For broadcast, count as multiple push messages
     let mut push_count = state.push_count.lock().unwrap();
@@ -285,12 +285,12 @@ async fn mock_broadcast(
 
     // Broadcast doesn't have a specific recipient, so we use a dummy target
     let to = "broadcast_target".to_string();
-    for msg in messages {
-        let message_type = msg.get("type").and_then(|v| v.as_str()).unwrap_or("text");
+    for msg in &messages {
+        let message_type = msg.get("type").and_then(|v| v.as_str()).unwrap_or("text").to_string();
         let text = msg.get("text").and_then(|v| v.as_str()).map(|s| s.to_string());
 
         let line_msg = LineMessage {
-            to,
+            to: to.clone(),
             message_type: message_type.to_string(),
             text,
             original_content_url: None,

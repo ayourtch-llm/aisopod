@@ -21,6 +21,8 @@ aisopod-channel = { path = "../aisopod-channel" }
 tokio = { workspace = true, features = ["full"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+futures-util = "0.3"
+tokio-util = { version = "0.7", features = ["compat"] }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
@@ -39,3 +41,6 @@ wiremock = "0.6"
 tokio = { workspace = true, features = ["full"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 reqwest = { version = "0.12", features = ["json"] }
+hmac = "0.12"
+sha2 = "0.10"
+base64 = "0.21"

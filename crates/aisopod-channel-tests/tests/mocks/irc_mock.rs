@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tracing::{info, warn};
@@ -82,6 +82,7 @@ impl MockIrcServer {
 
         info!("Starting mock IRC server at {}", addr_str);
 
+        let addr_for_closure = addr_str.clone();
         let handle = tokio::spawn(async move {
             let mut shutdown_rx = Some(shutdown_rx);
 
@@ -109,18 +110,18 @@ impl MockIrcServer {
         });
 
         let server = Self {
-            addr: addr_str,
+            addr: addr_str.clone(),
             state,
             _handle: handle,
             _shutdown_tx: Some(shutdown_tx),
         };
 
-        (server.addr, server)
+        (addr_for_closure, server)
     }
 }
 
 /// Handle an IRC client connection
-async fn handle_irc_client<S: AsyncRead + AsyncWrite + Unpin>(mut socket: S, state: MockIrcState) {
+async fn handle_irc_client<S: AsyncRead + AsyncWrite + Unpin + 'static + Send>(mut socket: S, state: MockIrcState) {
     let (reader, mut writer) = tokio::io::split(socket);
 
     // Spawn reader task
@@ -148,6 +149,7 @@ async fn handle_irc_client<S: AsyncRead + AsyncWrite + Unpin>(mut socket: S, sta
     // Spawn writer task to send periodic PINGs
     let writer_state = state.clone();
     let writer_handle = tokio::spawn(async move {
+        use tokio::io::AsyncWriteExt;
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
         loop {
             interval.tick().await;
@@ -232,7 +234,8 @@ async fn handle_irc_command(command: &str, state: &MockIrcState) {
         "NICKSERV" => {
             // Handle NickServ authentication
             let rest = parts.get(1).unwrap_or(&"");
-            let _ = state.nickserv_auth_requests.lock().unwrap().push(1);
+            let mut guard = state.nickserv_auth_requests.lock().unwrap();
+            *guard += 1;
             info!("NickServ auth request: {}", rest);
         }
         _ => {

@@ -130,7 +130,9 @@ impl MockNextcloudServer {
 
         info!("Starting mock Nextcloud Talk server at {}", server_url);
 
+        let server_url_for_closure = server_url.clone();
         let handle = tokio::spawn(async move {
+            let _server_url = server_url_for_closure;
             let server = axum::serve(listener, app)
                 .with_graceful_shutdown(async move {
                     tokio::select! {
@@ -146,7 +148,7 @@ impl MockNextcloudServer {
         });
 
         let server = Self {
-            url: server_url,
+            url: server_url.clone(),
             state,
             _handle: handle,
             _shutdown_tx: Some(shutdown_tx),
@@ -249,10 +251,11 @@ async fn mock_get_messages(
 }
 
 /// Mock send message endpoint
+#[axum::debug_handler]
 async fn mock_send_message(
     axum::extract::Path(room_token): axum::extract::Path<String>,
-    Json(payload): Json<serde_json::Value>,
     State(state): State<MockNextcloudState>,
+    Json(payload): Json<serde_json::Value>,
 ) -> Json<serde_json::Value> {
     info!(
         "Mock Nextcloud send message endpoint called for room: {}",

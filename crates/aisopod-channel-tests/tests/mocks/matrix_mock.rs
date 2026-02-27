@@ -99,7 +99,7 @@ impl MockMatrixServer {
         });
 
         let server = Self {
-            url: server_url,
+            url: server_url.clone(),
             state,
             _handle: handle,
             _shutdown_tx: Some(shutdown_tx),
@@ -152,10 +152,11 @@ async fn mock_sync(
 }
 
 /// Mock send event endpoint
+#[axum::debug_handler]
 async fn mock_send_event(
-    Path((room_id, event_type, txn_id)): Path<(String, String, String)>,
-    Json(payload): Json<serde_json::Value>,
+    axum::extract::Path((room_id, event_type, txn_id)): axum::extract::Path<(String, String, String)>,
     State(state): State<MockMatrixState>,
+    Json(payload): Json<serde_json::Value>,
 ) -> Json<serde_json::Value> {
     info!(
         "Mock Matrix send event endpoint called: room={}, event_type={}, txn_id={}",
