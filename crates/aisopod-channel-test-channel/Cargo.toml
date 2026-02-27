@@ -1,0 +1,22 @@
+[package]
+name = "aisopod-channel-test-channel"
+version = "0.1.0"
+edition = "2021"
+description = "Test Channel channel for aisopod"
+
+[dependencies]
+aisopod-channel = { path = "../aisopod-channel" }
+aisopod-config = { path = "../aisopod-config" }
+aisopod-shared = { path = "../aisopod-shared" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }

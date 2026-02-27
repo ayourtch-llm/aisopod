@@ -1,0 +1,71 @@
+use async_trait::async_trait;
+use aisopod_channel::{ChannelPlugin, IncomingMessage, OutgoingMessage, ChannelMeta, ChannelCapabilities};
+use aisopod_channel::adapters::{ChannelConfigAdapter, SecurityAdapter};
+use crate::config::{{pascal_name}}Config;
+
+/// Channel implementation for {{display_name}}.
+pub struct {{pascal_name}}Channel {
+    /// Channel identifier
+    id: String,
+    /// Channel metadata
+    meta: ChannelMeta,
+    /// Channel capabilities
+    capabilities: ChannelCapabilities,
+    // TODO: Add channel-specific fields
+}
+
+impl Default for {{pascal_name}}Channel {
+    fn default() -> Self {
+        Self {
+            id: "{{name}}".to_string(),
+            meta: ChannelMeta {
+                label: "{{display_name}}".to_string(),
+                docs_url: Some("https://example.com/docs/{{name}}".to_string()),
+                ui_hints: serde_json::Value::Null,
+            },
+            capabilities: ChannelCapabilities::default(),
+            // TODO: Initialize fields
+        }
+    }
+}
+
+#[async_trait]
+impl ChannelPlugin for {{pascal_name}}Channel {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn meta(&self) -> &ChannelMeta {
+        &self.meta
+    }
+
+    fn capabilities(&self) -> &ChannelCapabilities {
+        &self.capabilities
+    }
+
+    fn config(&self) -> &dyn ChannelConfigAdapter {
+        unimplemented!("{{display_name}} channel config adapter not yet implemented")
+    }
+
+    fn security(&self) -> Option<&dyn SecurityAdapter> {
+        None
+    }
+
+    async fn connect(&mut self) -> Result<(), anyhow::Error> {
+        tracing::info!("{{display_name}} channel connecting...");
+        todo!("Implement connect for {{display_name}}")
+    }
+
+    async fn send(&self, _msg: OutgoingMessage) -> Result<(), anyhow::Error> {
+        todo!("Implement send for {{display_name}}")
+    }
+
+    async fn receive(&mut self) -> Result<IncomingMessage, anyhow::Error> {
+        todo!("Implement receive for {{display_name}}")
+    }
+
+    async fn disconnect(&mut self) -> Result<(), anyhow::Error> {
+        tracing::info!("{{display_name}} channel disconnecting...");
+        Ok(())
+    }
+}

@@ -1,0 +1,18 @@
+use serde::Deserialize;
+
+/// Configuration for the {{display_name}} channel.
+#[derive(Debug, Deserialize, Clone)]
+pub struct {{pascal_name}}Config {
+    // TODO: Add configuration fields specific to {{display_name}}
+    // Example:
+    // pub api_token: String,
+    // pub server_url: String,
+}
+
+impl Default for {{pascal_name}}Config {
+    fn default() -> Self {
+        Self {
+            // TODO: Set default values
+        }
+    }
+}
