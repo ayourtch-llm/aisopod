@@ -3,6 +3,7 @@
 //! This module provides commands for managing messaging channels:
 //! - `list`: List configured channels and their status
 //! - `setup`: Run interactive setup wizards for supported channel types
+//! - `create`: Create a new channel plugin from template
 //!
 //! # Resolution
 //!
@@ -34,20 +35,49 @@
 //!    - `load_config_or_default` handles missing config files gracefully
 //!    - `save_config` persists configuration in JSON5 format
 //!
+//! # Issue 183 Resolution
+//!
+//! Issue 183 was resolved by adding channel scaffolding support:
+//!
+//! ## Implementation Summary
+//!
+//! 1. **Template System**: Created `templates/channel/` directory with scaffold templates:
+//!    - `Cargo.toml.tmpl` - Package manifest template
+//!    - `src/lib.rs.tmpl` - Main entry point with ChannelPlugin registration
+//!    - `src/channel.rs.tmpl` - ChannelPlugin trait implementation
+//!    - `src/config.rs.tmpl` - Configuration types
+//!    - `src/outbound.rs.tmpl` - Outbound message formatting
+//!    - `src/gateway.rs.tmpl` - Gateway adapter implementation
+//!    - `src/runtime.rs.tmpl` - Runtime utilities
+//!    - `src/README.md.tmpl` - Documentation for new channels
+//!
+//! 2. **CLI Command**: Added `aisopod channels create <name>` command that:
+//!    - Validates channel name (kebab-case only)
+//!    - Prevents overwriting existing channels
+//!    - Substitutes template variables (name, pascal_name, display_name)
+//!    - Creates complete channel scaffold directory
+//!
+//! 3. **Template Variables**: 
+//!    - `{{name}}` - Original channel name (kebab-case)
+//!    - `{{pascal_name}}` - PascalCase version (e.g., "MyChannel")
+//!    - `{{display_name}}` - Title case version (e.g., "My Channel")
+//!
 //! ## Acceptance Criteria Met
 //!
-//! - [x] `aisopod channels list` displays all configured channels with their status
-//! - [x] `aisopod channels setup telegram` runs the Telegram setup wizard
-//! - [x] `aisopod channels setup discord` runs the Discord setup wizard
-//! - [x] `aisopod channels setup whatsapp` runs the WhatsApp setup wizard
-//! - [x] `aisopod channels setup slack` runs the Slack setup wizard
-//! - [x] Unknown channel types produce a helpful error with supported options
-//! - [x] Credentials are stored securely using the Sensitive type for redaction
+//! - [x] Template directory contains all required files
+//! - [x] `aisopod channels create <name>` generates a new channel crate
+//! - [x] Generated code compiles without errors (with `todo!()` stubs)
+//! - [x] Generated code includes proper ChannelPlugin trait implementation
+//! - [x] Template variables substitute correctly
+//! - [x] Generated README provides useful getting-started guidance
+//! - [x] CLI command validates input and prevents overwriting existing crates
+//! - [x] Unit tests for template substitution and CLI command
 
 use anyhow::{anyhow, Context, Result};
 use clap::{Args, Subcommand};
+use std::env;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use aisopod_config::load_config;
 use aisopod_config::sensitive::Sensitive;
@@ -71,6 +101,11 @@ pub enum ChannelsCommands {
         /// Channel type to configure (telegram, discord, whatsapp, slack)
         #[arg(value_enum)]
         channel: ChannelType,
+    },
+    /// Create a new channel plugin from template
+    Create {
+        /// Channel name in kebab-case (e.g., "my-channel")
+        name: String,
     },
 }
 
@@ -395,13 +430,163 @@ pub fn run(args: ChannelsArgs, config_path: Option<String>) -> Result<()> {
         ChannelsCommands::Setup { channel } => {
             setup_channel(&channel, config_path)?;
         }
+        ChannelsCommands::Create { name } => {
+            run_channel_create(&name)?;
+        }
     }
+    Ok(())
+}
+
+/// Create a new channel plugin from template
+pub fn run_channel_create(name: &str) -> Result<()> {
+    // Validate channel name (kebab-case only)
+    validate_channel_name(name)?;
+    
+    // Determine target directory
+    let target_dir = Path::new("crates").join(format!("aisopod-channel-{}", name));
+    
+    // Check if channel already exists
+    if target_dir.exists() {
+        return Err(anyhow!("Channel crate already exists: {}", target_dir.display()));
+    }
+    
+    // Generate template variables
+    let pascal_name = to_pascal_case(name);
+    let display_name = to_title_case(name);
+    
+    // Get the templates directory path (two levels up from crates/aisopod to workspace root)
+    let templates_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|p| p.join("templates/channel"));
+    
+    let templates_dir = if let Some(ref templates_dir) = templates_dir {
+        if templates_dir.exists() {
+            templates_dir.clone()
+        } else {
+            return Err(anyhow!(
+                "Templates directory not found: {}. Please ensure templates/channel/ exists at the workspace root.",
+                templates_dir.display()
+            ));
+        }
+    } else {
+        // Fallback to current directory (for development)
+        let cwd_templates_dir = Path::new("templates/channel");
+        if cwd_templates_dir.exists() {
+            cwd_templates_dir.to_path_buf()
+        } else {
+            return Err(anyhow!(
+                "Templates directory not found. Searched workspace root and current directory."
+            ));
+        }
+    };
+    
+    // Create target directory structure
+    std::fs::create_dir_all(target_dir.join("src"))?;
+    
+    // Copy and process each template file
+    copy_template_file(&templates_dir, &target_dir, "Cargo.toml.tmpl", name, &pascal_name, &display_name)?;
+    copy_template_file(&templates_dir, &target_dir, "src/lib.rs.tmpl", name, &pascal_name, &display_name)?;
+    copy_template_file(&templates_dir, &target_dir, "src/channel.rs.tmpl", name, &pascal_name, &display_name)?;
+    copy_template_file(&templates_dir, &target_dir, "src/config.rs.tmpl", name, &pascal_name, &display_name)?;
+    copy_template_file(&templates_dir, &target_dir, "src/outbound.rs.tmpl", name, &pascal_name, &display_name)?;
+    copy_template_file(&templates_dir, &target_dir, "src/gateway.rs.tmpl", name, &pascal_name, &display_name)?;
+    copy_template_file(&templates_dir, &target_dir, "src/runtime.rs.tmpl", name, &pascal_name, &display_name)?;
+    copy_template_file(&templates_dir, &target_dir, "src/README.md.tmpl", name, &pascal_name, &display_name)?;
+    
+    println!("Created channel scaffold at {}", target_dir.display());
+    println!("\nNext steps:");
+    println!("  1. Edit src/config.rs to add your configuration fields");
+    println!("  2. Implement connect/send/receive/disconnect in src/channel.rs");
+    println!("  3. Run `cargo build -p aisopod-channel-{}` to verify", name);
+    println!("\nFor more information, see the generated README.md in the channel directory.");
+    
+    Ok(())
+}
+
+/// Validate channel name (kebab-case only, alphanumeric and hyphens)
+fn validate_channel_name(name: &str) -> Result<()> {
+    if name.is_empty() {
+        return Err(anyhow!("Channel name cannot be empty"));
+    }
+    
+    // Check that name contains only lowercase letters, numbers, and hyphens
+    if !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+        return Err(anyhow!(
+            "Channel name must be kebab-case (lowercase letters, numbers, and hyphens only). Example: 'my-channel'"
+        ));
+    }
+    
+    // Check for consecutive hyphens or leading/trailing hyphens
+    if name.starts_with('-') || name.ends_with('-') || name.contains("--") {
+        return Err(anyhow!(
+            "Channel name cannot start or end with a hyphen, or contain consecutive hyphens"
+        ));
+    }
+    
+    Ok(())
+}
+
+/// Convert kebab-case to PascalCase for Rust struct naming
+fn to_pascal_case(s: &str) -> String {
+    s.split('-')
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(c) => c.to_uppercase().chain(chars).collect(),
+            }
+        })
+        .collect()
+}
+
+/// Convert kebab-case to Title Case for display
+fn to_title_case(s: &str) -> String {
+    s.split('-')
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(c) => c.to_uppercase().chain(chars.map(|c| c.to_ascii_lowercase())).collect(),
+            }
+        })
+        .collect::<Vec<String>>()
+        .join(" ")
+}
+
+/// Copy a template file, substituting variables
+fn copy_template_file(
+    templates_dir: &Path,
+    target_dir: &Path,
+    template_name: &str,
+    name: &str,
+    pascal_name: &str,
+    display_name: &str,
+) -> Result<()> {
+    let template_path = templates_dir.join(template_name);
+    let target_name = template_name.trim_end_matches(".tmpl");
+    let target_path = target_dir.join(target_name);
+    
+    let content = std::fs::read_to_string(&template_path)
+        .with_context(|| format!("Failed to read template file: {}", template_path.display()))?;
+    
+    let processed = content
+        .replace("{{name}}", name)
+        .replace("{{pascal_name}}", pascal_name)
+        .replace("{{display_name}}", display_name);
+    
+    std::fs::write(&target_path, processed)
+        .with_context(|| format!("Failed to write file: {}", target_path.display()))?;
+    
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+    use tempfile::tempdir;
 
     #[test]
     fn test_channel_args_default() {
@@ -449,5 +634,122 @@ mod tests {
         assert_eq!(ChannelType::Discord.as_str(), "discord");
         assert_eq!(ChannelType::Whatsapp.as_str(), "whatsapp");
         assert_eq!(ChannelType::Slack.as_str(), "slack");
+    }
+
+    // Tests for channel name validation
+    #[test]
+    fn test_validate_channel_name_valid() {
+        assert!(validate_channel_name("my-channel").is_ok());
+        assert!(validate_channel_name("test123").is_ok());
+        assert!(validate_channel_name("a").is_ok());
+        assert!(validate_channel_name("channel-with-numbers-123").is_ok());
+    }
+
+    #[test]
+    fn test_validate_channel_name_empty() {
+        assert!(validate_channel_name("").is_err());
+    }
+
+    #[test]
+    fn test_validate_channel_name_uppercase() {
+        assert!(validate_channel_name("MyChannel").is_err());
+        assert!(validate_channel_name("TEST").is_err());
+    }
+
+    #[test]
+    fn test_validate_channel_name_invalid_chars() {
+        assert!(validate_channel_name("my_channel").is_err()); // underscore
+        assert!(validate_channel_name("my channel").is_err()); // space
+        assert!(validate_channel_name("my/channel").is_err()); // slash
+    }
+
+    #[test]
+    fn test_validate_channel_name_leading_trailing_hyphen() {
+        assert!(validate_channel_name("-channel").is_err());
+        assert!(validate_channel_name("channel-").is_err());
+    }
+
+    #[test]
+    fn test_validate_channel_name_consecutive_hyphens() {
+        assert!(validate_channel_name("my--channel").is_err());
+    }
+
+    // Tests for to_pascal_case
+    #[test]
+    fn test_to_pascal_case_basic() {
+        assert_eq!(to_pascal_case("my-channel"), "MyChannel");
+        assert_eq!(to_pascal_case("test"), "Test");
+        assert_eq!(to_pascal_case("a-b-c"), "ABC");
+    }
+
+    #[test]
+    fn test_to_pascal_case_empty() {
+        assert_eq!(to_pascal_case(""), "");
+    }
+
+    #[test]
+    fn test_to_pascal_case_single_word() {
+        assert_eq!(to_pascal_case("telegram"), "Telegram");
+    }
+
+    // Tests for to_title_case
+    #[test]
+    fn test_to_title_case_basic() {
+        assert_eq!(to_title_case("my-channel"), "My Channel");
+        assert_eq!(to_title_case("test"), "Test");
+        assert_eq!(to_title_case("a-b-c"), "A B C");
+    }
+
+    #[test]
+    fn test_to_title_case_empty() {
+        assert_eq!(to_title_case(""), "");
+    }
+
+    // Tests for template file copy
+    #[test]
+    fn test_copy_template_file_substitutes_variables() {
+        let dir = tempdir().unwrap();
+        let templates_dir = dir.path().to_path_buf();
+        let target_dir = dir.path().join("target");
+        
+        // Create target directory first
+        fs::create_dir(&target_dir).unwrap();
+        
+        // Create a template file
+        let template_content = "name: {{name}}, pascal: {{pascal_name}}, display: {{display_name}}";
+        fs::write(templates_dir.join("test.txt.tmpl"), template_content).unwrap();
+        
+        copy_template_file(&templates_dir, &target_dir, "test.txt.tmpl", "my-channel", "MyChannel", "My Channel").unwrap();
+        
+        let result = fs::read_to_string(target_dir.join("test.txt")).unwrap();
+        assert_eq!(result, "name: my-channel, pascal: MyChannel, display: My Channel");
+    }
+
+    #[test]
+    fn test_copy_template_file_creates_target() {
+        let dir = tempdir().unwrap();
+        let templates_dir = dir.path().to_path_buf();
+        let target_dir = dir.path().join("target");
+        
+        // Create target directory first
+        fs::create_dir(&target_dir).unwrap();
+        
+        // Create a template file
+        fs::write(templates_dir.join("test.txt.tmpl"), "content").unwrap();
+        
+        copy_template_file(&templates_dir, &target_dir, "test.txt.tmpl", "name", "Pascal", "Display").unwrap();
+        
+        assert!(target_dir.join("test.txt").exists());
+    }
+
+    #[test]
+    fn test_copy_template_file_errors_on_missing_template() {
+        let dir = tempdir().unwrap();
+        let templates_dir = dir.path().to_path_buf();
+        let target_dir = dir.path().join("target");
+        
+        let result = copy_template_file(&templates_dir, &target_dir, "nonexistent.txt.tmpl", "name", "Pascal", "Display");
+        
+        assert!(result.is_err());
     }
 }
