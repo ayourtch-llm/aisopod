@@ -10,6 +10,7 @@ members = [
     "crates/aisopod-memory",
     "crates/aisopod-agent",
     "crates/aisopod-channel",
+    "crates/aisopod-channel-utils",
     "crates/aisopod-gateway",
     "crates/aisopod",
     "crates/aisopod-channel-telegram",
@@ -29,6 +30,9 @@ members = [
     "crates/aisopod-channel-line",
     "crates/aisopod-channel-lark",
     "crates/aisopod-channel-zalo",
+    "crates/aisopod-channel-test-channel",
+    "crates/aisopod-channel-tests",
+
     "crates/aisopod-client",
 ]
 

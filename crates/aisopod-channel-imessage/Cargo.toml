@@ -23,6 +23,8 @@ regex = "1"
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+axum = { version = "0.7", features = ["json", "macros"] }
+http = "1.1"
 
 [features]
 default = []

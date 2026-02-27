@@ -25,3 +25,5 @@ urlencoding = "2.1"
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
 mockall = "0.13"
+axum = { version = "0.7", features = ["json", "macros"] }
+http = "1.1"

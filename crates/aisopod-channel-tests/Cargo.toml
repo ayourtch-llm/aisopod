@@ -8,6 +8,15 @@ aisopod-channel-signal = { path = "../aisopod-channel-signal" }
 aisopod-channel-imessage = { path = "../aisopod-channel-imessage" }
 aisopod-channel-googlechat = { path = "../aisopod-channel-googlechat" }
 aisopod-channel-msteams = { path = "../aisopod-channel-msteams" }
+aisopod-channel-matrix = { path = "../aisopod-channel-matrix" }
+aisopod-channel-irc = { path = "../aisopod-channel-irc" }
+aisopod-channel-mattermost = { path = "../aisopod-channel-mattermost" }
+aisopod-channel-nextcloud = { path = "../aisopod-channel-nextcloud" }
+aisopod-channel-twitch = { path = "../aisopod-channel-twitch" }
+aisopod-channel-nostr = { path = "../aisopod-channel-nostr" }
+aisopod-channel-line = { path = "../aisopod-channel-line" }
+aisopod-channel-lark = { path = "../aisopod-channel-lark" }
+aisopod-channel-zalo = { path = "../aisopod-channel-zalo" }
 aisopod-channel = { path = "../aisopod-channel" }
 tokio = { workspace = true, features = ["full"] }
 serde = { workspace = true, features = ["derive"] }
@@ -16,13 +25,17 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 async-trait = { workspace = true }
-axum = { version = "0.7", features = ["json", "macros"] }
+axum = { version = "0.7", features = ["json", "macros", "query"] }
 http = "1.1"
 tempfile = "3"
 url = "2"
 uuid = { version = "1", features = ["v4", "serde", "std"] }
 chrono = { workspace = true }
+tokio-tungstenite = "0.24"
+tokio-stream = "0.1"
+wiremock = "0.6"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+reqwest = { version = "0.12", features = ["json"] }

@@ -210,8 +210,10 @@ dependencies = [
  "aisopod-shared",
  "anyhow",
  "async-trait",
+ "axum",
  "base64 0.21.7",
  "chrono",
+ "http 1.4.0",
  "regex",
  "reqwest 0.12.28",
  "serde 1.0.228",
@@ -476,6 +478,62 @@ dependencies = [
 ]
 
 [[package]]
+name = "aisopod-channel-test-channel"
+version = "0.1.0"
+dependencies = [
+ "aisopod-channel",
+ "aisopod-config",
+ "aisopod-shared",
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "serde 1.0.228",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.49.0",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "aisopod-channel-tests"
+version = "0.1.0"
+dependencies = [
+ "aisopod-channel",
+ "aisopod-channel-googlechat",
+ "aisopod-channel-imessage",
+ "aisopod-channel-irc",
+ "aisopod-channel-lark",
+ "aisopod-channel-line",
+ "aisopod-channel-matrix",
+ "aisopod-channel-mattermost",
+ "aisopod-channel-msteams",
+ "aisopod-channel-nextcloud",
+ "aisopod-channel-nostr",
+ "aisopod-channel-signal",
+ "aisopod-channel-twitch",
+ "aisopod-channel-zalo",
+ "anyhow",
+ "async-trait",
+ "axum",
+ "chrono",
+ "http 1.4.0",
+ "reqwest 0.12.28",
+ "serde 1.0.228",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio 1.49.0",
+ "tokio-stream",
+ "tokio-tungstenite 0.24.0",
+ "tracing",
+ "tracing-subscriber",
+ "url 2.5.8",
+ "uuid",
+ "wiremock",
+]
+
+[[package]]
 name = "aisopod-channel-twitch"
 version = "0.1.0"
 dependencies = [
@@ -494,6 +552,26 @@ dependencies = [
  "tracing",
  "url 2.5.8",
  "wiremock",
+]
+
+[[package]]
+name = "aisopod-channel-utils"
+version = "0.1.0"
+dependencies = [
+ "aisopod-channel",
+ "aisopod-shared",
+ "anyhow",
+ "async-trait",
+ "futures",
+ "image",
+ "markdown",
+ "regex",
+ "reqwest 0.12.28",
+ "thiserror 2.0.18",
+ "tokio 1.49.0",
+ "tokio-util 0.7.18",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -5707,6 +5785,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
 
 [[package]]
+name = "markdown"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5cab8f2cadc416a82d2e783a1946388b31654d391d1c7d92cc1f03e295b1deb"
+dependencies = [
+ "unicode-id",
+]
+
+[[package]]
 name = "matchers"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9239,6 +9326,7 @@ checksum = "9ae9cec805b01e8fc3fd2fe289f89149a9b66dd16786abd8b19cfa7b48cb0098"
 dependencies = [
  "bytes 1.11.1",
  "futures-core",
+ "futures-io",
  "futures-sink",
  "pin-project-lite 0.2.16",
  "tokio 1.49.0",
@@ -9651,6 +9739,12 @@ name = "unicode-bidi"
 version = "0.3.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c1cb5db39152898a79168971543b1cb5020dff7fe43c8dc468b0885f5e29df5"
+
+[[package]]
+name = "unicode-id"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70ba288e709927c043cbe476718d37be306be53fb1fafecd0dbe36d072be2580"
 
 [[package]]
 name = "unicode-ident"

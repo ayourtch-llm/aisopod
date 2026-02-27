@@ -27,3 +27,5 @@ uuid = { version = "1", features = ["v4", "serde", "std"] }
 tokio = { workspace = true, features = ["full"] }
 mockall = "0.13"
 axum-test = "14"
+axum = { version = "0.7", features = ["json", "macros"] }
+http = "1.1"
