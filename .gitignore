@@ -13,3 +13,4 @@ Cargo.lock
 
 # apchat large outputs
 .apchat-large-outputs/
+docs/book/build
