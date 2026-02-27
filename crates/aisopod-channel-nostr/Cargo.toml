@@ -1,0 +1,30 @@
+[package]
+name = "aisopod-channel-nostr"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+aisopod-channel = { path = "../aisopod-channel" }
+aisopod-shared = { path = "../aisopod-shared" }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+base64 = "0.21"
+chrono = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = "0.10"
+tokio = { workspace = true, features = ["full"] }
+tokio-tungstenite = { version = "0.23", features = ["native-tls"] }
+tokio-rustls = { version = "0.25", default-features = false, features = ["tls12"] }
+secp256k1 = { version = "0.28", features = ["std", "rand"] }
+hex = "0.4"
+bech32 = "0.8"
+aes = "0.8"
+cipher = "0.4"
+tracing = { workspace = true }
+rand = "0.8"
+thiserror = "1.0"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
