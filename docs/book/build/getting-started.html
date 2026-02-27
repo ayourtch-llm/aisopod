@@ -180,6 +180,158 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
+<p>Welcome to Aisopod! This guide will help you install Aisopod, complete the onboarding wizard, and send your first message within 10 minutes.</p>
+<h2 id="system-requirements"><a class="header" href="#system-requirements">System Requirements</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Component</th><th>Minimum</th><th>Recommended</th></tr></thead><tbody>
+<tr><td>OS</td><td>Linux, macOS, Windows (WSL2)</td><td>Linux or macOS</td></tr>
+<tr><td>Rust toolchain</td><td>1.75+</td><td>latest stable</td></tr>
+<tr><td>Memory</td><td>512 MB</td><td>2 GB</td></tr>
+<tr><td>Disk</td><td>100 MB</td><td>500 MB</td></tr>
+<tr><td>Network</td><td>Required for LLM API calls</td><td>Broadband</td></tr>
+</tbody></table>
+</div>
+<p>You will also need an API key from at least one supported LLM provider
+(OpenAI, Anthropic, etc.).</p>
+<h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<p>Aisopod can be installed in several ways depending on your platform and preference.</p>
+<h3 id="pre-built-binary-recommended"><a class="header" href="#pre-built-binary-recommended">Pre-built Binary (Recommended)</a></h3>
+<p>Download the latest release for your platform:</p>
+<pre><code class="language-bash">curl -fsSL https://aisopod.dev/install.sh | sh
+</code></pre>
+<h3 id="homebrew-macos--linux"><a class="header" href="#homebrew-macos--linux">Homebrew (macOS / Linux)</a></h3>
+<pre><code class="language-bash">brew install aisopod/tap/aisopod
+</code></pre>
+<h3 id="cargo-install-from-source"><a class="header" href="#cargo-install-from-source">Cargo Install (from source)</a></h3>
+<pre><code class="language-bash">cargo install aisopod
+</code></pre>
+<h3 id="docker"><a class="header" href="#docker">Docker</a></h3>
+<pre><code class="language-bash">docker run -it --rm -v ~/.config/aisopod:/config ghcr.io/aisopod/aisopod:latest
+</code></pre>
+<h3 id="verify-installation"><a class="header" href="#verify-installation">Verify Installation</a></h3>
+<p>After installation, verify that Aisopod is correctly installed:</p>
+<pre><code class="language-bash">aisopod --version
+</code></pre>
+<p>You should see output like:</p>
+<pre><code>aisopod 0.1.0
+</code></pre>
+<h2 id="first-run"><a class="header" href="#first-run">First Run</a></h2>
+<p>Run the onboarding wizard to set up your first configuration:</p>
+<pre><code class="language-bash">aisopod onboarding
+</code></pre>
+<p>The wizard will guide you through:</p>
+<ol>
+<li><strong>Choose your default LLM provider</strong>: Select from supported providers like OpenAI, Anthropic, or Ollama</li>
+<li><strong>Enter your API key</strong>: Securely stored in your OS keychain</li>
+<li><strong>Configure your default model</strong>: Set the model to use for conversations (e.g., <code>gpt-4</code>)</li>
+<li><strong>Set up a channel (optional)</strong>: Connect a messaging platform like Telegram, Discord, or Slack</li>
+</ol>
+<p>Your configuration is saved to <code>~/.config/aisopod/config.toml</code>.</p>
+<h3 id="manual-configuration"><a class="header" href="#manual-configuration">Manual Configuration</a></h3>
+<p>If you prefer to configure manually, create <code>~/.config/aisopod/config.toml</code> with:</p>
+<pre><code class="language-toml">[agents.default]
+model = "gpt-4"
+
+[providers.openai]
+api_key = "your-api-key-here"
+
+[gateway.bind]
+address = "127.0.0.1"
+
+[gateway.server]
+port = 3000
+</code></pre>
+<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<h3 id="send-a-message-via-cli"><a class="header" href="#send-a-message-via-cli">Send a Message via CLI</a></h3>
+<p>Send a message directly from the terminal:</p>
+<pre><code class="language-bash">aisopod onboarding
+</code></pre>
+<p>Then start the gateway in one terminal:</p>
+<pre><code class="language-bash">aisopod gateway
+</code></pre>
+<p>And send a message in another terminal:</p>
+<pre><code class="language-bash">aisopod message "Hello, what can you do?"
+</code></pre>
+<h3 id="rest-api-via-gateway"><a class="header" href="#rest-api-via-gateway">REST API via Gateway</a></h3>
+<p>Start the gateway server:</p>
+<pre><code class="language-bash">aisopod gateway
+</code></pre>
+<p>The gateway will start on <code>http://127.0.0.1:3000</code>.</p>
+<h4 id="using-curl"><a class="header" href="#using-curl">Using cURL</a></h4>
+<pre><code class="language-bash">curl http://localhost:3000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"messages": [{"role": "user", "content": "Hello!"}]}'
+</code></pre>
+<h4 id="using-javascript"><a class="header" href="#using-javascript">Using JavaScript</a></h4>
+<pre><code class="language-javascript">const response = await fetch('http://localhost:3000/v1/chat/completions', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    messages: [{ role: 'user', content: 'Hello!' }]
+  })
+});
+const data = await response.json();
+console.log(data.choices[0].message.content);
+</code></pre>
+<h2 id="architecture-overview"><a class="header" href="#architecture-overview">Architecture Overview</a></h2>
+<p>Aisopod is organized around three core concepts:</p>
+<ul>
+<li><strong>Gateway</strong>: The HTTP/WebSocket server that receives messages and routes them to agents.</li>
+<li><strong>Agent</strong>: An LLM-backed conversational entity with a system prompt, model selection, and bound skills.</li>
+<li><strong>Channel</strong>: An integration with an external messaging platform (Telegram, Discord, Slack, etc.).</li>
+</ul>
+<pre><code>Channel → Gateway → Agent → LLM Provider
+             ↕
+          Skills / Tools
+</code></pre>
+<h3 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h3>
+<ol>
+<li>A message arrives via a <strong>Channel</strong> (e.g., Telegram, Discord)</li>
+<li>The <strong>Gateway</strong> receives and authenticates the request</li>
+<li>The message is routed to the appropriate <strong>Agent</strong></li>
+<li>The <strong>Agent</strong> processes the message using the configured LLM provider</li>
+<li>The response flows back through the gateway to the channel</li>
+</ol>
+<h3 id="gateway"><a class="header" href="#gateway">Gateway</a></h3>
+<p>The gateway provides:</p>
+<ul>
+<li>HTTP REST API for programmatic access</li>
+<li>WebSocket support for real-time streaming</li>
+<li>Authentication and authorization</li>
+<li>Rate limiting and security middleware</li>
+</ul>
+<h3 id="agent"><a class="header" href="#agent">Agent</a></h3>
+<p>Each agent includes:</p>
+<ul>
+<li>A system prompt defining behavior</li>
+<li>Model selection (different models for different tasks)</li>
+<li>Skills and tools for enhanced capabilities</li>
+<li>Session management for conversation history</li>
+</ul>
+<h3 id="channel"><a class="header" href="#channel">Channel</a></h3>
+<p>Supported channels include:</p>
+<ul>
+<li>Telegram</li>
+<li>Discord</li>
+<li>Slack</li>
+<li>WhatsApp</li>
+<li>Matrix</li>
+<li>IRC</li>
+<li>And more...</li>
+</ul>
+<h2 id="whats-next"><a class="header" href="#whats-next">What's Next?</a></h2>
+<ul>
+<li><a href="./configuration.html">Configuration</a>: Learn about configuration options</li>
+<li><a href="./agents-channels-skills.html">Agents, Channels &amp; Skills</a>: Understand the core concepts</li>
+<li><a href="./developer-guide.html">Developer Guide</a>: Dive into the architecture</li>
+<li><a href="./cli-reference.html">CLI Reference</a>: Explore all available commands</li>
+</ul>
+<h2 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h2>
+<p>If you encounter issues:</p>
+<ol>
+<li>Check the <a href="./troubleshooting.html">Troubleshooting</a> guide</li>
+<li>Run <code>aisopod doctor</code> for system diagnostics</li>
+<li>Visit the <a href="https://github.com/aisopod/aisopod/discussions">GitHub Discussions</a></li>
+</ol>
 
                     </main>
 
