@@ -26,6 +26,7 @@ members = [
     "crates/aisopod-channel-nextcloud",
     "crates/aisopod-channel-twitch",
     "crates/aisopod-channel-nostr",
+    "crates/aisopod-channel-line",
     "crates/aisopod-client",
 ]
 

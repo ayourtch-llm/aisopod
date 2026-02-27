@@ -241,6 +241,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "aisopod-channel-line"
+version = "0.1.0"
+dependencies = [
+ "aisopod-channel",
+ "aisopod-config",
+ "aisopod-shared",
+ "anyhow",
+ "async-trait",
+ "base64 0.21.7",
+ "chrono",
+ "futures-core",
+ "futures-util",
+ "hmac",
+ "reqwest 0.12.28",
+ "serde 1.0.228",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.18",
+ "tokio 1.49.0",
+ "tracing",
+ "tracing-subscriber",
+ "url 2.5.8",
+]
+
+[[package]]
 name = "aisopod-channel-matrix"
 version = "0.1.0"
 dependencies = [
