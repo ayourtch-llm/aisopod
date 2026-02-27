@@ -411,36 +411,75 @@ fn parse_slack_markdown(input: &str) -> Vec<MarkdownNode> {
             }
         }
 
-        // Parse Slack formatting: *bold*, _italic_, ~strike~
+        // Parse Slack formatting: **bold**, __italic__, ~~strike~~, *italic*, _italic_, ~strike~
+        // First check for 2-character delimiters (priority), then single-character
         if i + 1 < chars.len() {
-            match chars[i..i + 2] {
-                ['*', '*'] => {
-                    let end = find_matching_slack_delimiter(&chars, i, 2);
+            // Check for 2-character delimiters first
+            if i + 2 < chars.len() {
+                match chars[i..i + 2] {
+                    ['*', '*'] => {
+                        let end = find_matching_slack_delimiter(&chars, i, 2);
+                        if end > i {
+                            let content = &chars[i + 2..end];
+                            let text: String = content.iter().collect();
+                            nodes.push(MarkdownNode::Bold(vec![MarkdownNode::Text(text)]));
+                            i = end + 2;
+                            continue;
+                        }
+                    }
+                    ['_', '_'] => {
+                        let end = find_matching_slack_delimiter(&chars, i, 2);
+                        if end > i {
+                            let content = &chars[i + 2..end];
+                            let text: String = content.iter().collect();
+                            nodes.push(MarkdownNode::Italic(vec![MarkdownNode::Text(text)]));
+                            i = end + 2;
+                            continue;
+                        }
+                    }
+                    ['~', '~'] => {
+                        let end = find_matching_slack_delimiter(&chars, i, 2);
+                        if end > i {
+                            let content = &chars[i + 2..end];
+                            let text: String = content.iter().collect();
+                            nodes.push(MarkdownNode::Strikethrough(vec![MarkdownNode::Text(text)]));
+                            i = end + 2;
+                            continue;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            
+            // Check for single-character delimiters (only if 2-char didn't match)
+            match chars[i] {
+                '*' => {
+                    let end = find_matching_slack_delimiter(&chars, i, 1);
                     if end > i {
-                        let content = &chars[i + 2..end];
+                        let content = &chars[i + 1..end];
                         let text: String = content.iter().collect();
                         nodes.push(MarkdownNode::Bold(vec![MarkdownNode::Text(text)]));
-                        i = end + 2;
+                        i = end + 1;
                         continue;
                     }
                 }
-                ['_', '_'] => {
-                    let end = find_matching_slack_delimiter(&chars, i, 2);
+                '_' => {
+                    let end = find_matching_slack_delimiter(&chars, i, 1);
                     if end > i {
-                        let content = &chars[i + 2..end];
+                        let content = &chars[i + 1..end];
                         let text: String = content.iter().collect();
                         nodes.push(MarkdownNode::Italic(vec![MarkdownNode::Text(text)]));
-                        i = end + 2;
+                        i = end + 1;
                         continue;
                     }
                 }
-                ['~', '~'] => {
-                    let end = find_matching_slack_delimiter(&chars, i, 2);
+                '~' => {
+                    let end = find_matching_slack_delimiter(&chars, i, 1);
                     if end > i {
-                        let content = &chars[i + 2..end];
+                        let content = &chars[i + 1..end];
                         let text: String = content.iter().collect();
                         nodes.push(MarkdownNode::Strikethrough(vec![MarkdownNode::Text(text)]));
-                        i = end + 2;
+                        i = end + 1;
                         continue;
                     }
                 }
