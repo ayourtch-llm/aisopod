@@ -266,5 +266,49 @@ Developer documentation is critical for open-source sustainability. Without it, 
 - [ ] A new developer can create a basic plugin or channel by following the guide
 - [ ] `mdbook build` succeeds with this page included
 
----
-*Created: 2026-02-15*
+## Resolution
+
+Implementation completed on 2026-02-27:
+
+### What Was Implemented
+Created comprehensive developer guide for Aisopod:
+
+**1. Architecture Overview:**
+- Documented crate dependency graph showing all main crates
+- Explained module organization within each crate
+- Provided directory structure for new crates
+
+**2. Key Design Patterns:**
+- Explained trait-based abstraction (Channel, Skill, ModelProvider, StorageBackend traits)
+- Documented async-first approach with tokio runtime
+- Explained streaming via tokio::sync::mpsc channels
+- Documented error handling with thiserror
+
+**3. Contributing Guide:**
+- Provided development environment setup instructions
+- Documented build and test commands for workspace
+- Explained code style guidelines (rustfmt, doc comments, thiserror, tracing)
+- Documented pull request process (fork, feature branch, tests, clippy, PR description)
+
+**4. Plugin Development Tutorial:**
+- Provided complete `Skill` trait implementation example
+- Explained plugin manifest format (plugin.toml)
+- Documented plugin registration in config
+
+**5. Channel Development Tutorial:**
+- Provided complete `Channel` trait implementation example
+- Explained channel adapter pattern
+- Documented the responsibilities of channel implementations
+
+**6. Documentation Linking:**
+- Updated SUMMARY.md with developer-guide.md link
+
+### Files Created/Modified
+- docs/book/src/developer-guide.md
+
+### Test Results
+- mdbook build docs/book: PASSED
+- cargo build: PASSED
+
+### Resolution Date
+2026-02-27

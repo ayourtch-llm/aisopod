@@ -150,5 +150,50 @@ The CLI is the primary interface for operators and developers. A complete refere
 - [ ] Reference matches actual `--help` output for all commands
 - [ ] `mdbook build` succeeds with this page included
 
----
-*Created: 2026-02-15*
+## Resolution
+
+Implementation completed on 2026-02-27:
+
+### What Was Implemented
+Created complete CLI command reference documentation:
+
+**1. Top-level Command Overview:**
+- Documented main command structure with options
+- Listed all global options (config path, verbosity, quiet mode, version, help)
+
+**2. Command Documentation Template:**
+- Used consistent template for all commands
+- Included description, usage syntax, all flags/options with defaults
+- Provided practical examples for each command
+
+**3. Commands Documented:**
+- `aisopod init` — Onboarding wizard
+- `aisopod gateway` — Gateway server management (start, stop, status)
+- `aisopod chat` — One-shot messaging
+- `aisopod agent` — Agent management (list, create, delete, show)
+- `aisopod channel` — Channel management (list, add, remove, test)
+- `aisopod config` — Configuration viewing/editing (show, edit, validate)
+- `aisopod doctor` — Diagnostic tool
+- `aisopod migrate` — OpenClaw migration utility
+- `aisopod completion` — Shell completion generation
+
+**4. Environment Variable Integration:**
+- Noted where environment variables override CLI flags
+- Documented the precedence order (CLI > env var > config file)
+
+**5. Shell Completion Setup:**
+- Provided setup instructions for Bash, Zsh, Fish, and PowerShell
+- Included specific commands and file paths for each shell
+
+**6. Documentation Linking:**
+- Updated SUMMARY.md with cli-reference.md link
+
+### Files Created/Modified
+- docs/book/src/cli-reference.md
+
+### Test Results
+- mdbook build docs/book: PASSED
+- cargo build: PASSED
+
+### Resolution Date
+2026-02-27

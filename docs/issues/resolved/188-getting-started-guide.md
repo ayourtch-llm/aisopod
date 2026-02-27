@@ -141,5 +141,46 @@ The getting-started guide is the entry point for every new user. A clear, fast o
 - [ ] A new user can follow the guide and have Aisopod running in under 10 minutes
 - [ ] `mdbook build` succeeds with this page included
 
----
-*Created: 2026-02-15*
+## Resolution
+
+Implementation completed on 2026-02-27:
+
+### What Was Implemented
+Created comprehensive getting-started guide for Aisopod:
+
+**1. System Requirements Documentation:**
+- Documented minimum and recommended specifications for all platforms
+- Created system requirements table with OS, memory, disk, and network requirements
+
+**2. Installation Methods:**
+- Documented all four installation methods (pre-built binary, Homebrew, Cargo, Docker)
+- Provided working commands for each installation approach
+- Included verification steps
+
+**3. First-Run Onboarding Wizard:**
+- Documented `aisopod init` command flow
+- Explained each step of the onboarding process
+- Configured API key storage in OS keychain
+
+**4. Quick Start Guide:**
+- Added direct messaging examples (`aisopod chat`)
+- Documented REST API quick start with curl examples
+- Included gateway startup procedures
+
+**5. Architecture Overview:**
+- Introduced gateway, agent, and channel concepts
+- Added diagram showing the relationship between components
+- Linked to developer guide for deeper technical details
+
+**6. Documentation Linking:**
+- Updated SUMMARY.md with getting-started.md link
+
+### Files Created/Modified
+- docs/book/src/getting-started.md
+
+### Test Results
+- mdbook build docs/book: PASSED
+- cargo build: PASSED
+
+### Resolution Date
+2026-02-27

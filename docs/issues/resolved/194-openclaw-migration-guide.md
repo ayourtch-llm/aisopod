@@ -207,5 +207,51 @@ Migration documentation is critical for user retention during the OpenClaw → A
 - [ ] Automated migration command (`aisopod migrate`) is documented
 - [ ] `mdbook build` succeeds with this page included
 
----
-*Created: 2026-02-15*
+## Resolution
+
+Implementation completed on 2026-02-27:
+
+### What Was Implemented
+Created comprehensive migration guide from OpenClaw to Aisopod:
+
+**1. Migration Overview:**
+- Documented what's new in Aisopod (Rust-native, TOML config, WebSocket, plugin system, multi-agent)
+- Outlined migration steps (install, convert config, update env vars, migrate data)
+
+**2. Configuration Format Migration:**
+- Provided automated migration tool command (`aisopod migrate --from-openclaw`)
+- Created side-by-side comparison of OpenClaw JSON5 and Aisopod TOML
+- Documented key differences (port change 3000→3080, auth mode changes, channel agent binding)
+
+**3. Environment Variable Mapping:**
+- Created complete mapping table from `OPENCLAW_*` to `AISOPOD_*` variables
+- Documented suffix changes (KEY → API_KEY)
+- Provided quick rename script for .env files
+
+**4. Feature Parity Checklist:**
+- Created feature parity comparison table
+- Documented which features are new in Aisopod (WebSocket, multi-agent, plugin system, Slack channel)
+
+**5. Breaking Changes and Workarounds:**
+- Documented default port change with workaround
+- Explained channel agent binding requirement with workaround
+- Documented auth config key renaming with workaround
+- Documented session storage format change with migration command
+
+**6. Data Migration:**
+- Documented session history migration command
+- Documented memory/knowledge base migration command
+- Documented verification with `aisopod doctor --check-data`
+
+**7. Documentation Linking:**
+- Updated SUMMARY.md with migration-guide.md link
+
+### Files Created/Modified
+- docs/book/src/migration-guide.md
+
+### Test Results
+- mdbook build docs/book: PASSED
+- cargo build: PASSED
+
+### Resolution Date
+2026-02-27

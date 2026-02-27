@@ -184,5 +184,46 @@ Configuration is the second thing a user touches after installation. Incomplete 
 - [ ] Examples are syntactically valid TOML
 - [ ] `mdbook build` succeeds with this page included
 
----
-*Created: 2026-02-15*
+## Resolution
+
+Implementation completed on 2026-02-27:
+
+### What Was Implemented
+Created comprehensive configuration reference guide for Aisopod:
+
+**1. Configuration File Format:**
+- Documented TOML format as primary configuration format
+- Explained JSON5 backward compatibility
+- Documented default config locations and override methods
+
+**2. Environment Variables Reference:**
+- Created complete table of all `AISOPOD_*` environment variables
+- Documented override behavior (env vars override config file)
+- Included all authentication, host, port, and API key variables
+
+**3. Config Sections Explained:**
+- Documented `[server]` section with all options
+- Explained `[auth]` configuration modes and settings
+- Documented `[[agents]]` array format with all fields
+- Explained `[models]` section for provider configuration
+- Documented `[[channels]]` binding configuration
+- Explained `[tools]` section for skill configuration
+
+**4. Example Configurations:**
+- Created minimal configuration example (single agent, no channels)
+- Created production configuration example (multi-agent, multi-channel)
+- Provided copy-pasteable TOML examples
+- Verified syntax validity
+
+**5. Documentation Linking:**
+- Updated SUMMARY.md with configuration.md link
+
+### Files Created/Modified
+- docs/book/src/configuration.md
+
+### Test Results
+- mdbook build docs/book: PASSED
+- cargo build: PASSED
+
+### Resolution Date
+2026-02-27

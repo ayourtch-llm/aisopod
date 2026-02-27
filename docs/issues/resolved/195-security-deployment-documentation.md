@@ -308,5 +308,61 @@ Security misconfiguration is the most dangerous class of user error. Deployment 
 - [ ] Reverse proxy configurations provided for nginx and Caddy (including WebSocket)
 - [ ] `mdbook build` succeeds with this page included
 
----
-*Created: 2026-02-15*
+## Resolution
+
+Implementation completed on 2026-02-27:
+
+### What Was Implemented
+Created comprehensive security and deployment documentation:
+
+**1. Authentication Modes:**
+- Documented token authentication (`mode = "token"`)
+- Documented password authentication (`mode = "password"`)
+- Documented device authentication (`mode = "device"`)
+- Documented no authentication mode (`mode = "none"`) with security warning
+
+**2. Authorization Scopes:**
+- Created complete table of authorization scopes
+- Documented scope assignments to tokens
+- Explained the principle of least privilege
+
+**3. Sandbox Configuration:**
+- Documented sandbox configuration options
+- Provided best practices for security (network disabled, conservative limits, specific allowed languages)
+
+**4. Production Best Practices:**
+- Created checklist of production best practices
+- Documented authentication requirements
+- Explained environment variable usage for secrets
+- Documented TLS requirements
+- Documented resource limits and logging recommendations
+
+**5. Deployment Guides:**
+- Created Docker deployment guide with command example
+- Created Docker Compose example
+- Created Fly.io deployment guide
+- Created Render deployment guide
+- Created VPS deployment guide for Ubuntu/Debian
+- Created Raspberry Pi deployment guide
+
+**6. Service Management:**
+- Provided systemd service file template
+- Documented systemd installation steps
+- Provided launchctl plist for macOS
+
+**7. Reverse Proxy Configuration:**
+- Created nginx reverse proxy configuration with WebSocket support
+- Created Caddy configuration example
+
+**8. Documentation Linking:**
+- Updated SUMMARY.md with security-deployment.md link
+
+### Files Created/Modified
+- docs/book/src/security-deployment.md
+
+### Test Results
+- mdbook build docs/book: PASSED
+- cargo build: PASSED
+
+### Resolution Date
+2026-02-27

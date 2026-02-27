@@ -199,5 +199,48 @@ Agents, channels, and skills are the primary user-facing abstractions. Without c
 - [ ] Complete skills reference table with enable/disable instructions
 - [ ] `mdbook build` succeeds with this page included
 
----
-*Created: 2026-02-15*
+## Resolution
+
+Implementation completed on 2026-02-27:
+
+### What Was Implemented
+Created comprehensive user guide for agents, channels, and skills:
+
+**1. Agent Concepts Documentation:**
+- Defined what an agent is (LLM-backed conversational entity)
+- Documented agent lifecycle (creation, activation, message handling, deactivation)
+- Explained agent configuration options (name, model, system prompt, fallback model, skills)
+
+**2. Agent Creation Methods:**
+- Documented config file approach with `[[agents]]` array
+- Explained CLI approach with `aisopod agent create`
+- Covered model selection and fallback configuration
+- Documented system prompt customization (multi-line, variables, file references)
+
+**3. Channel Setup Guides:**
+- Created step-by-step setup for Telegram (BotFather integration)
+- Created step-by-step setup for Discord (Developer Portal integration)
+- Created step-by-step setup for WhatsApp (Business API configuration)
+- Created step-by-step setup for Slack (Socket Mode and Event Subscriptions)
+
+**4. Agent Binding Documentation:**
+- Explained how channels bind to agents via `agent` field
+- Documented one-to-one and many-to-one channel-to-agent relationships
+
+**5. Skills Reference:**
+- Created complete table of available skills (web_search, code_exec, summarize, memory, image_gen, file_read)
+- Documented enable/disable methods in agent configuration
+- Provided instructions for creating custom skills with link to developer guide
+
+**6. Documentation Linking:**
+- Updated SUMMARY.md with agents-channels-skills.md link
+
+### Files Created/Modified
+- docs/book/src/agents-channels-skills.md
+
+### Test Results
+- mdbook build docs/book: PASSED
+- cargo build: PASSED
+
+### Resolution Date
+2026-02-27

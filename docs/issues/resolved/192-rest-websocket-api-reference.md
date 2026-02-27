@@ -249,5 +249,54 @@ The API is the programmatic interface for all integrations, front-ends, and auto
 - [ ] Rate limiting behavior documented
 - [ ] `mdbook build` succeeds with this page included
 
----
-*Created: 2026-02-15*
+## Resolution
+
+Implementation completed on 2026-02-27:
+
+### What Was Implemented
+Created complete REST and WebSocket API reference documentation:
+
+**1. Authentication Documentation:**
+- Documented Bearer Token authentication method
+- Documented query parameter authentication for webhooks
+- Explained 401 Unauthorized responses
+
+**2. REST API Endpoints:**
+- Documented `POST /v1/chat/completions` endpoint with OpenAI-compatible format
+- Documented `POST /v1/responses` endpoint with Responses API format
+- Documented `POST /hooks/{channel_type}` webhook receivers
+- Documented `GET /health` health check endpoint
+- Documented `GET /status` detailed gateway status endpoint
+- Included request/response JSON schemas with examples
+
+**3. Streaming Support:**
+- Documented server-sent events (SSE) for streaming responses
+- Explained `stream: true` parameter usage
+
+**4. WebSocket API:**
+- Documented connection handshake process
+- Explained JSON-RPC 2.0 message format
+- Listed all RPC methods (chat.send, chat.stream, session.create, session.list, session.delete, agent.list, agent.status)
+- Listed all event types (chat.chunk, chat.complete, chat.error, session.updated)
+
+**5. Error Codes Reference:**
+- Created complete table of HTTP error codes
+- Documented error structure and meanings
+- Included rate limiting responses
+
+**6. Rate Limiting Documentation:**
+- Documented default limits (per-token and per-IP)
+- Explained rate limit headers (Retry-After, X-RateLimit-Remaining, X-RateLimit-Reset)
+
+**7. Documentation Linking:**
+- Updated SUMMARY.md with api-reference.md link
+
+### Files Created/Modified
+- docs/book/src/api-reference.md
+
+### Test Results
+- mdbook build docs/book: PASSED
+- cargo build: PASSED
+
+### Resolution Date
+2026-02-27

@@ -272,5 +272,61 @@ Troubleshooting documentation reduces support burden and improves user self-suff
 - [ ] CI pipeline combines mdBook and cargo doc output into a single artifact
 - [ ] `mdbook build` succeeds with this page included
 
----
-*Created: 2026-02-15*
+## Resolution
+
+Implementation completed on 2026-02-27:
+
+### What Was Implemented
+Created comprehensive troubleshooting guide and set up Rust API documentation:
+
+**1. Common Errors Documentation:**
+- Documented "Connection refused" errors with gateway status commands
+- Documented "401 Unauthorized" with authentication troubleshooting
+- Documented "502 Upstream Error" with LLM provider checks
+- Documented "Channel connection failed" with channel test commands
+- Documented "Sandbox execution timeout" with configuration fixes
+- Documented "Config parse error" with validation commands
+
+**2. Diagnostic Commands:**
+- Documented `aisopod doctor` comprehensive health check
+- Created targeted check options (`--check-config`, `--check-providers`, `--check-channels`, `--check-data`, `--check-sandbox`)
+- Documented expected output format
+
+**3. Log Analysis:**
+- Documented log level configuration (trace, debug, info, warn, error)
+- Created log level usage table
+- Documented key log patterns for debugging
+- Explained structured JSON logging with `AISOPOD_LOG_FORMAT=json`
+
+**4. Channel-Specific Troubleshooting:**
+- Documented Telegram troubleshooting (webhook, duplicate messages, media support)
+- Documented Discord troubleshooting (token, permissions, rate limits)
+- Documented WhatsApp troubleshooting (webhook verification, message delivery, templates)
+- Documented Slack troubleshooting (Socket Mode, DMs, event subscriptions)
+
+**5. Performance Tuning:**
+- Documented gateway tuning options (workers, timeout, max_connections)
+- Documented memory usage optimization
+- Documented latency optimization strategies (streaming, provider selection)
+- Documented throughput scaling approaches (load balancing, shared storage)
+
+**6. Cargo Doc Generation:**
+- Documented `cargo doc` generation command
+- Explained local generation process
+- Documented CI integration for automatic API documentation generation
+- Included artifact combination steps
+
+**7. Documentation Linking:**
+- Updated SUMMARY.md with troubleshooting.md link
+
+### Files Created/Modified
+- docs/book/src/troubleshooting.md
+- .github/workflows/ci.yml (docs job)
+
+### Test Results
+- mdbook build docs/book: PASSED
+- cargo build: PASSED
+- cargo doc --workspace --no-deps: PASSED
+
+### Resolution Date
+2026-02-27
