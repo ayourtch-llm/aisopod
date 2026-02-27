@@ -1,0 +1,29 @@
+[package]
+name = "aisopod-channel-zalo"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+aisopod-channel = { path = "../aisopod-channel" }
+aisopod-config = { path = "../aisopod-config" }
+aisopod-shared = { path = "../aisopod-shared" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+uuid = { workspace = true }
+reqwest = { version = "0.12", features = ["json"] }
+futures = "0.3"
+axum = { version = "0.7", features = ["json", "macros", "query"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+reqwest = { version = "0.12", features = ["json"] }
+
+[features]
+default = []

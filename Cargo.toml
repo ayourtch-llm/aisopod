@@ -28,6 +28,7 @@ members = [
     "crates/aisopod-channel-nostr",
     "crates/aisopod-channel-line",
     "crates/aisopod-channel-lark",
+    "crates/aisopod-channel-zalo",
     "crates/aisopod-client",
 ]
 
