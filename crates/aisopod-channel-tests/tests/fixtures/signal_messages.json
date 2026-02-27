@@ -1,0 +1,47 @@
+[
+    {
+        "type": "receive",
+        "source": "+1234567890",
+        "timestamp": 1618907555000,
+        "message": {
+            "body": "Hello from Signal"
+        },
+        "id": "msg123"
+    },
+    {
+        "type": "receive",
+        "source": "+1234567891",
+        "timestamp": 1618907556000,
+        "message": {
+            "body": "This is a group message"
+        },
+        "groupId": "test-group-id",
+        "id": "msg456"
+    },
+    {
+        "type": "sent",
+        "timestamp": 1618907557000,
+        "message": {
+            "body": "Test message"
+        },
+        "id": "msg789"
+    },
+    {
+        "type": "receive",
+        "source": "+1234567892",
+        "timestamp": 1618907558000,
+        "message": {
+            "body": "Multiline message\nLine 2\nLine 3"
+        },
+        "id": "msg101"
+    },
+    {
+        "type": "receive",
+        "source": "+1234567893",
+        "timestamp": 1618907559000,
+        "message": {
+            "body": "Message with emoji 🎉"
+        },
+        "id": "msg112"
+    }
+]

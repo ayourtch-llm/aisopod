@@ -1,0 +1,55 @@
+[
+    {
+        "type": "message",
+        "text": "Hello from Teams",
+        "channelId": "msteams",
+        "from": {
+            "id": "user-123",
+            "name": "Test User"
+        },
+        "conversation": {
+            "id": "conversation-123",
+            "isGroup": false,
+            "name": "Test Conversation"
+        },
+        "recipient": {
+            "id": "bot-id",
+            "name": "Mock Bot"
+        },
+        "timestamp": "2024-04-20T12:00:00Z"
+    },
+    {
+        "type": "message",
+        "text": "Group message from Teams",
+        "channelId": "msteams",
+        "from": {
+            "id": "user-456",
+            "name": "Group User"
+        },
+        "conversation": {
+            "id": "group-conversation-456",
+            "isGroup": true,
+            "name": "Test Group"
+        },
+        "recipient": {
+            "id": "bot-id",
+            "name": "Mock Bot"
+        },
+        "timestamp": "2024-04-20T12:01:00Z"
+    },
+    {
+        "type": "conversationUpdate",
+        "channelId": "msteams",
+        "membersAdded": [
+            {
+                "id": "user-789",
+                "name": "New Member"
+            }
+        ],
+        "conversation": {
+            "id": "conversation-123",
+            "isGroup": false
+        },
+        "timestamp": "2024-04-20T12:02:00Z"
+    }
+]

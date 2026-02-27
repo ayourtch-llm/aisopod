@@ -1,0 +1,21 @@
+[
+    {
+        "type": "receive",
+        "source": "+1234567890",
+        "timestamp": 1618907555000,
+        "message": {
+            "body": "Hello from Signal"
+        },
+        "id": "msg123"
+    },
+    {
+        "type": "receive",
+        "source": "+1234567891",
+        "timestamp": 1618907556000,
+        "message": {
+            "body": "This is a group message"
+        },
+        "groupId": "test-group-id",
+        "id": "msg456"
+    }
+]

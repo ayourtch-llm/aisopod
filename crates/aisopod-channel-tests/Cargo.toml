@@ -1,0 +1,28 @@
+[package]
+name = "aisopod-channel-tests"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+aisopod-channel-signal = { path = "../aisopod-channel-signal" }
+aisopod-channel-imessage = { path = "../aisopod-channel-imessage" }
+aisopod-channel-googlechat = { path = "../aisopod-channel-googlechat" }
+aisopod-channel-msteams = { path = "../aisopod-channel-msteams" }
+aisopod-channel = { path = "../aisopod-channel" }
+tokio = { workspace = true, features = ["full"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+axum = { version = "0.7", features = ["json", "macros"] }
+http = "1.1"
+tempfile = "3"
+url = "2"
+uuid = { version = "1", features = ["v4", "serde", "std"] }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }

@@ -1,0 +1,23 @@
+[package]
+name = "aisopod-channel-utils"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+aisopod-channel = { path = "../aisopod-channel" }
+aisopod-shared = { path = "../aisopod-shared" }
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+async-trait.workspace = true
+reqwest = { version = "0.12", features = ["json", "gzip"] }
+tokio-util = { version = "0.7", features = ["compat"] }
+futures.workspace = true
+image = { version = "0.24", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+regex.workspace = true
+markdown = "1.0"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
