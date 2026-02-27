@@ -405,6 +405,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "aisopod-channel-twitch"
+version = "0.1.0"
+dependencies = [
+ "aisopod-channel",
+ "aisopod-shared",
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "futures",
+ "reqwest 0.12.28",
+ "serde 1.0.228",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio 1.49.0",
+ "tokio-tungstenite 0.24.0",
+ "tracing",
+ "url 2.5.8",
+ "wiremock",
+]
+
+[[package]]
 name = "aisopod-channel-whatsapp"
 version = "0.1.0"
 dependencies = [
