@@ -102,7 +102,6 @@ fn parse_standard_markdown(input: &str) -> Vec<MarkdownNode> {
     while i < chars.len() {
         iterations += 1;
         if iterations > max_iterations {
-            eprintln!("parse_standard_markdown: max iterations reached at position {}", i);
             break;
         }
 
@@ -138,60 +137,58 @@ fn parse_standard_markdown(input: &str) -> Vec<MarkdownNode> {
                 &[]
             };
 
-            match three {
-                ['*', '*', '*'] | ['_', '_', '_'] => {
-                    // Bold and italic
-                    let end = find_matching_delimiter(&chars, i, 3);
-                    if end > i {
-                        let content = &chars[i + 3..end];
-                        let text: String = content.iter().collect();
-                        nodes.push(MarkdownNode::Bold(vec![MarkdownNode::Italic(vec![
-                            MarkdownNode::Text(text),
-                        ])]));
-                        i = end + 3;
-                        continue;
-                    }
+            // First check for 3-char delimiters (*** or ___ or ~~~)
+            if let ['*', '*', '*'] | ['_', '_', '_'] = three {
+                // Bold and italic
+                let end = find_matching_delimiter(&chars, i, 3);
+                if end > i {
+                    let content = &chars[i + 3..end];
+                    let text: String = content.iter().collect();
+                    nodes.push(MarkdownNode::Bold(vec![MarkdownNode::Italic(vec![
+                        MarkdownNode::Text(text),
+                    ])]));
+                    i = end + 3;
+                    continue;
                 }
-                ['*', '*'] | ['_', '_'] => {
-                    // Bold
-                    let end = find_matching_delimiter(&chars, i, 2);
-                    if end > i {
-                        let content = &chars[i + 2..end];
-                        let text: String = content.iter().collect();
-                        nodes.push(MarkdownNode::Bold(vec![MarkdownNode::Text(text)]));
-                        i = end + 2;
-                        continue;
-                    }
+            } else if let ['~', '~', '~'] = three {
+                // Strikethrough (3 chars)
+                let end = find_matching_delimiter(&chars, i, 3);
+                if end > i {
+                    let content = &chars[i + 3..end];
+                    let text: String = content.iter().collect();
+                    nodes.push(MarkdownNode::Strikethrough(vec![MarkdownNode::Text(text)]));
+                    i = end + 3;
+                    continue;
                 }
-                ['~', '~', '~'] => {
-                    // Strikethrough
-                    let end = find_matching_delimiter(&chars, i, 3);
-                    if end > i {
-                        let content = &chars[i + 3..end];
-                        let text: String = content.iter().collect();
-                        nodes.push(MarkdownNode::Strikethrough(vec![MarkdownNode::Text(text)]));
-                        i = end + 3;
-                        continue;
-                    }
+            } else if let ['*', '*'] | ['_', '_'] = two {
+                // Bold (2-char delimiter)
+                let end = find_matching_delimiter(&chars, i, 2);
+                if end > i {
+                    let content = &chars[i + 2..end];
+                    let text: String = content.iter().collect();
+                    nodes.push(MarkdownNode::Bold(vec![MarkdownNode::Text(text)]));
+                    i = end + 2;
+                    continue;
                 }
-                _ => {
-                    // Check for italic (single * or _)
-                    if i + 1 < chars.len() && (chars[i] == '*' || chars[i] == '_') {
-                        // Make sure it's not bold (** or __)
-                        if i + 1 < chars.len() && chars[i] == chars[i + 1] {
-                            // This is bold, handled above
-                        } else {
-                            // This is italic
-                            let end = find_matching_delimiter(&chars, i, 1);
-                            if end > i {
-                                let content = &chars[i + 1..end];
-                                let text: String = content.iter().collect();
-                                nodes.push(MarkdownNode::Italic(vec![MarkdownNode::Text(text)]));
-                                i = end + 1;
-                                continue;
-                            }
-                        }
-                    }
+            } else if let ['~', '~'] = two {
+                // Strikethrough (2-char delimiter)
+                let end = find_matching_delimiter(&chars, i, 2);
+                if end > i {
+                    let content = &chars[i + 2..end];
+                    let text: String = content.iter().collect();
+                    nodes.push(MarkdownNode::Strikethrough(vec![MarkdownNode::Text(text)]));
+                    i = end + 2;
+                    continue;
+                }
+            } else if (chars[i] == '*' || chars[i] == '_') && (i + 1 >= chars.len() || chars[i] != chars[i + 1]) {
+                // Italic (single * or _, but not ** or __)
+                let end = find_matching_delimiter(&chars, i, 1);
+                if end > i {
+                    let content = &chars[i + 1..end];
+                    let text: String = content.iter().collect();
+                    nodes.push(MarkdownNode::Italic(vec![MarkdownNode::Text(text)]));
+                    i = end + 1;
+                    continue;
                 }
             }
         }
@@ -623,13 +620,10 @@ fn find_matching_delimiter(chars: &[char], start: usize, delimiter_len: usize) -
     let max_iterations = chars.len() - i; // Safety limit to prevent infinite loop
     let mut iterations = 0;
     
-    eprintln!("find_matching_delimiter: start={}, delimiter_len={}, max_iterations={}", start, delimiter_len, max_iterations);
-    
     while i + delimiter_len <= chars.len() {
         iterations += 1;
         if iterations > max_iterations {
             // Safety: Prevent infinite loop
-            eprintln!("find_matching_delimiter: max iterations reached at i={}", i);
             return chars.len();
         }
         
@@ -643,13 +637,11 @@ fn find_matching_delimiter(chars: &[char], start: usize, delimiter_len: usize) -
         }
         
         if matches {
-            eprintln!("find_matching_delimiter: found match at i={}", i);
             return i;
         }
         i += 1;
     }
 
-    eprintln!("find_matching_delimiter: no match found, returning {}", chars.len());
     // If no closing found, return end of string
     chars.len()
 }

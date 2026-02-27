@@ -110,6 +110,16 @@ impl MatrixAccount {
         url::Url::parse(&self.config.homeserver_url)
             .map_err(|e| anyhow::anyhow!("Invalid homeserver URL {}: {}", self.config.homeserver_url, e))?;
         
+        // Validate password authentication
+        if let MatrixAuth::Password { username, password } = &self.config.auth {
+            if username.is_empty() {
+                return Err(anyhow::anyhow!("Username cannot be empty for password authentication"));
+            }
+            if password.is_empty() {
+                return Err(anyhow::anyhow!("Password cannot be empty for password authentication"));
+            }
+        }
+        
         Ok(())
     }
 }
@@ -482,7 +492,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_matrix_channel_id() {
-        let config = MatrixAccountConfig::default();
+        let config = MatrixAccountConfig {
+            homeserver_url: "https://matrix.org".to_string(),
+            auth: MatrixAuth::Password {
+                username: "testuser".to_string(),
+                password: "testpass".to_string(),
+            },
+            ..Default::default()
+        };
         let channel = MatrixChannel::new(config, "test").await.expect("Failed to create channel");
         assert_eq!(channel.id(), "matrix-test");
     }
@@ -498,7 +515,14 @@ mod tests {
 
     #[test]
     fn test_matrix_account_validation_valid() {
-        let config = MatrixAccountConfig::default();
+        let config = MatrixAccountConfig {
+            homeserver_url: "https://matrix.org".to_string(),
+            auth: MatrixAuth::Password {
+                username: "testuser".to_string(),
+                password: "testpass".to_string(),
+            },
+            ..Default::default()
+        };
         let account = MatrixAccount::new("test".to_string(), config);
         assert!(account.validate().is_ok());
     }
