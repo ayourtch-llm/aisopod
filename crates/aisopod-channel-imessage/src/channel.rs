@@ -90,12 +90,13 @@ impl ImessageAccount {
 /// ```no_run
 /// use aisopod_channel_imessage::{ImessageChannel, ImessageAccountConfig};
 /// use aisopod_channel::ChannelRegistry;
+/// use std::sync::Arc;
 ///
 /// async fn example() -> Result<(), anyhow::Error> {
 ///     let mut registry = ChannelRegistry::new();
 ///     
-///     let config = ImessageAccountConfig::new("my-imessage-account")
-///         .with_backend("applescript"); // or "bluebubbles"
+///     let config = ImessageAccountConfig::new("my-imessage-account");
+///     // backend is set via ImessageAccountConfig.backend field or uses default
 ///     
 ///     let channel = ImessageChannel::new(config).await?;
 ///     registry.register(Arc::new(channel));

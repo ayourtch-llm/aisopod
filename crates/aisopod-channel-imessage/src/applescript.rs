@@ -40,9 +40,12 @@ pub struct AppleScriptResult {
 /// ```no_run
 /// use aisopod_channel_imessage::ApplescriptBackend;
 ///
-/// let backend = ApplescriptBackend::new();
-/// backend.connect().await?;
-/// backend.send_text("+1234567890", "Hello from AppleScript!").await?;
+/// async fn example() -> Result<(), anyhow::Error> {
+///     let mut backend = ApplescriptBackend::new();
+///     backend.connect().await?;
+///     backend.send_text("+1234567890", "Hello from AppleScript!").await?;
+///     Ok(())
+/// }
 /// ```
 #[derive(Clone)]
 pub struct ApplescriptBackend {
