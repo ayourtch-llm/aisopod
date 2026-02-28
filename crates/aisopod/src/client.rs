@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 /// Gateway client for WebSocket communication with the gateway server
 pub struct GatewayClient {
@@ -172,6 +173,22 @@ impl GatewayClient {
 
 const TOKEN_FILE: &str = ".aisopod_token";
 
+// Thread-local override for home directory (for testing purposes)
+thread_local! {
+    static HOME_DIR_OVERRIDE: Mutex<Option<PathBuf>> = Mutex::new(None);
+}
+
+/// Set a custom home directory for testing purposes.
+/// This allows tests to control where token files are stored.
+/// 
+/// # Arguments
+/// * `path` - The path to use as home directory, or None to use the real home directory
+pub fn set_home_dir_for_testing(path: Option<&std::path::Path>) {
+    HOME_DIR_OVERRIDE.with(|override_path| {
+        *override_path.lock().unwrap() = path.map(|p| p.to_path_buf());
+    });
+}
+
 /// Store an auth token with restrictive file permissions
 ///
 /// The token is saved to the user's home directory with mode 0600 (owner read/write only).
@@ -213,8 +230,11 @@ pub fn clear_token() -> anyhow::Result<()> {
 
 /// Get the path to the auth token file
 pub fn token_path() -> anyhow::Result<PathBuf> {
-    let home = dirs::home_dir()
-        .ok_or_else(|| anyhow::anyhow!("Cannot determine home directory"))?;
+    // Use overridden path for testing, otherwise use real home directory
+    let home = HOME_DIR_OVERRIDE.with(|override_path| {
+        override_path.lock().unwrap().clone().or_else(|| dirs::home_dir())
+            .ok_or_else(|| anyhow::anyhow!("Cannot determine home directory"))
+    })?;
     Ok(home.join(TOKEN_FILE))
 }
 
@@ -263,11 +283,8 @@ mod tests {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let token_file = temp_dir.path().join(TOKEN_FILE);
         
-        // Save original home dir
-        let original_home = env::var_os("HOME");
-        
-        // Set temp dir as home
-        env::set_var("HOME", temp_dir.path());
+        // Set temp dir as home for token functions
+        set_home_dir_for_testing(Some(temp_dir.path()));
         
         // Store token
         let result = store_token("test-token-123");
@@ -287,10 +304,8 @@ mod tests {
         let loaded = load_token().expect("Failed to load token");
         assert_eq!(loaded, Some("test-token-123".to_string()));
         
-        // Restore home dir
-        if let Some(home) = original_home {
-            env::set_var("HOME", home);
-        }
+        // Clear the override after test
+        set_home_dir_for_testing(None);
     }
 
     #[test]
@@ -302,9 +317,8 @@ mod tests {
         std::fs::write(&token_file, "test-token").expect("Failed to write token");
         assert!(token_file.exists());
         
-        // Save original home dir
-        let original_home = env::var_os("HOME");
-        env::set_var("HOME", temp_dir.path());
+        // Set temp dir as home for token functions
+        set_home_dir_for_testing(Some(temp_dir.path()));
         
         // Clear token
         let result = clear_token();
@@ -315,25 +329,21 @@ mod tests {
         let loaded = load_token().expect("Failed to load token");
         assert_eq!(loaded, None);
         
-        // Restore home dir
-        if let Some(home) = original_home {
-            env::set_var("HOME", home);
-        }
+        // Clear the override after test
+        set_home_dir_for_testing(None);
     }
 
     #[test]
     fn test_load_token_nonexistent() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         
-        let original_home = env::var_os("HOME");
-        env::set_var("HOME", temp_dir.path());
+        set_home_dir_for_testing(Some(temp_dir.path()));
         
         let loaded = load_token().expect("Failed to load token");
         assert_eq!(loaded, None);
         
-        if let Some(home) = original_home {
-            env::set_var("HOME", home);
-        }
+        // Clear the override after test
+        set_home_dir_for_testing(None);
     }
 
     #[test]
