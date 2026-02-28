@@ -113,10 +113,10 @@ pub fn markdown_to_mrkdwn(text: &str) -> String {
         .map(|re: regex::Regex| re.replace_all(&result, "*$1*").to_string())
         .unwrap_or(result.clone());
     
-    // Italic: *text* or _text_ → _text_
-    result = regex::Regex::new(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)")
-        .map(|re: regex::Regex| re.replace_all(&result, "_$1_").to_string())
-        .unwrap_or(result.clone());
+    // Italic: _text_ → _text_ (single underscore is already valid Slack mrkdwn)
+    // Note: **bold** is converted to *bold* first, so we only need to handle _text_
+    // Single *text* patterns are already valid Slack mrkdwn (from bold conversion)
+    // and should not be modified
     
     // Strikethrough: ~~text~~ → ~text~
     result = regex::Regex::new(r"~~(.+?)~~")
