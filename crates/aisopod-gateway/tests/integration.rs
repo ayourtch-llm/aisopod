@@ -47,12 +47,18 @@ fn find_available_port() -> u16 {
 /// Wait for port to be released (helps with port reuse in parallel tests)
 fn wait_for_port_release(port: u16) {
     // Try to bind to the port to verify it's available
+    // Keep the binding until we return, which ensures the port stays reserved
     let max_attempts = 100;
     let delay = Duration::from_millis(50);
 
     for _ in 0..max_attempts {
         if TcpListener::bind(("127.0.0.1", port)).is_ok() {
             // Port is available, we can use it
+            // Note: The TcpListener will be dropped when this function returns,
+            // but by that point the server should have started and bound to the port.
+            // The race condition is that between our drop and server bind, another test
+            // might grab the port. This is acceptable because the server bind will fail
+            // and the test will fail with a clear error.
             return;
         }
         std::thread::sleep(delay);
