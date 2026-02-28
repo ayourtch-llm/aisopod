@@ -717,11 +717,14 @@ mod tests {
         let ctx = RequestContext::new("test-conn".to_string(), "127.0.0.1:8080".parse().unwrap());
         
         // First, issue a token
-        let mut tm = revoke_handler.token_manager.lock().unwrap();
-        let token = tm.issue("Test Device".to_string(), "test-device-1".to_string(), vec![Scope::OperatorRead]).unwrap();
-        
-        // Verify token is valid
-        assert!(tm.validate(&token).is_some());
+        let token = {
+            let mut tm = revoke_handler.token_manager.lock().unwrap();
+            let token = tm.issue("Test Device".to_string(), "test-device-1".to_string(), vec![Scope::OperatorRead]).unwrap();
+            
+            // Verify token is valid
+            assert!(tm.validate(&token).is_some());
+            token
+        };
         
         // Revoke the device
         let params = serde_json::json!({
@@ -735,7 +738,10 @@ mod tests {
         assert_eq!(result["revoked"].as_bool().unwrap(), true);
         
         // Verify token is no longer valid
-        assert!(tm.validate(&token).is_none());
+        {
+            let mut tm = revoke_handler.token_manager.lock().unwrap();
+            assert!(tm.validate(&token).is_none());
+        }
     }
 
     #[test]
@@ -808,10 +814,12 @@ mod tests {
         let device_token = confirm_response.result.as_ref().unwrap()["device_token"].as_str().unwrap().to_string();
         
         // Step 3: Verify token is valid
-        let mut tm = revoke_handler.token_manager.lock().unwrap();
-        let validated_token = tm.validate(&device_token);
-        assert!(validated_token.is_some());
-        assert_eq!(validated_token.unwrap().device_name, "Test Phone");
+        {
+            let mut tm = revoke_handler.token_manager.lock().unwrap();
+            let validated_token = tm.validate(&device_token);
+            assert!(validated_token.is_some());
+            assert_eq!(validated_token.unwrap().device_name, "Test Phone");
+        }
         
         // Step 4: Revoke device
         let params = serde_json::json!({
@@ -823,6 +831,9 @@ mod tests {
         assert!(revoke_response.result.as_ref().unwrap()["revoked"].as_bool().unwrap());
         
         // Step 5: Verify token is no longer valid
-        assert!(tm.validate(&device_token).is_none());
+        {
+            let mut tm = revoke_handler.token_manager.lock().unwrap();
+            assert!(tm.validate(&device_token).is_none());
+        }
     }
 }
