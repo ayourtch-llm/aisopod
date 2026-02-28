@@ -381,13 +381,8 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
                 }
             },
         ))
-        // Auth middleware - runs FIRST (innermost in the stack)
-        // It depends on auth_config_data being available in extensions
-        // AuthConfigDataInjector will be added AFTER this layer, so it runs BEFORE
-        // auth_middleware when requests come in (outer layers run first in tower)
-        .layer(axum::middleware::from_fn(auth_middleware))
         // Auth config data MUST be injected BEFORE auth_middleware runs
-        // By adding this layer AFTER auth_middleware in the ServiceBuilder,
+        // By adding this layer BEFORE auth_middleware in the ServiceBuilder,
         // it runs BEFORE auth_middleware in the request flow (outer layers run first)
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
@@ -407,6 +402,9 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
                 }
             },
         ))
+        // Auth middleware - runs AFTER auth_config_data is injected
+        // It depends on auth_config_data being available in extensions
+        .layer(axum::middleware::from_fn(auth_middleware))
         // Secrets masking middleware - masks sensitive values in logs
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
