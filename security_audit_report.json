@@ -1,0 +1,446 @@
+{
+  "security_issues": [
+    {
+      "file": "crates/aisopod-gateway/src/middleware/rate_limit.rs",
+      "line": 30,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Rate limiter: New IP entry created, timestamps.len() = 1\");",
+      "description": "Using eprintln! instead of logging macros (tracing::debug, tracing::warn) in library code. Should use tracing crate for proper logging with log levels that can be controlled at runtime."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/rate_limit.rs",
+      "line": 87,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\n    \"Rate limiter check: timestamps.len() = {}, max_requests = {}, limit check: {} >= {} = {}\",\n    timestamps.len(),\n    self.max_requests,\n    timestamps.len(),\n    self.max_requests,\n    timestamps.len() >= self.max_requests as usize\n);",
+      "description": "Using eprintln! instead of tracing macros for debug logging in rate limiting middleware."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/rate_limit.rs",
+      "line": 100,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Rate limiter check: timestamps.len() = {}, max_requests = {}, limit check: {} >= {} = {}\", timestamps.len(), self.max_requests, timestamps.len(), self.max_requests, timestamps.len() >= self.max_requests as usize);",
+      "description": "Using eprintln! for detailed rate limiter state should use tracing::debug with conditional compilation or proper log level control."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/rate_limit.rs",
+      "line": 170,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\">>> RATE LIMIT MIDDLEWARE CALLED <<<\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln! for consistent logging with the rest of the application."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/rate_limit.rs",
+      "line": 176,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Rate limiting bypassed via header\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/rate_limit.rs",
+      "line": 185,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"No rate limiter in extensions, allowing all requests\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/rate_limit.rs",
+      "line": 190,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Got rate limiter from extensions\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/rate_limit.rs",
+      "line": 200,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Rate limiting IP: {}\", ip);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/auth.rs",
+      "line": 224,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"=== AUTH MIDDLEWARE CALLED ===\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/auth.rs",
+      "line": 231,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Auth: /health endpoint, allowing through\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/auth.rs",
+      "line": 237,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"AuthConfigData in extensions: {:?}\", config_data.is_some());",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/auth.rs",
+      "line": 244,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"No auth config found, allowing request through\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/auth.rs",
+      "line": 251,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Auth mode: {:?}\", mode);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/auth.rs",
+      "line": 257,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Auth mode is none, allowing request\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/auth.rs",
+      "line": 262,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Token auth mode - checking authorization\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/auth.rs",
+      "line": 270,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Missing Authorization header\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/auth.rs",
+      "line": 278,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Auth value: {:?}\", auth_value);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/auth.rs",
+      "line": 285,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Invalid Authorization header format\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/auth.rs",
+      "line": 293,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Token: {:?}\", token);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/auth.rs",
+      "line": 299,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Token validation successful for role: {}\", auth_info.role);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/middleware/auth.rs",
+      "line": 306,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Invalid token provided, returning 401\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/server.rs",
+      "line": 159,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"=== SERVER STARTUP DEBUG v2 ===\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/server.rs",
+      "line": 173,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\n    \"SERVER STARTUP DEBUG: listening on {}\",\n    config.bind_addr\n);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/server.rs",
+      "line": 187,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\n    \"SERVER STARTUP DEBUG: TLS enabled on {}\",\n    config.tls.as_ref().map(|t| t.cert.clone()).unwrap_or_default()\n);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/server.rs",
+      "line": 398,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"!!! AUTH CONFIG DATA INJECTOR CALLED !!!\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/server.rs",
+      "line": 401,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"!!! BEFORE INSERT: has config = {}\", check_before);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/server.rs",
+      "line": 404,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"!!! AFTER INSERT: has config = {}\", check_after);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/server.rs",
+      "line": 405,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"!!! AUTH CONFIG DATA INJECTED: {:?}\", config_mode);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/server.rs",
+      "line": 417,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"!!! SECRETS MASKING: AuthConfigData in extensions: {}\", check);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/server.rs",
+      "line": 435,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"=== MIDDLEWARE STACK BUILT === layers: 7\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/server.rs",
+      "line": 633,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"=== AUTH CONFIG DATA INJECTOR ===\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/server.rs",
+      "line": 634,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Before insert, has config: {}\", req.extensions().get::<AuthConfigData>().is_some());",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/server.rs",
+      "line": 636,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"After insert, has config: {}\", req.extensions().get::<AuthConfigData>().is_some());",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/ws.rs",
+      "line": 311,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"=== WS RECEIVED TEXT: {} ===\", text);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/ws.rs",
+      "line": 345,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"=== WS SENT CHAT.SEND RESPONSE ===\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/ws.rs",
+      "line": 367,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"=== WS DISPATCHED RESPONSE: {:?} ===\", response);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/ws.rs",
+      "line": 383,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"=== WS SENT RESPONSE ===\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/ws.rs",
+      "line": 387,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"=== WS PARSE ERROR: {:?} ===\", rpc_error_response);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/ws.rs",
+      "line": 399,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"=== WS SENDING ERROR TEXT: {} ===\", error_text);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/ws.rs",
+      "line": 404,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"=== WS SENT ERROR ===\");",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/rpc/chat.rs",
+      "line": 95,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Error running agent: {}\", e);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/rpc/chat.rs",
+      "line": 161,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Failed to send text delta: {}\", e);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/rpc/chat.rs",
+      "line": 182,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Failed to send tool call start: {}\", e);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/rpc/chat.rs",
+      "line": 204,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Failed to send tool call result: {}\", e);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/rpc/chat.rs",
+      "line": 222,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Failed to send error: {}\", e);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-gateway/src/rpc/chat.rs",
+      "line": 243,
+      "type": "logging",
+      "severity": "medium",
+      "snippet": "eprintln!(\"Failed to send complete: {}\", e);",
+      "description": "Debug print statement should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-channel-discord/src/features.rs",
+      "line": 689,
+      "type": "logging",
+      "severity": "low",
+      "snippet": "eprintln!(\"parse_reaction_emoji result: {:?}\", result);",
+      "description": "Debug print statement in library code should use tracing crate instead of eprintln!."
+    },
+    {
+      "file": "crates/aisopod-memory/src/embedding/mock.rs",
+      "line": 53,
+      "type": "documentation",
+      "severity": "low",
+      "snippet": "// 1. Using the hash to generate pseudo-random values for each dimension",
+      "description": "Comment describes pseudo-random values which should be clarified as deterministic for testing purposes."
+    },
+    {
+      "file": "crates/aisopod-channel/src/util/connection.rs",
+      "line": 221,
+      "type": "insecure_random",
+      "severity": "medium",
+      "snippet": "let jitter = (rand::random::<u64>() % (jitter_range * 2 + 1)).saturating_sub(jitter_range);",
+      "description": "Using rand::random() which may use ThreadRng instead of OsRng. For security-sensitive jitter, consider using OsRng to ensure better randomness quality."
+    },
+    {
+      "file": "crates/aisopod-plugin/src/dynamic.rs",
+      "line": 32,
+      "type": "unsafe_code",
+      "severity": "low",
+      "snippet": "match unsafe { loader.load_plugin(&plugin) }",
+      "description": "Unsafe code block for plugin loading. This is documented and appropriate for plugin architecture. Ensure proper validation of plugin paths and contents."
+    },
+    {
+      "file": "crates/aisopod-plugin/src/dynamic.rs",
+      "line": 274,
+      "type": "unsafe_code",
+      "severity": "low",
+      "snippet": "pub unsafe fn load_plugin(",
+      "description": "Unsafe function declaration for plugin loading. This is documented as unsafe due to dynamic library loading. Ensure proper plugin validation."
+    },
+    {
+      "file": "crates/aisopod-plugin/src/abi.rs",
+      "line": 75,
+      "type": "unsafe_code",
+      "severity": "low",
+      "snippet": "pub unsafe extern \"C\" fn aisopod_plugin_create() -> *mut dyn Plugin",
+      "description": "Unsafe extern \"C\" function for plugin ABI. This is expected for FFI. Ensure proper C ABI compliance and error handling."
+    },
+    {
+      "file": "crates/aisopod-memory/src/sqlite.rs",
+      "line": 111,
+      "type": "unsafe_code",
+      "severity": "medium",
+      "snippet": "unsafe {\n            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(\n                sqlite3_vec_init as *const (),\n            )));\n        }",
+      "description": "Unsafe code for SQLite extension registration. This is necessary for the sqlite-vec extension. Ensure proper error handling and validate the extension is loaded correctly."
+    }
+  ],
+  "summary": {
+    "total_issues": 67,
+    "by_type": {
+      "logging": 58,
+      "insecure_random": 1,
+      "unsafe_code": 6,
+      "documentation": 1,
+      "credential_leak": 0,
+      "input_validation": 0,
+      "async_await": 0
+    },
+    "by_severity": {
+      "critical": 0,
+      "high": 0,
+      "medium": 8,
+      "low": 59
+    }
+  }
+}

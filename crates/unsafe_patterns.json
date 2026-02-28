@@ -1,0 +1,65 @@
+[
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 72,
+    "code_snippet": "//! ```",
+    "severity": "medium",
+    "description": "FFI function exported with #[no_mangle] attribute for plugin ABI. While necessary for dynamic loading, this creates a stable binary interface that must be carefully maintained for compatibility."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 75,
+    "code_snippet": "/// Plugin creation symbol - every dynamic plugin must export this.\npub unsafe extern \"C\" fn aisopod_plugin_create() -> *mut dyn Plugin {\n    Box::into_raw(Box::new(MyPlugin::new()))\n}",
+    "severity": "medium",
+    "description": "FFI plugin creation function that returns a raw pointer. The use of Box::into_raw transfers ownership to the caller and requires careful memory management to avoid leaks or use-after-free errors."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 96,
+    "code_snippet": "/// This is the entry point for dynamic plugins. The host calls this function\n/// to obtain a new plugin instance. The plugin must return a raw pointer to\n/// a Box<dyn Plugin>.\n///\n/// # Safety\n///\n/// This function is unsafe because it returns a raw pointer. The caller must\n/// ensure the pointer is valid and properly owned.\npub type PluginCreateFn = unsafe extern \"C\" fn() -> *mut dyn Plugin;",
+    "severity": "high",
+    "description": "Type definition for unsafe FFI function that returns a raw pointer to a trait object. Raw pointers bypass Rust's safety guarantees and require the caller to ensure memory safety."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 102,
+    "code_snippet": "/// Function signature that every dynamic plugin must export to query ABI version.\n///\n/// The host calls this function to verify compatibility before attempting to\n/// create a plugin instance.\npub type PluginAbiVersionFn = unsafe extern \"C\" fn() -> u32;",
+    "severity": "low",
+    "description": "Type definition for unsafe FFI function. While this function signature only returns a u32, the unsafe extern \"C\" linkage means it crosses the FFI boundary and must maintain ABI compatibility."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 109,
+    "code_snippet": "/// Function signature for plugin cleanup/destructor.\n///\n/// This optional function can be exported by plugins to perform cleanup\n/// when the plugin instance is destroyed. If not present, the host will\n/// use Box::from_raw to destroy the plugin.\npub type PluginDestroyFn = unsafe extern \"C\" fn(*mut dyn Plugin);",
+    "severity": "high",
+    "description": "Type definition for unsafe FFI function that accepts a raw pointer to a trait object. This is used for plugin destruction and requires careful pointer management to avoid double-free or use-after-free vulnerabilities."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/dynamic.rs",
+    "line_number": 274,
+    "code_snippet": "    ///     let plugin = unsafe { loader.load_plugin(plugin_info) }?;\n    ///     println!(\"Loaded: {}\", plugin.id());\n    /// }\n    /// ```\n    pub unsafe fn load_plugin(\n        &self,\n        discovered: &DiscoveredPlugin,\n    ) -> Result<Arc<dyn Plugin>, LoadError> {",
+    "severity": "medium",
+    "description": "The load_plugin function is marked as unsafe because it loads and executes code from a dynamic library. The caller must ensure the library is from a trusted source and properly formatted."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/dynamic.rs",
+    "line_number": 307,
+    "code_snippet": "        // Create plugin instance\n        let create_fn = lib\n            .get::<PluginCreateFn>(b\"aisopod_plugin_create\")\n            .map_err(|_| LoadError::MissingSymbol(\"aisopod_plugin_create\".into(), lib_path.clone()))?\n        \n        let plugin = Arc::from_raw(create_fn());",
+    "severity": "high",
+    "description": "Reconstructing an Arc from a raw pointer returned by FFI code. This is unsafe because the caller must ensure the pointer is valid, properly aligned, and was created by a matching Arc::into_raw call. Any violation can lead to double-free or use-after-free bugs."
+  },
+  {
+    "file_path": "crates/aisopod-memory/src/sqlite.rs",
+    "line_number": 111,
+    "code_snippet": "    ) -> Result<Self> {\n        // Register the sqlite-vec extension as an auto-extension\n        // This must be done before opening any database connections\n        unsafe {\n            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(\n                sqlite3_vec_init as *const (),\n            )));\n        }",
+    "severity": "high",
+    "description": "Using std::mem::transmute to convert a function pointer to a raw pointer for SQLite auto-extension registration. This bypasses type safety and requires careful verification that the function signature matches what SQLite expects."
+  },
+  {
+    "file_path": "crates/aisopod-memory/src/sqlite.rs",
+    "line_number": 112,
+    "code_snippet": "    ) -> Result<Self> {\n        // Register the sqlite-vec extension as an auto-extension\n        // This must be done before opening any database connections\n        unsafe {\n            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(\n                sqlite3_vec_init as *const (),\n            )));\n        }",
+    "severity": "high",
+    "description": "Casting a function pointer through a raw pointer using transmute. This is potentially unsafe because it loses type information and assumes the underlying representation is compatible, which may not be guaranteed across all platforms or function types."
+  }
+]

@@ -1,0 +1,93 @@
+[
+  {
+    "file_path": "crates/aisopod-memory/src/sqlite.rs",
+    "line_number": 111,
+    "code_snippet": "    ) -> Result<Self> {\n        // Register the sqlite-vec extension as an auto-extension\n        // This must be done before opening any database connections\n        unsafe {\n            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(\n                sqlite3_vec_init as *const (),\n            )));\n        }",
+    "severity": "medium",
+    "description": "Unsafe block used for sqlite3_auto_extension FFI call. The transmute converts a function pointer to a raw pointer for FFI registration. This is necessary for SQLite extension loading but bypasses Rust's type safety."
+  },
+  {
+    "file_path": "crates/aisopod-memory/src/sqlite.rs",
+    "line_number": 112,
+    "code_snippet": "        unsafe {\n            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(\n                sqlite3_vec_init as *const (),\n            )));\n        }\n\n        let db = Connection::open(path)?;",
+    "severity": "medium",
+    "description": "std::mem::transmute used to convert function pointer to raw pointer for FFI. This bypasses type safety and requires the source and target types to have exactly the same representation."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/dynamic.rs",
+    "line_number": 295,
+    "code_snippet": "            .get::<PluginCreateFn>(b\"aisopod_plugin_create\")\n            .map_err(|_| LoadError::MissingSymbol(\"aisopod_plugin_create\".into(), lib_path.clone()))?;\n        \n        let plugin = Arc::from_raw(create_fn());\n\n        // Keep the library alive by storing it alongside the plugin\n        std::mem::forget(lib);",
+    "severity": "high",
+    "description": "Arc::from_raw is called on a raw pointer returned by the plugin's create_fn. This assumes the pointer was created with Box::into_raw and that ownership semantics are correctly maintained. The safety of this operation depends on the plugin implementation correctly following the ABI contract."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/dynamic.rs",
+    "line_number": 238,
+    "code_snippet": "    ///\n    /// This method is unsafe because it loads and executes dynamic library code.\n    /// Plugins have full access to the host process and can perform arbitrary operations.\n    /// Only load plugins from trusted sources.\n    ///\n    /// # Arguments",
+    "severity": "medium",
+    "description": "load_plugin function is marked unsafe because it loads and executes dynamic library code. The safety contract requires that only trusted plugins are loaded."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/dynamic.rs",
+    "line_number": 270,
+    "code_snippet": "    ///\n    ///     let plugin = unsafe { loader.load_plugin(plugin_info) }?;\n    ///     println!(\"Loaded: {}\", plugin.id());\n    /// }\n    /// ```",
+    "severity": "medium",
+    "description": "Example code shows unsafe block when calling load_plugin. This is correct documentation showing that callers must acknowledge the unsafe nature of loading dynamic plugins."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/dynamic.rs",
+    "line_number": 274,
+    "code_snippet": "    /// ```\n    pub unsafe fn load_plugin(\n        &self,\n        discovered: &DiscoveredPlugin,\n    ) -> Result<Arc<dyn Plugin>, LoadError> {",
+    "severity": "medium",
+    "description": "load_plugin function signature marked as unsafe. This correctly indicates that the function performs unsafe operations (dynamic library loading and FFI calls)."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/dynamic.rs",
+    "line_number": 310,
+    "code_snippet": "        let plugin = Arc::from_raw(create_fn());\n\n        // Keep the library alive by storing it alongside the plugin\n        std::mem::forget(lib);\n\n        Ok(plugin)",
+    "severity": "medium",
+    "description": "std::mem::forget is used to keep the library alive after loading. This prevents the Library from being dropped and unloading the shared library while the plugin is still in use, which is necessary for correct lifetime management of dynamically loaded code."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 74,
+    "code_snippet": "//! #[no_mangle]\n//! pub unsafe extern \"C\" fn aisopod_plugin_create() -> *mut dyn Plugin {\n//!     Box::into_raw(Box::new(MyPlugin::new()))\n//! }\n//! ```",
+    "severity": "low",
+    "description": "Example code shows the expected plugin create function with #[no_mangle] and unsafe extern \"C\" signature. This is documentation showing the ABI contract that plugins must implement."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 75,
+    "code_snippet": "//! #[no_mangle]\n//! pub unsafe extern \"C\" fn aisopod_plugin_create() -> *mut dyn Plugin {\n//!     Box::into_raw(Box::new(MyPlugin::new()))\n//! }\n//! ```",
+    "severity": "low",
+    "description": "Example shows Box::into_raw for converting Box to raw pointer for FFI. This is the correct pattern for returning owned Rust objects across FFI boundaries."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 94,
+    "code_snippet": "///\n/// This function is unsafe because it returns a raw pointer. The caller must\n/// ensure the pointer is valid and properly owned.\n///\n/// # Safety",
+    "severity": "medium",
+    "description": "PluginCreateFn type is marked unsafe because it returns a raw pointer. The safety contract requires the returned pointer to be valid and properly owned (created with Box::into_raw)."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 96,
+    "code_snippet": "pub type PluginCreateFn = unsafe extern \"C\" fn() -> *mut dyn Plugin;\n\n/// Function signature that every dynamic plugin must export to query ABI version.\n///\n/// The host calls this function to verify compatibility before attempting to\n/// create a plugin instance.",
+    "severity": "medium",
+    "description": "PluginCreateFn type definition. This function pointer type is marked unsafe because it returns a raw pointer that must be properly owned by the caller."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 102,
+    "code_snippet": "pub type PluginAbiVersionFn = unsafe extern \"C\" fn() -> u32;\n\n/// Function signature for plugin cleanup/destructor.\n///\n/// This optional function can be exported by plugins to perform cleanup\n/// when the plugin instance is destroyed. If not present, the host will\n/// use Box::from_raw to destroy the plugin.",
+    "severity": "low",
+    "description": "PluginAbiVersionFn type definition. Marked unsafe due to FFI calling convention but doesn't perform inherently unsafe operations itself."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 109,
+    "code_snippet": "/// when the plugin instance is destroyed. If not present, the host will\n/// use Box::from_raw to destroy the plugin.\npub type PluginDestroyFn = unsafe extern \"C\" fn(*mut dyn Plugin);\n",
+    "severity": "medium",
+    "description": "PluginDestroyFn type definition for optional plugin destructor. Marked unsafe due to FFI and raw pointer parameter. This function would be called with a raw pointer that needs to be properly destroyed."
+  }
+]

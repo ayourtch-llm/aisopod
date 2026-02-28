@@ -1,0 +1,353 @@
+[
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 68,
+    "code_snippet": {
+      "before": [
+        "//! impl MyPlugin {",
+        "//!     pub fn new() -> Self {",
+        "//!         Self {",
+        "//!             meta: PluginMeta::new("
+      ],
+      "matched": [
+        "//! #[no_mangle]"
+      ],
+      "after": [
+        "//! pub extern \"C\" fn aisopod_plugin_abi_version() -> u32 {",
+        "//!     ABI_VERSION",
+        "//! }",
+        "//!",
+        "//! /// Plugin creation symbol - every dynamic plugin must export this."
+      ]
+    },
+    "severity": "high",
+    "description": "#[no_mangle] attribute on FFI function. This prevents Rust name mangling and is required for dynamic plugins to export symbols that the host can find at runtime. The function is also marked unsafe extern \"C\" which indicates it's an unsafe FFI boundary."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 74,
+    "code_snippet": {
+      "before": [
+        "//! impl MyPlugin {",
+        "//!     pub fn new() -> Self {",
+        "//!         Self {",
+        "//!             meta: PluginMeta::new("
+      ],
+      "matched": [
+        "//! #[no_mangle]"
+      ],
+      "after": [
+        "//! pub extern \"C\" fn aisopod_plugin_abi_version() -> u32 {",
+        "//!     ABI_VERSION",
+        "//! }",
+        "//!",
+        "//! /// Plugin creation symbol - every dynamic plugin must export this."
+      ]
+    },
+    "severity": "high",
+    "description": "Second #[no_mangle] attribute on the FFI plugin creation function. This is required for dynamic plugins to export the aisopod_plugin_create symbol that the host can dynamically load."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 76,
+    "code_snippet": {
+      "before": [
+        "//! #![no_mangle]",
+        "//! pub unsafe extern \"C\" fn aisopod_plugin_create() -> *mut dyn Plugin {",
+        "//!     Box::into_raw(Box::new(MyPlugin::new()))",
+        "//! }",
+        "//! ```"
+      ],
+      "matched": [
+        "//!     Box::into_raw(Box::new(MyPlugin::new()))"
+      ],
+      "after": [
+        "",
+        "use crate::Plugin;",
+        "",
+        "/// ABI version for plugin compatibility checking.",
+        "/// Bump this when the Plugin trait or PluginApi changes in a breaking way."
+      ]
+    },
+    "severity": "high",
+    "description": "Box::into_raw() is used in the FFI plugin creation function. This converts a Box<dyn Plugin> into a raw pointer (*mut dyn Plugin), transferring ownership to the caller. The caller becomes responsible for eventually destroying the plugin using Box::from_raw. This is a classic unsafe pattern for FFI boundaries where C code needs to manage Rust memory."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 94,
+    "code_snippet": {
+      "before": [
+        "",
+        "/// Function signature that every dynamic plugin must export to create instances.",
+        "",
+        "/// This is the entry point for dynamic plugins. The host calls this function",
+        "/// to obtain a new plugin instance. The plugin must return a raw pointer to",
+        "/// a Box<dyn Plugin>."
+      ],
+      "matched": [
+        "/// This function is unsafe because it returns a raw pointer. The caller must",
+        "/// ensure the pointer is valid and properly owned."
+      ],
+      "after": [
+        "pub type PluginCreateFn = unsafe extern \"C\" fn() -> *mut dyn Plugin;",
+        "",
+        "/// Function signature that every dynamic plugin must export to query ABI version.",
+        "",
+        "/// The host calls this function to verify compatibility before attempting to"
+      ]
+    },
+    "severity": "medium",
+    "description": "Raw pointer return type (*mut dyn Plugin) in FFI function signature. The PluginCreateFn type alias defines a function that returns a raw pointer to a Plugin trait object. This is a medium severity because while raw pointers are unsafe in Rust, this is an intentional FFI boundary where the caller is responsible for validating the pointer before use."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 96,
+    "code_snippet": {
+      "before": [
+        "/// ensure the pointer is valid and properly owned.",
+        "pub type PluginCreateFn = unsafe extern \"C\" fn() -> *mut dyn Plugin;",
+        "",
+        "/// Function signature that every dynamic plugin must export to query ABI version.",
+        "",
+        "/// The host calls this function to verify compatibility before attempting to"
+      ],
+      "matched": [
+        "pub type PluginCreateFn = unsafe extern \"C\" fn() -> *mut dyn Plugin;"
+      ],
+      "after": [
+        "",
+        "/// Function signature that every dynamic plugin must export to query ABI version.",
+        "",
+        "/// The host calls this function to verify compatibility before attempting to",
+        "/// create a plugin instance."
+      ]
+    },
+    "severity": "medium",
+    "description": "Type alias for PluginCreateFn with unsafe extern \"C\" calling convention and *mut dyn Plugin return type. This defines the FFI contract that all plugins must implement. The unsafe marker indicates callers must ensure the returned raw pointer is valid."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 102,
+    "code_snippet": {
+      "before": [
+        "/// Function signature that every dynamic plugin must export to query ABI version.",
+        "",
+        "/// The host calls this function to verify compatibility before attempting to",
+        "/// create a plugin instance.",
+        "pub type PluginAbiVersionFn = unsafe extern \"C\" fn() -> u32;"
+      ],
+      "matched": [
+        "pub type PluginAbiVersionFn = unsafe extern \"C\" fn() -> u32;"
+      ],
+      "after": [
+        "",
+        "/// Function signature for plugin cleanup/destructor.",
+        "",
+        "/// This optional function can be exported by plugins to perform cleanup",
+        "/// when the plugin instance is destroyed. If not present, the host will"
+      ]
+    },
+    "severity": "medium",
+    "description": "Type alias for PluginAbiVersionFn with unsafe extern \"C\" calling convention. This FFI function returns the ABI version number and must be marked unsafe because it's called from C code where type safety cannot be guaranteed."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/abi.rs",
+    "line_number": 109,
+    "code_snippet": {
+      "before": [
+        "/// when the plugin instance is destroyed. If not present, the host will",
+        "/// use Box::from_raw to destroy the plugin.",
+        "pub type PluginDestroyFn = unsafe extern \"C\" fn(*mut dyn Plugin);"
+      ],
+      "matched": [
+        "pub type PluginDestroyFn = unsafe extern \"C\" fn(*mut dyn Plugin);"
+      ],
+      "after": [
+        "",
+        "/// Function signature that every dynamic plugin must export to query ABI version.",
+        "",
+        "/// The host calls this function to verify compatibility before attempting to",
+        "/// create a plugin instance."
+      ]
+    },
+    "severity": "medium",
+    "description": "Type alias for PluginDestroyFn with unsafe extern \"C\" calling convention that takes a *mut dyn Plugin parameter. This FFI function is used to destroy plugin instances. The raw pointer parameter represents ownership transfer from the host to the plugin for cleanup."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/dynamic.rs",
+    "line_number": 32,
+    "code_snippet": {
+      "before": [
+        "//!             .await?",
+        "//!     }",
+        "//! }",
+        "//! # Ok(())",
+        "//! # }"
+      ],
+      "matched": [
+        "//!         match unsafe { loader.load_plugin(&plugin) } {"
+      ],
+      "after": [
+        "//! # Ok(())",
+        "//! # }",
+        "//! # }",
+        "//! ```",
+        "pub struct PluginLoader {"
+      ]
+    },
+    "severity": "medium",
+    "description": "Documentation example showing unsafe block usage when calling load_plugin(). The unsafe block is required because load_plugin() is marked as unsafe - it loads and executes code from a dynamic library which cannot be verified for safety by Rust's type system."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/dynamic.rs",
+    "line_number": 270,
+    "code_snippet": {
+      "before": [
+        "//! # Ok(())",
+        "//! # }",
+        "//! # }",
+        "//! ```",
+        "pub unsafe fn load_plugin("
+      ],
+      "matched": [
+        "///     let plugin = unsafe { loader.load_plugin(plugin_info) }?;"
+      ],
+      "after": [
+        "",
+        "/// Loads a discovered plugin from a shared library.",
+        "",
+        "/// # Safety",
+        "",
+        "/// This method is unsafe because it loads and executes dynamic library code."
+      ]
+    },
+    "severity": "medium",
+    "description": "unsafe block used when calling loader.load_plugin() which is a public unsafe function. The unsafe marker is appropriate because the function loads and executes code from a dynamically linked library, which bypasses Rust's safety guarantees."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/dynamic.rs",
+    "line_number": 274,
+    "code_snippet": {
+      "before": [
+        "//! ```",
+        "pub unsafe fn load_plugin(",
+        "    &self,",
+        "    discovered: &DiscoveredPlugin,",
+        "    ) -> Result<Arc<dyn Plugin>, LoadError> {"
+      ],
+      "matched": [
+        "pub unsafe fn load_plugin("
+      ],
+      "after": [
+        "    &self,",
+        "    discovered: &DiscoveredPlugin,",
+        "    ) -> Result<Arc<dyn Plugin>, LoadError> {",
+        "",
+        "        let lib_path = self.library_path(discovered);"
+      ]
+    },
+    "severity": "high",
+    "description": "The load_plugin() method is marked unsafe because it loads dynamic libraries and executes plugin code. The function uses Arc::from_raw on line 303 to convert the raw pointer from the FFI function into an Arc, which requires the caller to ensure proper ownership semantics. This is a high severity pattern because it's the main entry point for loading untrusted plugin code."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/dynamic.rs",
+    "line_number": 303,
+    "code_snippet": {
+      "before": [
+        "        // Create plugin instance",
+        "        let create_fn = lib",
+        "            .get::<PluginCreateFn>(b\"aisopod_plugin_create\")",
+        "            .map_err(|_| LoadError::MissingSymbol(\"aisopod_plugin_create\".into(), lib_path.clone()))?;",
+        "        ",
+        "        let plugin = Arc::from_raw(create_fn());"
+      ],
+      "matched": [
+        "        let plugin = Arc::from_raw(create_fn());"
+      ],
+      "after": [
+        "",
+        "        // Keep the library alive by storing it alongside the plugin",
+        "        std::mem::forget(lib);",
+        "",
+        "        Ok(plugin)"
+      ]
+    },
+    "severity": "high",
+    "description": "Arc::from_raw() is called on the raw pointer returned by the FFI create_fn. This converts the raw pointer into an Arc<dyn Plugin> for safe shared ownership. This is high severity because Arc::from_raw is inherently unsafe - it requires that the pointer was previously created from an Arc and that no other references exist. The plugin loader must guarantee this invariant."
+  },
+  {
+    "file_path": "crates/aisopod-plugin/src/lib.rs",
+    "line_number": 47,
+    "code_snippet": {
+      "before": [
+        "//!             .await?,",
+        "//!     }",
+        "//! }",
+        "//! # Ok(())",
+        "//! # }"
+      ],
+      "matched": [
+        "//!     match unsafe { loader.load_plugin(&plugin) } {"
+      ],
+      "after": [
+        "//! # Ok(())",
+        "//! # }",
+        "//! # }",
+        "//! ```",
+        "use std::collections::HashMap;"
+      ]
+    },
+    "severity": "low",
+    "description": "Documentation example showing unsafe usage pattern for load_plugin. This is a low severity finding as it's just documentation showing how unsafe blocks should be used when calling unsafe functions. The example correctly wraps the unsafe call in an unsafe block."
+  },
+  {
+    "file_path": "crates/aisopod-memory/src/sqlite.rs",
+    "line_number": 111,
+    "code_snippet": {
+      "before": [
+        "    ) -> Result<Self> {",
+        "        // Register the sqlite-vec extension as an auto-extension",
+        "        // This must be done before opening any database connections",
+        "        unsafe {",
+        "            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute("
+      ],
+      "matched": [
+        "        unsafe {"
+      ],
+      "after": [
+        "            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(",
+        "                sqlite3_vec_init as *const (),",
+        "            )));",
+        "        }",
+        ""
+      ]
+    },
+    "severity": "high",
+    "description": "Raw unsafe block with std::mem::transmute to register a SQLite auto-extension. The transmute converts a function pointer (sqlite3_vec_init) to a raw unsafe extern \"C\" function pointer. This is high severity because transmute bypasses all type safety checks and assumes the caller knows the exact memory layout. The rusqlite ffi module uses this pattern to dynamically load SQLite extensions at runtime."
+  },
+  {
+    "file_path": "crates/aisopod-gateway/src/auth/device_tokens.rs",
+    "line_number": 230,
+    "code_snippet": {
+      "before": [
+        "    impl std::ops::Deref for TestManagerWithTemp {",
+        "        type Target = DeviceTokenManager;",
+        "",
+        "        fn deref(&self) -> &Self::Target {",
+        "            &self.manager"
+      ],
+      "matched": [
+        "    impl std::ops::DerefMut for TestManagerWithTemp {"
+      ],
+      "after": [
+        "",
+        "        fn deref_mut(&mut self) -> &mut Self::Target {",
+        "            &mut self.manager",
+        "        }",
+        "    }"
+      ]
+    },
+    "severity": "low",
+    "description": "Implementation of DerefMut for TestManagerWithTemp in a test module. This is a low severity finding as DerefMut is a safe trait that allows mutable dereferencing. It's being used in test code to provide transparent access to the inner DeviceTokenManager. While DerefMut can be used unsafely, this implementation is correct and safe."
+  }
+]
