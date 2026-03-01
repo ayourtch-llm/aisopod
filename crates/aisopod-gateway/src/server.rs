@@ -265,7 +265,7 @@ pub async fn run_with_config(config: Arc<AisopodConfig>) -> Result<()> {
     // 6. broadcaster middleware (injects broadcaster)
     // 7. auth_middleware (validates auth - needs auth_config_data)
     // 8. Router (handles the actual route)
-    let config_arc = config.clone();
+    let config_for_middleware = config.clone();
 
     let middleware_stack = tower::ServiceBuilder::new()
         .layer(
@@ -275,11 +275,11 @@ pub async fn run_with_config(config: Arc<AisopodConfig>) -> Result<()> {
         )
         // Make the loaded configuration available to downstream handlers (including WebSocket routes).
         .layer(axum::middleware::from_fn({
-            let config_arc = config_arc.clone();
+            let config_for_middleware = config_for_middleware.clone();
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-                let config_for_request = config_arc.clone();
+                let config = config_for_middleware.clone();
                 async move {
-                    req.extensions_mut().insert(config_for_request);
+                    req.extensions_mut().insert(config);
                     next.run(req).await
                 }
             }
@@ -591,16 +591,15 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
-        .layer(axum::middleware::from_fn({
-            let config_arc = config_arc.clone();
+        .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-                let config_for_request = config_arc.clone();
+                let config = config_arc.clone();
                 async move {
-                    req.extensions_mut().insert(config_for_request);
+                    req.extensions_mut().insert(config);
                     next.run(req).await
                 }
-            }
-        }))
+            },
+        ))
         .layer(axum::middleware::from_fn(
             |mut req: axum::extract::Request, next: axum::middleware::Next| {
                 async move {
