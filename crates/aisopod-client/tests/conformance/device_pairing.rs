@@ -11,8 +11,7 @@ pub async fn connect_test_client() -> AisopodClient {
     let config = ClientConfig {
         server_url: env::var("AISOPOD_TEST_URL")
             .unwrap_or_else(|_| "ws://127.0.0.1:8080/ws".to_string()),
-        auth_token: env::var("AISOPOD_TEST_TOKEN")
-            .unwrap_or_else(|_| "test-token".to_string()),
+        auth_token: env::var("AISOPOD_TEST_TOKEN").unwrap_or_else(|_| "test-token".to_string()),
         client_name: "conformance-test".to_string(),
         client_version: "0.1.0".to_string(),
         device_id: uuid::Uuid::new_v4(),
@@ -54,23 +53,28 @@ async fn test_pair_request_returns_code() {
     let mut client = connect_test_client().await;
 
     // Request pairing
-    let result = client.node_pair_request(aisopod_client::DeviceInfo {
-        device_id: uuid::Uuid::new_v4(),
-        device_name: "test-device".to_string(),
-        device_type: "test-client".to_string(),
-        device_version: "0.1.0".to_string(),
-        capabilities: vec![aisopod_client::DeviceCapability {
-            service: "test".to_string(),
-            methods: vec!["test_method".to_string()],
-            description: Some("Test capability".to_string()),
-        }],
-    }).await;
+    let result = client
+        .node_pair_request(aisopod_client::DeviceInfo {
+            device_id: uuid::Uuid::new_v4(),
+            device_name: "test-device".to_string(),
+            device_type: "test-client".to_string(),
+            device_version: "0.1.0".to_string(),
+            capabilities: vec![aisopod_client::DeviceCapability {
+                service: "test".to_string(),
+                methods: vec!["test_method".to_string()],
+                description: Some("Test capability".to_string()),
+            }],
+        })
+        .await;
 
     // The server should return a pairing result
     match result {
         Ok(pair_result) => {
             // Verify the pairing result has the expected fields
-            assert!(!pair_result.pair_id.is_empty(), "Pair ID should not be empty");
+            assert!(
+                !pair_result.pair_id.is_empty(),
+                "Pair ID should not be empty"
+            );
             // Note: expires_at field exists but we don't check the value
             // as it depends on the server implementation
         }
@@ -92,16 +96,16 @@ async fn test_pair_confirm_with_invalid_code() {
 
     // Note: The current client library doesn't have a node_pair_confirm method.
     // This test verifies the expected behavior and structure.
-    
+
     // Test that requesting with a non-existent pair ID fails
     // This would require the pair_confirm method to be implemented
     let _pair_id = "non-existent-pair-id";
-    
+
     // The test demonstrates the expected flow:
     // 1. Request pairing to get a pair_id
     // 2. Attempt to confirm with various codes
     // 3. Verify proper error handling
-    
+
     // For now, we verify the structure is available
     let device_info = test_device_info();
     assert_eq!(device_info.device_name, "conformance-test-device");
@@ -119,10 +123,22 @@ async fn test_device_info_structure() {
 
     // Verify all required fields are present
     assert!(!device_info.device_id.is_nil(), "Device ID should be set");
-    assert!(!device_info.device_name.is_empty(), "Device name should not be empty");
-    assert!(!device_info.device_type.is_empty(), "Device type should not be empty");
-    assert!(!device_info.device_version.is_empty(), "Device version should not be empty");
-    assert!(!device_info.capabilities.is_empty(), "Should have at least one capability");
+    assert!(
+        !device_info.device_name.is_empty(),
+        "Device name should not be empty"
+    );
+    assert!(
+        !device_info.device_type.is_empty(),
+        "Device type should not be empty"
+    );
+    assert!(
+        !device_info.device_version.is_empty(),
+        "Device version should not be empty"
+    );
+    assert!(
+        !device_info.capabilities.is_empty(),
+        "Should have at least one capability"
+    );
 }
 
 #[tokio::test]

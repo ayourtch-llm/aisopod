@@ -4,17 +4,20 @@
 //! support for both AppleScript (macOS native) and BlueBubbles (cross-platform)
 //! backends.
 
+use crate::applescript::{AppleScriptBackendImpl, ApplescriptBackend};
+use crate::bluebubbles::{BlueBubblesBackend, BlueBubblesBackendImpl};
 use crate::config::{BackendType, ImessageAccountConfig, ImessageError, ImessageResult};
 use crate::platform::{check_platform_support, is_macos};
-use crate::applescript::{ApplescriptBackend, AppleScriptBackendImpl};
-use crate::bluebubbles::{BlueBubblesBackend, BlueBubblesBackendImpl};
 use aisopod_channel::adapters::{
     AccountConfig, AccountSnapshot, AuthAdapter, ChannelConfigAdapter, GroupInfo, MemberInfo,
     SecurityAdapter,
 };
-use aisopod_channel::message::{IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, PeerInfo, PeerKind, SenderInfo};
-use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, PeerInfo, PeerKind,
+    SenderInfo,
+};
 use aisopod_channel::plugin::ChannelPlugin;
+use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -31,7 +34,12 @@ trait BackendImpl: Send + Sync {
     fn send_text(&self, to: &str, text: &str) -> Result<String>;
     fn send_text_to_group(&self, group_id: &str, text: &str) -> Result<String>;
     fn send_media(&self, to: &str, media_path: &str, mime_type: &str) -> Result<String>;
-    fn send_media_to_group(&self, group_id: &str, media_path: &str, mime_type: &str) -> Result<String>;
+    fn send_media_to_group(
+        &self,
+        group_id: &str,
+        media_path: &str,
+        mime_type: &str,
+    ) -> Result<String>;
     fn backend_type(&self) -> BackendType;
 }
 
@@ -150,10 +158,7 @@ impl ImessageChannel {
 
         // Check platform support
         if let Err(e) = check_platform_support(&config) {
-            return Err(anyhow::anyhow!(
-                "Platform not supported: {}",
-                e
-            ));
+            return Err(anyhow::anyhow!("Platform not supported: {}", e));
         }
 
         let id = format!("imessage-{}", config.account_id);
@@ -184,7 +189,7 @@ impl ImessageChannel {
         };
 
         let accounts = vec![account];
-        
+
         // Initialize backends based on configuration
         let applescript_backend = if config.backend == "applescript" {
             Some(ApplescriptBackend::new())
@@ -226,12 +231,17 @@ impl ImessageChannel {
 
     /// Gets the account by ID.
     pub fn get_account(&self, account_id: &str) -> Option<&ImessageAccount> {
-        self.accounts.iter().find(|a| a.config.account_id == account_id)
+        self.accounts
+            .iter()
+            .find(|a| a.config.account_id == account_id)
     }
 
     /// Gets all configured account IDs.
     pub fn list_account_ids(&self) -> Vec<String> {
-        self.accounts.iter().map(|a| a.config.account_id.clone()).collect()
+        self.accounts
+            .iter()
+            .map(|a| a.config.account_id.clone())
+            .collect()
     }
 
     /// Connects to the iMessage backend.
@@ -321,31 +331,26 @@ impl ImessageChannel {
     ///
     /// * `Ok(())` - Message sent successfully
     /// * `Err(anyhow::Error)` - An error if sending fails
-    pub async fn send_text(
-        &self,
-        to: &str,
-        text: &str,
-        account_id: Option<&str>,
-    ) -> Result<()> {
+    pub async fn send_text(&self, to: &str, text: &str, account_id: Option<&str>) -> Result<()> {
         let account = account_id
             .and_then(|id| self.get_account(id))
             .or_else(|| self.accounts.first());
 
-        let account = account.ok_or_else(|| {
-            anyhow::anyhow!("No iMessage account configured")
-        })?;
+        let account = account.ok_or_else(|| anyhow::anyhow!("No iMessage account configured"))?;
 
         match account.config.backend.as_str() {
             "applescript" => {
-                let backend = self.applescript_backend.as_ref().ok_or_else(|| {
-                    anyhow::anyhow!("AppleScript backend not available")
-                })?;
+                let backend = self
+                    .applescript_backend
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("AppleScript backend not available"))?;
                 backend.send_text(to, text).await?;
             }
             "bluebubbles" => {
-                let backend = self.bluebubbles_backend.as_ref().ok_or_else(|| {
-                    anyhow::anyhow!("BlueBubbles backend not available")
-                })?;
+                let backend = self
+                    .bluebubbles_backend
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("BlueBubbles backend not available"))?;
                 backend.send_text(to, text).await?;
             }
             _ => {
@@ -380,21 +385,21 @@ impl ImessageChannel {
             .and_then(|id| self.get_account(id))
             .or_else(|| self.get_account(&self.accounts[0].config.account_id));
 
-        let account = account.ok_or_else(|| {
-            anyhow::anyhow!("No iMessage account configured")
-        })?;
+        let account = account.ok_or_else(|| anyhow::anyhow!("No iMessage account configured"))?;
 
         match account.config.backend.as_str() {
             "applescript" => {
-                let backend = self.applescript_backend.as_ref().ok_or_else(|| {
-                    anyhow::anyhow!("AppleScript backend not available")
-                })?;
+                let backend = self
+                    .applescript_backend
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("AppleScript backend not available"))?;
                 backend.send_text_to_group(group_id, text).await?;
             }
             "bluebubbles" => {
-                let backend = self.bluebubbles_backend.as_ref().ok_or_else(|| {
-                    anyhow::anyhow!("BlueBubbles backend not available")
-                })?;
+                let backend = self
+                    .bluebubbles_backend
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("BlueBubbles backend not available"))?;
                 backend.send_text_to_group(group_id, text).await?;
             }
             _ => {
@@ -429,16 +434,13 @@ impl ImessageChannel {
             .and_then(|id| self.get_account(id))
             .or_else(|| self.accounts.first());
 
-        let account = account.ok_or_else(|| {
-            anyhow::anyhow!("No iMessage account configured")
-        })?;
+        let account = account.ok_or_else(|| anyhow::anyhow!("No iMessage account configured"))?;
 
         let backend = match account.config.backend.as_str() {
-            "bluebubbles" => {
-                self.bluebubbles_backend.as_ref().ok_or_else(|| {
-                    anyhow::anyhow!("BlueBubbles backend not available")
-                })?
-            }
+            "bluebubbles" => self
+                .bluebubbles_backend
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("BlueBubbles backend not available"))?,
             _ => {
                 return Err(anyhow::anyhow!(
                     "Media sending requires BlueBubbles backend"
@@ -447,23 +449,25 @@ impl ImessageChannel {
         };
 
         // Get media path and mime type from Media struct
-        let media_path = media.data.clone().ok_or_else(|| {
-            anyhow::anyhow!("Media data required for sending")
-        })?;
+        let media_path = media
+            .data
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("Media data required for sending"))?;
 
-        let mime_type = media.mime_type.clone().unwrap_or_else(|| {
-            match media.media_type {
+        let mime_type = media
+            .mime_type
+            .clone()
+            .unwrap_or_else(|| match media.media_type {
                 MediaType::Image => "image/jpeg".to_string(),
                 MediaType::Audio => "audio/mpeg".to_string(),
                 MediaType::Video => "video/mp4".to_string(),
                 MediaType::Document => "application/pdf".to_string(),
                 MediaType::Other(ref other) => format!("application/{}", other),
-            }
-        });
+            });
 
         // Convert data to file for sending (in a real implementation, we'd use a temporary file)
         let media_path_str = String::from("/tmp/media.bin");
-        
+
         backend.send_media(to, &media_path_str, &mime_type).await?;
         Ok(())
     }
@@ -479,16 +483,13 @@ impl ImessageChannel {
             .and_then(|id| self.get_account(id))
             .or_else(|| self.accounts.first());
 
-        let account = account.ok_or_else(|| {
-            anyhow::anyhow!("No iMessage account configured")
-        })?;
+        let account = account.ok_or_else(|| anyhow::anyhow!("No iMessage account configured"))?;
 
         let backend = match account.config.backend.as_str() {
-            "bluebubbles" => {
-                self.bluebubbles_backend.as_ref().ok_or_else(|| {
-                    anyhow::anyhow!("BlueBubbles backend not available")
-                })?
-            }
+            "bluebubbles" => self
+                .bluebubbles_backend
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("BlueBubbles backend not available"))?,
             _ => {
                 return Err(anyhow::anyhow!(
                     "Media sending requires BlueBubbles backend"
@@ -496,23 +497,27 @@ impl ImessageChannel {
             }
         };
 
-        let media_path = media.data.clone().ok_or_else(|| {
-            anyhow::anyhow!("Media data required for sending")
-        })?;
+        let media_path = media
+            .data
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("Media data required for sending"))?;
 
-        let mime_type = media.mime_type.clone().unwrap_or_else(|| {
-            match media.media_type {
+        let mime_type = media
+            .mime_type
+            .clone()
+            .unwrap_or_else(|| match media.media_type {
                 MediaType::Image => "image/jpeg".to_string(),
                 MediaType::Audio => "audio/mpeg".to_string(),
                 MediaType::Video => "video/mp4".to_string(),
                 MediaType::Document => "application/pdf".to_string(),
                 MediaType::Other(ref other) => format!("application/{}", other),
-            }
-        });
+            });
 
         let media_path_str = String::from("/tmp/media.bin");
-        
-        backend.send_media_to_group(group_id, &media_path_str, &mime_type).await?;
+
+        backend
+            .send_media_to_group(group_id, &media_path_str, &mime_type)
+            .await?;
         Ok(())
     }
 }
@@ -534,11 +539,16 @@ impl ImessageChannelConfigAdapter {
 #[async_trait]
 impl ChannelConfigAdapter for ImessageChannelConfigAdapter {
     fn list_accounts(&self) -> Result<Vec<String>> {
-        Ok(self.accounts.iter().map(|a| a.config.account_id.clone()).collect())
+        Ok(self
+            .accounts
+            .iter()
+            .map(|a| a.config.account_id.clone())
+            .collect())
     }
 
     fn resolve_account(&self, id: &str) -> Result<AccountSnapshot> {
-        self.accounts.iter()
+        self.accounts
+            .iter()
             .find(|a| a.config.account_id == id)
             .map(|a| AccountSnapshot {
                 id: a.config.account_id.clone(),
@@ -591,9 +601,13 @@ impl SecurityAdapter for ImessageSecurityAdapter {
                 return true;
             }
         }
-        
+
         // If no allowlist is configured, all senders are allowed
-        self.accounts.is_empty() || self.accounts.iter().any(|a| a.config.allowed_senders.is_none())
+        self.accounts.is_empty()
+            || self
+                .accounts
+                .iter()
+                .any(|a| a.config.allowed_senders.is_none())
     }
 
     fn requires_mention_in_group(&self) -> bool {
@@ -627,7 +641,9 @@ impl ChannelPlugin for ImessageChannel {
 
     /// Returns the security adapter for this channel.
     fn security(&self) -> Option<&dyn SecurityAdapter> {
-        self.security_adapter.as_ref().map(|a| a as &dyn SecurityAdapter)
+        self.security_adapter
+            .as_ref()
+            .map(|a| a as &dyn SecurityAdapter)
     }
 }
 
@@ -649,7 +665,7 @@ pub async fn register(
     // Override account_id in config
     let mut config = config;
     config.account_id = account_id.to_string();
-    
+
     let channel = ImessageChannel::new(config).await?;
     registry.register(Arc::new(channel));
     Ok(())
@@ -676,31 +692,36 @@ pub fn parse_imessage_message(
     channel_id: &str,
 ) -> Result<IncomingMessage> {
     // Extract fields from the JSON
-    let guid = json.get("guid")
+    let guid = json
+        .get("guid")
         .and_then(|v| v.as_str())
         .unwrap_or("unknown")
         .to_string();
 
-    let sender_id = json.get("address")
+    let sender_id = json
+        .get("address")
         .or_else(|| json.get("sender"))
         .or_else(|| json.get("from"))
         .and_then(|v| v.as_str())
         .unwrap_or("unknown")
         .to_string();
 
-    let text = json.get("text")
+    let text = json
+        .get("text")
         .or_else(|| json.get("body"))
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string();
 
-    let timestamp = json.get("date")
+    let timestamp = json
+        .get("date")
         .or_else(|| json.get("date_sent"))
         .and_then(|v| v.as_i64())
         .map(|ts| DateTime::<Utc>::from_utc(chrono::NaiveDateTime::from_timestamp(ts, 0), Utc));
 
     // Extract chat/group info
-    let chat_id = json.get("chat_guid")
+    let chat_id = json
+        .get("chat_guid")
         .or_else(|| json.get("group_id"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
@@ -722,7 +743,11 @@ pub fn parse_imessage_message(
     // Create peer info
     let peer = PeerInfo {
         id: chat_id.unwrap_or_else(|| sender_id_for_peer.clone()),
-        kind: if is_group { PeerKind::Group } else { PeerKind::User },
+        kind: if is_group {
+            PeerKind::Group
+        } else {
+            PeerKind::User
+        },
         title: None,
     };
 
@@ -750,10 +775,10 @@ mod tests {
     #[test]
     fn test_default_backend_on_macos() {
         let config = ImessageAccountConfig::default();
-        
+
         #[cfg(target_os = "macos")]
         assert_eq!(config.backend, "applescript");
-        
+
         #[cfg(not(target_os = "macos"))]
         assert_eq!(config.backend, "bluebubbles");
     }
@@ -761,11 +786,11 @@ mod tests {
     #[tokio::test]
     async fn test_channel_meta() {
         let config = ImessageAccountConfig::new("test");
-        
+
         // Ensure we have a valid backend for testing
         #[cfg(target_os = "macos")]
         let config = config;
-        
+
         #[cfg(not(target_os = "macos"))]
         let config = {
             let mut config = config;
@@ -776,9 +801,9 @@ mod tests {
             };
             config
         };
-        
+
         let channel = ImessageChannel::new(config).await.unwrap();
-        
+
         assert_eq!(channel.id(), "imessage-test");
         assert_eq!(channel.meta().label, "iMessage");
         assert!(channel.meta().docs_url.is_some());
@@ -787,11 +812,11 @@ mod tests {
     #[tokio::test]
     async fn test_channel_capabilities() {
         let config = ImessageAccountConfig::new("test");
-        
+
         // Ensure we have a valid backend for testing
         #[cfg(target_os = "macos")]
         let config = config;
-        
+
         #[cfg(not(target_os = "macos"))]
         let config = {
             let mut config = config;
@@ -802,11 +827,11 @@ mod tests {
             };
             config
         };
-        
+
         let channel = ImessageChannel::new(config).await.unwrap();
-        
+
         let caps = channel.capabilities();
-        
+
         assert!(caps.chat_types.contains(&ChatType::Dm));
         assert!(caps.chat_types.contains(&ChatType::Group));
         assert!(caps.supports_media);
@@ -826,7 +851,7 @@ mod tests {
         });
 
         let message = parse_imessage_message(json, "test-account", "imessage").unwrap();
-        
+
         assert_eq!(message.id, "msg123");
         assert_eq!(message.sender.id, "+1234567890");
         assert_eq!(message.peer.id, "+1234567890");
@@ -845,7 +870,7 @@ mod tests {
         });
 
         let message = parse_imessage_message(json, "test-account", "imessage").unwrap();
-        
+
         assert_eq!(message.peer.id, "group123");
         assert_eq!(message.peer.kind, PeerKind::Group);
     }
@@ -853,9 +878,9 @@ mod tests {
     #[tokio::test]
     async fn test_channel_registration() {
         let mut registry = aisopod_channel::ChannelRegistry::new();
-        
+
         let config = ImessageAccountConfig::new("test");
-        
+
         // Note: This test would need to be run with tokio runtime
         // For now, we just verify the types compile
         let _result = register(&mut registry, config, "test").await;
@@ -864,11 +889,11 @@ mod tests {
     #[tokio::test]
     async fn test_channel_disconnected_state() {
         let config = ImessageAccountConfig::new("test-disconnected");
-        
+
         // Ensure we have a valid backend for testing
         #[cfg(target_os = "macos")]
         let config = config;
-        
+
         #[cfg(not(target_os = "macos"))]
         let config = {
             let mut config = config;
@@ -879,9 +904,9 @@ mod tests {
             };
             config
         };
-        
+
         let channel = ImessageChannel::new(config).await.unwrap();
-        
+
         // Channel should be disconnected initially
         assert!(!channel.is_connected());
     }
@@ -893,12 +918,12 @@ mod tests {
             backend: "applescript".to_string(),
             ..Default::default()
         };
-        
+
         // On macOS, this should succeed (or fail only if osascript is missing)
         let result = config.validate();
         // Don't assert success as osascript might not exist in test environment
         let _ = result;
-        
+
         // Valid BlueBubbles config
         let config = ImessageAccountConfig {
             backend: "bluebubbles".to_string(),
@@ -908,7 +933,7 @@ mod tests {
             },
             ..Default::default()
         };
-        
+
         assert!(config.validate().is_ok());
     }
 }

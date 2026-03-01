@@ -264,7 +264,7 @@ impl Default for SkillRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::skills::{Skill, SkillCategory, SkillMeta, SkillContext};
+    use crate::skills::{Skill, SkillCategory, SkillContext, SkillMeta};
     use aisopod_tools::Tool;
     use async_trait::async_trait;
     use std::sync::Arc;
@@ -336,9 +336,9 @@ mod tests {
     fn test_register_skill() {
         let mut registry = SkillRegistry::new();
         let skill = Arc::new(TestSkill::new("test-skill")) as Arc<dyn Skill>;
-        
+
         registry.register(skill.clone());
-        
+
         assert_eq!(registry.skills.len(), 1);
         assert_eq!(registry.statuses.len(), 1);
         assert!(matches!(
@@ -353,26 +353,26 @@ mod tests {
     #[test]
     fn test_register_overwrites_existing() {
         let mut registry = SkillRegistry::new();
-        
+
         // Register first skill with id "test-skill"
         let skill1 = Arc::new(TestSkill::new("test-skill")) as Arc<dyn Skill>;
         registry.register(skill1);
-        
+
         // Verify it's registered
         assert_eq!(registry.skills.len(), 1);
         assert_eq!(registry.get("test-skill").unwrap().id(), "test-skill");
-        
+
         // Register second skill with DIFFERENT id - this should add it
         let skill2 = Arc::new(TestSkill::new("test-skill-2")) as Arc<dyn Skill>;
         registry.register(skill2.clone());
-        
+
         // Now we should have 2 skills
         assert_eq!(registry.skills.len(), 2);
-        
+
         // Test actual overwrite: register a NEW skill with EXISTING id "test-skill"
         let skill3 = Arc::new(TestSkill::new("test-skill")) as Arc<dyn Skill>;
         registry.register(skill3.clone());
-        
+
         // Should still be 2 (overwrite, not add)
         assert_eq!(registry.skills.len(), 2);
         // The original "test-skill" should be overwritten
@@ -383,9 +383,9 @@ mod tests {
     fn test_get_skill() {
         let mut registry = SkillRegistry::new();
         let skill = Arc::new(TestSkill::new("test-skill")) as Arc<dyn Skill>;
-        
+
         registry.register(skill.clone());
-        
+
         // Verify by ID since Arc<dyn Skill> doesn't implement PartialEq
         assert!(registry.get("test-skill").is_some());
         assert_eq!(registry.get("test-skill").unwrap().id(), "test-skill");
@@ -395,15 +395,15 @@ mod tests {
     #[test]
     fn test_list_skills() {
         let mut registry = SkillRegistry::new();
-        
+
         assert!(registry.list().is_empty());
-        
+
         let skill1 = Arc::new(TestSkill::new("skill-1")) as Arc<dyn Skill>;
         let skill2 = Arc::new(TestSkill::new("skill-2")) as Arc<dyn Skill>;
-        
+
         registry.register(skill1);
         registry.register(skill2);
-        
+
         let ids = registry.list();
         assert_eq!(ids.len(), 2);
         assert!(ids.contains(&"skill-1"));
@@ -413,9 +413,12 @@ mod tests {
     #[test]
     fn test_assign_to_agent() {
         let mut registry = SkillRegistry::new();
-        
-        registry.assign_to_agent("agent-1", vec!["skill-1".to_string(), "skill-2".to_string()]);
-        
+
+        registry.assign_to_agent(
+            "agent-1",
+            vec!["skill-1".to_string(), "skill-2".to_string()],
+        );
+
         assert_eq!(registry.agent_skills.len(), 1);
         assert_eq!(
             registry.agent_skills.get("agent-1"),
@@ -426,15 +429,18 @@ mod tests {
     #[test]
     fn test_skills_for_agent() {
         let mut registry = SkillRegistry::new();
-        
+
         let skill1 = Arc::new(TestSkill::new("skill-1")) as Arc<dyn Skill>;
         let skill2 = Arc::new(TestSkill::new("skill-2")) as Arc<dyn Skill>;
-        
+
         registry.register(skill1.clone());
         registry.register(skill2.clone());
-        
-        registry.assign_to_agent("agent-1", vec!["skill-1".to_string(), "skill-2".to_string()]);
-        
+
+        registry.assign_to_agent(
+            "agent-1",
+            vec!["skill-1".to_string(), "skill-2".to_string()],
+        );
+
         let agent_skills = registry.skills_for_agent("agent-1");
         assert_eq!(agent_skills.len(), 2);
         // Verify by ID since Arc<dyn Skill> doesn't implement PartialEq
@@ -446,23 +452,23 @@ mod tests {
     #[test]
     fn test_skills_for_agent_empty() {
         let registry = SkillRegistry::new();
-        
+
         assert!(registry.skills_for_agent("agent-1").is_empty());
     }
 
     #[test]
     fn test_skills_for_agent_with_unregistered() {
         let mut registry = SkillRegistry::new();
-        
+
         let skill1 = Arc::new(TestSkill::new("skill-1")) as Arc<dyn Skill>;
-        
+
         registry.register(skill1.clone());
-        
+
         registry.assign_to_agent(
             "agent-1",
             vec!["skill-1".to_string(), "skill-2".to_string()],
         );
-        
+
         let agent_skills = registry.skills_for_agent("agent-1");
         assert_eq!(agent_skills.len(), 1);
         // Verify by ID since Arc<dyn Skill> doesn't implement PartialEq
@@ -472,34 +478,43 @@ mod tests {
     #[test]
     fn test_status() {
         let mut registry = SkillRegistry::new();
-        
+
         let skill = Arc::new(TestSkill::new("test-skill")) as Arc<dyn Skill>;
         registry.register(skill);
-        
-        assert!(matches!(registry.status("test-skill"), Some(SkillStatus::Ready)));
+
+        assert!(matches!(
+            registry.status("test-skill"),
+            Some(SkillStatus::Ready)
+        ));
         assert!(registry.status("nonexistent").is_none());
     }
 
     #[test]
     fn test_set_status() {
         let mut registry = SkillRegistry::new();
-        
+
         let skill = Arc::new(TestSkill::new("test-skill")) as Arc<dyn Skill>;
         registry.register(skill);
-        
-        registry.set_status("test-skill", SkillStatus::Degraded {
-            reason: "Missing config".to_string(),
-        });
-        
+
+        registry.set_status(
+            "test-skill",
+            SkillStatus::Degraded {
+                reason: "Missing config".to_string(),
+            },
+        );
+
         assert!(matches!(
             registry.status("test-skill"),
             Some(SkillStatus::Degraded { .. })
         ));
-        
-        registry.set_status("test-skill", SkillStatus::Failed {
-            error: "Initialization failed".to_string(),
-        });
-        
+
+        registry.set_status(
+            "test-skill",
+            SkillStatus::Failed {
+                error: "Initialization failed".to_string(),
+            },
+        );
+
         assert!(matches!(
             registry.status("test-skill"),
             Some(SkillStatus::Failed { .. })
@@ -509,17 +524,21 @@ mod tests {
     #[test]
     fn test_status_enum_serialization() {
         use serde_json;
-        
+
         let ready = SkillStatus::Ready;
-        let degraded = SkillStatus::Degraded { reason: "test".to_string() };
-        let failed = SkillStatus::Failed { error: "error".to_string() };
+        let degraded = SkillStatus::Degraded {
+            reason: "test".to_string(),
+        };
+        let failed = SkillStatus::Failed {
+            error: "error".to_string(),
+        };
         let unloaded = SkillStatus::Unloaded;
-        
+
         let ready_json = serde_json::to_string(&ready).unwrap();
         let degraded_json = serde_json::to_string(&degraded).unwrap();
         let failed_json = serde_json::to_string(&failed).unwrap();
         let unloaded_json = serde_json::to_string(&unloaded).unwrap();
-        
+
         assert_eq!(ready_json, "\"Ready\"");
         assert!(degraded_json.contains("Degraded"));
         assert!(failed_json.contains("Failed"));
@@ -529,27 +548,33 @@ mod tests {
     #[test]
     fn test_skills_for_agent_with_multiple_agents() {
         let mut registry = SkillRegistry::new();
-        
+
         let skill1 = Arc::new(TestSkill::new("skill-1")) as Arc<dyn Skill>;
         let skill2 = Arc::new(TestSkill::new("skill-2")) as Arc<dyn Skill>;
         let skill3 = Arc::new(TestSkill::new("skill-3")) as Arc<dyn Skill>;
-        
+
         registry.register(skill1);
         registry.register(skill2);
         registry.register(skill3);
-        
-        registry.assign_to_agent("agent-1", vec!["skill-1".to_string(), "skill-2".to_string()]);
-        registry.assign_to_agent("agent-2", vec!["skill-2".to_string(), "skill-3".to_string()]);
-        
+
+        registry.assign_to_agent(
+            "agent-1",
+            vec!["skill-1".to_string(), "skill-2".to_string()],
+        );
+        registry.assign_to_agent(
+            "agent-2",
+            vec!["skill-2".to_string(), "skill-3".to_string()],
+        );
+
         let agent1_skills = registry.skills_for_agent("agent-1");
         let agent2_skills = registry.skills_for_agent("agent-2");
-        
+
         assert_eq!(agent1_skills.len(), 2);
         assert_eq!(agent2_skills.len(), 2);
-        
+
         let agent1_ids: Vec<&str> = agent1_skills.iter().map(|s| s.id()).collect();
         let agent2_ids: Vec<&str> = agent2_skills.iter().map(|s| s.id()).collect();
-        
+
         assert!(agent1_ids.contains(&"skill-1"));
         assert!(agent1_ids.contains(&"skill-2"));
         assert!(agent2_ids.contains(&"skill-2"));
@@ -559,26 +584,41 @@ mod tests {
     #[test]
     fn test_skill_registry_with_all_status_types() {
         let mut registry = SkillRegistry::new();
-        
+
         let skill1 = Arc::new(TestSkill::new("skill-ready")) as Arc<dyn Skill>;
         let skill2 = Arc::new(TestSkill::new("skill-degraded")) as Arc<dyn Skill>;
         let skill3 = Arc::new(TestSkill::new("skill-failed")) as Arc<dyn Skill>;
-        
+
         registry.register(skill1);
         registry.register(skill2);
         registry.register(skill3);
-        
+
         // Set different statuses
-        registry.set_status("skill-degraded", SkillStatus::Degraded {
-            reason: "Missing API key".to_string(),
-        });
-        registry.set_status("skill-failed", SkillStatus::Failed {
-            error: "Initialization failed".to_string(),
-        });
-        
+        registry.set_status(
+            "skill-degraded",
+            SkillStatus::Degraded {
+                reason: "Missing API key".to_string(),
+            },
+        );
+        registry.set_status(
+            "skill-failed",
+            SkillStatus::Failed {
+                error: "Initialization failed".to_string(),
+            },
+        );
+
         // Verify all statuses
-        assert!(matches!(registry.status("skill-ready"), Some(SkillStatus::Ready)));
-        assert!(matches!(registry.status("skill-degraded"), Some(SkillStatus::Degraded { .. })));
-        assert!(matches!(registry.status("skill-failed"), Some(SkillStatus::Failed { .. })));
+        assert!(matches!(
+            registry.status("skill-ready"),
+            Some(SkillStatus::Ready)
+        ));
+        assert!(matches!(
+            registry.status("skill-degraded"),
+            Some(SkillStatus::Degraded { .. })
+        ));
+        assert!(matches!(
+            registry.status("skill-failed"),
+            Some(SkillStatus::Failed { .. })
+        ));
     }
 }

@@ -55,9 +55,15 @@ impl MediaConstraints {
     pub fn for_platform(platform: &str) -> Self {
         match platform {
             "signal" => Self {
-                max_image_size_bytes: 100 * 1024 * 1024,  // 100 MB
+                max_image_size_bytes: 100 * 1024 * 1024, // 100 MB
                 max_file_size_bytes: 100 * 1024 * 1024,
-                supported_image_formats: vec!["png".into(), "jpg".into(), "jpeg".into(), "gif".into(), "webp".into()],
+                supported_image_formats: vec![
+                    "png".into(),
+                    "jpg".into(),
+                    "jpeg".into(),
+                    "gif".into(),
+                    "webp".into(),
+                ],
                 max_image_dimensions: None,
                 supported_video_formats: vec!["mp4".into(), "mov".into()],
                 max_video_size_bytes: 100 * 1024 * 1024,
@@ -65,9 +71,15 @@ impl MediaConstraints {
                 max_audio_size_bytes: 100 * 1024 * 1024,
             },
             "discord" => Self {
-                max_image_size_bytes: 25 * 1024 * 1024,  // 25 MB
-                max_file_size_bytes: 8 * 1024 * 1024,    // 8 MB for free users
-                supported_image_formats: vec!["png".into(), "jpg".into(), "jpeg".into(), "gif".into(), "webp".into()],
+                max_image_size_bytes: 25 * 1024 * 1024, // 25 MB
+                max_file_size_bytes: 8 * 1024 * 1024,   // 8 MB for free users
+                supported_image_formats: vec![
+                    "png".into(),
+                    "jpg".into(),
+                    "jpeg".into(),
+                    "gif".into(),
+                    "webp".into(),
+                ],
                 max_image_dimensions: Some((10_000, 10_000)),
                 supported_video_formats: vec!["mp4".into(), "mov".into(), "webm".into()],
                 max_video_size_bytes: 50 * 1024 * 1024,
@@ -75,9 +87,14 @@ impl MediaConstraints {
                 max_audio_size_bytes: 25 * 1024 * 1024,
             },
             "slack" => Self {
-                max_image_size_bytes: 200 * 1024 * 1024,  // 200 MB
-                max_file_size_bytes: 1024 * 1024 * 1024,  // 1 GB
-                supported_image_formats: vec!["png".into(), "jpg".into(), "jpeg".into(), "gif".into()],
+                max_image_size_bytes: 200 * 1024 * 1024, // 200 MB
+                max_file_size_bytes: 1024 * 1024 * 1024, // 1 GB
+                supported_image_formats: vec![
+                    "png".into(),
+                    "jpg".into(),
+                    "jpeg".into(),
+                    "gif".into(),
+                ],
                 max_image_dimensions: None,
                 supported_video_formats: vec!["mp4".into(), "mov".into()],
                 max_video_size_bytes: 200 * 1024 * 1024,
@@ -85,19 +102,29 @@ impl MediaConstraints {
                 max_audio_size_bytes: 200 * 1024 * 1024,
             },
             "telegram" => Self {
-                max_image_size_bytes: 5 * 1024 * 1024,  // 5 MB for photos
-                max_file_size_bytes: 50 * 1024 * 1024,  // 50 MB for files
-                supported_image_formats: vec!["png".into(), "jpg".into(), "jpeg".into(), "gif".into()],
+                max_image_size_bytes: 5 * 1024 * 1024, // 5 MB for photos
+                max_file_size_bytes: 50 * 1024 * 1024, // 50 MB for files
+                supported_image_formats: vec![
+                    "png".into(),
+                    "jpg".into(),
+                    "jpeg".into(),
+                    "gif".into(),
+                ],
                 max_image_dimensions: Some((10_000, 10_000)),
                 supported_video_formats: vec!["mp4".into(), "mov".into()],
-                max_video_size_bytes: 2000 * 1024 * 1024,  // 2 GB for bots
+                max_video_size_bytes: 2000 * 1024 * 1024, // 2 GB for bots
                 supported_audio_formats: vec!["mp3".into(), "ogg".into()],
                 max_audio_size_bytes: 50 * 1024 * 1024,
             },
             "whatsapp" => Self {
                 max_image_size_bytes: 5 * 1024 * 1024,  // 5 MB for images
-                max_file_size_bytes: 100 * 1024 * 1024,  // 100 MB for documents
-                supported_image_formats: vec!["png".into(), "jpg".into(), "jpeg".into(), "webp".into()],
+                max_file_size_bytes: 100 * 1024 * 1024, // 100 MB for documents
+                supported_image_formats: vec![
+                    "png".into(),
+                    "jpg".into(),
+                    "jpeg".into(),
+                    "webp".into(),
+                ],
                 max_image_dimensions: None,
                 supported_video_formats: vec!["mp4".into(), "mov".into()],
                 max_video_size_bytes: 100 * 1024 * 1024,
@@ -105,9 +132,14 @@ impl MediaConstraints {
                 max_audio_size_bytes: 100 * 1024 * 1024,
             },
             "msteams" => Self {
-                max_image_size_bytes: 25 * 1024 * 1024,  // 25 MB
+                max_image_size_bytes: 25 * 1024 * 1024, // 25 MB
                 max_file_size_bytes: 25 * 1024 * 1024,
-                supported_image_formats: vec!["png".into(), "jpg".into(), "jpeg".into(), "gif".into()],
+                supported_image_formats: vec![
+                    "png".into(),
+                    "jpg".into(),
+                    "jpeg".into(),
+                    "gif".into(),
+                ],
                 max_image_dimensions: None,
                 supported_video_formats: vec!["mp4".into()],
                 max_video_size_bytes: 25 * 1024 * 1024,
@@ -115,9 +147,14 @@ impl MediaConstraints {
                 max_audio_size_bytes: 25 * 1024 * 1024,
             },
             "mattermost" => Self {
-                max_image_size_bytes: 50 * 1024 * 1024,  // 50 MB
+                max_image_size_bytes: 50 * 1024 * 1024, // 50 MB
                 max_file_size_bytes: 50 * 1024 * 1024,
-                supported_image_formats: vec!["png".into(), "jpg".into(), "jpeg".into(), "gif".into()],
+                supported_image_formats: vec![
+                    "png".into(),
+                    "jpg".into(),
+                    "jpeg".into(),
+                    "gif".into(),
+                ],
                 max_image_dimensions: None,
                 supported_video_formats: vec!["mp4".into(), "mov".into()],
                 max_video_size_bytes: 50 * 1024 * 1024,
@@ -125,18 +162,18 @@ impl MediaConstraints {
                 max_audio_size_bytes: 50 * 1024 * 1024,
             },
             "twitch" => Self {
-                max_image_size_bytes: 25 * 1024 * 1024,  // 25 MB
+                max_image_size_bytes: 25 * 1024 * 1024, // 25 MB
                 max_file_size_bytes: 25 * 1024 * 1024,
                 supported_image_formats: vec!["png".into(), "jpg".into(), "jpeg".into()],
-                max_image_dimensions: Some((3840, 2160)),  // 4K
+                max_image_dimensions: Some((3840, 2160)), // 4K
                 supported_video_formats: vec!["mp4".into()],
                 max_video_size_bytes: 25 * 1024 * 1024,
                 supported_audio_formats: vec!["mp3".into()],
                 max_audio_size_bytes: 25 * 1024 * 1024,
             },
             "line" => Self {
-                max_image_size_bytes: 10 * 1024 * 1024,  // 10 MB
-                max_file_size_bytes: 200 * 1024 * 1024,  // 200 MB
+                max_image_size_bytes: 10 * 1024 * 1024, // 10 MB
+                max_file_size_bytes: 200 * 1024 * 1024, // 200 MB
                 supported_image_formats: vec!["png".into(), "jpg".into(), "jpeg".into()],
                 max_image_dimensions: Some((4096, 4096)),
                 supported_video_formats: vec!["mp4".into()],
@@ -145,9 +182,14 @@ impl MediaConstraints {
                 max_audio_size_bytes: 200 * 1024 * 1024,
             },
             "lark" => Self {
-                max_image_size_bytes: 50 * 1024 * 1024,  // 50 MB
-                max_file_size_bytes: 100 * 1024 * 1024,  // 100 MB
-                supported_image_formats: vec!["png".into(), "jpg".into(), "jpeg".into(), "gif".into()],
+                max_image_size_bytes: 50 * 1024 * 1024, // 50 MB
+                max_file_size_bytes: 100 * 1024 * 1024, // 100 MB
+                supported_image_formats: vec![
+                    "png".into(),
+                    "jpg".into(),
+                    "jpeg".into(),
+                    "gif".into(),
+                ],
                 max_image_dimensions: None,
                 supported_video_formats: vec!["mp4".into()],
                 max_video_size_bytes: 50 * 1024 * 1024,
@@ -155,7 +197,7 @@ impl MediaConstraints {
                 max_audio_size_bytes: 50 * 1024 * 1024,
             },
             "zalo" => Self {
-                max_image_size_bytes: 10 * 1024 * 1024,  // 10 MB
+                max_image_size_bytes: 10 * 1024 * 1024, // 10 MB
                 max_file_size_bytes: 25 * 1024 * 1024,  // 25 MB
                 supported_image_formats: vec!["png".into(), "jpg".into(), "jpeg".into()],
                 max_image_dimensions: None,
@@ -165,7 +207,7 @@ impl MediaConstraints {
                 max_audio_size_bytes: 25 * 1024 * 1024,
             },
             "irc" => Self {
-                max_image_size_bytes: 0,  // No image support
+                max_image_size_bytes: 0, // No image support
                 max_file_size_bytes: 0,
                 supported_image_formats: vec![],
                 max_image_dimensions: None,
@@ -182,8 +224,8 @@ impl MediaConstraints {
 impl Default for MediaConstraints {
     fn default() -> Self {
         Self {
-            max_image_size_bytes: 10 * 1024 * 1024,  // 10 MB
-            max_file_size_bytes: 50 * 1024 * 1024,   // 50 MB
+            max_image_size_bytes: 10 * 1024 * 1024, // 10 MB
+            max_file_size_bytes: 50 * 1024 * 1024,  // 50 MB
             supported_image_formats: vec!["png".into(), "jpg".into(), "jpeg".into()],
             max_image_dimensions: None,
             supported_video_formats: vec!["mp4".into()],
@@ -410,7 +452,7 @@ pub fn convert_media(
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("");
-    
+
     Ok(MediaInfo {
         path: output_path.to_string(),
         size_bytes: metadata.len() as usize,
@@ -442,9 +484,18 @@ mod tests {
 
     #[test]
     fn test_media_type_extensions() {
-        assert_eq!(MediaType::Image.extensions(), &["png", "jpg", "jpeg", "gif", "webp", "bmp"]);
-        assert_eq!(MediaType::Video.extensions(), &["mp4", "mov", "avi", "mkv", "webm"]);
-        assert_eq!(MediaType::Audio.extensions(), &["mp3", "wav", "ogg", "aac", "flac"]);
+        assert_eq!(
+            MediaType::Image.extensions(),
+            &["png", "jpg", "jpeg", "gif", "webp", "bmp"]
+        );
+        assert_eq!(
+            MediaType::Video.extensions(),
+            &["mp4", "mov", "avi", "mkv", "webm"]
+        );
+        assert_eq!(
+            MediaType::Audio.extensions(),
+            &["mp3", "wav", "ogg", "aac", "flac"]
+        );
     }
 
     #[test]
@@ -485,17 +536,18 @@ mod tests {
         let constraints = MediaConstraints::for_platform("discord");
         // Create a temporary file for testing
         let temp_file = std::env::temp_dir().join("test_media_validation.png");
-        std::fs::write(&temp_file, vec![0u8; 30 * 1024 * 1024]).expect("Failed to create test file");
-        
+        std::fs::write(&temp_file, vec![0u8; 30 * 1024 * 1024])
+            .expect("Failed to create test file");
+
         let result = validate_media(
-            temp_file.to_str().unwrap(), 
-            30 * 1024 * 1024, 
-            &constraints, 
-            MediaType::Image
+            temp_file.to_str().unwrap(),
+            30 * 1024 * 1024,
+            &constraints,
+            MediaType::Image,
         );
-        
+
         assert!(matches!(result, Err(MediaError::FileTooLarge(_, _))));
-        
+
         // Clean up
         let _ = std::fs::remove_file(&temp_file);
     }

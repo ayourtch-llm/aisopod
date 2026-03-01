@@ -84,7 +84,10 @@ async fn test_missing_version_defaults_to_1_0() {
 
     // Connection with default version should succeed
     let result = aisopod_client::AisopodClient::connect(config).await;
-    assert!(result.is_ok(), "Connection with default version 1.0 should succeed");
+    assert!(
+        result.is_ok(),
+        "Connection with default version 1.0 should succeed"
+    );
 }
 
 #[tokio::test]
@@ -106,8 +109,14 @@ async fn test_version_header_format() {
         2,
         "Version should be in MAJOR.MINOR format"
     );
-    assert!(version_parts[0].parse::<u32>().is_ok(), "Major version should be numeric");
-    assert!(version_parts[1].parse::<u32>().is_ok(), "Minor version should be numeric");
+    assert!(
+        version_parts[0].parse::<u32>().is_ok(),
+        "Major version should be numeric"
+    );
+    assert!(
+        version_parts[1].parse::<u32>().is_ok(),
+        "Minor version should be numeric"
+    );
 }
 
 #[tokio::test]

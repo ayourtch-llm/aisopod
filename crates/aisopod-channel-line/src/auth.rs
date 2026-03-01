@@ -27,7 +27,7 @@ pub const TOKEN_ENDPOINT: &str = "https://api.line.me/oauth2/v3/token";
 /// * `Err(anyhow::Error)` - An error occurred
 pub async fn issue_stateless_token(client_id: &str, client_secret: &str) -> Result<String> {
     let client = reqwest::Client::new();
-    
+
     let response = client
         .post(TOKEN_ENDPOINT)
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -38,7 +38,7 @@ pub async fn issue_stateless_token(client_id: &str, client_secret: &str) -> Resu
         ])
         .send()
         .await?;
-    
+
     if response.status().is_success() {
         let token_response: TokenResponse = response.json().await?;
         debug!("Successfully issued stateless token");
@@ -66,13 +66,13 @@ pub async fn issue_stateless_token(client_id: &str, client_secret: &str) -> Resu
 /// * `Err(anyhow::Error)` - An error occurred
 pub async fn validate_token(access_token: &str) -> Result<TokenValidation> {
     let client = reqwest::Client::new();
-    
+
     let response = client
         .get("https://api.line.me/oauth2/v3/token")
         .bearer_auth(access_token)
         .send()
         .await?;
-    
+
     if response.status().is_success() {
         let validation: TokenValidation = response.json().await?;
         Ok(validation)
@@ -80,10 +80,7 @@ pub async fn validate_token(access_token: &str) -> Result<TokenValidation> {
         let status = response.status().as_u16();
         let error_msg = response.text().await.unwrap_or_default();
         error!("Token validation failed: {} - {}", status, error_msg);
-        Err(anyhow::anyhow!(
-            "Failed to validate token: {}",
-            error_msg
-        ))
+        Err(anyhow::anyhow!("Failed to validate token: {}", error_msg))
     }
 }
 
@@ -99,26 +96,21 @@ pub async fn validate_token(access_token: &str) -> Result<TokenValidation> {
 /// * `Err(anyhow::Error)` - An error occurred
 pub async fn revoke_token(access_token: &str) -> Result<()> {
     let client = reqwest::Client::new();
-    
+
     let response = client
         .post("https://api.line.me/oauth2/v3/revoke")
         .header("Content-Type", "application/x-www-form-urlencoded")
-        .form(&[
-            ("access_token", access_token),
-        ])
+        .form(&[("access_token", access_token)])
         .send()
         .await?;
-    
+
     if response.status().is_success() {
         Ok(())
     } else {
         let status = response.status().as_u16();
         let error_msg = response.text().await.unwrap_or_default();
         error!("Token revocation failed: {} - {}", status, error_msg);
-        Err(anyhow::anyhow!(
-            "Failed to revoke token: {}",
-            error_msg
-        ))
+        Err(anyhow::anyhow!("Failed to revoke token: {}", error_msg))
     }
 }
 
@@ -145,7 +137,7 @@ pub async fn issue_stateful_token(
     redirect_uri: &str,
 ) -> Result<TokenExchangeResponse> {
     let client = reqwest::Client::new();
-    
+
     let response = client
         .post(TOKEN_ENDPOINT)
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -158,7 +150,7 @@ pub async fn issue_stateful_token(
         ])
         .send()
         .await?;
-    
+
     if response.status().is_success() {
         let response: TokenExchangeResponse = response.json().await?;
         Ok(response)
@@ -166,10 +158,7 @@ pub async fn issue_stateful_token(
         let status = response.status().as_u16();
         let error_msg = response.text().await.unwrap_or_default();
         error!("Token exchange failed: {} - {}", status, error_msg);
-        Err(anyhow::anyhow!(
-            "Failed to exchange token: {}",
-            error_msg
-        ))
+        Err(anyhow::anyhow!("Failed to exchange token: {}", error_msg))
     }
 }
 
@@ -191,7 +180,7 @@ pub async fn refresh_token(
     refresh_token: &str,
 ) -> Result<TokenExchangeResponse> {
     let client = reqwest::Client::new();
-    
+
     let response = client
         .post(TOKEN_ENDPOINT)
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -203,7 +192,7 @@ pub async fn refresh_token(
         ])
         .send()
         .await?;
-    
+
     if response.status().is_success() {
         let response: TokenExchangeResponse = response.json().await?;
         Ok(response)
@@ -211,10 +200,7 @@ pub async fn refresh_token(
         let status = response.status().as_u16();
         let error_msg = response.text().await.unwrap_or_default();
         error!("Token refresh failed: {} - {}", status, error_msg);
-        Err(anyhow::anyhow!(
-            "Failed to refresh token: {}",
-            error_msg
-        ))
+        Err(anyhow::anyhow!("Failed to refresh token: {}", error_msg))
     }
 }
 
@@ -271,7 +257,7 @@ pub fn is_token_expired(token_validation: &TokenValidation) -> bool {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    
+
     // Consider token expired if it will expire within the next 5 minutes
     now + 300 >= token_validation.expires_at
 }
@@ -315,7 +301,7 @@ impl TokenManager {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        
+
         // Refresh if token will expire within the next 5 minutes
         now + 300 >= self.expires_at
     }
@@ -328,23 +314,25 @@ impl TokenManager {
                     &self.client_id,
                     &self.client_secret,
                     refresh_token_val,
-                ).await?;
-                
+                )
+                .await?;
+
                 self.access_token = response.access_token;
                 self.expires_at = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
-                    .as_secs() + response.expires_in;
-                
+                    .as_secs()
+                    + response.expires_in;
+
                 // Update refresh token if provided
                 self.refresh_token = response.refresh_token;
-                
+
                 debug!("Token refreshed successfully");
             } else {
                 return Err(anyhow::anyhow!("No refresh token available"));
             }
         }
-        
+
         Ok(&self.access_token)
     }
 }

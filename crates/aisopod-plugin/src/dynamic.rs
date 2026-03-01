@@ -90,10 +90,7 @@ pub enum LoadError {
 
     /// Version compatibility check failed.
     #[error("Version compatibility check failed for plugin '{plugin_id}': {error}")]
-    VersionCompatibility {
-        plugin_id: String,
-        error: String,
-    },
+    VersionCompatibility { plugin_id: String, error: String },
 }
 
 /// Information about a discovered plugin.
@@ -278,15 +275,16 @@ impl DynamicPluginLoader {
         let lib_path = self.library_path(discovered);
 
         // Load the shared library
-        let lib = libloading::Library::new(&lib_path).map_err(|e| {
-            LoadError::LibraryLoad(lib_path.clone(), e.to_string())
-        })?;
+        let lib = libloading::Library::new(&lib_path)
+            .map_err(|e| LoadError::LibraryLoad(lib_path.clone(), e.to_string()))?;
 
         // Check ABI version
         let abi_version_fn = lib
             .get::<PluginAbiVersionFn>(b"aisopod_plugin_abi_version")
-            .map_err(|_| LoadError::MissingSymbol("aisopod_plugin_abi_version".into(), lib_path.clone()))?;
-        
+            .map_err(|_| {
+                LoadError::MissingSymbol("aisopod_plugin_abi_version".into(), lib_path.clone())
+            })?;
+
         let plugin_abi = abi_version_fn();
         if plugin_abi != crate::abi::ABI_VERSION {
             return Err(LoadError::AbiMismatch {
@@ -302,8 +300,10 @@ impl DynamicPluginLoader {
         // Create plugin instance
         let create_fn = lib
             .get::<PluginCreateFn>(b"aisopod_plugin_create")
-            .map_err(|_| LoadError::MissingSymbol("aisopod_plugin_create".into(), lib_path.clone()))?;
-        
+            .map_err(|_| {
+                LoadError::MissingSymbol("aisopod_plugin_create".into(), lib_path.clone())
+            })?;
+
         let plugin = Arc::from_raw(create_fn());
 
         // Keep the library alive by storing it alongside the plugin
@@ -343,7 +343,7 @@ impl DynamicPluginLoader {
 
         if let Some(compat) = compatibility {
             let host_version = env!("CARGO_PKG_VERSION");
-            
+
             let host_ver = semver::Version::parse(host_version).map_err(|_| {
                 LoadError::VersionCompatibility {
                     plugin_id: plugin_id.clone(),
@@ -406,7 +406,7 @@ impl DynamicPluginLoader {
                         error: "Invalid min_host_version".to_string(),
                     }
                 })?;
-                
+
                 if plugin_ver < min_plugin_ver {
                     return Err(LoadError::VersionCompatibility {
                         plugin_id: plugin_id.clone(),
@@ -425,7 +425,7 @@ impl DynamicPluginLoader {
                         error: "Invalid max_host_version".to_string(),
                     }
                 })?;
-                
+
                 if plugin_ver > max_plugin_ver {
                     return Err(LoadError::VersionCompatibility {
                         plugin_id: plugin_id.clone(),
@@ -513,16 +513,17 @@ mod tests {
     fn test_dynamic_plugin_loader_new() {
         let dirs = vec![PathBuf::from("/tmp/plugins")];
         let loader = DynamicPluginLoader::new(dirs);
-        
+
         // Just verify it was created (no crash)
         let _ = loader;
     }
 
     #[test]
     fn test_discover_nonexistent_directory() {
-        let loader = DynamicPluginLoader::new(vec![PathBuf::from("/tmp/nonexistent_aisopod_test_12345")]);
+        let loader =
+            DynamicPluginLoader::new(vec![PathBuf::from("/tmp/nonexistent_aisopod_test_12345")]);
         let result = loader.discover();
-        
+
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
     }
@@ -532,7 +533,7 @@ mod tests {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let loader = DynamicPluginLoader::new(vec![temp_dir.path().to_path_buf()]);
         let result = loader.discover();
-        
+
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
     }
@@ -557,8 +558,7 @@ mod tests {
         "#;
 
         let manifest_path = plugin_dir.join("aisopod.plugin.toml");
-        fs::write(&manifest_path, manifest_content)
-            .expect("Failed to write manifest");
+        fs::write(&manifest_path, manifest_content).expect("Failed to write manifest");
 
         let loader = DynamicPluginLoader::new(vec![temp_dir.path().to_path_buf()]);
         let result = loader.discover();
@@ -581,7 +581,9 @@ mod tests {
         // Create first plugin
         let plugin1_dir = temp_dir.path().join("plugin-1");
         fs::create_dir(&plugin1_dir).expect("Failed to create plugin1 dir");
-        fs::write(plugin1_dir.join("aisopod.plugin.toml"), r#"
+        fs::write(
+            plugin1_dir.join("aisopod.plugin.toml"),
+            r#"
             [plugin]
             id = "plugin-1"
             name = "Plugin 1"
@@ -589,12 +591,16 @@ mod tests {
             description = "Plugin 1"
             author = "Author"
             entry_point = "libplugin1"
-        "#).expect("Failed to write manifest");
+        "#,
+        )
+        .expect("Failed to write manifest");
 
         // Create second plugin
         let plugin2_dir = temp_dir.path().join("plugin-2");
         fs::create_dir(&plugin2_dir).expect("Failed to create plugin2 dir");
-        fs::write(plugin2_dir.join("aisopod.plugin.toml"), r#"
+        fs::write(
+            plugin2_dir.join("aisopod.plugin.toml"),
+            r#"
             [plugin]
             id = "plugin-2"
             name = "Plugin 2"
@@ -602,7 +608,9 @@ mod tests {
             description = "Plugin 2"
             author = "Author"
             entry_point = "libplugin2"
-        "#).expect("Failed to write manifest");
+        "#,
+        )
+        .expect("Failed to write manifest");
 
         let loader = DynamicPluginLoader::new(vec![temp_dir.path().to_path_buf()]);
         let result = loader.discover();
@@ -652,8 +660,7 @@ mod tests {
         "#;
 
         let manifest_path = plugin_dir.join("aisopod.plugin.toml");
-        fs::write(&manifest_path, manifest_content)
-            .expect("Failed to write manifest");
+        fs::write(&manifest_path, manifest_content).expect("Failed to write manifest");
 
         let discovered = DiscoveredPlugin {
             manifest: PluginManifest::from_file(&manifest_path).unwrap(),
@@ -662,7 +669,7 @@ mod tests {
 
         let loader = DynamicPluginLoader::new(vec![]);
         let result = loader.check_version_compatibility(&discovered);
-        
+
         assert!(result.is_ok(), "Should pass with no constraints");
     }
 
@@ -687,8 +694,7 @@ mod tests {
         "#;
 
         let manifest_path = plugin_dir.join("aisopod.plugin.toml");
-        fs::write(&manifest_path, manifest_content)
-            .expect("Failed to write manifest");
+        fs::write(&manifest_path, manifest_content).expect("Failed to write manifest");
 
         let discovered = DiscoveredPlugin {
             manifest: PluginManifest::from_file(&manifest_path).unwrap(),
@@ -697,7 +703,7 @@ mod tests {
 
         let loader = DynamicPluginLoader::new(vec![]);
         let result = loader.check_version_compatibility(&discovered);
-        
+
         assert!(result.is_ok(), "Should pass with valid constraints");
     }
 
@@ -722,8 +728,7 @@ mod tests {
         "#;
 
         let manifest_path = plugin_dir.join("aisopod.plugin.toml");
-        fs::write(&manifest_path, manifest_content)
-            .expect("Failed to write manifest");
+        fs::write(&manifest_path, manifest_content).expect("Failed to write manifest");
 
         let discovered = DiscoveredPlugin {
             manifest: PluginManifest::from_file(&manifest_path).unwrap(),
@@ -732,7 +737,7 @@ mod tests {
 
         let loader = DynamicPluginLoader::new(vec![]);
         let result = loader.check_version_compatibility(&discovered);
-        
+
         assert!(result.is_err(), "Should fail when host is too old");
     }
 }

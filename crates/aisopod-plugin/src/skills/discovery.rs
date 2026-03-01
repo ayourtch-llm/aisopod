@@ -22,10 +22,7 @@ pub enum DiscoveryError {
 
     /// Discovery was skipped for a skill
     #[error("Discovery skipped for skill '{skill_id}': {reason}")]
-    Skipped {
-        skill_id: String,
-        reason: String,
-    },
+    Skipped { skill_id: String, reason: String },
 }
 
 /// Result type for skill discovery operations.
@@ -273,11 +270,7 @@ pub async fn load_skills(
         let manifest = match parse_manifest(&manifest_path) {
             Ok(m) => m,
             Err(e) => {
-                tracing::warn!(
-                    "Failed to parse manifest for skill '{}': {}",
-                    skill_id,
-                    e
-                );
+                tracing::warn!("Failed to parse manifest for skill '{}': {}", skill_id, e);
                 continue;
             }
         };
@@ -299,11 +292,7 @@ pub async fn load_skills(
                                 error: e.to_string(),
                             },
                         );
-                        tracing::warn!(
-                            "Failed to initialize skill '{}': {}",
-                            skill_id_str,
-                            e
-                        );
+                        tracing::warn!("Failed to initialize skill '{}': {}", skill_id_str, e);
                     }
                 }
             }
@@ -417,10 +406,10 @@ impl Skill for ArcPlaceholderSkill {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use tempfile::TempDir;
-    use std::sync::Arc;
     use serde_json::json;
+    use std::fs;
+    use std::sync::Arc;
+    use tempfile::TempDir;
 
     #[test]
     fn test_discover_skill_dirs_empty() {
@@ -466,8 +455,16 @@ category = "Productivity"
         fs::create_dir_all(&skill2_dir).unwrap();
 
         // Write manifests
-        fs::write(skill1_dir.join("skill.toml"), r#"id="skill-1";name="Skill 1";description="S1";version="1.0.0";category="Utility""#).unwrap();
-        fs::write(skill2_dir.join("skill.toml"), r#"id="skill-2";name="Skill 2";description="S2";version="1.0.0";category="Utility""#).unwrap();
+        fs::write(
+            skill1_dir.join("skill.toml"),
+            r#"id="skill-1";name="Skill 1";description="S1";version="1.0.0";category="Utility""#,
+        )
+        .unwrap();
+        fs::write(
+            skill2_dir.join("skill.toml"),
+            r#"id="skill-2";name="Skill 2";description="S2";version="1.0.0";category="Utility""#,
+        )
+        .unwrap();
 
         let base_dirs = vec![temp_dir.path().to_path_buf()];
         let dirs = discover_skill_dirs(&base_dirs);
@@ -501,8 +498,8 @@ category = "Productivity"
             "A test skill",
             "1.0.0",
             SkillCategory::Utility,
-            vec![],                                      // No env vars required
-            vec!["echo".to_string()],                   // echo should be available
+            vec![],                   // No env vars required
+            vec!["echo".to_string()], // echo should be available
             None,
         );
 
@@ -530,7 +527,9 @@ category = "Productivity"
         assert!(result.is_err());
 
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| e.contains("nonexistent_binary_xyz123")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("nonexistent_binary_xyz123")));
     }
 
     #[test]
@@ -581,11 +580,8 @@ category = "Productivity"
 
         let mut registry = SkillRegistry::new();
         let base_dirs = vec![PathBuf::from("/nonexistent/path")];
-        let context = SkillContext::new(
-            Arc::new(json!({})),
-            std::path::PathBuf::from("/tmp"),
-            None,
-        );
+        let context =
+            SkillContext::new(Arc::new(json!({})), std::path::PathBuf::from("/tmp"), None);
 
         let result = futures::executor::block_on(load_skills(&mut registry, &base_dirs, &context));
 
@@ -601,11 +597,19 @@ category = "Productivity"
         // Create skills in both directories
         let skill1 = temp1.path().join("skill-1");
         fs::create_dir_all(&skill1).unwrap();
-        fs::write(skill1.join("skill.toml"), r#"id="skill-1";name="Skill 1";description="S1";version="1.0.0";category="Utility""#).unwrap();
+        fs::write(
+            skill1.join("skill.toml"),
+            r#"id="skill-1";name="Skill 1";description="S1";version="1.0.0";category="Utility""#,
+        )
+        .unwrap();
 
         let skill2 = temp2.path().join("skill-2");
         fs::create_dir_all(&skill2).unwrap();
-        fs::write(skill2.join("skill.toml"), r#"id="skill-2";name="Skill 2";description="S2";version="1.0.0";category="Utility""#).unwrap();
+        fs::write(
+            skill2.join("skill.toml"),
+            r#"id="skill-2";name="Skill 2";description="S2";version="1.0.0";category="Utility""#,
+        )
+        .unwrap();
 
         let base_dirs = vec![temp1.path().to_path_buf(), temp2.path().to_path_buf()];
         let dirs = discover_skill_dirs(&base_dirs);
@@ -624,8 +628,8 @@ category = "Productivity"
             "A test skill",
             "1.0.0",
             SkillCategory::Utility,
-            vec!["PATH".to_string()],                  // PATH should exist
-            vec!["echo".to_string()],                  // echo should be available
+            vec!["PATH".to_string()], // PATH should exist
+            vec!["echo".to_string()], // echo should be available
             None,
         );
 

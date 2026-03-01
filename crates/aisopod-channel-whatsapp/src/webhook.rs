@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{error, info};
 
-use crate::receive::{parse_webhook_payload, normalize_message, WhatsAppWebhookPayload};
+use crate::receive::{normalize_message, parse_webhook_payload, WhatsAppWebhookPayload};
 
 /// Query parameters for webhook verification.
 #[derive(Debug, Clone, Deserialize)]
@@ -87,8 +87,7 @@ async fn webhook_verify_handler(
     if query.hub_verify_token != Some(state.verify_token.clone()) {
         error!(
             "Invalid verify token: expected '{}', got {:?}",
-            state.verify_token,
-            query.hub_verify_token
+            state.verify_token, query.hub_verify_token
         );
         return (
             StatusCode::FORBIDDEN,
@@ -126,7 +125,7 @@ async fn webhook_message_handler(
     ) {
         Ok(messages) => {
             info!("Parsed {} incoming messages", messages.len());
-            
+
             // Here we would typically forward messages to the channel registry
             // For now, we just log them
             for msg in &messages {
@@ -137,7 +136,10 @@ async fn webhook_message_handler(
                 );
             }
 
-            (StatusCode::OK, Json(serde_json::json!({"status": "received"})))
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({"status": "received"})),
+            )
         }
         Err(e) => {
             error!("Failed to parse webhook payload: {}", e);
@@ -158,7 +160,7 @@ mod tests {
     // fn test_webhook_verify_query_deserialization() {
     //     let query_str = "hub_mode=subscribe&hub_challenge=123456&hub_verify_token=mytoken";
     //     let query: WebhookVerifyQuery = serde_urlencoded::from_str(query_str).expect("Failed to parse");
-    //     
+    //
     //     assert_eq!(query.hub_mode, "subscribe");
     //     assert_eq!(query.hub_challenge, Some("123456".to_string()));
     //     assert_eq!(query.hub_verify_token, Some("mytoken".to_string()));
@@ -169,7 +171,7 @@ mod tests {
         let response = WebhookVerifyResponse {
             hub_challenge: Some("challenge123".to_string()),
         };
-        
+
         let json = serde_json::to_string(&response).unwrap();
         assert_eq!(json, r#"{"hub_challenge":"challenge123"}"#);
     }

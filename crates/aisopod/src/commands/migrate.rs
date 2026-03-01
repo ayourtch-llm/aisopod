@@ -87,10 +87,19 @@ pub fn env_var_mapping() -> Vec<(&'static str, &'static str)> {
         ("OPENCLAW_SERVER_PORT", "AISOPOD_GATEWAY_SERVER_PORT"),
         ("OPENCLAW_SERVER_HOST", "AISOPOD_GATEWAY_BIND_ADDRESS"),
         ("OPENCLAW_SERVER_BIND", "AISOPOD_GATEWAY_BIND_ADDRESS"),
-        ("OPENCLAW_MODEL_API_KEY", "AISOPOD_MODELS_PROVIDERS_0_API_KEY"),
-        ("OPENCLAW_MODEL_ENDPOINT", "AISOPOD_MODELS_PROVIDERS_0_ENDPOINT"),
+        (
+            "OPENCLAW_MODEL_API_KEY",
+            "AISOPOD_MODELS_PROVIDERS_0_API_KEY",
+        ),
+        (
+            "OPENCLAW_MODEL_ENDPOINT",
+            "AISOPOD_MODELS_PROVIDERS_0_ENDPOINT",
+        ),
         ("OPENCLAW_MODEL_NAME", "AISOPOD_MODELS_PROVIDERS_0_NAME"),
-        ("OPENCLAW_DEFAULT_PROVIDER", "AISOPOD_MODELS_DEFAULT_PROVIDER"),
+        (
+            "OPENCLAW_DEFAULT_PROVIDER",
+            "AISOPOD_MODELS_DEFAULT_PROVIDER",
+        ),
         ("OPENCLAW_TOOLS_ENABLED", "AISOPOD_TOOLS_BASH_ENABLED"),
         ("OPENCLAW_SESSION_ENABLED", "AISOPOD_SESSION_ENABLED"),
         ("OPENCLAW_MEMORY_ENABLED", "AISOPOD_MEMORY_ENABLED"),
@@ -126,23 +135,26 @@ fn convert_openclaw_config(openclaw_config: Value) -> Result<Value> {
     // Handle server configuration
     if let Some(server) = openclaw_config.get("server") {
         let mut gateway = Map::new();
-        
+
         if let Some(port) = server.get("port") {
             gateway.insert("port".to_string(), port.clone());
         }
-        
+
         if let Some(host) = server.get("host") {
             let mut bind = Map::new();
             bind.insert("address".to_string(), host.clone());
             gateway.insert("bind".to_string(), Value::Object(bind));
         }
-        
+
         if let Some(name) = server.get("name") {
             gateway.insert("name".to_string(), name.clone());
         }
-        
+
         if !gateway.is_empty() {
-            aisopod_config.as_object_mut().unwrap().insert("gateway".to_string(), Value::Object(gateway));
+            aisopod_config
+                .as_object_mut()
+                .unwrap()
+                .insert("gateway".to_string(), Value::Object(gateway));
         }
     }
 
@@ -150,62 +162,80 @@ fn convert_openclaw_config(openclaw_config: Value) -> Result<Value> {
     if let Some(models) = openclaw_config.get("models") {
         match models {
             Value::Array(model_array) => {
-                let providers: Vec<Value> = model_array.iter().map(|model| {
-                    let mut provider = Map::new();
-                    
-                    // Extract model fields and map to provider format
-                    if let Some(name) = model.get("name") {
-                        provider.insert("name".to_string(), name.clone());
-                    } else if let Some(id) = model.get("id") {
-                        provider.insert("name".to_string(), id.clone());
-                    }
-                    
-                    if let Some(endpoint) = model.get("endpoint") {
-                        provider.insert("endpoint".to_string(), endpoint.clone());
-                    }
-                    
-                    if let Some(api_key) = model.get("api_key") {
-                        provider.insert("api_key".to_string(), api_key.clone());
-                    }
-                    
-                    if let Some(provider_name) = model.get("provider") {
-                        // If model has a provider name, use it as the default provider
-                        // and add to providers list
-                        provider.insert("name".to_string(), provider_name.clone());
-                    }
-                    
-                    Value::Object(provider)
-                }).collect();
-                
+                let providers: Vec<Value> = model_array
+                    .iter()
+                    .map(|model| {
+                        let mut provider = Map::new();
+
+                        // Extract model fields and map to provider format
+                        if let Some(name) = model.get("name") {
+                            provider.insert("name".to_string(), name.clone());
+                        } else if let Some(id) = model.get("id") {
+                            provider.insert("name".to_string(), id.clone());
+                        }
+
+                        if let Some(endpoint) = model.get("endpoint") {
+                            provider.insert("endpoint".to_string(), endpoint.clone());
+                        }
+
+                        if let Some(api_key) = model.get("api_key") {
+                            provider.insert("api_key".to_string(), api_key.clone());
+                        }
+
+                        if let Some(provider_name) = model.get("provider") {
+                            // If model has a provider name, use it as the default provider
+                            // and add to providers list
+                            provider.insert("name".to_string(), provider_name.clone());
+                        }
+
+                        Value::Object(provider)
+                    })
+                    .collect();
+
                 if !providers.is_empty() {
                     // Set default provider from the first model
                     let mut models_map = Map::new();
                     models_map.insert("providers".to_string(), Value::Array(providers));
-                    models_map.insert("default_provider".to_string(), Value::String("openai".to_string()));
-                    aisopod_config.as_object_mut().unwrap().insert("models".to_string(), Value::Object(models_map));
+                    models_map.insert(
+                        "default_provider".to_string(),
+                        Value::String("openai".to_string()),
+                    );
+                    aisopod_config
+                        .as_object_mut()
+                        .unwrap()
+                        .insert("models".to_string(), Value::Object(models_map));
                 }
             }
             Value::Object(model_obj) => {
                 // Handle models as object
-                let providers: Vec<Value> = model_obj.iter().map(|(name, config)| {
-                    let mut provider = Map::new();
-                    provider.insert("name".to_string(), Value::String(name.clone()));
-                    
-                    if let Some(endpoint) = config.get("endpoint") {
-                        provider.insert("endpoint".to_string(), endpoint.clone());
-                    }
-                    if let Some(api_key) = config.get("api_key") {
-                        provider.insert("api_key".to_string(), api_key.clone());
-                    }
-                    
-                    Value::Object(provider)
-                }).collect();
-                
+                let providers: Vec<Value> = model_obj
+                    .iter()
+                    .map(|(name, config)| {
+                        let mut provider = Map::new();
+                        provider.insert("name".to_string(), Value::String(name.clone()));
+
+                        if let Some(endpoint) = config.get("endpoint") {
+                            provider.insert("endpoint".to_string(), endpoint.clone());
+                        }
+                        if let Some(api_key) = config.get("api_key") {
+                            provider.insert("api_key".to_string(), api_key.clone());
+                        }
+
+                        Value::Object(provider)
+                    })
+                    .collect();
+
                 if !providers.is_empty() {
                     let mut models_map = Map::new();
                     models_map.insert("providers".to_string(), Value::Array(providers));
-                    models_map.insert("default_provider".to_string(), Value::String("openai".to_string()));
-                    aisopod_config.as_object_mut().unwrap().insert("models".to_string(), Value::Object(models_map));
+                    models_map.insert(
+                        "default_provider".to_string(),
+                        Value::String("openai".to_string()),
+                    );
+                    aisopod_config
+                        .as_object_mut()
+                        .unwrap()
+                        .insert("models".to_string(), Value::Object(models_map));
                 }
             }
             _ => {}
@@ -214,47 +244,74 @@ fn convert_openclaw_config(openclaw_config: Value) -> Result<Value> {
 
     // Handle auth configuration
     if let Some(auth) = openclaw_config.get("auth") {
-        aisopod_config.as_object_mut().unwrap().insert("auth".to_string(), auth.clone());
+        aisopod_config
+            .as_object_mut()
+            .unwrap()
+            .insert("auth".to_string(), auth.clone());
     }
 
     // Handle tools configuration
     if let Some(tools) = openclaw_config.get("tools") {
-        aisopod_config.as_object_mut().unwrap().insert("tools".to_string(), tools.clone());
+        aisopod_config
+            .as_object_mut()
+            .unwrap()
+            .insert("tools".to_string(), tools.clone());
     }
 
     // Handle session configuration
     if let Some(session) = openclaw_config.get("session") {
-        aisopod_config.as_object_mut().unwrap().insert("session".to_string(), session.clone());
+        aisopod_config
+            .as_object_mut()
+            .unwrap()
+            .insert("session".to_string(), session.clone());
     }
 
     // Handle memory configuration
     if let Some(memory) = openclaw_config.get("memory") {
-        aisopod_config.as_object_mut().unwrap().insert("memory".to_string(), memory.clone());
+        aisopod_config
+            .as_object_mut()
+            .unwrap()
+            .insert("memory".to_string(), memory.clone());
     }
 
     // Handle agents configuration
     if let Some(agents) = openclaw_config.get("agents") {
-        aisopod_config.as_object_mut().unwrap().insert("agents".to_string(), agents.clone());
+        aisopod_config
+            .as_object_mut()
+            .unwrap()
+            .insert("agents".to_string(), agents.clone());
     }
 
     // Handle bindings configuration
     if let Some(bindings) = openclaw_config.get("bindings") {
-        aisopod_config.as_object_mut().unwrap().insert("bindings".to_string(), bindings.clone());
+        aisopod_config
+            .as_object_mut()
+            .unwrap()
+            .insert("bindings".to_string(), bindings.clone());
     }
 
     // Handle channels configuration
     if let Some(channels) = openclaw_config.get("channels") {
-        aisopod_config.as_object_mut().unwrap().insert("channels".to_string(), channels.clone());
+        aisopod_config
+            .as_object_mut()
+            .unwrap()
+            .insert("channels".to_string(), channels.clone());
     }
 
     // Handle plugins configuration
     if let Some(plugins) = openclaw_config.get("plugins") {
-        aisopod_config.as_object_mut().unwrap().insert("plugins".to_string(), plugins.clone());
+        aisopod_config
+            .as_object_mut()
+            .unwrap()
+            .insert("plugins".to_string(), plugins.clone());
     }
 
     // Handle skills configuration
     if let Some(skills) = openclaw_config.get("skills") {
-        aisopod_config.as_object_mut().unwrap().insert("skills".to_string(), skills.clone());
+        aisopod_config
+            .as_object_mut()
+            .unwrap()
+            .insert("skills".to_string(), skills.clone());
     }
 
     Ok(aisopod_config)
@@ -289,7 +346,11 @@ pub fn run_migrate(args: MigrateArgs) -> Result<()> {
                 }
             }
 
-            println!("Config migrated from '{}' to '{}'", input.display(), output.display());
+            println!(
+                "Config migrated from '{}' to '{}'",
+                input.display(),
+                output.display()
+            );
             Ok(())
         }
     }
@@ -312,7 +373,9 @@ mod tests {
     fn test_env_var_mapping_exists() {
         let mapping = env_var_mapping();
         // Test that the mapping contains the expected entry
-        assert!(mapping.iter().any(|(old, _)| *old == "OPENCLAW_SERVER_PORT"));
+        assert!(mapping
+            .iter()
+            .any(|(old, _)| *old == "OPENCLAW_SERVER_PORT"));
     }
 
     #[test]
@@ -360,11 +423,11 @@ mod tests {
         assert!(result.is_ok(), "Migration failed: {:?}", result.err());
 
         // Read and verify output
-        let output_content = std::fs::read_to_string(&output_path)
-            .expect("Failed to read output file");
-        
-        let parsed: Value = serde_json::from_str(&output_content)
-            .expect("Failed to parse output JSON");
+        let output_content =
+            std::fs::read_to_string(&output_path).expect("Failed to read output file");
+
+        let parsed: Value =
+            serde_json::from_str(&output_content).expect("Failed to parse output JSON");
 
         // Verify structure
         assert!(parsed.get("gateway").is_some());
@@ -399,11 +462,11 @@ mod tests {
         let result = run_migrate(args);
         assert!(result.is_ok());
 
-        let output_content = std::fs::read_to_string(&output_path)
-            .expect("Failed to read output file");
-        
-        let parsed: Value = serde_json::from_str(&output_content)
-            .expect("Failed to parse output JSON");
+        let output_content =
+            std::fs::read_to_string(&output_path).expect("Failed to read output file");
+
+        let parsed: Value =
+            serde_json::from_str(&output_content).expect("Failed to parse output JSON");
 
         // Verify tools were preserved
         assert!(parsed.get("tools").is_some());

@@ -31,15 +31,23 @@ pub async fn send_photo(
 ) -> Result<i64> {
     use bytes::Bytes;
     use teloxide::types::InputFile;
-    
+
     let options = options.unwrap_or_else(|| crate::send::SendOptions::from(account));
-    
-    let msg = account.bot
-        .send_photo(ChatId(chat_id), InputFile::memory(Bytes::from(photo.to_vec())))
-        .parse_mode(options.parse_mode.unwrap_or(teloxide::types::ParseMode::MarkdownV2))
+
+    let msg = account
+        .bot
+        .send_photo(
+            ChatId(chat_id),
+            InputFile::memory(Bytes::from(photo.to_vec())),
+        )
+        .parse_mode(
+            options
+                .parse_mode
+                .unwrap_or(teloxide::types::ParseMode::MarkdownV2),
+        )
         .caption(caption.unwrap_or(""))
         .await?;
-    
+
     Ok(msg.id.0 as i64)
 }
 
@@ -67,17 +75,22 @@ pub async fn send_document(
 ) -> Result<i64> {
     use bytes::Bytes;
     use teloxide::types::InputFile;
-    
+
     let options = options.unwrap_or_else(|| crate::send::SendOptions::from(account));
-    
+
     let file = InputFile::memory(Bytes::from(document.to_vec()));
-    
-    let msg = account.bot
+
+    let msg = account
+        .bot
         .send_document(ChatId(chat_id), file)
-        .parse_mode(options.parse_mode.unwrap_or(teloxide::types::ParseMode::MarkdownV2))
+        .parse_mode(
+            options
+                .parse_mode
+                .unwrap_or(teloxide::types::ParseMode::MarkdownV2),
+        )
         .caption(caption.unwrap_or(""))
         .await?;
-    
+
     Ok(msg.id.0 as i64)
 }
 
@@ -105,17 +118,22 @@ pub async fn send_audio(
 ) -> Result<i64> {
     use bytes::Bytes;
     use teloxide::types::InputFile;
-    
+
     let options = options.unwrap_or_else(|| crate::send::SendOptions::from(account));
-    
+
     let file = InputFile::memory(Bytes::from(audio.to_vec()));
-    
-    let msg = account.bot
+
+    let msg = account
+        .bot
         .send_audio(ChatId(chat_id), file)
-        .parse_mode(options.parse_mode.unwrap_or(teloxide::types::ParseMode::MarkdownV2))
+        .parse_mode(
+            options
+                .parse_mode
+                .unwrap_or(teloxide::types::ParseMode::MarkdownV2),
+        )
         .caption(caption.unwrap_or(""))
         .await?;
-    
+
     Ok(msg.id.0 as i64)
 }
 
@@ -143,17 +161,22 @@ pub async fn send_video(
 ) -> Result<i64> {
     use bytes::Bytes;
     use teloxide::types::InputFile;
-    
+
     let options = options.unwrap_or_else(|| crate::send::SendOptions::from(account));
-    
+
     let file = InputFile::memory(Bytes::from(video.to_vec()));
-    
-    let msg = account.bot
+
+    let msg = account
+        .bot
         .send_video(ChatId(chat_id), file)
-        .parse_mode(options.parse_mode.unwrap_or(teloxide::types::ParseMode::MarkdownV2))
+        .parse_mode(
+            options
+                .parse_mode
+                .unwrap_or(teloxide::types::ParseMode::MarkdownV2),
+        )
         .caption(caption.unwrap_or(""))
         .await?;
-    
+
     Ok(msg.id.0 as i64)
 }
 
@@ -190,7 +213,7 @@ pub async fn send_media(
 ) -> Result<i64> {
     let caption = caption.unwrap_or("");
     let options = options.unwrap_or_else(|| crate::send::SendOptions::from(account));
-    
+
     match media.media_type {
         MediaType::Image => {
             if let Some(data) = &media.data {
@@ -198,34 +221,66 @@ pub async fn send_media(
             } else if let Some(url) = &media.url {
                 // For URLs, we need to download first (simplified for now)
                 // In production, this would fetch from the URL
-                Err(anyhow::anyhow!("URL-based media sending not yet implemented"))
+                Err(anyhow::anyhow!(
+                    "URL-based media sending not yet implemented"
+                ))
             } else {
                 Err(anyhow::anyhow!("Media data or URL required"))
             }
         }
         MediaType::Audio => {
             if let Some(data) = &media.data {
-                send_audio(account, chat_id, data, media.filename.as_deref(), Some(caption), Some(options)).await
+                send_audio(
+                    account,
+                    chat_id,
+                    data,
+                    media.filename.as_deref(),
+                    Some(caption),
+                    Some(options),
+                )
+                .await
             } else if let Some(url) = &media.url {
-                Err(anyhow::anyhow!("URL-based media sending not yet implemented"))
+                Err(anyhow::anyhow!(
+                    "URL-based media sending not yet implemented"
+                ))
             } else {
                 Err(anyhow::anyhow!("Media data or URL required"))
             }
         }
         MediaType::Video => {
             if let Some(data) = &media.data {
-                send_video(account, chat_id, data, media.filename.as_deref(), Some(caption), Some(options)).await
+                send_video(
+                    account,
+                    chat_id,
+                    data,
+                    media.filename.as_deref(),
+                    Some(caption),
+                    Some(options),
+                )
+                .await
             } else if let Some(url) = &media.url {
-                Err(anyhow::anyhow!("URL-based media sending not yet implemented"))
+                Err(anyhow::anyhow!(
+                    "URL-based media sending not yet implemented"
+                ))
             } else {
                 Err(anyhow::anyhow!("Media data or URL required"))
             }
         }
         MediaType::Document => {
             if let Some(data) = &media.data {
-                send_document(account, chat_id, data, media.filename.as_deref(), Some(caption), Some(options)).await
+                send_document(
+                    account,
+                    chat_id,
+                    data,
+                    media.filename.as_deref(),
+                    Some(caption),
+                    Some(options),
+                )
+                .await
             } else if let Some(url) = &media.url {
-                Err(anyhow::anyhow!("URL-based media sending not yet implemented"))
+                Err(anyhow::anyhow!(
+                    "URL-based media sending not yet implemented"
+                ))
             } else {
                 Err(anyhow::anyhow!("Media data or URL required"))
             }
@@ -233,7 +288,15 @@ pub async fn send_media(
         MediaType::Other(_) => {
             // For unknown media types, try as document
             if let Some(data) = &media.data {
-                send_document(account, chat_id, data, media.filename.as_deref(), Some(caption), Some(options)).await
+                send_document(
+                    account,
+                    chat_id,
+                    data,
+                    media.filename.as_deref(),
+                    Some(caption),
+                    Some(options),
+                )
+                .await
             } else {
                 Err(anyhow::anyhow!("Unknown media type requires data"))
             }
@@ -259,7 +322,7 @@ pub fn extract_media_from_message(msg: &teloxide::types::Message) -> Option<Medi
             });
         }
     }
-    
+
     // Check for audio
     if let Some(audio) = &msg.audio() {
         return Some(Media {
@@ -267,11 +330,14 @@ pub fn extract_media_from_message(msg: &teloxide::types::Message) -> Option<Medi
             url: Some(audio.file.id.clone()),
             data: None,
             filename: audio.file_name.clone(),
-            mime_type: audio.mime_type.as_ref().map(|m| m.essence_str().to_string()),
+            mime_type: audio
+                .mime_type
+                .as_ref()
+                .map(|m| m.essence_str().to_string()),
             size_bytes: Some(audio.file.size as u64),
         });
     }
-    
+
     // Check for video
     if let Some(video) = &msg.video() {
         return Some(Media {
@@ -279,11 +345,14 @@ pub fn extract_media_from_message(msg: &teloxide::types::Message) -> Option<Medi
             url: Some(video.file.id.clone()),
             data: None,
             filename: video.file_name.clone(),
-            mime_type: video.mime_type.as_ref().map(|m| m.essence_str().to_string()),
+            mime_type: video
+                .mime_type
+                .as_ref()
+                .map(|m| m.essence_str().to_string()),
             size_bytes: Some(video.file.size as u64),
         });
     }
-    
+
     // Check for document
     if let Some(document) = &msg.document() {
         return Some(Media {
@@ -291,11 +360,14 @@ pub fn extract_media_from_message(msg: &teloxide::types::Message) -> Option<Medi
             url: Some(document.file.id.clone()),
             data: None,
             filename: document.file_name.clone(),
-            mime_type: document.mime_type.as_ref().map(|m| m.essence_str().to_string()),
+            mime_type: document
+                .mime_type
+                .as_ref()
+                .map(|m| m.essence_str().to_string()),
             size_bytes: Some(document.file.size as u64),
         });
     }
-    
+
     // Check for sticker (treat as image)
     if let Some(sticker) = &msg.sticker() {
         // Determine MIME type from sticker format
@@ -304,7 +376,7 @@ pub fn extract_media_from_message(msg: &teloxide::types::Message) -> Option<Medi
             teloxide::types::StickerFormat::Animated => Some("application/x-tgsticker".to_string()),
             teloxide::types::StickerFormat::Video => Some("video/webm".to_string()),
         };
-        
+
         return Some(Media {
             media_type: MediaType::Image,
             url: Some(sticker.file.id.clone()),
@@ -314,7 +386,7 @@ pub fn extract_media_from_message(msg: &teloxide::types::Message) -> Option<Medi
             size_bytes: Some(sticker.file.size as u64),
         });
     }
-    
+
     // No media found
     None
 }
@@ -334,16 +406,21 @@ pub async fn send_message_with_media(
     message: &OutgoingMessage,
 ) -> Result<i64> {
     // Extract chat ID from target
-    let chat_id = message.target.peer.id.parse::<i64>()
+    let chat_id = message
+        .target
+        .peer
+        .id
+        .parse::<i64>()
         .map_err(|e| anyhow::anyhow!("Invalid chat ID: {}: {}", message.target.peer.id, e))?;
-    
+
     // Determine the account ID from the message target
     let account_id = &message.target.account_id;
-    
+
     // Find the account for this message
-    let account = channel.get_account(account_id)
+    let account = channel
+        .get_account(account_id)
         .ok_or_else(|| anyhow::anyhow!("Account not found: {}", account_id))?;
-    
+
     // Get the content
     let content = match &message.content {
         MessageContent::Text(text) => return send_text(account, chat_id, text, None).await,
@@ -362,7 +439,8 @@ pub async fn send_message_with_media(
                                 last_id = Some(send_text(account, chat_id, text, None).await?);
                             }
                             aisopod_channel::message::MessagePart::Media(media) => {
-                                last_id = Some(send_media(account, chat_id, media, None, None).await?);
+                                last_id =
+                                    Some(send_media(account, chat_id, media, None, None).await?);
                             }
                         }
                     }
@@ -372,6 +450,6 @@ pub async fn send_message_with_media(
             }
         }
     };
-    
+
     Ok(content)
 }

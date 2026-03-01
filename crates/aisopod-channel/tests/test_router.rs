@@ -2,14 +2,14 @@
 
 use std::sync::Arc;
 
-use anyhow::Result;
-use aisopod_channel::{ChannelRegistry, MessageRouter, AgentResolver};
-use aisopod_channel::message::{IncomingMessage, PeerInfo, PeerKind, SenderInfo};
 use aisopod_channel::adapters::{AccountSnapshot, ChannelConfigAdapter, SecurityAdapter};
+use aisopod_channel::message::{IncomingMessage, PeerInfo, PeerKind, SenderInfo};
+use aisopod_channel::{AgentResolver, ChannelRegistry, MessageRouter};
+use aisopod_config::AisopodConfig;
 use aisopod_session::routing::resolve_session_key;
 use aisopod_session::SessionKey;
-use aisopod_config::AisopodConfig;
 use aisopod_tools::SessionManager;
+use anyhow::Result;
 use async_trait::async_trait;
 
 // ============================================================================
@@ -38,7 +38,10 @@ struct MockSessionManager;
 
 #[async_trait]
 impl SessionManager for MockSessionManager {
-    async fn list_sessions(&self, _limit: Option<usize>) -> Result<Vec<aisopod_tools::builtins::session::SessionInfo>> {
+    async fn list_sessions(
+        &self,
+        _limit: Option<usize>,
+    ) -> Result<Vec<aisopod_tools::builtins::session::SessionInfo>> {
         Ok(Vec::new())
     }
 
@@ -50,7 +53,11 @@ impl SessionManager for MockSessionManager {
         Ok(())
     }
 
-    async fn get_history(&self, _session_id: &str, _limit: Option<usize>) -> Result<Vec<serde_json::Value>> {
+    async fn get_history(
+        &self,
+        _session_id: &str,
+        _limit: Option<usize>,
+    ) -> Result<Vec<serde_json::Value>> {
         Ok(Vec::new())
     }
 }
@@ -97,7 +104,8 @@ impl aisopod_channel::ChannelPlugin for MockChannelPlugin {
     }
 
     fn capabilities(&self) -> &aisopod_channel::ChannelCapabilities {
-        static CAPS: std::sync::OnceLock<aisopod_channel::ChannelCapabilities> = std::sync::OnceLock::new();
+        static CAPS: std::sync::OnceLock<aisopod_channel::ChannelCapabilities> =
+            std::sync::OnceLock::new();
         CAPS.get_or_init(|| aisopod_channel::ChannelCapabilities {
             chat_types: vec![],
             supports_media: false,
@@ -201,9 +209,10 @@ impl ChannelConfigAdapter for TestChannelConfigAdapter {
     }
 
     fn resolve_account(&self, id: &str) -> Result<AccountSnapshot, anyhow::Error> {
-        self.accounts.get(id).cloned().ok_or_else(|| {
-            anyhow::anyhow!("Account not found: {}", id)
-        })
+        self.accounts
+            .get(id)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("Account not found: {}", id))
     }
 
     fn enable_account(&self, _id: &str) -> Result<(), anyhow::Error> {
@@ -271,8 +280,7 @@ fn create_mock_channel(
         None
     };
 
-    let mut channel = MockChannelPlugin::new(channel_id)
-        .with_config_adapter(config_adapter);
+    let mut channel = MockChannelPlugin::new(channel_id).with_config_adapter(config_adapter);
 
     if let Some(adapter) = security_adapter {
         channel = channel.with_security_adapter(adapter);
@@ -290,9 +298,9 @@ fn test_router_debug() {
     let registry = Arc::new(ChannelRegistry::new());
     let agent_resolver = Arc::new(MockAgentResolver::new("default"));
     let session_manager = Arc::new(MockSessionManager);
-    
+
     let router = MessageRouter::new(registry, agent_resolver, session_manager);
-    
+
     // Just verify it compiles and can be created
     let _debug_str = format!("{:?}", router);
 }
@@ -342,23 +350,23 @@ fn test_resolve_session_key() {
 #[test]
 fn test_registry_with_mock_channel() {
     let mut registry = ChannelRegistry::new();
-    
+
     let channel = create_mock_channel("telegram", "bot1", true, Some("user123"));
     registry.register(channel);
-    
+
     // Test get
     let retrieved = registry.get("telegram");
     assert!(retrieved.is_some());
     assert_eq!(retrieved.unwrap().id(), "telegram");
-    
+
     // Test list
     let list = registry.list();
     assert!(list.contains(&"telegram".to_string()));
-    
+
     // Test normalize (case-sensitive)
     let normalized = registry.normalize_id("telegram");
     assert_eq!(normalized, Some("telegram".to_string()));
-    
+
     // Test normalize with wrong case (should return None)
     let normalized_wrong = registry.normalize_id("Telegram");
     assert_eq!(normalized_wrong, None);
@@ -367,10 +375,10 @@ fn test_registry_with_mock_channel() {
 #[test]
 fn test_registry_with_disabled_account() {
     let mut registry = ChannelRegistry::new();
-    
+
     let channel = create_mock_channel("telegram", "bot1", false, Some("user123"));
     registry.register(channel);
-    
+
     let retrieved = registry.get("telegram");
     assert!(retrieved.is_some());
 }
@@ -378,11 +386,11 @@ fn test_registry_with_disabled_account() {
 #[test]
 fn test_registry_with_security_adapter() {
     let mut registry = ChannelRegistry::new();
-    
+
     // Create channel with security adapter that allows specific sender
     let channel = create_mock_channel("telegram", "bot1", true, Some("allowed_user"));
     registry.register(channel);
-    
+
     let retrieved = registry.get("telegram");
     assert!(retrieved.is_some());
 }
@@ -390,12 +398,12 @@ fn test_registry_with_security_adapter() {
 #[test]
 fn test_registry_add_alias() {
     let mut registry = ChannelRegistry::new();
-    
+
     let channel = create_mock_channel("telegram", "bot1", true, None);
     registry.register(channel);
-    
+
     registry.add_alias("tg", "telegram");
-    
+
     // Test alias resolution
     let channel_by_alias = registry.get("tg");
     assert!(channel_by_alias.is_some());
@@ -405,11 +413,11 @@ fn test_registry_add_alias() {
 #[test]
 fn test_registry_contains() {
     let mut registry = ChannelRegistry::new();
-    
+
     let channel = create_mock_channel("telegram", "bot1", true, None);
     registry.register(channel);
     registry.add_alias("tg", "telegram");
-    
+
     assert!(registry.contains("telegram"));
     assert!(registry.contains("tg"));
     assert!(!registry.contains("discord"));
@@ -418,14 +426,14 @@ fn test_registry_contains() {
 #[test]
 fn test_registry_remove_alias() {
     let mut registry = ChannelRegistry::new();
-    
+
     let channel = create_mock_channel("telegram", "bot1", true, None);
     registry.register(channel);
     registry.add_alias("tg", "telegram");
-    
+
     assert!(registry.contains("tg"));
-    
+
     registry.remove_alias("tg");
-    
+
     assert!(!registry.contains("tg"));
 }

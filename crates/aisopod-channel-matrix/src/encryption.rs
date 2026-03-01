@@ -47,10 +47,10 @@ impl Default for E2EEConfig {
 /// * `Err(anyhow::Error)` - An error if setup fails
 pub async fn setup_e2ee(_client: &matrix_sdk::Client, _config: &E2EEConfig) -> Result<()> {
     info!("Setting up end-to-end encryption");
-    
+
     // In matrix-sdk v0.8, E2EE is enabled automatically when the feature is enabled
     // The client is configured with E2EE support at build time
-    
+
     // If state store path is configured, ensure the directory exists
     if let Some(ref path) = _config.state_store_path {
         info!("State store path: {}", path);
@@ -72,7 +72,10 @@ pub async fn setup_e2ee(_client: &matrix_sdk::Client, _config: &E2EEConfig) -> R
 ///
 /// * `Ok(())` - Encryption is enabled
 /// * `Err(anyhow::Error)` - An error if enabling fails
-pub async fn enable_encryption_for_room(_client: &matrix_sdk::Client, _room_id: &str) -> Result<()> {
+pub async fn enable_encryption_for_room(
+    _client: &matrix_sdk::Client,
+    _room_id: &str,
+) -> Result<()> {
     // In v0.8, rooms automatically use E2EE when one participant enables it
     // This is handled by the SDK internally
     Ok(())
@@ -162,7 +165,10 @@ mod tests {
             encrypted_rooms: vec!["!room:matrix.org".to_string()],
         };
 
-        assert_eq!(config.state_store_path, Some("/path/to/storage".to_string()));
+        assert_eq!(
+            config.state_store_path,
+            Some("/path/to/storage".to_string())
+        );
         assert!(!config.auto_enable_encryption);
         assert_eq!(config.encrypted_rooms.len(), 1);
     }

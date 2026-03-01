@@ -60,11 +60,12 @@ impl SignalAccountConfig {
     /// Validate the phone number format.
     pub fn validate_phone_number(&self) -> std::result::Result<(), SignalError> {
         // Signal phone numbers should be in E.164 format
-        let re = regex::Regex::new(r"^\+[1-9]\d{1,14}$")
-            .map_err(|e| SignalError::InvalidPhoneNumber {
+        let re = regex::Regex::new(r"^\+[1-9]\d{1,14}$").map_err(|e| {
+            SignalError::InvalidPhoneNumber {
                 phone: self.phone_number.clone(),
                 message: format!("Invalid regex: {}", e),
-            })?;
+            }
+        })?;
 
         if re.is_match(&self.phone_number) {
             Ok(())
@@ -122,10 +123,7 @@ impl Default for SignalDaemonConfig {
 pub enum SignalError {
     /// Invalid phone number format
     #[error("Invalid phone number '{phone}': {message}")]
-    InvalidPhoneNumber {
-        phone: String,
-        message: String,
-    },
+    InvalidPhoneNumber { phone: String, message: String },
     /// Signal-cli daemon not found or not executable
     #[error("Signal-cli not found: {0}")]
     SignalCliNotFound(String),
@@ -181,12 +179,12 @@ pub mod utils {
     /// Parse a phone number string and normalize it to E.164 format.
     pub fn normalize_phone_number(phone: &str) -> String {
         let cleaned: String = phone.chars().filter(|c| c.is_ascii_digit()).collect();
-        
+
         // If input already starts with + and is valid E.164, return as-is
         if phone.starts_with('+') && cleaned.len() >= 10 && cleaned.len() <= 15 {
             return format!("+{}", cleaned);
         }
-        
+
         if cleaned.starts_with('1') && cleaned.len() == 11 {
             // US number with country code
             format!("+{}", cleaned)
@@ -202,7 +200,8 @@ pub mod utils {
     /// Extract group ID from a Signal group object.
     pub fn extract_group_id(group_data: &serde_json::Value) -> Option<String> {
         // Signal groups typically have an "id" or "groupId" field
-        group_data.get("id")
+        group_data
+            .get("id")
             .or_else(|| group_data.get("groupId"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
@@ -211,7 +210,8 @@ pub mod utils {
     /// Extract phone number from a Signal message sender.
     pub fn extract_sender_id(message: &serde_json::Value) -> Option<String> {
         // Signal messages typically have "source" or "sourceNumber" field
-        message.get("source")
+        message
+            .get("source")
             .or_else(|| message.get("sourceNumber"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
@@ -244,7 +244,7 @@ mod tests {
     fn test_sender_allowed() {
         let mut allowed = HashSet::new();
         allowed.insert("+1234567890".to_string());
-        
+
         let config = SignalAccountConfig {
             phone_number: "+0987654321".to_string(),
             allowed_senders: Some(allowed),
@@ -258,7 +258,7 @@ mod tests {
     #[test]
     fn test_sender_allowed_no_list() {
         let config = SignalAccountConfig::new("+1234567890".to_string());
-        
+
         // When no allowed_senders is set, all senders should be allowed
         assert!(config.is_sender_allowed("+1111111111"));
         assert!(config.is_sender_allowed("+2222222222"));
@@ -269,6 +269,9 @@ mod tests {
         assert_eq!(utils::normalize_phone_number("+1234567890"), "+1234567890");
         // For 10-digit numbers, it prepends +1
         assert_eq!(utils::normalize_phone_number("1234567890"), "+11234567890");
-        assert_eq!(utils::normalize_phone_number("1-234-567-890"), "+11234567890");
+        assert_eq!(
+            utils::normalize_phone_number("1-234-567-890"),
+            "+11234567890"
+        );
     }
 }

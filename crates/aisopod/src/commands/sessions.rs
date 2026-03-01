@@ -7,16 +7,16 @@
 //! Also provides a top-level `reset` command for resetting all sessions.
 
 use anyhow::{anyhow, Context, Result};
-use clap::{Args, Subcommand};
 use chrono::{DateTime, Utc};
+use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::io::{self, Write};
 use std::path::Path;
 
+use crate::output::Output;
 use aisopod_config::load_config;
 use aisopod_config::types::AisopodConfig;
 use aisopod_session::{SessionFilter, SessionStore};
-use crate::output::Output;
 
 /// Information about a session.
 ///
@@ -79,9 +79,8 @@ fn load_config_or_default(config_path: Option<&str>) -> Result<AisopodConfig> {
     match config_path {
         Some(path) => {
             let config_path = Path::new(path);
-            load_config(config_path).map_err(|e| {
-                anyhow!("Failed to load configuration from '{}': {}", path, e)
-            })
+            load_config(config_path)
+                .map_err(|e| anyhow!("Failed to load configuration from '{}': {}", path, e))
         }
         None => {
             // Use default configuration
@@ -151,7 +150,14 @@ pub async fn list_sessions(
     let headers = ["Session ID", "Agent", "Channel", "Last Active"];
     let rows: Vec<Vec<String>> = sessions
         .iter()
-        .map(|s| vec![s.id.clone(), s.agent_id.clone(), s.channel.clone(), s.last_active.clone()])
+        .map(|s| {
+            vec![
+                s.id.clone(),
+                s.agent_id.clone(),
+                s.channel.clone(),
+                s.last_active.clone(),
+            ]
+        })
         .collect();
     output.print_table(&headers, rows);
 
@@ -159,10 +165,7 @@ pub async fn list_sessions(
 }
 
 /// Clear session history for specific or all sessions
-pub async fn clear_sessions(
-    session_id: Option<String>,
-    config_path: Option<String>,
-) -> Result<()> {
+pub async fn clear_sessions(session_id: Option<String>, config_path: Option<String>) -> Result<()> {
     let config = load_config_or_default(config_path.as_deref())?;
 
     let store_path = build_session_store_path(&config);
@@ -175,9 +178,9 @@ pub async fn clear_sessions(
             // First, find sessions matching the peer_id
             let mut filter = SessionFilter::new();
             filter.peer_id = Some(id.clone());
-            
+
             let sessions = store.list("admin", &filter)?;
-            
+
             if sessions.is_empty() {
                 output.error(&format!("Session '{}' not found.", id));
                 return Ok(());
@@ -188,7 +191,7 @@ pub async fn clear_sessions(
                 store.delete("admin", &session.key)?;
                 count += 1;
             }
-            
+
             output.success(&format!("Cleared {} session(s) with ID '{}'.", count, id));
         }
         None => {
@@ -227,9 +230,10 @@ pub async fn run(args: SessionsArgs, config_path: Option<String>) -> Result<()> 
 
 /// Reset all sessions (top-level command)
 pub async fn run_reset(config_path: Option<String>) -> Result<()> {
-    let confirm = prompt("This will reset ALL sessions and conversation history. Continue? (yes/no): ")?;
+    let confirm =
+        prompt("This will reset ALL sessions and conversation history. Continue? (yes/no): ")?;
     let output = Output::new(false);
-    
+
     if confirm != "yes" {
         output.info("Cancelled.");
         return Ok(());

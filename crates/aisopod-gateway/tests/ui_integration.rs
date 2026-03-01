@@ -40,7 +40,7 @@ async fn test_serves_js_assets() {
 
     // Assuming Vite outputs a JS bundle — adjust path as needed
     let response = server.get("/assets/index-BoczOECE.js").await;
-    
+
     // Should be 200 if the file exists
     assert_eq!(
         response.status_code(),
@@ -55,7 +55,7 @@ async fn test_serves_css_with_correct_mime() {
     let server = TestServer::new(app).unwrap();
 
     let response = server.get("/assets/index-BQE4UcBt.css").await;
-    
+
     // Should be 200 if the file exists
     assert_eq!(
         response.status_code(),
@@ -102,52 +102,61 @@ async fn test_spa_fallback_deep_routes() {
         let response = server.get(route).await;
         assert_eq!(response.status_code(), StatusCode::OK);
         let body = response.text();
-        assert!(body.contains("Aisopod"), "Route {} should return index.html containing Aisopod", route);
+        assert!(
+            body.contains("Aisopod"),
+            "Route {} should return index.html containing Aisopod",
+            route
+        );
     }
 }
 
 #[tokio::test]
 async fn test_websocket_connection() {
-    use tokio_tungstenite::WebSocketStream;
     use futures::{SinkExt, StreamExt};
     use std::net::TcpStream;
-    
+    use tokio_tungstenite::WebSocketStream;
+
     let app = build_app(AuthConfig::default()).await;
-    
+
     // Create a server manually since axum-test doesn't expose ws directly
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    
+
     tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    
+
     // Give the server a moment to start
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-    
+
     // Try to connect to WebSocket
     let (stream, _) = tokio_tungstenite::connect_async(format!("ws://{}/ws", addr))
         .await
         .expect("WebSocket connection should succeed");
-    
+
     let (mut ws_tx, mut ws_rx) = stream.split();
-    
+
     // Send a JSON-RPC ping/health check
-    ws_tx.send(tokio_tungstenite::tungstenite::Message::Text(
-        serde_json::json!({
-            "jsonrpc": "2.0",
-            "method": "system.ping",
-            "id": 1
-        })
-        .to_string(),
-    ))
-    .await
-    .expect("Failed to send ping");
-    
+    ws_tx
+        .send(tokio_tungstenite::tungstenite::Message::Text(
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "method": "system.ping",
+                "id": 1
+            })
+            .to_string(),
+        ))
+        .await
+        .expect("Failed to send ping");
+
     // Receive response
     let response = ws_rx.next().await.expect("Should receive a response");
     if let Ok(tokio_tungstenite::tungstenite::Message::Text(text)) = response {
-        assert!(text.contains("jsonrpc"), "Response should be JSON-RPC format: {}", text);
+        assert!(
+            text.contains("jsonrpc"),
+            "Response should be JSON-RPC format: {}",
+            text
+        );
     }
 }
 
@@ -176,7 +185,10 @@ async fn test_health_endpoint() {
     assert_eq!(response.status_code(), StatusCode::OK);
 
     let body = response.json::<serde_json::Value>();
-    assert_eq!(body.get("status"), Some(&serde_json::Value::String("ok".to_string())));
+    assert_eq!(
+        body.get("status"),
+        Some(&serde_json::Value::String("ok".to_string()))
+    );
 }
 
 #[tokio::test]

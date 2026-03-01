@@ -11,8 +11,7 @@ pub async fn connect_test_client() -> AisopodClient {
     let config = ClientConfig {
         server_url: env::var("AISOPOD_TEST_URL")
             .unwrap_or_else(|_| "ws://127.0.0.1:8080/ws".to_string()),
-        auth_token: env::var("AISOPOD_TEST_TOKEN")
-            .unwrap_or_else(|_| "test-token".to_string()),
+        auth_token: env::var("AISOPOD_TEST_TOKEN").unwrap_or_else(|_| "test-token".to_string()),
         client_name: "conformance-test".to_string(),
         client_version: "0.1.0".to_string(),
         device_id: uuid::Uuid::new_v4(),
@@ -56,14 +55,14 @@ async fn test_canvas_interact_unknown_canvas() {
     // Try to interact with a non-existent canvas
     // Note: The current client library doesn't have a canvas_interact method.
     // This test verifies the expected behavior structure.
-    
+
     // The test demonstrates what would happen:
     // let result = client.canvas_interact("nonexistent", "click", None).await;
     // assert!(result.is_err());
-    
+
     // For now, we verify that the client structure is correct
     assert!(client.is_connected(), "Client should be connected");
-    
+
     // Test that unknown canvas interaction would return an error
     // (this would require the canvas_interact method to be implemented)
 }
@@ -73,19 +72,19 @@ async fn test_canvas_structure() {
     // Test the canvas interaction structure
     // This test verifies that the data structures needed for canvas
     // interactions are properly defined
-    
+
     // Canvas interaction would involve:
     // - Canvas ID (string identifier)
     // - Interaction type (click, move, etc.)
     // - Optional interaction data (coordinates, etc.)
-    
+
     let canvas_id = "test-canvas";
     let interaction_type = "click";
     let interaction_data: Option<serde_json::Value> = Some(serde_json::json!({
         "x": 100,
         "y": 200
     }));
-    
+
     assert_eq!(canvas_id, "test-canvas");
     assert_eq!(interaction_type, "click");
     assert!(interaction_data.is_some());
@@ -98,7 +97,7 @@ async fn test_canvas_update_structure() {
     // - Canvas ID
     // - Update type (draw, clear, resize, etc.)
     // - Update data
-    
+
     let update_data = serde_json::json!({
         "canvas_id": "test-canvas",
         "update_type": "draw",
@@ -107,7 +106,7 @@ async fn test_canvas_update_structure() {
             {"x": 100, "y": 100}
         ]
     });
-    
+
     // Verify the structure can be serialized
     let _json = serde_json::to_string(&update_data).unwrap();
 }
@@ -122,8 +121,11 @@ async fn test_canvas_event_structure() {
             "update_type": "clear"
         }
     });
-    
+
     // Verify the structure has the expected format
-    assert_eq!(event.get("type").and_then(|t| t.as_str()), Some("canvas_update"));
+    assert_eq!(
+        event.get("type").and_then(|t| t.as_str()),
+        Some("canvas_update")
+    );
     assert!(event.get("data").is_some());
 }

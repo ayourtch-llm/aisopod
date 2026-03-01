@@ -15,13 +15,10 @@ pub const BASE_URL: &str = "https://api.line.me/v2/bot";
 pub enum ApiError {
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
-    
+
     #[error("API error: {code} - {message}")]
-    Api {
-        code: u16,
-        message: String,
-    },
-    
+    Api { code: u16, message: String },
+
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
 }
@@ -39,7 +36,7 @@ pub struct LineResponse {
 pub enum LineMessage {
     #[serde(rename = "text")]
     Text { text: String },
-    
+
     #[serde(rename = "image")]
     Image {
         #[serde(rename = "originalContentUrl")]
@@ -47,7 +44,7 @@ pub enum LineMessage {
         #[serde(rename = "previewImageUrl")]
         preview_image_url: String,
     },
-    
+
     #[serde(rename = "video")]
     Video {
         #[serde(rename = "originalContentUrl")]
@@ -55,7 +52,7 @@ pub enum LineMessage {
         #[serde(rename = "previewImageUrl")]
         preview_image_url: String,
     },
-    
+
     #[serde(rename = "audio")]
     Audio {
         #[serde(rename = "originalContentUrl")]
@@ -63,7 +60,7 @@ pub enum LineMessage {
         #[serde(rename = "duration")]
         duration: u64,
     },
-    
+
     #[serde(rename = "location")]
     Location {
         title: String,
@@ -73,7 +70,7 @@ pub enum LineMessage {
         #[serde(rename = "longitude")]
         longitude: f64,
     },
-    
+
     #[serde(rename = "sticker")]
     Sticker {
         #[serde(rename = "packageId")]
@@ -81,7 +78,7 @@ pub enum LineMessage {
         #[serde(rename = "stickerId")]
         sticker_id: String,
     },
-    
+
     #[serde(rename = "flex")]
     Flex {
         #[serde(rename = "altText")]
@@ -105,16 +102,16 @@ pub enum FlexContainerType {
 pub struct FlexContainer {
     #[serde(rename = "type")]
     pub container_type: FlexContainerType,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<FlexComponent>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub header: Option<FlexComponent>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub footer: Option<FlexComponent>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub styles: Option<FlexStyles>,
 }
@@ -124,13 +121,13 @@ pub struct FlexContainer {
 pub struct FlexStyles {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub header: Option<FlexBlockStyle>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<FlexBlockStyle>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub footer: Option<FlexBlockStyle>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hero: Option<FlexBlockStyle>,
 }
@@ -140,10 +137,10 @@ pub struct FlexStyles {
 pub struct FlexBlockStyle {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub background_color: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub separator: Option<bool>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub separator_color: Option<String>,
 }
@@ -153,13 +150,13 @@ pub struct FlexBlockStyle {
 pub struct FlexComponent {
     #[serde(rename = "type")]
     pub component_type: String,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub contents: Option<serde_json::Value>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub action: Option<serde_json::Value>,
 }
@@ -198,12 +195,17 @@ impl LineApi {
     ///
     /// * `Ok(())` - Message sent successfully
     /// * `Err(ApiError)` - An error occurred
-    pub async fn reply_message(&self, reply_token: &str, messages: Vec<LineMessage>) -> Result<(), ApiError> {
+    pub async fn reply_message(
+        &self,
+        reply_token: &str,
+        messages: Vec<LineMessage>,
+    ) -> Result<(), ApiError> {
         let url = format!("{}/message/reply", self.base_url);
-        
+
         debug!("Sending reply message to: {}", reply_token);
-        
-        let response = self.http
+
+        let response = self
+            .http
             .post(&url)
             .bearer_auth(&self.token)
             .json(&serde_json::json!({
@@ -212,7 +214,7 @@ impl LineApi {
             }))
             .send()
             .await?;
-        
+
         if response.status().is_success() {
             Ok(())
         } else {
@@ -239,10 +241,11 @@ impl LineApi {
     /// * `Err(ApiError)` - An error occurred
     pub async fn push_message(&self, to: &str, messages: Vec<LineMessage>) -> Result<(), ApiError> {
         let url = format!("{}/message/push", self.base_url);
-        
+
         debug!("Sending push message to: {}", to);
-        
-        let response = self.http
+
+        let response = self
+            .http
             .post(&url)
             .bearer_auth(&self.token)
             .json(&serde_json::json!({
@@ -251,7 +254,7 @@ impl LineApi {
             }))
             .send()
             .await?;
-        
+
         if response.status().is_success() {
             Ok(())
         } else {
@@ -276,12 +279,17 @@ impl LineApi {
     ///
     /// * `Ok(())` - Messages sent successfully
     /// * `Err(ApiError)` - An error occurred
-    pub async fn multicast(&self, to: Vec<String>, messages: Vec<LineMessage>) -> Result<(), ApiError> {
+    pub async fn multicast(
+        &self,
+        to: Vec<String>,
+        messages: Vec<LineMessage>,
+    ) -> Result<(), ApiError> {
         let url = format!("{}/message/multicast", self.base_url);
-        
+
         debug!("Sending multicast message to {} recipients", to.len());
-        
-        let response = self.http
+
+        let response = self
+            .http
             .post(&url)
             .bearer_auth(&self.token)
             .json(&serde_json::json!({
@@ -290,7 +298,7 @@ impl LineApi {
             }))
             .send()
             .await?;
-        
+
         if response.status().is_success() {
             Ok(())
         } else {
@@ -316,13 +324,9 @@ impl LineApi {
     /// * `Err(ApiError)` - An error occurred
     pub async fn get_profile(&self, user_id: &str) -> Result<UserProfile, ApiError> {
         let url = format!("{}/profile/{}", self.base_url, user_id);
-        
-        let response = self.http
-            .get(&url)
-            .bearer_auth(&self.token)
-            .send()
-            .await?;
-        
+
+        let response = self.http.get(&url).bearer_auth(&self.token).send().await?;
+
         if response.status().is_success() {
             let profile = response.json::<UserProfile>().await?;
             Ok(profile)
@@ -354,13 +358,9 @@ impl LineApi {
         user_id: &str,
     ) -> Result<UserProfile, ApiError> {
         let url = format!("{}/group/{}/member/{}", self.base_url, group_id, user_id);
-        
-        let response = self.http
-            .get(&url)
-            .bearer_auth(&self.token)
-            .send()
-            .await?;
-        
+
+        let response = self.http.get(&url).bearer_auth(&self.token).send().await?;
+
         if response.status().is_success() {
             let profile = response.json::<UserProfile>().await?;
             Ok(profile)
@@ -392,13 +392,9 @@ impl LineApi {
         user_id: &str,
     ) -> Result<UserProfile, ApiError> {
         let url = format!("{}/room/{}/member/{}", self.base_url, room_id, user_id);
-        
-        let response = self.http
-            .get(&url)
-            .bearer_auth(&self.token)
-            .send()
-            .await?;
-        
+
+        let response = self.http.get(&url).bearer_auth(&self.token).send().await?;
+
         if response.status().is_success() {
             let profile = response.json::<UserProfile>().await?;
             Ok(profile)
@@ -425,13 +421,9 @@ impl LineApi {
     /// * `Err(ApiError)` - An error occurred
     pub async fn leave_group(&self, group_id: &str) -> Result<(), ApiError> {
         let url = format!("{}/group/{}/leave", self.base_url, group_id);
-        
-        let response = self.http
-            .post(&url)
-            .bearer_auth(&self.token)
-            .send()
-            .await?;
-        
+
+        let response = self.http.post(&url).bearer_auth(&self.token).send().await?;
+
         if response.status().is_success() {
             Ok(())
         } else {
@@ -457,13 +449,9 @@ impl LineApi {
     /// * `Err(ApiError)` - An error occurred
     pub async fn leave_room(&self, room_id: &str) -> Result<(), ApiError> {
         let url = format!("{}/room/{}/leave", self.base_url, room_id);
-        
-        let response = self.http
-            .post(&url)
-            .bearer_auth(&self.token)
-            .send()
-            .await?;
-        
+
+        let response = self.http.post(&url).bearer_auth(&self.token).send().await?;
+
         if response.status().is_success() {
             Ok(())
         } else {
@@ -483,13 +471,13 @@ impl LineApi {
 pub struct UserProfile {
     #[serde(rename = "displayName")]
     pub display_name: String,
-    
+
     #[serde(rename = "userId")]
     pub user_id: String,
-    
+
     #[serde(rename = "pictureUrl")]
     pub picture_url: Option<String>,
-    
+
     #[serde(rename = "statusMessage")]
     pub status_message: Option<String>,
 }
@@ -608,7 +596,7 @@ impl TextComponentBuilder {
             "text": self.text,
             "wrap": self.wrap,
         });
-        
+
         if let Some(size) = self.size {
             properties["size"] = serde_json::Value::String(size);
         }
@@ -618,7 +606,7 @@ impl TextComponentBuilder {
         if let Some(color) = self.color {
             properties["color"] = serde_json::Value::String(color);
         }
-        
+
         FlexComponent {
             component_type: "text".to_string(),
             layout: None,

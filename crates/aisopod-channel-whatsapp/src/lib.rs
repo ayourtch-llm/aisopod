@@ -17,15 +17,15 @@ mod connection;
 mod receive;
 mod webhook;
 
-pub use connection::{WhatsAppAccountConfig, WhatsAppMode, WhatsAppError};
-pub use receive::{parse_webhook_payload, normalize_message, WhatsAppWebhookPayload};
-pub use receive::{WhatsAppMessage};
+pub use connection::{WhatsAppAccountConfig, WhatsAppError, WhatsAppMode};
+pub use receive::WhatsAppMessage;
+pub use receive::{normalize_message, parse_webhook_payload, WhatsAppWebhookPayload};
 pub use webhook::{create_webhook_router, WebhookState, WebhookVerifyQuery, WebhookVerifyResponse};
 
 use aisopod_channel::adapters::{AccountConfig, AccountSnapshot, ChannelConfigAdapter};
 use aisopod_channel::message::{IncomingMessage, MessageTarget, PeerInfo, SenderInfo};
-use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use aisopod_channel::plugin::ChannelPlugin;
+use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -69,7 +69,10 @@ impl WhatsAppAccount {
 
     /// Validate the API token by attempting to fetch phone number details.
     pub async fn validate_token(&self) -> Result<WhatsAppPhoneNumberDetails> {
-        let api_token = self.config.api_token.as_ref()
+        let api_token = self
+            .config
+            .api_token
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("API token not configured"))?;
 
         // In production, this would make an actual API call to WhatsApp
@@ -199,16 +202,15 @@ impl WhatsAppChannel {
     /// # Returns
     ///
     /// The updated router with webhook routes
-    pub fn register_webhook_routes(
-        &self,
-        router: axum::Router,
-        account_id: &str,
-    ) -> axum::Router {
-        let account = self.get_account(account_id)
-            .expect("Account not found");
+    pub fn register_webhook_routes(&self, router: axum::Router, account_id: &str) -> axum::Router {
+        let account = self.get_account(account_id).expect("Account not found");
 
         let webhook_state = webhook::WebhookState {
-            verify_token: account.config.webhook_verify_token.clone().unwrap_or_default(),
+            verify_token: account
+                .config
+                .webhook_verify_token
+                .clone()
+                .unwrap_or_default(),
             account_id: account_id.to_string(),
             channel: self.id.clone(),
             allowed_numbers: account.config.allowed_numbers.clone(),
@@ -237,15 +239,13 @@ impl WhatsAppChannel {
             ));
         }
 
-        let account = self.get_account(&target.account_id)
+        let account = self
+            .get_account(&target.account_id)
             .ok_or_else(|| anyhow::anyhow!("Account {} not found", target.account_id))?;
 
         // In production, this would make an API call to WhatsApp
         // For now, we just log the message
-        info!(
-            "Sending text message to {}: {}",
-            target.peer.id, text
-        );
+        info!("Sending text message to {}: {}", target.peer.id, text);
 
         // Simulate success - in production, this would:
         // POST https://graph.facebook.com/v18.0/{phone_number_id}/messages
@@ -272,7 +272,8 @@ impl WhatsAppChannel {
     /// * `false` - The message should be filtered out
     pub fn should_process_message(&self, message: &IncomingMessage) -> bool {
         // Check if the sender is in the allowed list
-        if let Some(ref allowed_numbers) = self.get_account(&message.account_id)
+        if let Some(ref allowed_numbers) = self
+            .get_account(&message.account_id)
             .and_then(|a| a.config.allowed_numbers.clone())
         {
             if !allowed_numbers.contains(&message.sender.id) {
@@ -309,7 +310,8 @@ impl ChannelConfigAdapter for WhatsAppChannelConfigAdapter {
     }
 
     fn resolve_account(&self, id: &str) -> Result<AccountSnapshot> {
-        self.accounts.iter()
+        self.accounts
+            .iter()
             .find(|a| a.id == id)
             .map(|a| AccountSnapshot {
                 id: a.id.clone(),
@@ -364,9 +366,13 @@ impl aisopod_channel::adapters::SecurityAdapter for WhatsAppSecurityAdapter {
                 }
             }
         }
-        
+
         // If no allowed list is configured, allow all senders
-        self.accounts.is_empty() || self.accounts.iter().any(|a| a.config.allowed_numbers.is_none())
+        self.accounts.is_empty()
+            || self
+                .accounts
+                .iter()
+                .any(|a| a.config.allowed_numbers.is_none())
     }
 
     fn requires_mention_in_group(&self) -> bool {
@@ -403,7 +409,9 @@ impl ChannelPlugin for WhatsAppChannel {
 
     /// Returns the security adapter for this channel.
     fn security(&self) -> Option<&dyn aisopod_channel::adapters::SecurityAdapter> {
-        self.security_adapter.as_ref().map(|a| a as &dyn aisopod_channel::adapters::SecurityAdapter)
+        self.security_adapter
+            .as_ref()
+            .map(|a| a as &dyn aisopod_channel::adapters::SecurityAdapter)
     }
 }
 
@@ -449,18 +457,21 @@ mod tests {
             "123456789".to_string(),
             "verify-token".to_string(),
         );
-        
+
         assert_eq!(config.mode, WhatsAppMode::BusinessApi);
         assert_eq!(config.api_token, Some("test-token".to_string()));
         assert_eq!(config.phone_number_id, Some("123456789".to_string()));
-        assert_eq!(config.webhook_verify_token, Some("verify-token".to_string()));
+        assert_eq!(
+            config.webhook_verify_token,
+            Some("verify-token".to_string())
+        );
     }
 
     #[test]
     fn test_whatsapp_mode_serialization() {
         let json = serde_json::to_string(&WhatsAppMode::BusinessApi).unwrap();
         assert_eq!(json, "\"business_api\"");
-        
+
         let json = serde_json::to_string(&WhatsAppMode::BaileysBridge).unwrap();
         assert_eq!(json, "\"baileys-bridge\"");
     }
@@ -469,7 +480,7 @@ mod tests {
     fn test_whatsapp_mode_deserialization() {
         let mode: WhatsAppMode = serde_json::from_str("\"business_api\"").unwrap();
         assert_eq!(mode, WhatsAppMode::BusinessApi);
-        
+
         let mode: WhatsAppMode = serde_json::from_str("\"baileys-bridge\"").unwrap();
         assert_eq!(mode, WhatsAppMode::BaileysBridge);
     }
@@ -510,7 +521,7 @@ mod tests {
     #[test]
     fn test_channel_registration() {
         let mut registry = aisopod_channel::ChannelRegistry::new();
-        
+
         let config = WhatsAppAccountConfig::new(
             "test-token".to_string(),
             "123456789".to_string(),
@@ -534,9 +545,10 @@ mod tests {
         };
 
         let account = WhatsAppAccount::new("test-account".to_string(), config.clone());
-        let channel = tokio::runtime::Runtime::new().unwrap().block_on(
-            WhatsAppChannel::new(config, "test-account")
-        ).expect("Failed to create channel");
+        let channel = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(WhatsAppChannel::new(config, "test-account"))
+            .expect("Failed to create channel");
 
         let message = IncomingMessage {
             id: "msg1".to_string(),

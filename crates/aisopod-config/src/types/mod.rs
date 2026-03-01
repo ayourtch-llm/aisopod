@@ -15,10 +15,10 @@ mod memory;
 mod meta;
 mod models;
 mod plugins;
+mod sandbox;
 mod session;
 mod skills;
 mod tools;
-mod sandbox;
 
 pub use agents::Agent;
 pub use agents::AgentDefaults;
@@ -47,14 +47,14 @@ pub use models::ModelFallback;
 pub use models::ModelProvider;
 pub use models::ModelsConfig;
 pub use plugins::PluginsConfig;
+pub use sandbox::SandboxConfig;
+pub use sandbox::SandboxRuntime;
+pub use sandbox::WorkspaceAccess;
 pub use session::CompactionConfig;
 pub use session::MessageConfig;
 pub use session::SessionConfig;
 pub use skills::SkillsConfig;
 pub use tools::ToolsConfig;
-pub use sandbox::SandboxConfig;
-pub use sandbox::SandboxRuntime;
-pub use sandbox::WorkspaceAccess;
 
 /// Root configuration struct that composes all configuration types
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

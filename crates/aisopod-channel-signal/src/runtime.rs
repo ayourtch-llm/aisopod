@@ -2,8 +2,8 @@
 //!
 //! This module handles spawning and managing the signal-cli daemon process.
 
-use crate::config::{SignalAccountConfig, SignalDaemonConfig, SignalError};
 use crate::channel::SignalAccount;
+use crate::config::{SignalAccountConfig, SignalDaemonConfig, SignalError};
 use anyhow::Result;
 use std::process::Child;
 use std::sync::Arc;
@@ -47,21 +47,13 @@ impl SignalRuntime {
     /// * `Err(SignalError)` - Failed to start daemon
     pub async fn start_daemon(&mut self, account: &SignalAccount) -> Result<()> {
         let phone_number = &account.config.phone_number;
-        
-        info!(
-            "Starting signal-cli daemon for {}",
-            phone_number
-        );
+
+        info!("Starting signal-cli daemon for {}", phone_number);
 
         // Build the command to start signal-cli daemon
-        let mut cmd = std::process::Command::new(
-            self.daemon_config.signal_cli_path.as_str()
-        );
+        let mut cmd = std::process::Command::new(self.daemon_config.signal_cli_path.as_str());
 
-        cmd.arg("-u")
-            .arg(phone_number)
-            .arg("daemon")
-            .arg("--json");
+        cmd.arg("-u").arg(phone_number).arg("daemon").arg("--json");
 
         // Add data directory if configured
         if let Some(ref data_dir) = self.daemon_config.signal_cli_data_dir {
@@ -69,19 +61,14 @@ impl SignalRuntime {
         }
 
         // Start the process
-        let child = cmd.spawn()
-            .map_err(|e| SignalError::SpawnFailed(format!(
-                "Failed to spawn signal-cli: {}",
-                e
-            )))?;
+        let child = cmd
+            .spawn()
+            .map_err(|e| SignalError::SpawnFailed(format!("Failed to spawn signal-cli: {}", e)))?;
 
         let child_arc = Arc::new(std::sync::Mutex::new(child));
         self.running_daemons.push(child_arc.clone());
 
-        info!(
-            "Started signal-cli daemon for {}",
-            phone_number
-        );
+        info!("Started signal-cli daemon for {}", phone_number);
 
         // Give the daemon time to start
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
@@ -97,10 +84,7 @@ impl SignalRuntime {
     pub async fn stop_daemon(&mut self, _account: &SignalAccount) {
         // For now, we just log the stop request
         // In production, you would send a SIGTERM or use the JSON-RPC interface
-        info!(
-            "Stopping signal-cli daemon for {}",
-            _account.id
-        );
+        info!("Stopping signal-cli daemon for {}", _account.id);
     }
 
     /// Stop all running daemons.
@@ -182,8 +166,10 @@ mod tests {
     fn test_check_signal_cli_exists() {
         // This test would fail if signal-cli is not installed
         // For testing purposes, we just verify the function exists
-        assert!(utils::check_signal_cli_exists("signal-cli") || 
-                !utils::check_signal_cli_exists("nonexistent-binary"));
+        assert!(
+            utils::check_signal_cli_exists("signal-cli")
+                || !utils::check_signal_cli_exists("nonexistent-binary")
+        );
     }
 
     #[test]

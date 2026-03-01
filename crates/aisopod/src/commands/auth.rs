@@ -9,9 +9,9 @@ use std::io::{self, Write};
 use std::path::Path;
 
 use aisopod_config::load_config;
-use aisopod_config::AisopodConfig;
 use aisopod_config::sensitive::Sensitive;
 use aisopod_config::types::AuthProfile;
+use aisopod_config::AisopodConfig;
 
 /// Authentication command arguments
 #[derive(Args)]
@@ -89,7 +89,10 @@ fn prompt_select(prompt_text: &str, options: &[&str]) -> Result<String> {
                 return Ok(options[index - 1].to_string());
             }
         }
-        println!("Invalid choice. Please enter a number between 1 and {}.", options.len());
+        println!(
+            "Invalid choice. Please enter a number between 1 and {}.",
+            options.len()
+        );
     }
 }
 
@@ -98,16 +101,19 @@ fn load_config_or_default(config_path: Option<&str>) -> Result<AisopodConfig> {
     match config_path {
         Some(path) => {
             let config_path = Path::new(path);
-            load_config(config_path).map_err(|e| {
-                anyhow::anyhow!("Failed to load configuration from '{}': {}", path, e)
-            })
+            load_config(config_path)
+                .map_err(|e| anyhow::anyhow!("Failed to load configuration from '{}': {}", path, e))
         }
         None => {
             // Use default config path
             let default_path = aisopod_config::default_config_path();
             if default_path.exists() {
                 load_config(&default_path).map_err(|e| {
-                    anyhow::anyhow!("Failed to load configuration from '{}': {}", default_path.display(), e)
+                    anyhow::anyhow!(
+                        "Failed to load configuration from '{}': {}",
+                        default_path.display(),
+                        e
+                    )
                 })
             } else {
                 // If no config file exists, return empty config
@@ -139,7 +145,12 @@ fn save_config(config: &AisopodConfig, config_path: Option<String>) -> Result<()
 /// Add or update a provider in the config
 fn add_provider(config: &mut AisopodConfig, provider_name: &str, endpoint: &str, api_key: &str) {
     // Check if provider already exists
-    if let Some(profile) = config.auth.profiles.iter_mut().find(|p| p.name == provider_name) {
+    if let Some(profile) = config
+        .auth
+        .profiles
+        .iter_mut()
+        .find(|p| p.name == provider_name)
+    {
         profile.endpoint = Some(endpoint.to_string());
         profile.api_key = Sensitive::new(api_key.to_string());
     } else {
@@ -178,12 +189,22 @@ pub fn run_auth_setup(config_path: Option<String>) -> Result<()> {
         "anthropic" => {
             println!("\nGet your API key from: https://console.anthropic.com/settings/keys\n");
             let key = prompt_password("Anthropic API key: ")?;
-            add_provider(&mut config, "anthropic", "https://api.anthropic.com/v1", &key);
+            add_provider(
+                &mut config,
+                "anthropic",
+                "https://api.anthropic.com/v1",
+                &key,
+            );
         }
         "google" => {
             println!("\nGet your API key from: https://aistudio.google.com/apikey\n");
             let key = prompt_password("Google AI API key: ")?;
-            add_provider(&mut config, "google", "https://generativelanguage.googleapis.com/v1beta", &key);
+            add_provider(
+                &mut config,
+                "google",
+                "https://generativelanguage.googleapis.com/v1beta",
+                &key,
+            );
         }
         "azure" => {
             let endpoint = prompt("Azure endpoint URL: ")?;
@@ -198,7 +219,10 @@ pub fn run_auth_setup(config_path: Option<String>) -> Result<()> {
     }
 
     save_config(&config, config_path)?;
-    println!("\nAuthentication for '{}' configured successfully!", provider);
+    println!(
+        "\nAuthentication for '{}' configured successfully!",
+        provider
+    );
     Ok(())
 }
 
@@ -214,7 +238,11 @@ pub fn run_auth_status(config_path: Option<String>) -> Result<()> {
     for profile in &config.auth.profiles {
         let has_key = !profile.api_key.expose().is_empty();
         let status = if has_key { "Configured" } else { "Not set" };
-        let detail = if has_key { "API key set" } else { "Run 'aisopod auth setup'" };
+        let detail = if has_key {
+            "API key set"
+        } else {
+            "Run 'aisopod auth setup'"
+        };
         println!("{:<15} {:<15} {:<20}", profile.name, status, detail);
     }
 

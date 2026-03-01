@@ -74,7 +74,7 @@ pub enum AudioFormat {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VideoFormat {
     /// MP4 format
-   Mp4,
+    Mp4,
     /// WebM format
     WebM,
     /// MOV format
@@ -157,14 +157,8 @@ impl Platform {
                     ImageFormat::Gif,
                     ImageFormat::WebP,
                 ],
-                supported_audio_formats: vec![
-                    AudioFormat::Mp3,
-                    AudioFormat::Ogg,
-                ],
-                supported_video_formats: vec![
-                    VideoFormat::Mp4,
-                    VideoFormat::WebM,
-                ],
+                supported_audio_formats: vec![AudioFormat::Mp3, AudioFormat::Ogg],
+                supported_video_formats: vec![VideoFormat::Mp4, VideoFormat::WebM],
                 supported_document_formats: vec![
                     DocumentFormat::Pdf,
                     DocumentFormat::Docx,
@@ -180,19 +174,13 @@ impl Platform {
                     ImageFormat::Gif,
                     ImageFormat::WebP,
                 ],
-                supported_audio_formats: vec![
-                    AudioFormat::Mp3,
-                    AudioFormat::Wav,
-                ],
+                supported_audio_formats: vec![AudioFormat::Mp3, AudioFormat::Wav],
                 supported_video_formats: vec![
                     VideoFormat::Mp4,
                     VideoFormat::WebM,
                     VideoFormat::Mov,
                 ],
-                supported_document_formats: vec![
-                    DocumentFormat::Pdf,
-                    DocumentFormat::Txt,
-                ],
+                supported_document_formats: vec![DocumentFormat::Pdf, DocumentFormat::Txt],
                 max_image_dimensions: Some((1024, 1024)),
             },
             Platform::WhatsApp => PlatformConstraints {
@@ -202,14 +190,8 @@ impl Platform {
                     ImageFormat::Jpeg,
                     ImageFormat::WebP,
                 ],
-                supported_audio_formats: vec![
-                    AudioFormat::Mp3,
-                    AudioFormat::Wav,
-                    AudioFormat::Ogg,
-                ],
-                supported_video_formats: vec![
-                    VideoFormat::Mp4,
-                ],
+                supported_audio_formats: vec![AudioFormat::Mp3, AudioFormat::Wav, AudioFormat::Ogg],
+                supported_video_formats: vec![VideoFormat::Mp4],
                 supported_document_formats: vec![
                     DocumentFormat::Pdf,
                     DocumentFormat::Docx,
@@ -224,14 +206,8 @@ impl Platform {
                     ImageFormat::Jpeg,
                     ImageFormat::Gif,
                 ],
-                supported_audio_formats: vec![
-                    AudioFormat::Mp3,
-                    AudioFormat::Wav,
-                ],
-                supported_video_formats: vec![
-                    VideoFormat::Mp4,
-                    VideoFormat::WebM,
-                ],
+                supported_audio_formats: vec![AudioFormat::Mp3, AudioFormat::Wav],
+                supported_video_formats: vec![VideoFormat::Mp4, VideoFormat::WebM],
                 supported_document_formats: vec![
                     DocumentFormat::Pdf,
                     DocumentFormat::Docx,
@@ -430,7 +406,11 @@ fn resize_image_for_platform(data: &[u8], max_dimensions: (u32, u32)) -> Result<
 }
 
 /// Detect the media format from the file extension or MIME type.
-pub fn detect_media_format(data: &[u8], filename: Option<&str>, mime_type: Option<&str>) -> MediaFormat {
+pub fn detect_media_format(
+    data: &[u8],
+    filename: Option<&str>,
+    mime_type: Option<&str>,
+) -> MediaFormat {
     // First check MIME type if available
     if let Some(mime) = mime_type {
         match mime {
@@ -531,7 +511,12 @@ fn detect_format_from_magic(data: &[u8]) -> MediaFormat {
         }
 
         // WebP: 52 49 46 46 ... 57 45 42 50
-        if data[0] == b'R' && data[1] == b'I' && data[2] == b'F' && data[3] == b'F' && data.len() >= 12 {
+        if data[0] == b'R'
+            && data[1] == b'I'
+            && data[2] == b'F'
+            && data[3] == b'F'
+            && data.len() >= 12
+        {
             if data[8] == b'W' && data[9] == b'E' && data[10] == b'B' && data[11] == b'P' {
                 return MediaFormat::Image(ImageFormat::WebP);
             }
@@ -540,13 +525,19 @@ fn detect_format_from_magic(data: &[u8]) -> MediaFormat {
 
     if data.len() >= 2 {
         // MP3: ID3 or 11 bits of 1s
-        if (data[0] == b'I' && data[1] == b'D' && data.len() >= 3 && data[2] == b'3') ||
-           ((data[0] & 0xFF) == 0xFF && (data[1] & 0xE0) == 0xE0) {
+        if (data[0] == b'I' && data[1] == b'D' && data.len() >= 3 && data[2] == b'3')
+            || ((data[0] & 0xFF) == 0xFF && (data[1] & 0xE0) == 0xE0)
+        {
             return MediaFormat::Audio(AudioFormat::Mp3);
         }
 
         // WAV: 52 49 46 46 ... 57 41 56 45
-        if data[0] == b'R' && data[1] == b'I' && data[2] == b'F' && data[3] == b'F' && data.len() >= 12 {
+        if data[0] == b'R'
+            && data[1] == b'I'
+            && data[2] == b'F'
+            && data[3] == b'F'
+            && data.len() >= 12
+        {
             if data[8] == b'W' && data[9] == b'A' && data[10] == b'V' && data[11] == b'E' {
                 return MediaFormat::Audio(AudioFormat::Wav);
             }
@@ -561,8 +552,9 @@ fn detect_format_from_magic(data: &[u8]) -> MediaFormat {
     // MP4: 00 00 00 01 or ftyp box
     if data.len() >= 8 {
         // Check for ftyp box (common in MP4, MOV)
-        if (data[4] == b'f' && data[5] == b't' && data[6] == b'y' && data[7] == b'p') ||
-           (data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 1) {
+        if (data[4] == b'f' && data[5] == b't' && data[6] == b'y' && data[7] == b'p')
+            || (data[0] == 0 && data[1] == 0 && data[2] == 0 && data[3] == 1)
+        {
             return MediaFormat::Video(VideoFormat::Mp4);
         }
     }
@@ -578,8 +570,12 @@ mod tests {
     fn test_platform_constraints_telegram() {
         let constraints = Platform::Telegram.constraints();
         assert_eq!(constraints.max_file_size, 20_000_000);
-        assert!(constraints.supported_image_formats.contains(&ImageFormat::Png));
-        assert!(constraints.supported_image_formats.contains(&ImageFormat::Jpeg));
+        assert!(constraints
+            .supported_image_formats
+            .contains(&ImageFormat::Png));
+        assert!(constraints
+            .supported_image_formats
+            .contains(&ImageFormat::Jpeg));
     }
 
     #[test]

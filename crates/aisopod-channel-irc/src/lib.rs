@@ -78,15 +78,18 @@ mod client;
 mod config;
 
 // Re-export common types
-pub use crate::channel::{IrcAccount, IrcChannel, register};
-pub use crate::config::{IrcConfig, IrcServerConfig};
-pub use crate::client::IrcConnection;
 pub use crate::auth::authenticate_nickserv;
+pub use crate::channel::{register, IrcAccount, IrcChannel};
+pub use crate::client::IrcConnection;
+pub use crate::config::{IrcConfig, IrcServerConfig};
 
 // Re-export types from aisopod-channel for convenience
-pub use aisopod_channel::message::{IncomingMessage, OutgoingMessage, MessageTarget, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo};
-pub use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+pub use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, OutgoingMessage, PeerInfo,
+    PeerKind, SenderInfo,
+};
 pub use aisopod_channel::plugin::ChannelPlugin;
+pub use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 pub use aisopod_channel::ChannelRegistry;
 
 /// Result type for IRC channel operations.
@@ -118,7 +121,7 @@ mod tests {
         let json = serde_json::to_string(&config).unwrap();
         assert!(json.contains("irc.example.com"));
         assert!(json.contains("testbot"));
-        
+
         let deserialized: IrcServerConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.server, config.server);
         assert_eq!(deserialized.nickname, config.nickname);

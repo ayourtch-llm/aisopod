@@ -113,7 +113,9 @@ mod tests {
     fn test_matrix_auth_sso_serialization() {
         let config = MatrixAccountConfig {
             homeserver_url: "https://matrix.org".to_string(),
-            auth: MatrixAuth::SSO { token: "sso_token".to_string() },
+            auth: MatrixAuth::SSO {
+                token: "sso_token".to_string(),
+            },
             ..Default::default()
         };
 
@@ -130,7 +132,10 @@ mod tests {
                 username: "user".to_string(),
                 password: "pass".to_string(),
             },
-            rooms: vec!["!room:matrix.org".to_string(), "#general:matrix.org".to_string()],
+            rooms: vec![
+                "!room:matrix.org".to_string(),
+                "#general:matrix.org".to_string(),
+            ],
             ..Default::default()
         };
 

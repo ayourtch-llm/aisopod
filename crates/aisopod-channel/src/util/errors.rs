@@ -4,8 +4,8 @@
 //! error scenarios across all channel implementations. This allows for
 //! consistent error handling and conversion from platform-specific errors.
 
-use std::fmt;
 use std::error::Error;
+use std::fmt;
 
 /// Common error types for channel operations.
 ///
@@ -283,7 +283,9 @@ mod tests {
     #[test]
     fn test_rate_limited_error() {
         let retry_duration = std::time::Duration::from_secs(30);
-        let error = ChannelError::RateLimited { retry_after: retry_duration };
+        let error = ChannelError::RateLimited {
+            retry_after: retry_duration,
+        };
 
         assert!(format!("{}", error).contains("retry after 30s"));
         assert_eq!(error.retry_after(), Some(retry_duration));
@@ -358,7 +360,9 @@ mod tests {
     #[test]
     fn test_retry_after_duration() {
         let retry_duration = std::time::Duration::from_secs(45);
-        let error = ChannelError::RateLimited { retry_after: retry_duration };
+        let error = ChannelError::RateLimited {
+            retry_after: retry_duration,
+        };
 
         assert_eq!(error.retry_after(), Some(retry_duration));
 

@@ -205,7 +205,8 @@ impl PluginApi {
     /// * `plugin_id` - The ID of the plugin registering the handler
     /// * `handler` - An `Arc` wrapping the hook handler implementation
     pub fn register_hook(&mut self, hook: Hook, plugin_id: String, handler: Arc<dyn HookHandler>) {
-        self.hooks.push(PluginHookHandler::new(hook, plugin_id, handler));
+        self.hooks
+            .push(PluginHookHandler::new(hook, plugin_id, handler));
     }
 }
 
@@ -259,13 +260,8 @@ mod tests {
     #[test]
     fn test_register_command_reserved_name() {
         let mut api = PluginApi::new();
-        let command = PluginCommand::new(
-            "help",
-            "Help command",
-            "help",
-            false,
-            Arc::new(|_| Ok(())),
-        );
+        let command =
+            PluginCommand::new("help", "Help command", "help", false, Arc::new(|_| Ok(())));
         let result = api.register_command(command);
         assert!(result.is_err());
         // Should return ReservedCommandName error
@@ -274,15 +270,9 @@ mod tests {
     #[test]
     fn test_register_command_invalid_name() {
         let mut api = PluginApi::new();
-        
+
         // Empty name
-        let command = PluginCommand::new(
-            "",
-            "Empty command",
-            "",
-            false,
-            Arc::new(|_| Ok(())),
-        );
+        let command = PluginCommand::new("", "Empty command", "", false, Arc::new(|_| Ok(())));
         let result = api.register_command(command);
         assert!(result.is_err());
 
@@ -312,7 +302,7 @@ mod tests {
     #[test]
     fn test_getters() {
         let mut api = PluginApi::new();
-        
+
         // Check that getters return empty slices when nothing is registered
         assert!(api.channels().is_empty());
         assert!(api.tools().is_empty());

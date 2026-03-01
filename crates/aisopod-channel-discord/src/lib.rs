@@ -23,34 +23,51 @@
 //! - Message editing and deletion
 
 mod connection;
+mod embeds;
 mod features;
 mod media;
 mod receive;
 mod send;
-mod embeds;
 
 use aisopod_channel::adapters::{AccountConfig, AccountSnapshot, ChannelConfigAdapter};
-use aisopod_channel::message::{IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, PeerInfo, PeerKind, SenderInfo, OutgoingMessage};
+use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, OutgoingMessage, PeerInfo,
+    PeerKind, SenderInfo,
+};
 use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
+use futures::{future, FutureExt};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tracing::{error, info, warn};
 use serenity::all::{ChannelId, Context, MessageId};
 use serenity::client::Client;
-use futures::{future, FutureExt};
 use std::pin::Pin;
+use std::sync::Arc;
+use tracing::{error, info, warn};
 
 // Re-export modules
-pub use connection::{DiscordClientHandle, DiscordEventHandler, create_client, start_client_task};
-pub use receive::{normalize_message, should_filter_message, check_mention_requirement, process_discord_message};
+pub use connection::{create_client, start_client_task, DiscordClientHandle, DiscordEventHandler};
+pub use receive::{
+    check_mention_requirement, normalize_message, process_discord_message, should_filter_message,
+};
 
 // Re-export new modules
-pub use send::{send_message, chunk_text, SendOptions, SendMessageResult, formatting, DISCORD_MESSAGE_LIMIT};
-pub use embeds::{EmbedBuilder, build_tool_result_embed, build_error_embed, build_success_embed, build_info_embed, build_warning_embed, colors, MAX_EMBEDS};
-pub use media::{extract_media_from_attachments, create_attachment_from_path, send_media, send_media_batch, validate_media, download_attachments, MAX_FILE_SIZE};
-pub use features::{send_typing, create_thread, reply_in_thread, detect_thread_in_message, get_thread_info, add_reaction, remove_reaction, list_guilds, list_channels, find_channel_by_name, edit_message, delete_message, bulk_delete_messages};
+pub use embeds::{
+    build_error_embed, build_info_embed, build_success_embed, build_tool_result_embed,
+    build_warning_embed, colors, EmbedBuilder, MAX_EMBEDS,
+};
+pub use features::{
+    add_reaction, bulk_delete_messages, create_thread, delete_message, detect_thread_in_message,
+    edit_message, find_channel_by_name, get_thread_info, list_channels, list_guilds,
+    remove_reaction, reply_in_thread, send_typing,
+};
+pub use media::{
+    create_attachment_from_path, download_attachments, extract_media_from_attachments, send_media,
+    send_media_batch, validate_media, MAX_FILE_SIZE,
+};
+pub use send::{
+    chunk_text, formatting, send_message, SendMessageResult, SendOptions, DISCORD_MESSAGE_LIMIT,
+};
 
 /// Configuration for a Discord bot account.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,10 +128,7 @@ pub struct DiscordAccountWithClient {
 impl DiscordAccountWithClient {
     /// Create a new DiscordAccountWithClient.
     pub fn new(account: DiscordAccount, client: Arc<Client>) -> Self {
-        Self {
-            account,
-            client,
-        }
+        Self { account, client }
     }
 
     /// Get the account ID.
@@ -188,7 +202,12 @@ impl DiscordChannel {
             }),
         };
         let capabilities = ChannelCapabilities {
-            chat_types: vec![ChatType::Dm, ChatType::Group, ChatType::Channel, ChatType::Thread],
+            chat_types: vec![
+                ChatType::Dm,
+                ChatType::Group,
+                ChatType::Channel,
+                ChatType::Thread,
+            ],
             supports_media: true,
             supports_reactions: true,
             supports_threads: true,
@@ -239,14 +258,16 @@ impl DiscordChannel {
 
     /// Get an account by its ID.
     pub fn get_account(&self, account_id: &str) -> Option<&DiscordAccount> {
-        self.accounts.iter()
+        self.accounts
+            .iter()
             .find(|a| a.id() == account_id)
             .map(|a| &a.account)
     }
 
     /// Get an account by its ID (mutable).
     pub fn get_account_mut(&mut self, account_id: &str) -> Option<&mut DiscordAccount> {
-        self.accounts.iter_mut()
+        self.accounts
+            .iter_mut()
             .find(|a| a.id() == account_id)
             .map(|a| &mut a.account)
     }
@@ -262,7 +283,8 @@ impl DiscordChannel {
     /// * `Ok(Arc<Client>)` - The client if the account exists
     /// * `Err(anyhow::Error)` - An error if the account is not found
     pub fn get_client(&self, account_id: &str) -> Result<Arc<Client>> {
-        self.accounts.iter()
+        self.accounts
+            .iter()
             .find(|a| a.id() == account_id)
             .map(|a| a.client.clone())
             .ok_or_else(|| anyhow::anyhow!("Account not found: {}", account_id))
@@ -280,15 +302,17 @@ impl DiscordChannel {
     /// # Returns
     ///
     /// A handle to the background task that can be awaited or cancelled.
-    pub async fn start(&mut self, account_id: Option<&str>) -> Result<impl std::future::Future<Output = ()> + Send> {
+    pub async fn start(
+        &mut self,
+        account_id: Option<&str>,
+    ) -> Result<impl std::future::Future<Output = ()> + Send> {
         // Determine which accounts to connect
         let accounts_to_connect: Vec<DiscordAccount> = match account_id {
-            Some(id) => {
-                self.get_account(id)
-                    .cloned()
-                    .map(|a| vec![a])
-                    .unwrap_or_default()
-            }
+            Some(id) => self
+                .get_account(id)
+                .cloned()
+                .map(|a| vec![a])
+                .unwrap_or_default(),
             None => {
                 // Get accounts from DiscordAccountWithClient
                 self.accounts.iter().map(|a| a.account.clone()).collect()
@@ -323,16 +347,16 @@ impl DiscordChannel {
             // Start the client with the handle
             let handle = client_handle;
             let shutdown = shutdown_clone;
-            
+
             // Spawn the task that will start the client
             let task = async move {
                 // The handle.start() method will unwrap the Arc and start the client
                 handle.start();
-                
+
                 // Wait for shutdown signal
                 shutdown.notified().await;
             };
-            
+
             tasks.push(Box::pin(task));
         }
 
@@ -377,23 +401,28 @@ impl DiscordChannel {
     ) -> Result<MessageId> {
         // Get the client for this account
         let client = self.get_client(account_id)?;
-        
+
         // Extract channel ID from target
-        let channel_id = message.target.peer.id.parse::<u64>()
+        let channel_id = message
+            .target
+            .peer
+            .id
+            .parse::<u64>()
             .map_err(|e| anyhow::anyhow!("Invalid channel ID: {}: {}", message.target.peer.id, e))?
             .into();
-        
+
         // Build the message content
         let text = self.content_to_string_from_message(message);
-        
+
         // Build send options
         let options = SendOptions {
-            reply_to_message_id: message.reply_to.as_ref().and_then(|r| {
-                r.parse::<u64>().ok().map(|id| id.into())
-            }),
+            reply_to_message_id: message
+                .reply_to
+                .as_ref()
+                .and_then(|r| r.parse::<u64>().ok().map(|id| id.into())),
             ..Default::default()
         };
-        
+
         // Send the message using the http client
         // Arc<Client> doesn't implement CacheHttp, so we use Arc<Http> instead
         let http = client.http.clone();
@@ -409,37 +438,58 @@ impl DiscordChannel {
             MessageContent::Media(media) => {
                 // Return a placeholder for media content
                 match &media.media_type {
-                    MediaType::Image => format!("[Image: {}]", media.url.as_deref().unwrap_or("unknown")),
-                    MediaType::Audio => format!("[Audio: {}]", media.url.as_deref().unwrap_or("unknown")),
-                    MediaType::Video => format!("[Video: {}]", media.url.as_deref().unwrap_or("unknown")),
-                    MediaType::Document => format!("[Document: {}]", media.filename.as_deref().unwrap_or("unknown")),
-                    MediaType::Other(other) => format!("[{}: {}]", other, media.url.as_deref().unwrap_or("unknown")),
+                    MediaType::Image => {
+                        format!("[Image: {}]", media.url.as_deref().unwrap_or("unknown"))
+                    }
+                    MediaType::Audio => {
+                        format!("[Audio: {}]", media.url.as_deref().unwrap_or("unknown"))
+                    }
+                    MediaType::Video => {
+                        format!("[Video: {}]", media.url.as_deref().unwrap_or("unknown"))
+                    }
+                    MediaType::Document => format!(
+                        "[Document: {}]",
+                        media.filename.as_deref().unwrap_or("unknown")
+                    ),
+                    MediaType::Other(other) => {
+                        format!("[{}: {}]", other, media.url.as_deref().unwrap_or("unknown"))
+                    }
                 }
             }
-            MessageContent::Mixed(parts) => {
-                parts
-                    .iter()
-                    .map(|part| match part {
-                        MessagePart::Text(text) => text.clone(),
-                        MessagePart::Media(media) => {
-                            match &media.media_type {
-                                MediaType::Image => format!("[Image: {}]", media.url.as_deref().unwrap_or("unknown")),
-                                MediaType::Audio => format!("[Audio: {}]", media.url.as_deref().unwrap_or("unknown")),
-                                MediaType::Video => format!("[Video: {}]", media.url.as_deref().unwrap_or("unknown")),
-                                MediaType::Document => format!("[Document: {}]", media.filename.as_deref().unwrap_or("unknown")),
-                                MediaType::Other(other) => format!("[{}: {}]", other, media.url.as_deref().unwrap_or("unknown")),
-                            }
+            MessageContent::Mixed(parts) => parts
+                .iter()
+                .map(|part| match part {
+                    MessagePart::Text(text) => text.clone(),
+                    MessagePart::Media(media) => match &media.media_type {
+                        MediaType::Image => {
+                            format!("[Image: {}]", media.url.as_deref().unwrap_or("unknown"))
                         }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            }
+                        MediaType::Audio => {
+                            format!("[Audio: {}]", media.url.as_deref().unwrap_or("unknown"))
+                        }
+                        MediaType::Video => {
+                            format!("[Video: {}]", media.url.as_deref().unwrap_or("unknown"))
+                        }
+                        MediaType::Document => format!(
+                            "[Document: {}]",
+                            media.filename.as_deref().unwrap_or("unknown")
+                        ),
+                        MediaType::Other(other) => {
+                            format!("[{}: {}]", other, media.url.as_deref().unwrap_or("unknown"))
+                        }
+                    },
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
         }
     }
 }
 
 /// Start a client task with a specific shutdown signal.
-async fn start_client_task_for_handle(handle: DiscordClientHandle, shutdown: Arc<tokio::sync::Notify>) {
+async fn start_client_task_for_handle(
+    handle: DiscordClientHandle,
+    shutdown: Arc<tokio::sync::Notify>,
+) {
     // Override the shutdown signal in the handle
     let _ = handle;
     // The client will be stopped by the shutdown signal when notify_one is called
@@ -500,7 +550,11 @@ pub async fn register(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serenity::model::{channel::Message, id::{ChannelId, GuildId, MessageId, UserId}, user::User};
+    use serenity::model::{
+        channel::Message,
+        id::{ChannelId, GuildId, MessageId, UserId},
+        user::User,
+    };
     use std::num::NonZeroU16;
 
     fn create_test_message(content: &str, is_bot: bool) -> Message {
@@ -539,7 +593,10 @@ mod tests {
         assert_eq!(config.application_id, deserialized.application_id);
         assert_eq!(config.allowed_guilds, deserialized.allowed_guilds);
         assert_eq!(config.allowed_channels, deserialized.allowed_channels);
-        assert_eq!(config.mention_required_in_channels, deserialized.mention_required_in_channels);
+        assert_eq!(
+            config.mention_required_in_channels,
+            deserialized.mention_required_in_channels
+        );
     }
 
     #[test]
@@ -582,4 +639,3 @@ mod tests {
         let _ = result.unwrap();
     }
 }
-

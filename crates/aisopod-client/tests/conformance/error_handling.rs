@@ -11,8 +11,7 @@ pub async fn connect_test_client() -> AisopodClient {
     let config = ClientConfig {
         server_url: env::var("AISOPOD_TEST_URL")
             .unwrap_or_else(|_| "ws://127.0.0.1:8080/ws".to_string()),
-        auth_token: env::var("AISOPOD_TEST_TOKEN")
-            .unwrap_or_else(|_| "test-token".to_string()),
+        auth_token: env::var("AISOPOD_TEST_TOKEN").unwrap_or_else(|_| "test-token".to_string()),
         client_name: "conformance-test".to_string(),
         client_version: "0.1.0".to_string(),
         device_id: uuid::Uuid::new_v4(),
@@ -41,10 +40,11 @@ async fn test_malformed_message_handling() {
     // Note: The current client library handles JSON serialization internally,
     // so we can't easily send malformed messages. This test verifies that
     // the client properly handles server errors.
-    
+
     // Test that invalid JSON-RPC method returns an error
-    let result: Result<serde_json::Value, _> =
-        client.request("invalid.method.name", serde_json::json!({})).await;
+    let result: Result<serde_json::Value, _> = client
+        .request("invalid.method.name", serde_json::json!({}))
+        .await;
 
     // Either the request succeeds or we get a proper error
     match result {
@@ -79,10 +79,7 @@ async fn test_unauthorized_access() {
     let result = AisopodClient::connect(config).await;
 
     // The connection should fail
-    assert!(
-        result.is_err(),
-        "Connection with invalid token should fail"
-    );
+    assert!(result.is_err(), "Connection with invalid token should fail");
 }
 
 #[tokio::test]
@@ -107,10 +104,7 @@ async fn test_missing_token() {
     let result = AisopodClient::connect(config).await;
 
     // The connection should fail
-    assert!(
-        result.is_err(),
-        "Connection without token should fail"
-    );
+    assert!(result.is_err(), "Connection without token should fail");
 }
 
 #[tokio::test]
@@ -124,10 +118,11 @@ async fn test_invalid_json_request() {
 
     // Test that the client properly handles various error conditions
     // by verifying that invalid requests return errors
-    
+
     // Request to non-existent method should fail
-    let result: Result<serde_json::Value, _> =
-        client.request("nonexistent.method", serde_json::json!({})).await;
+    let result: Result<serde_json::Value, _> = client
+        .request("nonexistent.method", serde_json::json!({}))
+        .await;
 
     assert!(
         result.is_err(),
@@ -144,7 +139,7 @@ async fn test_rate_limiting() {
 
     // Test that the server properly handles rate limiting
     // This test sends multiple rapid requests to verify rate limiting is enforced
-    
+
     let config = ClientConfig {
         server_url: env::var("AISOPOD_TEST_URL")
             .unwrap_or_else(|_| "ws://127.0.0.1:8080/ws".to_string()),
@@ -171,15 +166,14 @@ async fn test_invalid_json_rpc_format() {
 
     // Test parsing of malformed JSON-RPC responses
     let malformed_responses = vec![
-        r#"{"jsonrpc": "2.0"}"#, // Missing result, error, and id
+        r#"{"jsonrpc": "2.0"}"#,              // Missing result, error, and id
         r#"{"jsonrpc": "2.0", "id": "123"}"#, // Missing result and error
         r#"{"jsonrpc": "2.0", "result": {}, "id": "123"}"#, // Empty result
     ];
 
     for malformed in malformed_responses {
-        let result: Result<aisopod_client::RpcResponse, _> =
-            serde_json::from_str(malformed);
-        
+        let result: Result<aisopod_client::RpcResponse, _> = serde_json::from_str(malformed);
+
         // Some might parse but be invalid, that's okay
         // The important thing is the client handles them
         let _ = result;

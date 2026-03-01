@@ -21,8 +21,13 @@ mod receive;
 mod send;
 mod socket_mode;
 
-use aisopod_channel::adapters::{AccountConfig, AccountSnapshot, ChannelConfigAdapter, OutboundAdapter};
-use aisopod_channel::message::{IncomingMessage, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo, OutgoingMessage, MessageTarget};
+use aisopod_channel::adapters::{
+    AccountConfig, AccountSnapshot, ChannelConfigAdapter, OutboundAdapter,
+};
+use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, OutgoingMessage, PeerInfo,
+    PeerKind, SenderInfo,
+};
 use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
@@ -31,13 +36,30 @@ use std::sync::Arc;
 use tracing::{error, info, warn};
 
 // Re-export modules
-pub use blocks::{Block, PlainText, Mrkdwn, SelectOption, OptionGroup, Confirm, OverflowOption, BlockType, SectionBlock, DividerBlock, ImageBlock, ActionsBlock, ContextBlock, HeaderBlock, FileBlock, CallBlock, BlockBuilder, BlockKit};
-pub use connection::{SlackClientHandle, create_client};
-pub use features::{ChannelInfo, ChannelPurpose, UserInfo, UserProfile, ThreadMessage, Reaction, ReactionsListResponse, build_list_channels_payload, build_typing_payload, send_thinking_message, list_channels, get_channel_info, get_user_info, get_channel_members, get_thread_replies, get_thread_messages, add_reaction, remove_reaction};
-pub use media::{FileInfo, UploadResponse, DownloadResponse, build_upload_payload, media_type_to_mime, mime_to_media_type, upload_file, upload_file_from_path, download_file, get_file_info, list_files, delete_file};
-pub use receive::{normalize_message, should_filter_message, process_slack_message};
-pub use send::{SendOptions, SendMessageResponse, ResponseMetadata, markdown_to_mrkdwn, split_message, build_send_message_payload, send_text_message, send_message_with_blocks, edit_message, delete_message, send_ephemeral_message};
-pub use socket_mode::{SlackSocketModeConnection, SocketModeEvent, start_socket_mode_task};
+pub use blocks::{
+    ActionsBlock, Block, BlockBuilder, BlockKit, BlockType, CallBlock, Confirm, ContextBlock,
+    DividerBlock, FileBlock, HeaderBlock, ImageBlock, Mrkdwn, OptionGroup, OverflowOption,
+    PlainText, SectionBlock, SelectOption,
+};
+pub use connection::{create_client, SlackClientHandle};
+pub use features::{
+    add_reaction, build_list_channels_payload, build_typing_payload, get_channel_info,
+    get_channel_members, get_thread_messages, get_thread_replies, get_user_info, list_channels,
+    remove_reaction, send_thinking_message, ChannelInfo, ChannelPurpose, Reaction,
+    ReactionsListResponse, ThreadMessage, UserInfo, UserProfile,
+};
+pub use media::{
+    build_upload_payload, delete_file, download_file, get_file_info, list_files,
+    media_type_to_mime, mime_to_media_type, upload_file, upload_file_from_path, DownloadResponse,
+    FileInfo, UploadResponse,
+};
+pub use receive::{normalize_message, process_slack_message, should_filter_message};
+pub use send::{
+    build_send_message_payload, delete_message, edit_message, markdown_to_mrkdwn,
+    send_ephemeral_message, send_message_with_blocks, send_text_message, split_message,
+    ResponseMetadata, SendMessageResponse, SendOptions,
+};
+pub use socket_mode::{start_socket_mode_task, SlackSocketModeConnection, SocketModeEvent};
 
 /// Configuration for a Slack bot account.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,7 +143,10 @@ pub struct SlackChannelWithConnection {
 impl SlackChannelWithConnection {
     /// Create a new SlackChannelWithConnection.
     pub fn new(account: SlackAccount, connection: SlackSocketModeConnection) -> Self {
-        Self { account, connection }
+        Self {
+            account,
+            connection,
+        }
     }
 
     /// Get the account ID.
@@ -183,7 +208,12 @@ impl SlackChannel {
             }),
         };
         let capabilities = ChannelCapabilities {
-            chat_types: vec![ChatType::Dm, ChatType::Group, ChatType::Channel, ChatType::Thread],
+            chat_types: vec![
+                ChatType::Dm,
+                ChatType::Group,
+                ChatType::Channel,
+                ChatType::Thread,
+            ],
             supports_media: true,
             supports_reactions: true,
             supports_threads: true,
@@ -202,7 +232,7 @@ impl SlackChannel {
         let account = SlackAccount::new(account_id.to_string(), config);
 
         let config_adapter = SlackConfigAdapter::new();
-        
+
         // Create a SlackChannelWithConnection and add it to the config adapter
         // Note: We don't have a connection yet, so we'll create a placeholder
         // The connection will be added when start() is called
@@ -232,27 +262,32 @@ impl SlackChannel {
     pub fn remove_account(&mut self, account_id: &str) -> bool {
         let len_accounts = self.accounts.len();
         self.accounts.retain(|a| a.id() != account_id);
-        
+
         let len_config = self.config_adapter.remove_account(account_id);
-        
+
         len_accounts != self.accounts.len() || len_config
     }
 
     /// Get an account with connection by its ID.
-    pub fn get_account_with_connection(&self, account_id: &str) -> Option<&SlackChannelWithConnection> {
+    pub fn get_account_with_connection(
+        &self,
+        account_id: &str,
+    ) -> Option<&SlackChannelWithConnection> {
         self.accounts.iter().find(|a| a.id() == account_id)
     }
 
     /// Get an account by its ID.
     pub fn get_account(&self, account_id: &str) -> Option<&SlackAccount> {
-        self.accounts.iter()
+        self.accounts
+            .iter()
             .find(|a| a.id() == account_id)
             .map(|a| &a.account)
     }
 
     /// Get an account by its ID (mutable).
     pub fn get_account_mut(&mut self, account_id: &str) -> Option<&mut SlackAccount> {
-        self.accounts.iter_mut()
+        self.accounts
+            .iter_mut()
             .find(|a| a.id() == account_id)
             .map(|a| &mut a.account)
     }
@@ -269,15 +304,17 @@ impl SlackChannel {
     /// # Returns
     ///
     /// A handle to the background task that can be awaited or cancelled.
-    pub async fn start(&mut self, account_id: Option<&str>) -> Result<impl std::future::Future<Output = ()> + Send> {
+    pub async fn start(
+        &mut self,
+        account_id: Option<&str>,
+    ) -> Result<impl std::future::Future<Output = ()> + Send> {
         // Determine which accounts to connect
         let accounts_to_connect: Vec<SlackAccount> = match account_id {
-            Some(id) => {
-                self.get_account(id)
-                    .cloned()
-                    .map(|a| vec![a])
-                    .unwrap_or_default()
-            }
+            Some(id) => self
+                .get_account(id)
+                .cloned()
+                .map(|a| vec![a])
+                .unwrap_or_default(),
             None => {
                 // Get accounts from SlackChannelWithConnection
                 self.accounts.iter().map(|a| a.account.clone()).collect()
@@ -292,7 +329,8 @@ impl SlackChannel {
         let shutdown = Arc::new(tokio::sync::Notify::new());
         self.shutdown_signal = Some(shutdown.clone());
 
-        let mut tasks: Vec<std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>> = Vec::new();
+        let mut tasks: Vec<std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>> =
+            Vec::new();
 
         for account in accounts_to_connect {
             let account_id = account.id.clone();
@@ -303,7 +341,8 @@ impl SlackChannel {
             let connection = SlackSocketModeConnection::new(&config, &account_id).await?;
 
             // Store the account with connection
-            let account_with_connection = SlackChannelWithConnection::new(account, connection.clone());
+            let account_with_connection =
+                SlackChannelWithConnection::new(account, connection.clone());
             self.accounts.push(account_with_connection);
 
             // Start the socket mode task
@@ -345,13 +384,10 @@ impl SlackChannel {
     ///
     /// * `Ok(())` - Message was sent successfully
     /// * `Err(anyhow::Error)` - An error if sending fails
-    pub async fn send_message(
-        &self,
-        account_id: &str,
-        message: &OutgoingMessage,
-    ) -> Result<()> {
+    pub async fn send_message(&self, account_id: &str, message: &OutgoingMessage) -> Result<()> {
         // Get the account
-        let account = self.get_account(account_id)
+        let account = self
+            .get_account(account_id)
             .ok_or_else(|| anyhow::anyhow!("Account not found: {}", account_id))?;
 
         // Extract channel ID from target
@@ -361,10 +397,14 @@ impl SlackChannel {
         let text = self.content_to_string_from_message(message);
 
         // Send using the connection
-        let account_with_conn = self.get_account_with_connection(account_id)
+        let account_with_conn = self
+            .get_account_with_connection(account_id)
             .ok_or_else(|| anyhow::anyhow!("Account connection not found: {}", account_id))?;
 
-        account_with_conn.connection().send_message(&channel_id, &text).await
+        account_with_conn
+            .connection()
+            .send_message(&channel_id, &text)
+            .await
     }
 
     /// Helper function to convert message content to string.
@@ -374,31 +414,49 @@ impl SlackChannel {
             MessageContent::Media(media) => {
                 // Return a placeholder for media content
                 match &media.media_type {
-                    MediaType::Image => format!("[Image: {}]", media.url.as_deref().unwrap_or("unknown")),
-                    MediaType::Audio => format!("[Audio: {}]", media.url.as_deref().unwrap_or("unknown")),
-                    MediaType::Video => format!("[Video: {}]", media.url.as_deref().unwrap_or("unknown")),
-                    MediaType::Document => format!("[Document: {}]", media.filename.as_deref().unwrap_or("unknown")),
-                    MediaType::Other(other) => format!("[{}: {}]", other, media.url.as_deref().unwrap_or("unknown")),
+                    MediaType::Image => {
+                        format!("[Image: {}]", media.url.as_deref().unwrap_or("unknown"))
+                    }
+                    MediaType::Audio => {
+                        format!("[Audio: {}]", media.url.as_deref().unwrap_or("unknown"))
+                    }
+                    MediaType::Video => {
+                        format!("[Video: {}]", media.url.as_deref().unwrap_or("unknown"))
+                    }
+                    MediaType::Document => format!(
+                        "[Document: {}]",
+                        media.filename.as_deref().unwrap_or("unknown")
+                    ),
+                    MediaType::Other(other) => {
+                        format!("[{}: {}]", other, media.url.as_deref().unwrap_or("unknown"))
+                    }
                 }
             }
-            MessageContent::Mixed(parts) => {
-                parts
-                    .iter()
-                    .map(|part| match part {
-                        MessagePart::Text(text) => text.clone(),
-                        MessagePart::Media(media) => {
-                            match &media.media_type {
-                                MediaType::Image => format!("[Image: {}]", media.url.as_deref().unwrap_or("unknown")),
-                                MediaType::Audio => format!("[Audio: {}]", media.url.as_deref().unwrap_or("unknown")),
-                                MediaType::Video => format!("[Video: {}]", media.url.as_deref().unwrap_or("unknown")),
-                                MediaType::Document => format!("[Document: {}]", media.filename.as_deref().unwrap_or("unknown")),
-                                MediaType::Other(other) => format!("[{}: {}]", other, media.url.as_deref().unwrap_or("unknown")),
-                            }
+            MessageContent::Mixed(parts) => parts
+                .iter()
+                .map(|part| match part {
+                    MessagePart::Text(text) => text.clone(),
+                    MessagePart::Media(media) => match &media.media_type {
+                        MediaType::Image => {
+                            format!("[Image: {}]", media.url.as_deref().unwrap_or("unknown"))
                         }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            }
+                        MediaType::Audio => {
+                            format!("[Audio: {}]", media.url.as_deref().unwrap_or("unknown"))
+                        }
+                        MediaType::Video => {
+                            format!("[Video: {}]", media.url.as_deref().unwrap_or("unknown"))
+                        }
+                        MediaType::Document => format!(
+                            "[Document: {}]",
+                            media.filename.as_deref().unwrap_or("unknown")
+                        ),
+                        MediaType::Other(other) => {
+                            format!("[{}: {}]", other, media.url.as_deref().unwrap_or("unknown"))
+                        }
+                    },
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
         }
     }
 }
@@ -421,7 +479,8 @@ impl OutboundAdapter for SlackChannel {
     /// Send a text message to the specified target.
     async fn send_text(&self, target: &MessageTarget, text: &str) -> Result<()> {
         // Get the account
-        let account = self.get_account(&target.account_id)
+        let account = self
+            .get_account(&target.account_id)
             .ok_or_else(|| anyhow::anyhow!("Account not found: {}", target.account_id))?;
 
         // Extract channel ID from target
@@ -435,31 +494,43 @@ impl OutboundAdapter for SlackChannel {
         };
 
         // Send using the connection
-        let account_with_conn = self.get_account_with_connection(&target.account_id)
-            .ok_or_else(|| anyhow::anyhow!("Account connection not found: {}", target.account_id))?;
+        let account_with_conn = self
+            .get_account_with_connection(&target.account_id)
+            .ok_or_else(|| {
+                anyhow::anyhow!("Account connection not found: {}", target.account_id)
+            })?;
 
-        account_with_conn.connection().send_message(&channel_id, text).await
+        account_with_conn
+            .connection()
+            .send_message(&channel_id, text)
+            .await
     }
 
     /// Send media content to the specified target.
     async fn send_media(&self, target: &MessageTarget, media: &Media) -> Result<()> {
         // Get the account
-        let account = self.get_account(&target.account_id)
+        let account = self
+            .get_account(&target.account_id)
             .ok_or_else(|| anyhow::anyhow!("Account not found: {}", target.account_id))?;
 
         // Extract channel ID from target
         let channel_id = target.peer.id.clone();
 
         // Get file data
-        let file_data = media.data.as_ref()
+        let file_data = media
+            .data
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Media data is required for file upload"))?;
 
         // Get filename from media or generate one
         let filename = media.filename.as_deref().unwrap_or("file");
 
         // Upload the file
-        let account_with_conn = self.get_account_with_connection(&target.account_id)
-            .ok_or_else(|| anyhow::anyhow!("Account connection not found: {}", target.account_id))?;
+        let account_with_conn = self
+            .get_account_with_connection(&target.account_id)
+            .ok_or_else(|| {
+                anyhow::anyhow!("Account connection not found: {}", target.account_id)
+            })?;
 
         // Get the client handle from the connection
         let client = account_with_conn.connection().client();
@@ -473,7 +544,8 @@ impl OutboundAdapter for SlackChannel {
             None,
             None,
             None,
-        ).await?;
+        )
+        .await?;
 
         Ok(())
     }
@@ -530,10 +602,11 @@ impl ChannelConfigAdapter for SlackConfigAdapter {
     /// Resolve an account by its ID to a full snapshot.
     fn resolve_account(&self, id: &str) -> Result<AccountSnapshot> {
         let accounts = self.accounts.read().unwrap();
-        let account = accounts.iter()
+        let account = accounts
+            .iter()
             .find(|a| a.id() == id)
             .ok_or_else(|| anyhow::anyhow!("Account not found: {}", id))?;
-        
+
         Ok(AccountSnapshot {
             id: account.id().to_string(),
             channel: "slack".to_string(),

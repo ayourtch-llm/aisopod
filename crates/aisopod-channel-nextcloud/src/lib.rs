@@ -20,5 +20,5 @@ pub mod polling;
 
 // Re-export common types
 pub use api::{NextcloudTalkApi, TalkMessage, TalkRoom};
-pub use config::NextcloudConfig;
 pub use channel::NextcloudChannel;
+pub use config::NextcloudConfig;

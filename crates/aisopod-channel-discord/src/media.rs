@@ -53,7 +53,9 @@ pub fn extract_media_from_attachments(
         .iter()
         .map(|att| {
             let media_type = map_discord_content_type(
-                att.content_type.as_deref().unwrap_or("application/octet-stream"),
+                att.content_type
+                    .as_deref()
+                    .unwrap_or("application/octet-stream"),
             );
 
             // Construct the URL - Discord attachments use a specific URL pattern
@@ -92,7 +94,7 @@ pub async fn create_attachment_from_path(
     use tokio::fs;
 
     let path = Path::new(file_path);
-    
+
     // Read the file content
     let data = fs::read(path)
         .await
@@ -143,14 +145,11 @@ pub fn create_attachment_from_bytes(
 ///
 /// * `Ok((Vec<u8>, String))` - The file data and content type
 /// * `Err(anyhow::Error)` - An error if downloading fails
-pub async fn download_attachment(
-    _http: &Http,
-    url: &str,
-) -> Result<(Vec<u8>, String)> {
+pub async fn download_attachment(_http: &Http, url: &str) -> Result<(Vec<u8>, String)> {
     // In serenity v0.12, direct HTTP access to the internal client is not possible
     // Use reqwest directly for attachment downloads
     let client = reqwest::Client::new();
-    
+
     let response = client
         .get(url)
         .send()
@@ -183,19 +182,14 @@ pub async fn download_attachment(
 /// # Returns
 ///
 /// A vector of Media objects with downloaded data.
-pub async fn download_attachments(
-    ctx: &Context,
-    message: &Message,
-) -> Result<Vec<Media>> {
+pub async fn download_attachments(ctx: &Context, message: &Message) -> Result<Vec<Media>> {
     let mut result = Vec::new();
 
     for attachment in &message.attachments {
         let (data, content_type) = download_attachment(&ctx.http, &attachment.url).await?;
 
         result.push(Media {
-            media_type: map_discord_content_type(
-                content_type.as_str(),
-            ),
+            media_type: map_discord_content_type(content_type.as_str()),
             url: Some(attachment.url.clone()),
             data: Some(data),
             filename: Some(attachment.filename.clone()),
@@ -349,7 +343,7 @@ pub fn validate_media(media: &Media) -> Result<()> {
         if filename.is_empty() {
             return Err(anyhow!("Filename cannot be empty"));
         }
-        
+
         // Check for potentially malicious characters
         if filename.contains("..") || filename.contains('/') || filename.contains('\\') {
             return Err(anyhow!("Filename contains invalid characters"));
@@ -383,9 +377,15 @@ mod tests {
 
     #[test]
     fn test_map_discord_content_type_document() {
-        assert_eq!(map_discord_content_type("application/pdf"), MediaType::Document);
+        assert_eq!(
+            map_discord_content_type("application/pdf"),
+            MediaType::Document
+        );
         assert_eq!(map_discord_content_type("text/plain"), MediaType::Document);
-        assert_eq!(map_discord_content_type("application/json"), MediaType::Document);
+        assert_eq!(
+            map_discord_content_type("application/json"),
+            MediaType::Document
+        );
     }
 
     #[test]

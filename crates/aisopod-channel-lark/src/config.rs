@@ -50,10 +50,7 @@ impl LarkConfig {
 
     /// Returns the webhook URL for event subscriptions.
     pub fn webhook_url(&self, hostname: &str) -> String {
-        format!(
-            "https://{hostname}:{}/lark/events",
-            self.webhook_port
-        )
+        format!("https://{hostname}:{}/lark/events", self.webhook_port)
     }
 }
 

@@ -18,8 +18,8 @@ pub mod media;
 pub mod rate_limit;
 
 // Re-export common types for convenience
+pub use connection::{ConnectionManager, ConnectionState};
+pub use errors::ChannelError;
 pub use formatting::NormalizedMarkdown;
 pub use media::MediaAttachment;
 pub use rate_limit::RateLimiter;
-pub use connection::{ConnectionManager, ConnectionState};
-pub use errors::ChannelError;

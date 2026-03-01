@@ -4,9 +4,9 @@
 //! and rejects calls where the caller lacks the required scope.
 
 use crate::audit::log_authz_decision;
+use crate::auth::scopes::{required_scope, Scope};
 use crate::auth::AuthInfo;
 use crate::rpc::jsonrpc::{RpcError, RpcResponse};
-use crate::auth::scopes::{required_scope, Scope};
 
 const UNAUTHORIZED_CODE: i64 = -32603;
 
@@ -33,7 +33,7 @@ pub fn check_scope(auth_info: &AuthInfo, method: &str, client_ip: &str) -> Resul
     };
 
     let granted = has_scope(auth_info, required);
-    
+
     // Log the authorization decision
     log_authz_decision(method, required.as_str(), granted, client_ip);
 
@@ -117,11 +117,21 @@ mod tests {
         let auth_info = auth_info_with_scopes(vec!["operator.read"]);
         let result = check_scope(&auth_info, "agent.start", "127.0.0.1");
         assert!(result.is_err());
-        
+
         let error = result.unwrap_err();
         assert_eq!(error.error.as_ref().unwrap().code, UNAUTHORIZED_CODE as i32);
-        assert!(error.error.as_ref().unwrap().message.contains("Insufficient permissions"));
-        assert!(error.error.as_ref().unwrap().message.contains("operator.write"));
+        assert!(error
+            .error
+            .as_ref()
+            .unwrap()
+            .message
+            .contains("Insufficient permissions"));
+        assert!(error
+            .error
+            .as_ref()
+            .unwrap()
+            .message
+            .contains("operator.write"));
     }
 
     #[test]

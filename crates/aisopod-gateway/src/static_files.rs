@@ -74,14 +74,12 @@ fn has_hash_in_filename(path: &str) -> bool {
     // Hash segments are typically 8+ characters of alphanumeric or hyphen
     // Pattern: filename.abc123.ext or filename.abc123def456.ext
     // Accept alphanumeric chars (base64-like) for hash detection
-    filename
-        .split('.')
-        .any(|part| {
-            part.len() >= 8
-                && part
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-        })
+    filename.split('.').any(|part| {
+        part.len() >= 8
+            && part
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    })
 }
 
 /// Determine cache control header value based on file type

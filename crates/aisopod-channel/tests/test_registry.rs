@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use aisopod_channel::{ChannelRegistry, ChannelPlugin, ChannelMeta, ChannelCapabilities};
-use aisopod_channel::adapters::{ChannelConfigAdapter, SecurityAdapter, AccountSnapshot};
+use aisopod_channel::adapters::{AccountSnapshot, ChannelConfigAdapter, SecurityAdapter};
 use aisopod_channel::types::ChatType;
+use aisopod_channel::{ChannelCapabilities, ChannelMeta, ChannelPlugin, ChannelRegistry};
 use async_trait::async_trait;
 
 // ============================================================================
@@ -117,9 +117,10 @@ impl ChannelConfigAdapter for TestChannelConfigAdapter {
     }
 
     fn resolve_account(&self, id: &str) -> Result<AccountSnapshot, anyhow::Error> {
-        self.accounts.get(id).cloned().ok_or_else(|| {
-            anyhow::anyhow!("Account not found: {}", id)
-        })
+        self.accounts
+            .get(id)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("Account not found: {}", id))
     }
 
     fn enable_account(&self, _id: &str) -> Result<(), anyhow::Error> {
@@ -170,8 +171,7 @@ fn make_test_channel(id: &str) -> Arc<dyn ChannelPlugin> {
 
 fn make_test_channel_with_config(id: &str) -> Arc<dyn ChannelPlugin> {
     let config_adapter = Arc::new(TestChannelConfigAdapter::new_enabled(id));
-    let channel = TestChannelPlugin::new(id)
-        .with_config_adapter(config_adapter);
+    let channel = TestChannelPlugin::new(id).with_config_adapter(config_adapter);
     Arc::new(channel)
 }
 
@@ -198,7 +198,7 @@ fn test_register_and_get() {
 
     let retrieved = registry.get("telegram");
     assert!(retrieved.is_some());
-    
+
     let retrieved_channel = retrieved.unwrap();
     assert_eq!(retrieved_channel.id(), "telegram");
 }
@@ -206,7 +206,7 @@ fn test_register_and_get() {
 #[test]
 fn test_get_unknown_channel() {
     let registry = ChannelRegistry::new();
-    
+
     let result = registry.get("nonexistent");
     assert!(result.is_none());
 }
@@ -218,14 +218,14 @@ fn test_get_unknown_channel() {
 #[test]
 fn test_list_preserves_order() {
     let mut registry = ChannelRegistry::new();
-    
+
     registry.register(make_test_channel("channel_a"));
     registry.register(make_test_channel("channel_b"));
     registry.register(make_test_channel("channel_c"));
 
     let ids = registry.list();
     assert_eq!(ids.len(), 3);
-    
+
     // The order may not be preserved due to HashMap, so we just check all are present
     assert!(ids.contains(&"channel_a".to_string()));
     assert!(ids.contains(&"channel_b".to_string()));
@@ -244,7 +244,7 @@ fn test_normalize_id_lowercase() {
     // normalize_id is case-sensitive, so "Telegram" != "telegram"
     let normalized = registry.normalize_id("Telegram");
     assert_eq!(normalized, None);
-    
+
     // But lowercase "telegram" works
     let normalized_lower = registry.normalize_id("telegram");
     assert_eq!(normalized_lower, Some("telegram".to_string()));
@@ -270,7 +270,7 @@ fn test_alias_for_unknown_channel() {
     // The alias exists but channel doesn't, so get returns None
     let result = registry.get("tg");
     assert!(result.is_none());
-    
+
     // normalize_id returns Some("telegram") because the alias maps to "telegram"
     // even if the channel doesn't exist
     let normalized = registry.normalize_id("tg");
@@ -280,7 +280,7 @@ fn test_alias_for_unknown_channel() {
 #[test]
 fn test_register_duplicate() {
     let mut registry = ChannelRegistry::new();
-    
+
     let channel1 = Arc::new(TestChannelPlugin::new("test"));
     registry.register(channel1);
 
@@ -290,7 +290,7 @@ fn test_register_duplicate() {
     // Second registration overwrites first - verify by checking list size
     let list = registry.list();
     assert_eq!(list.len(), 1);
-    
+
     let retrieved = registry.get("test");
     assert!(retrieved.is_some());
     // The retrieved channel should be the second one
@@ -305,7 +305,7 @@ fn test_register_duplicate() {
 fn test_add_alias() {
     let mut registry = ChannelRegistry::new();
     registry.register(make_test_channel("telegram"));
-    
+
     registry.add_alias("tg", "telegram");
 
     assert!(registry.contains("tg"));
@@ -315,7 +315,7 @@ fn test_add_alias() {
 #[test]
 fn test_add_alias_for_nonexistent_channel() {
     let mut registry = ChannelRegistry::new();
-    
+
     registry.add_alias("tg", "telegram");
 
     // Alias exists but channel doesn't
@@ -507,12 +507,12 @@ fn test_default_registry() {
 #[test]
 fn test_empty_string_id() {
     let mut registry = ChannelRegistry::new();
-    
+
     // Note: This test might fail if the implementation doesn't handle empty IDs
     // For now, we just verify it compiles and runs
     let channel = TestChannelPlugin::new("");
     registry.register(Arc::new(channel));
-    
+
     let result = registry.get("");
     // Empty ID might or might not work depending on implementation
     let _ = result;
@@ -521,9 +521,9 @@ fn test_empty_string_id() {
 #[test]
 fn test_special_characters_in_id() {
     let mut registry = ChannelRegistry::new();
-    
+
     // Test with hyphenated ID (common pattern)
     registry.register(make_test_channel("my-special-channel"));
-    
+
     assert!(registry.get("my-special-channel").is_some());
 }

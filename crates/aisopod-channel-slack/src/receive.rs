@@ -3,14 +3,16 @@
 //! This module provides utilities for parsing incoming Slack events
 //! and normalizing them to the shared IncomingMessage type.
 
-use aisopod_channel::message::{IncomingMessage, Media, MessageContent, PeerInfo, PeerKind, SenderInfo};
+use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, PeerInfo, PeerKind, SenderInfo,
+};
 use aisopod_channel::types::MediaType;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info, warn};
 
-use crate::socket_mode::{MessageEvent, EventsApiEvent, EventsApiPayload, SocketModePayload};
+use crate::socket_mode::{EventsApiEvent, EventsApiPayload, MessageEvent, SocketModePayload};
 
 /// Check if a Slack message should be filtered based on channel/user settings.
 ///
@@ -42,7 +44,10 @@ pub fn should_filter_message(
     // Filter messages from channels not in the allowed list
     if let Some(ref allowed_channels) = config.allowed_channels {
         if !allowed_channels.contains(&channel_id.to_string()) {
-            debug!("Filtering message from channel {} (not in allowed list)", channel_id);
+            debug!(
+                "Filtering message from channel {} (not in allowed list)",
+                channel_id
+            );
             return true;
         }
     }
@@ -51,7 +56,10 @@ pub fn should_filter_message(
     if let Some(ref allowed_users) = config.allowed_users {
         if let Some(user_id) = user_id {
             if !allowed_users.contains(&user_id.to_string()) {
-                debug!("Filtering message from user {} (not in allowed list)", user_id);
+                debug!(
+                    "Filtering message from user {} (not in allowed list)",
+                    user_id
+                );
                 return true;
             }
         }
@@ -91,9 +99,11 @@ pub fn normalize_message(
     bot_user_id: Option<&str>,
 ) -> Result<IncomingMessage> {
     // Extract sender info
-    let sender_id = event.user.as_deref()
+    let sender_id = event
+        .user
+        .as_deref()
         .ok_or_else(|| anyhow!("Message event missing user ID"))?;
-    
+
     let sender = SenderInfo {
         id: sender_id.to_string(),
         display_name: None,
@@ -103,7 +113,7 @@ pub fn normalize_message(
 
     // Extract channel ID and determine message type (DM, channel, group, thread)
     let channel_id = &event.channel;
-    
+
     // Determine peer info based on channel type
     let peer = match channel_id.chars().next() {
         Some('D') => PeerInfo {
@@ -137,12 +147,14 @@ pub fn normalize_message(
     // Parse timestamp
     // Slack timestamps are in seconds with decimal places for sub-second precision
     let ts_parts: Vec<&str> = event.ts.split('.').collect();
-    let secs = ts_parts[0].parse::<i64>()
+    let secs = ts_parts[0]
+        .parse::<i64>()
         .map_err(|_| anyhow!("Invalid timestamp seconds: {}", event.ts))?;
-    let nanos = ts_parts.get(1)
+    let nanos = ts_parts
+        .get(1)
         .map(|s| s.parse::<u32>().unwrap_or(0))
         .unwrap_or(0);
-    
+
     // Scale to nanoseconds (pad with zeros if needed)
     let nanos = match ts_parts.get(1) {
         Some(s) if s.len() <= 9 => {
@@ -151,7 +163,7 @@ pub fn normalize_message(
         }
         _ => 0,
     };
-    
+
     let timestamp = DateTime::from_timestamp(secs, nanos)
         .ok_or_else(|| anyhow!("Invalid timestamp: {}", event.ts))?
         .with_timezone(&Utc);
@@ -178,7 +190,7 @@ pub fn normalize_message(
     // If this is a thread reply, store the parent message ID in reply_to
     if let Some(thread_ts) = thread_ts {
         if thread_ts != event.ts {
-            // This is a reply to a thread - in a full implementation, 
+            // This is a reply to a thread - in a full implementation,
             // you'd lookup the original message ID from the thread
             incoming.reply_to = Some(thread_ts.to_string());
         }
@@ -244,7 +256,7 @@ pub fn process_slack_message(
                         channel_type: None,
                         files: None,
                     };
-                    
+
                     let incoming = normalize_message(&message, account_id, channel, bot_user_id)?;
                     Ok(vec![incoming])
                 }
@@ -357,11 +369,11 @@ mod tests {
             allowed_channels: Some(vec!["C111111".to_string(), "C222222".to_string()]),
             ..Default::default()
         };
-        
+
         // Should filter channel not in allowed list
         let filtered = should_filter_message(&config, "C999999", Some("U123456"), None);
         assert!(filtered, "Channel not in allowed list should be filtered");
-        
+
         // Should not filter channel in allowed list
         let filtered = should_filter_message(&config, "C111111", Some("U123456"), None);
         assert!(!filtered, "Channel in allowed list should not be filtered");

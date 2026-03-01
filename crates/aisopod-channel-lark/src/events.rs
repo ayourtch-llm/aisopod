@@ -4,13 +4,7 @@
 //! webhook events from the Lark Open Platform.
 
 use anyhow::Result;
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::post,
-    Json, Router,
-};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::post, Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -193,7 +187,7 @@ pub async fn handle_event(
 
     // Extract the token from payload
     let event_token = payload.get("token").and_then(|t| t.as_str());
-    
+
     // Verify token if present
     if let Some(token) = event_token {
         if token != state.verification_token {
@@ -240,7 +234,10 @@ pub async fn handle_event(
 }
 
 /// Handles message events.
-async fn handle_message_event(_payload: Value, _state: &AppState) -> Result<(), (StatusCode, &'static str)> {
+async fn handle_message_event(
+    _payload: Value,
+    _state: &AppState,
+) -> Result<(), (StatusCode, &'static str)> {
     // In a real implementation, this would convert the Lark event
     // to an inbound message for the aisopod system
     // For now, just return success

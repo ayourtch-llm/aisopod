@@ -77,7 +77,7 @@ pub async fn validate_token(oauth_token: &str, client_id: &str) -> Result<TokenI
 
     // Call Twitch's token validation endpoint
     let url = format!("https://id.twitch.tv/oauth2/validate");
-    
+
     let response = reqwest::Client::new()
         .get(&url)
         .header("Authorization", format!("OAuth {}", token))
@@ -88,16 +88,8 @@ pub async fn validate_token(oauth_token: &str, client_id: &str) -> Result<TokenI
     if !response.status().is_success() {
         let status = response.status();
         let text = response.text().await.unwrap_or_default();
-        error!(
-            "Token validation failed with status {}: {}",
-            status,
-            text
-        );
-        return Err(anyhow!(
-            "Token validation failed: {} {}",
-            status,
-            text
-        ));
+        error!("Token validation failed with status {}: {}", status, text);
+        return Err(anyhow!("Token validation failed: {} {}", status, text));
     }
 
     let info = response.json::<TokenInfo>().await.map_err(|e| {
@@ -133,7 +125,7 @@ pub fn validate_token_blocking(oauth_token: &str, client_id: &str) -> Result<Tok
     debug!("Validating token for client {} (blocking)", client_id);
 
     let url = format!("https://id.twitch.tv/oauth2/validate");
-    
+
     // Use tokio's block_in_place to run async code in a blocking context
     tokio::runtime::Handle::current().block_on(async move {
         let response = reqwest::Client::new()
@@ -146,16 +138,8 @@ pub fn validate_token_blocking(oauth_token: &str, client_id: &str) -> Result<Tok
         if !response.status().is_success() {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
-            error!(
-                "Token validation failed with status {}: {}",
-                status,
-                text
-            );
-            return Err(anyhow!(
-                "Token validation failed: {} {}",
-                status,
-                text
-            ));
+            error!("Token validation failed with status {}: {}", status, text);
+            return Err(anyhow!("Token validation failed: {} {}", status, text));
         }
 
         let info = response.json::<TokenInfo>().await.map_err(|e| {
@@ -183,7 +167,8 @@ pub fn validate_token_blocking(oauth_token: &str, client_id: &str) -> Result<Tok
 ///
 /// `true` if the token has all the required scopes, `false` otherwise.
 pub fn token_has_scopes(info: &TokenInfo, required_scopes: &[&str]) -> bool {
-    let token_scopes: std::collections::HashSet<&str> = info.scopes.iter().map(|s| s.as_str()).collect();
+    let token_scopes: std::collections::HashSet<&str> =
+        info.scopes.iter().map(|s| s.as_str()).collect();
     required_scopes.iter().all(|s| token_scopes.contains(s))
 }
 
@@ -201,7 +186,7 @@ pub fn is_token_expired(info: &TokenInfo) -> bool {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    
+
     info.expires_at <= now
 }
 
@@ -233,7 +218,11 @@ mod tests {
     fn test_token_has_scopes() {
         let info = TokenInfo {
             client_id: "abc123".to_string(),
-            scopes: vec!["chat:read".to_string(), "chat:edit".to_string(), "user:read:email".to_string()],
+            scopes: vec![
+                "chat:read".to_string(),
+                "chat:edit".to_string(),
+                "user:read:email".to_string(),
+            ],
             user_id: "123456789".to_string(),
             login: "testbot".to_string(),
             expires_in: 3600,
@@ -251,7 +240,10 @@ mod tests {
         // This is a compilation test - the actual token parsing is in the function
         let token_with_prefix = "oauth:abc123";
         let token_without_prefix = "abc123";
-        
-        assert_eq!(token_with_prefix.trim_start_matches("oauth:"), token_without_prefix);
+
+        assert_eq!(
+            token_with_prefix.trim_start_matches("oauth:"),
+            token_without_prefix
+        );
     }
 }

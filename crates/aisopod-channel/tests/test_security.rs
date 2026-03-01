@@ -1,8 +1,8 @@
 //! Tests for the SecurityEnforcer and security enforcement.
 
-use aisopod_channel::security::{MentionCheckResult, SecurityEnforcer};
-use aisopod_channel::message::{IncomingMessage, MessageContent, PeerInfo, PeerKind, SenderInfo};
 use aisopod_channel::adapters::SecurityAdapter;
+use aisopod_channel::message::{IncomingMessage, MessageContent, PeerInfo, PeerKind, SenderInfo};
+use aisopod_channel::security::{MentionCheckResult, SecurityEnforcer};
 
 // ============================================================================
 // Mock SecurityAdapter for Testing
@@ -110,7 +110,11 @@ fn test_check_sender_no_adapter() {
 #[test]
 fn test_check_sender_multiple_allowed() {
     let adapter = MockSecurityAdapter::new(
-        vec!["user1".to_string(), "user2".to_string(), "user3".to_string()],
+        vec![
+            "user1".to_string(),
+            "user2".to_string(),
+            "user3".to_string(),
+        ],
         false,
     );
     let enforcer = SecurityEnforcer::new();

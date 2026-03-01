@@ -255,10 +255,14 @@ async fn handle_webhook(
     // Verify the webhook signature
     if !verify_webhook_signature(&headers, &state.oa_secret_key) {
         error!("Webhook signature verification failed");
-        return (StatusCode::FORBIDDEN, Json(WebhookVerifyResponse {
-            error: Some(403),
-            message: Some("Invalid signature".to_string()),
-        })).into_response();
+        return (
+            StatusCode::FORBIDDEN,
+            Json(WebhookVerifyResponse {
+                error: Some(403),
+                message: Some("Invalid signature".to_string()),
+            }),
+        )
+            .into_response();
     }
 
     // Parse the event
@@ -266,17 +270,25 @@ async fn handle_webhook(
         Ok(event) => {
             info!("Processing webhook event: {:?}", event);
             handle_webhook_event(event, state).await;
-            (StatusCode::OK, Json(WebhookVerifyResponse {
-                error: Some(0),
-                message: Some("OK".to_string()),
-            })).into_response()
+            (
+                StatusCode::OK,
+                Json(WebhookVerifyResponse {
+                    error: Some(0),
+                    message: Some("OK".to_string()),
+                }),
+            )
+                .into_response()
         }
         Err(e) => {
             error!("Failed to parse webhook event: {}", e);
-            (StatusCode::BAD_REQUEST, Json(WebhookVerifyResponse {
-                error: Some(400),
-                message: Some(e.to_string()),
-            })).into_response()
+            (
+                StatusCode::BAD_REQUEST,
+                Json(WebhookVerifyResponse {
+                    error: Some(400),
+                    message: Some(e.to_string()),
+                }),
+            )
+                .into_response()
         }
     }
 }
@@ -291,9 +303,7 @@ async fn handle_webhook(
 ///
 /// * `Ok(WebhookEventType)` - The parsed event
 /// * `Err(anyhow::Error)` - An error if parsing fails
-pub fn parse_webhook_event(
-    payload: &serde_json::Value,
-) -> Result<WebhookEventType> {
+pub fn parse_webhook_event(payload: &serde_json::Value) -> Result<WebhookEventType> {
     if let Some(event_name) = payload.get("event_name").and_then(|v| v.as_str()) {
         match event_name {
             "user_send_text" => {
@@ -373,28 +383,16 @@ async fn handle_webhook_event(event: WebhookEventType, state: WebhookState) {
     // 1. Convert the webhook event to an IncomingMessage
     // 2. Route it to the appropriate handler
     // 3. Log or process the event
-    
+
     match event {
         WebhookEventType::UserSendText(e) => {
-            info!(
-                "Received text from {}: {}",
-                e.user_id,
-                e.text
-            );
+            info!("Received text from {}: {}", e.user_id, e.text);
         }
         WebhookEventType::UserSendImage(e) => {
-            info!(
-                "Received image from {}: {}",
-                e.user_id,
-                e.media_id
-            );
+            info!("Received image from {}: {}", e.user_id, e.media_id);
         }
         WebhookEventType::UserSendFile(e) => {
-            info!(
-                "Received file from {}: {}",
-                e.user_id,
-                e.filename
-            );
+            info!("Received file from {}: {}", e.user_id, e.filename);
         }
         WebhookEventType::Follow(e) => {
             info!("User {} followed the OA", e.user_id);
@@ -412,15 +410,12 @@ async fn handle_webhook_event(event: WebhookEventType, state: WebhookState) {
             info!(
                 "Received location from {}: {}",
                 e.user_id,
-                e.location_name.unwrap_or_else(|| format!("{}, {}", e.lat, e.lng))
+                e.location_name
+                    .unwrap_or_else(|| format!("{}, {}", e.lat, e.lng))
             );
         }
         WebhookEventType::UserSendContact(e) => {
-            info!(
-                "Received contact from {}: {}",
-                e.user_id,
-                e.contact_name
-            );
+            info!("Received contact from {}: {}", e.user_id, e.contact_name);
         }
     }
 }
@@ -442,7 +437,7 @@ mod tests {
 
         let result = parse_webhook_event(&payload);
         assert!(result.is_ok());
-        
+
         let event = result.unwrap();
         match event {
             WebhookEventType::UserSendText(e) => {
@@ -466,7 +461,7 @@ mod tests {
 
         let result = parse_webhook_event(&payload);
         assert!(result.is_ok());
-        
+
         let event = result.unwrap();
         match event {
             WebhookEventType::Follow(e) => {
@@ -486,7 +481,10 @@ mod tests {
 
         let result = parse_webhook_event(&payload);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Unknown event_name"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Unknown event_name"));
     }
 
     #[test]
@@ -497,14 +495,17 @@ mod tests {
 
         let result = parse_webhook_event(&payload);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Missing event_name"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Missing event_name"));
     }
 
     #[test]
     fn test_verify_webhook_signature() {
-        use axum::http::HeaderMap;
         use axum::http::header::HeaderName;
         use axum::http::header::HeaderValue;
+        use axum::http::HeaderMap;
 
         let mut headers = HeaderMap::new();
         headers.insert(

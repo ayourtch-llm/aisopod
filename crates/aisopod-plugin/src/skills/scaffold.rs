@@ -49,10 +49,10 @@ pub struct ScaffoldOptions {
 /// ```
 pub fn scaffold_skill(opts: &ScaffoldOptions) -> Result<PathBuf> {
     let skill_dir = opts.output_dir.join(&opts.name);
-    
+
     // Create directory structure
     std::fs::create_dir_all(skill_dir.join("src"))?;
-    
+
     // Generate skill.toml
     let manifest = format!(
         r#"id = "{name}"
@@ -68,7 +68,7 @@ required_binaries = []
         category = opts.category,
     );
     std::fs::write(skill_dir.join("skill.toml"), manifest)?;
-    
+
     // Generate src/lib.rs
     let lib_rs = format!(
         r#"use async_trait::async_trait;
@@ -134,7 +134,7 @@ impl Skill for {struct_name} {{
         category = opts.category,
     );
     std::fs::write(skill_dir.join("src/lib.rs"), lib_rs)?;
-    
+
     // Generate README.md
     let readme = format!(
         r#"# {name}
@@ -172,7 +172,7 @@ skills = ["{name}"]
         category = opts.category,
     );
     std::fs::write(skill_dir.join("README.md"), readme)?;
-    
+
     Ok(skill_dir)
 }
 
@@ -244,7 +244,7 @@ mod tests {
         };
 
         let skill_dir = scaffold_skill(&opts).unwrap();
-        
+
         assert!(skill_dir.exists());
         assert!(skill_dir.is_dir());
         assert_eq!(skill_dir.file_name().unwrap(), "test-skill");
@@ -261,9 +261,9 @@ mod tests {
         };
 
         scaffold_skill(&opts).unwrap();
-        
+
         let skill_dir = dir.path().join("test-skill");
-        
+
         // Check all required files exist
         assert!(skill_dir.join("skill.toml").exists());
         assert!(skill_dir.join("src/lib.rs").exists());
@@ -281,10 +281,10 @@ mod tests {
         };
 
         scaffold_skill(&opts).unwrap();
-        
+
         let skill_dir = dir.path().join("test-skill");
         let manifest_content = fs::read_to_string(skill_dir.join("skill.toml")).unwrap();
-        
+
         assert!(manifest_content.contains("id = \"test-skill\""));
         assert!(manifest_content.contains("name = \"test-skill\""));
         assert!(manifest_content.contains("description = \"A test skill\""));
@@ -303,15 +303,15 @@ mod tests {
         };
 
         scaffold_skill(&opts).unwrap();
-        
+
         let skill_dir = dir.path().join("test-skill");
         let lib_content = fs::read_to_string(skill_dir.join("src/lib.rs")).unwrap();
-        
+
         // Check that the struct is correctly named (PascalCase)
         assert!(lib_content.contains("pub struct TestSkill"));
         assert!(lib_content.contains("impl TestSkill"));
         assert!(lib_content.contains("fn new() -> Self"));
-        
+
         // Check Skill trait implementation
         assert!(lib_content.contains("impl Skill for TestSkill"));
         assert!(lib_content.contains("fn id(&self) -> &str"));
@@ -332,10 +332,10 @@ mod tests {
         };
 
         scaffold_skill(&opts).unwrap();
-        
+
         let skill_dir = dir.path().join("test-skill");
         let readme_content = fs::read_to_string(skill_dir.join("README.md")).unwrap();
-        
+
         assert!(readme_content.contains("# test-skill"));
         assert!(readme_content.contains("A test skill"));
         assert!(readme_content.contains("## Category"));
@@ -347,11 +347,8 @@ mod tests {
     #[test]
     fn test_scaffold_skill_different_categories() {
         let dir = tempdir().unwrap();
-        
-        for category in [
-            SkillCategory::AiMl,
-            SkillCategory::System,
-        ] {
+
+        for category in [SkillCategory::AiMl, SkillCategory::System] {
             let opts = ScaffoldOptions {
                 name: format!("test-{:?}", category),
                 description: format!("A {:?} skill", category),
@@ -360,10 +357,10 @@ mod tests {
             };
 
             scaffold_skill(&opts).unwrap();
-            
+
             let skill_dir = dir.path().join(format!("test-{:?}", category));
             let lib_content = fs::read_to_string(skill_dir.join("src/lib.rs")).unwrap();
-            
+
             // Verify the category is correctly embedded
             let category_str = match category {
                 SkillCategory::AiMl => "AiMl",
@@ -385,10 +382,10 @@ mod tests {
         };
 
         scaffold_skill(&opts).unwrap();
-        
+
         let skill_dir = dir.path().join("test-skill");
         let src_dir = skill_dir.join("src");
-        
+
         assert!(src_dir.exists());
         assert!(src_dir.is_dir());
     }

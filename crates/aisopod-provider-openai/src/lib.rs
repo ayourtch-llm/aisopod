@@ -4,7 +4,7 @@
 //! implementing the ModelProvider trait from aisopod-provider.
 
 use aisopod_provider::providers::openai::OpenAIProvider;
-use aisopod_provider::{ModelProvider, ChatCompletionRequest, Message};
+use aisopod_provider::{ChatCompletionRequest, Message, ModelProvider};
 use async_trait::async_trait;
 use std::sync::Arc;
 use tracing::info;
@@ -28,7 +28,7 @@ impl OpenAIPlugin {
     /// * `organization` - Optional OpenAI-Organization header
     pub fn new(api_key: String, base_url: Option<String>, organization: Option<String>) -> Self {
         let provider = OpenAIProvider::new(api_key, base_url, organization, None);
-        
+
         Self { provider }
     }
 
@@ -75,7 +75,7 @@ mod tests {
             Some("https://api.openai.com/v1".to_string()),
             None,
         );
-        
+
         assert_eq!(plugin.provider().api_key(), "test-key");
     }
 

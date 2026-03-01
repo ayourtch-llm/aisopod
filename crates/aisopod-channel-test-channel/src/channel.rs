@@ -1,7 +1,9 @@
-use async_trait::async_trait;
-use aisopod_channel::{ChannelPlugin, IncomingMessage, OutgoingMessage, ChannelMeta, ChannelCapabilities};
-use aisopod_channel::adapters::{ChannelConfigAdapter, SecurityAdapter};
 use crate::config::TestChannelConfig;
+use aisopod_channel::adapters::{ChannelConfigAdapter, SecurityAdapter};
+use aisopod_channel::{
+    ChannelCapabilities, ChannelMeta, ChannelPlugin, IncomingMessage, OutgoingMessage,
+};
+use async_trait::async_trait;
 
 /// Channel implementation for Test Channel.
 pub struct TestChannelChannel {

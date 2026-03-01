@@ -5,11 +5,13 @@ use std::sync::{Arc, Mutex};
 
 use crate::auth::AuthInfo;
 use crate::broadcast::{Broadcaster, GatewayEvent, Subscription};
-use crate::rpc::approval::{PendingApproval, ApprovalStatus, ApprovalRequestParams, ApprovalStore};
+use crate::rpc::approval::{ApprovalRequestParams, ApprovalStatus, ApprovalStore, PendingApproval};
 use crate::rpc::canvas::{CanvasInteractParams, CanvasInteractResult};
 use crate::rpc::chat::ChatSendHandler;
 use crate::rpc::middleware::auth::check_scope;
-use crate::rpc::node_pair::{PairingStore, PairRequestHandler, PairConfirmHandler, PairRevokeHandler};
+use crate::rpc::node_pair::{
+    PairConfirmHandler, PairRequestHandler, PairRevokeHandler, PairingStore,
+};
 use crate::rpc::types;
 
 /// Request context for RPC method handlers
@@ -62,8 +64,11 @@ pub trait RpcMethod: Send + Sync {
 /// Trait for RPC methods that need additional dependencies
 pub trait RpcMethodWithDeps: Send + Sync {
     /// Handle an RPC request with dependencies
-    fn handle_with_deps(&self, conn_id: String, params: Option<serde_json::Value>)
-        -> types::RpcResponse;
+    fn handle_with_deps(
+        &self,
+        conn_id: String,
+        params: Option<serde_json::Value>,
+    ) -> types::RpcResponse;
 }
 
 /// Placeholder handler that returns "not implemented" error
@@ -113,7 +118,11 @@ impl MethodRouter {
     }
 
     /// Set approval-specific dependencies for the router
-    pub fn with_approval_deps(mut self, store: Arc<ApprovalStore>, broadcaster: Arc<Broadcaster>) -> Self {
+    pub fn with_approval_deps(
+        mut self,
+        store: Arc<ApprovalStore>,
+        broadcaster: Arc<Broadcaster>,
+    ) -> Self {
         self.approval_store = Some(store);
         self.broadcaster = Some(broadcaster);
         self
@@ -184,7 +193,7 @@ impl Default for MethodRouter {
 /// runtime dependencies (AgentRunner, WebSocket sender) that are injected
 /// directly into the WebSocket connection handler via ws.rs.
 /// The placeholder in this router will never be invoked for chat.send.
-/// 
+///
 /// Note: The `approval.request` method requires the approval store and broadcaster
 /// to be injected. These handlers are registered but will return errors until
 /// dependencies are set via MethodRouter::with_approval_deps().
@@ -331,20 +340,24 @@ impl RpcMethod for ApprovalRequestHandler {
         // Get dependencies
         let store = match &self.approval_store {
             Some(store) => store.clone(),
-            None => return types::RpcResponse::error(
-                Some(serde_json::json!(ctx.conn_id.clone())),
-                -32602,
-                "Approval store not available",
-            ),
+            None => {
+                return types::RpcResponse::error(
+                    Some(serde_json::json!(ctx.conn_id.clone())),
+                    -32602,
+                    "Approval store not available",
+                )
+            }
         };
 
         let broadcaster = match &self.broadcaster {
             Some(b) => b.clone(),
-            None => return types::RpcResponse::error(
-                Some(serde_json::json!(ctx.conn_id.clone())),
-                -32602,
-                "Broadcaster not available",
-            ),
+            None => {
+                return types::RpcResponse::error(
+                    Some(serde_json::json!(ctx.conn_id.clone())),
+                    -32602,
+                    "Broadcaster not available",
+                )
+            }
         };
 
         // Parse parameters inline
@@ -355,7 +368,7 @@ impl RpcMethod for ApprovalRequestHandler {
                     return types::RpcResponse::error(
                         Some(serde_json::json!(ctx.conn_id.clone())),
                         -32602,
-                        format!("Invalid parameters: {}", e)
+                        format!("Invalid parameters: {}", e),
                     );
                 }
             },
@@ -363,17 +376,13 @@ impl RpcMethod for ApprovalRequestHandler {
                 return types::RpcResponse::error(
                     Some(serde_json::json!(ctx.conn_id.clone())),
                     -32602,
-                    "Missing parameters"
+                    "Missing parameters",
                 );
             }
         };
 
         // Create a new pending approval
-        let approval = PendingApproval::new(
-            params.agent_id,
-            params.operation,
-            params.risk_level,
-        );
+        let approval = PendingApproval::new(params.agent_id, params.operation, params.risk_level);
 
         // Store the approval request
         store.store(approval.clone());
@@ -410,12 +419,16 @@ pub struct ApprovalApproveHandler {
 impl ApprovalApproveHandler {
     /// Create a new approval approve handler
     pub fn new() -> Self {
-        Self { approval_store: None }
+        Self {
+            approval_store: None,
+        }
     }
 
     /// Create a new approval approve handler with approval store
     pub fn with_store(store: Arc<ApprovalStore>) -> Self {
-        Self { approval_store: Some(store) }
+        Self {
+            approval_store: Some(store),
+        }
     }
 }
 
@@ -457,11 +470,13 @@ impl RpcMethod for ApprovalApproveHandler {
         // Use the approval store if available
         let store = match &self.approval_store {
             Some(store) => store.clone(),
-            None => return types::RpcResponse::error(
-                Some(serde_json::json!(ctx.conn_id.clone())),
-                -32602,
-                "Approval store not available",
-            ),
+            None => {
+                return types::RpcResponse::error(
+                    Some(serde_json::json!(ctx.conn_id.clone())),
+                    -32602,
+                    "Approval store not available",
+                )
+            }
         };
 
         // Remove and check if approval exists
@@ -478,13 +493,11 @@ impl RpcMethod for ApprovalApproveHandler {
                     }),
                 )
             }
-            None => {
-                types::RpcResponse::error(
-                    Some(serde_json::json!(ctx.conn_id.clone())),
-                    -32601,
-                    format!("Approval request {} not found or already processed", id),
-                )
-            }
+            None => types::RpcResponse::error(
+                Some(serde_json::json!(ctx.conn_id.clone())),
+                -32601,
+                format!("Approval request {} not found or already processed", id),
+            ),
         }
     }
 }
@@ -499,12 +512,16 @@ pub struct ApprovalDenyHandler {
 impl ApprovalDenyHandler {
     /// Create a new approval deny handler
     pub fn new() -> Self {
-        Self { approval_store: None }
+        Self {
+            approval_store: None,
+        }
     }
 
     /// Create a new approval deny handler with approval store
     pub fn with_store(store: Arc<ApprovalStore>) -> Self {
-        Self { approval_store: Some(store) }
+        Self {
+            approval_store: Some(store),
+        }
     }
 }
 
@@ -554,11 +571,13 @@ impl RpcMethod for ApprovalDenyHandler {
         // Use the approval store if available
         let store = match &self.approval_store {
             Some(store) => store.clone(),
-            None => return types::RpcResponse::error(
-                Some(serde_json::json!(ctx.conn_id.clone())),
-                -32602,
-                "Approval store not available",
-            ),
+            None => {
+                return types::RpcResponse::error(
+                    Some(serde_json::json!(ctx.conn_id.clone())),
+                    -32602,
+                    "Approval store not available",
+                )
+            }
         };
 
         // Remove and check if approval exists
@@ -576,13 +595,11 @@ impl RpcMethod for ApprovalDenyHandler {
                     }),
                 )
             }
-            None => {
-                types::RpcResponse::error(
-                    Some(serde_json::json!(ctx.conn_id.clone())),
-                    -32601,
-                    format!("Approval request {} not found or already processed", id),
-                )
-            }
+            None => types::RpcResponse::error(
+                Some(serde_json::json!(ctx.conn_id.clone())),
+                -32601,
+                format!("Approval request {} not found or already processed", id),
+            ),
         }
     }
 }
@@ -597,12 +614,16 @@ pub struct ApprovalListHandler {
 impl ApprovalListHandler {
     /// Create a new approval list handler
     pub fn new() -> Self {
-        Self { approval_store: None }
+        Self {
+            approval_store: None,
+        }
     }
 
     /// Create a new approval list handler with approval store
     pub fn with_store(store: Arc<ApprovalStore>) -> Self {
-        Self { approval_store: Some(store) }
+        Self {
+            approval_store: Some(store),
+        }
     }
 }
 
@@ -614,11 +635,13 @@ impl RpcMethod for ApprovalListHandler {
     ) -> types::RpcResponse {
         let store = match &self.approval_store {
             Some(store) => store.clone(),
-            None => return types::RpcResponse::error(
-                Some(serde_json::json!(ctx.conn_id.clone())),
-                -32602,
-                "Approval store not available",
-            ),
+            None => {
+                return types::RpcResponse::error(
+                    Some(serde_json::json!(ctx.conn_id.clone())),
+                    -32602,
+                    "Approval store not available",
+                )
+            }
         };
 
         let approvals = store.list();
@@ -689,10 +712,10 @@ impl RpcMethod for CanvasInteractHandler {
         // Verify the canvas_id exists in the connection's active canvases
         // Note: In a real implementation, this would check a per-connection canvas state.
         // For now, we just forward the interaction and let the receiving side validate.
-        
+
         // Forward the interaction event to the agent/handler that owns this canvas
         // This is typically done via the event broadcasting system
-        
+
         types::RpcResponse::success(
             Some(serde_json::json!(ctx.conn_id.clone())),
             serde_json::json!({
@@ -861,7 +884,12 @@ mod tests {
         assert_eq!(response.jsonrpc, "2.0");
         assert!(response.error.is_some());
         assert_eq!(response.error.as_ref().unwrap().code, -32602);
-        assert!(response.error.as_ref().unwrap().message.contains("Missing parameters"));
+        assert!(response
+            .error
+            .as_ref()
+            .unwrap()
+            .message
+            .contains("Missing parameters"));
     }
 
     #[test]

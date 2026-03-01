@@ -97,11 +97,7 @@ impl Tool for GetSessionLogsTool {
         })
     }
 
-    async fn execute(
-        &self,
-        params: serde_json::Value,
-        ctx: &ToolContext,
-    ) -> Result<ToolResult> {
+    async fn execute(&self, params: serde_json::Value, ctx: &ToolContext) -> Result<ToolResult> {
         let session_key = params
             .get("session_key")
             .and_then(|v| v.as_str())

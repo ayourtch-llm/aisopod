@@ -3,12 +3,11 @@
 //! These tests simulate interactions with the Bot Framework API using mock servers
 //! to verify the channel implementation works correctly.
 
-use aisopod_channel_msteams::{
-    MsTeamsConfig, MsTeamsAccountConfig, MsTeamsChannel,
-    BotFrameworkClient, Activity, ActivityType, ChannelAccount, ConversationResponse,
-    WebhookConfig,
-};
 use aisopod_channel::plugin::ChannelPlugin;
+use aisopod_channel_msteams::{
+    Activity, ActivityType, BotFrameworkClient, ChannelAccount, ConversationResponse,
+    MsTeamsAccountConfig, MsTeamsChannel, MsTeamsConfig, WebhookConfig,
+};
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::Notify;
@@ -29,7 +28,10 @@ async fn test_channel_creation() -> Result<()> {
 
     assert_eq!(channel.id(), "msteams-test1");
     assert_eq!(channel.meta().label, "Microsoft Teams");
-    assert!(channel.capabilities().chat_types.contains(&aisopod_channel::types::ChatType::Dm));
+    assert!(channel
+        .capabilities()
+        .chat_types
+        .contains(&aisopod_channel::types::ChatType::Dm));
 
     Ok(())
 }
@@ -126,7 +128,9 @@ async fn test_security_adapter() -> Result<()> {
     };
 
     let channel = MsTeamsChannel::new(config, "test1").await?;
-    let security = channel.security().expect("Security adapter should be available");
+    let security = channel
+        .security()
+        .expect("Security adapter should be available");
 
     // Test with allowed user
     let sender = aisopod_channel::message::SenderInfo {
@@ -160,7 +164,9 @@ async fn test_security_adapter_with_allowed_users() -> Result<()> {
     };
 
     let channel = MsTeamsChannel::new(config, "test1").await?;
-    let security = channel.security().expect("Security adapter should be available");
+    let security = channel
+        .security()
+        .expect("Security adapter should be available");
 
     // Test with allowed user
     let allowed_sender = aisopod_channel::message::SenderInfo {
@@ -200,9 +206,15 @@ async fn test_channel_capabilities() -> Result<()> {
 
     let capabilities = channel.capabilities();
 
-    assert!(capabilities.chat_types.contains(&aisopod_channel::types::ChatType::Dm));
-    assert!(capabilities.chat_types.contains(&aisopod_channel::types::ChatType::Group));
-    assert!(capabilities.chat_types.contains(&aisopod_channel::types::ChatType::Channel));
+    assert!(capabilities
+        .chat_types
+        .contains(&aisopod_channel::types::ChatType::Dm));
+    assert!(capabilities
+        .chat_types
+        .contains(&aisopod_channel::types::ChatType::Group));
+    assert!(capabilities
+        .chat_types
+        .contains(&aisopod_channel::types::ChatType::Channel));
     assert!(capabilities.supports_media);
     assert!(capabilities.supports_reactions);
     assert!(capabilities.supports_threads);

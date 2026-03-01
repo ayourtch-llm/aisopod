@@ -14,7 +14,7 @@ fn init_rustls_provider() {
 pub async fn load_tls_config(cert_path: &Path, key_path: &Path) -> Result<RustlsConfig> {
     // Ensure the provider is initialized
     init_rustls_provider();
-    
+
     RustlsConfig::from_pem_file(cert_path, key_path)
         .await
         .map_err(|e| anyhow!("Failed to load TLS configuration from files: {}", e))

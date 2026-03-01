@@ -75,8 +75,8 @@
 //! }
 //! ```
 
-use crate::message::{IncomingMessage, MessageContent, MessagePart, PeerKind, SenderInfo};
 use crate::adapters::SecurityAdapter;
+use crate::message::{IncomingMessage, MessageContent, MessagePart, PeerKind, SenderInfo};
 
 /// Result of a mention check for a message.
 ///
@@ -145,9 +145,7 @@ impl SecurityEnforcer {
     /// The enforcer will use the [`SecurityAdapter`] policies when available,
     /// or allow all access when no adapter is provided.
     pub fn new() -> Self {
-        Self {
-            dm_policy: None,
-        }
+        Self { dm_policy: None }
     }
 
     /// Creates a new `SecurityEnforcer` with a custom DM policy.
@@ -156,7 +154,9 @@ impl SecurityEnforcer {
     ///
     /// * `dm_policy` - The policy for DM access control.
     pub fn with_dm_policy(dm_policy: DmPolicy) -> Self {
-        Self { dm_policy: Some(dm_policy) }
+        Self {
+            dm_policy: Some(dm_policy),
+        }
     }
 
     /// Checks if the sender is allowed to send messages.
@@ -213,10 +213,7 @@ impl SecurityEnforcer {
                 if adapter.is_allowed_sender(sender) {
                     Ok(())
                 } else {
-                    Err(anyhow::anyhow!(
-                        "Unauthorized sender: {}",
-                        sender.id
-                    ))
+                    Err(anyhow::anyhow!("Unauthorized sender: {}", sender.id))
                 }
             }
         }
@@ -335,10 +332,7 @@ impl SecurityEnforcer {
                 if adapter.is_allowed_sender(sender) {
                     Ok(())
                 } else {
-                    Err(anyhow::anyhow!(
-                        "Unauthorized DM sender: {}",
-                        sender.id
-                    ))
+                    Err(anyhow::anyhow!("Unauthorized DM sender: {}", sender.id))
                 }
             }
         }
@@ -593,7 +587,8 @@ mod tests {
         let enforcer = SecurityEnforcer::new();
         let message = create_message("user123", PeerKind::Group, "Hello @bot456");
 
-        let result = enforcer.contains_bot_mention(&message, &["bot123".to_string(), "bot456".to_string()]);
+        let result =
+            enforcer.contains_bot_mention(&message, &["bot123".to_string(), "bot456".to_string()]);
 
         assert!(result);
     }

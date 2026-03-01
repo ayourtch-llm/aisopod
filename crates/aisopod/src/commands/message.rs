@@ -43,9 +43,8 @@ pub async fn run(args: MessageArgs, config_path: Option<String>) -> Result<()> {
     let config = match config_path {
         Some(path) => {
             let config_path = std::path::Path::new(&path);
-            aisopod_config::load_config(config_path).map_err(|e| {
-                anyhow!("Failed to load configuration from '{}': {}", path, e)
-            })?
+            aisopod_config::load_config(config_path)
+                .map_err(|e| anyhow!("Failed to load configuration from '{}': {}", path, e))?
         }
         None => {
             // Use default configuration

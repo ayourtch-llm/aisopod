@@ -214,7 +214,8 @@ mod tests {
         let service_account = ServiceAccountConfig {
             key_file: "/path/to/key.json".to_string(),
             client_email: "test@test.iam.gserviceaccount.com".to_string(),
-            private_key: "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n".to_string(),
+            private_key: "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n"
+                .to_string(),
             ..Default::default()
         };
 

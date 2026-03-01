@@ -135,19 +135,17 @@
 //! provide custom error mapping logic while maintaining consistency across
 //! the codebase.
 
-pub mod rate_limit;
+pub mod error_mapping;
 pub mod markdown;
 pub mod media;
+pub mod rate_limit;
 pub mod retry;
-pub mod error_mapping;
 
 // Re-export common types for convenience
-pub use rate_limit::{RateLimiter, RateLimitResult};
+pub use error_mapping::{error_from_http_status, ChannelError, ChannelResult, PlatformErrorMapper};
 pub use markdown::{parse_markdown, MarkdownFormat, MarkdownNode};
-pub use media::{validate_media, MediaConstraints, MediaType, MediaInfo, MediaError, ConversionOptions, detect_media_type_from_extension, get_mime_type, convert_media};
-pub use error_mapping::{
-    ChannelError,
-    ChannelResult,
-    PlatformErrorMapper,
-    error_from_http_status,
+pub use media::{
+    convert_media, detect_media_type_from_extension, get_mime_type, validate_media,
+    ConversionOptions, MediaConstraints, MediaError, MediaInfo, MediaType,
 };
+pub use rate_limit::{RateLimitResult, RateLimiter};

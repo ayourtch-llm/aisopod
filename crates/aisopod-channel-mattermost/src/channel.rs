@@ -4,15 +4,18 @@
 //! enabling the bot to receive and send messages via the Mattermost API.
 
 use crate::api::{ApiError, Channel, ChannelType, MattermostApi, User};
-use crate::auth::{authenticate, AuthResult, extract_token, requires_login};
+use crate::auth::{authenticate, extract_token, requires_login, AuthResult};
 use crate::config::{MattermostAuth, MattermostConfig};
 use crate::websocket::{MattermostEvent, MattermostWebSocket};
 use aisopod_channel::adapters::{
     AccountConfig, AccountSnapshot, ChannelConfigAdapter, SecurityAdapter,
 };
-use aisopod_channel::message::{IncomingMessage, MessageContent, MessagePart, MessageTarget, OutgoingMessage, PeerInfo, PeerKind, SenderInfo};
-use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+use aisopod_channel::message::{
+    IncomingMessage, MessageContent, MessagePart, MessageTarget, OutgoingMessage, PeerInfo,
+    PeerKind, SenderInfo,
+};
 use aisopod_channel::plugin::ChannelPlugin;
+use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -166,7 +169,7 @@ impl MattermostChannel {
         let security_adapter = Some(MattermostSecurityAdapter::new(accounts.clone()));
 
         Ok(Self {
-            accounts: accounts,
+            accounts,
             id,
             meta,
             capabilities,
@@ -178,7 +181,11 @@ impl MattermostChannel {
 
     /// Resolve a channel name to its ID.
     #[instrument(skip(self))]
-    pub async fn resolve_channel_id(&mut self, team_id: &str, channel_name: &str) -> Result<String, ApiError> {
+    pub async fn resolve_channel_id(
+        &mut self,
+        team_id: &str,
+        channel_name: &str,
+    ) -> Result<String, ApiError> {
         if let Some(account) = self.accounts.first_mut() {
             {
                 let cache = account.channel_cache.lock().await;
@@ -188,7 +195,10 @@ impl MattermostChannel {
             }
 
             // Fetch the channel
-            let channel = account.api.get_channel_by_name(team_id, channel_name).await?;
+            let channel = account
+                .api
+                .get_channel_by_name(team_id, channel_name)
+                .await?;
             {
                 let mut cache = account.channel_cache.lock().await;
                 cache.insert(channel_name.to_string(), channel.clone());
@@ -228,13 +238,17 @@ impl MattermostChannel {
         if let Some(account) = self.accounts.first_mut() {
             if let Some(auth_result) = &account.account.auth_result {
                 let server_url = account.account.config.server_url.clone();
-                let websocket = MattermostWebSocket::connect(&server_url, &auth_result.token).await?;
+                let websocket =
+                    MattermostWebSocket::connect(&server_url, &auth_result.token).await?;
 
                 account.websocket = Some(Arc::new(AsyncMutex::new(websocket)));
                 account.account.connected = true;
                 account.account.last_connected = Some(Utc::now());
 
-                info!("WebSocket connection started for account {}", account.account.id);
+                info!(
+                    "WebSocket connection started for account {}",
+                    account.account.id
+                );
 
                 // Start the event listener task
                 let websocket_clone = account.websocket.clone().unwrap();
@@ -422,7 +436,9 @@ impl ChannelPlugin for MattermostChannel {
     }
 
     fn security(&self) -> Option<&dyn SecurityAdapter> {
-        self.security_adapter.as_ref().map(|a| a as &dyn SecurityAdapter)
+        self.security_adapter
+            .as_ref()
+            .map(|a| a as &dyn SecurityAdapter)
     }
 
     async fn connect(&mut self) -> Result<(), anyhow::Error> {
@@ -447,7 +463,10 @@ impl ChannelPlugin for MattermostChannel {
                         account.account.user_id = auth_result.user_id.clone();
                     }
                     Err(e) => {
-                        error!("Failed to authenticate account {}: {}", account.account.id, e);
+                        error!(
+                            "Failed to authenticate account {}: {}",
+                            account.account.id, e
+                        );
                         continue;
                     }
                 }
@@ -488,27 +507,43 @@ impl ChannelPlugin for MattermostChannel {
                     if let Some(account) = accounts.first_mut() {
                         let mut cache = account.user_cache.lock().await;
                         if let Some(user_id) = &account.account.user_id {
-                            cache.insert(user_id.clone(), User {
-                                id: user_id.clone(),
-                                username: account.account.username.clone().unwrap_or_default(),
-                                display_name: account.account.username.clone().unwrap_or_default(),
-                                email: String::new(),
-                                is_bot: false,
-                                delete_at: 0,
-                            });
-                            cache.insert(user_id.clone(), User {
-                                id: user_id.clone(),
-                                username: account.account.username.clone().unwrap_or_default(),
-                                display_name: account.account.username.clone().unwrap_or_default(),
-                                email: String::new(),
-                                is_bot: false,
-                                delete_at: 0,
-                            });
+                            cache.insert(
+                                user_id.clone(),
+                                User {
+                                    id: user_id.clone(),
+                                    username: account.account.username.clone().unwrap_or_default(),
+                                    display_name: account
+                                        .account
+                                        .username
+                                        .clone()
+                                        .unwrap_or_default(),
+                                    email: String::new(),
+                                    is_bot: false,
+                                    delete_at: 0,
+                                },
+                            );
+                            cache.insert(
+                                user_id.clone(),
+                                User {
+                                    id: user_id.clone(),
+                                    username: account.account.username.clone().unwrap_or_default(),
+                                    display_name: account
+                                        .account
+                                        .username
+                                        .clone()
+                                        .unwrap_or_default(),
+                                    email: String::new(),
+                                    is_bot: false,
+                                    delete_at: 0,
+                                },
+                            );
                             user_id.clone()
                         } else {
                             // We can't actually get the user ID without mutable self
                             // This is a limitation of the current design
-                            return Err(anyhow::anyhow!("Cannot get current user ID in send() - need &mut self"));
+                            return Err(anyhow::anyhow!(
+                                "Cannot get current user ID in send() - need &mut self"
+                            ));
                         }
                     } else {
                         return Err(anyhow::anyhow!("No accounts available"));
@@ -527,7 +562,11 @@ impl ChannelPlugin for MattermostChannel {
             MessageContent::Text(text) => text,
             MessageContent::Media(media) => {
                 // For media messages, use a placeholder
-                format!("[{:?}: {}]", media.media_type, media.url.as_deref().unwrap_or("unknown"))
+                format!(
+                    "[{:?}: {}]",
+                    media.media_type,
+                    media.url.as_deref().unwrap_or("unknown")
+                )
             }
             MessageContent::Mixed(parts) => {
                 // Convert multi-part message to plain text
@@ -537,7 +576,11 @@ impl ChannelPlugin for MattermostChannel {
                         MessagePart::Text(text) => Some(text.clone()),
                         MessagePart::Media(media) => {
                             // Include media as placeholder in the message
-                            Some(format!("[{:?}: {}]", media.media_type, media.url.as_deref().unwrap_or("unknown")))
+                            Some(format!(
+                                "[{:?}: {}]",
+                                media.media_type,
+                                media.url.as_deref().unwrap_or("unknown")
+                            ))
                         }
                     })
                     .collect::<Vec<String>>()
@@ -608,10 +651,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_new_channel() {
-        let config = MattermostConfig::new("https://mattermost.example.com".to_string())
-            .with_auth(MattermostAuth::BotToken {
+        let config = MattermostConfig::new("https://mattermost.example.com".to_string()).with_auth(
+            MattermostAuth::BotToken {
                 token: "test-token".to_string(),
-            });
+            },
+        );
 
         let channel = MattermostChannel::new(config, "test").await;
         assert!(channel.is_ok());
@@ -619,10 +663,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_new_channel_validation() {
-        let config = MattermostConfig::new("https://mattermost.example.com".to_string())
-            .with_auth(MattermostAuth::BotToken {
+        let config = MattermostConfig::new("https://mattermost.example.com".to_string()).with_auth(
+            MattermostAuth::BotToken {
                 token: "".to_string(), // Empty token should fail validation
-            });
+            },
+        );
 
         let channel = MattermostChannel::new(config, "test").await;
         assert!(channel.is_err());
@@ -630,10 +675,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_channel_id_format() {
-        let config = MattermostConfig::new("https://mattermost.example.com".to_string())
-            .with_auth(MattermostAuth::BotToken {
+        let config = MattermostConfig::new("https://mattermost.example.com".to_string()).with_auth(
+            MattermostAuth::BotToken {
                 token: "test-token".to_string(),
-            });
+            },
+        );
 
         let channel = MattermostChannel::new(config, "main").await.unwrap();
         assert_eq!(channel.id(), "mattermost-main");
@@ -641,10 +687,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_channel_meta() {
-        let config = MattermostConfig::new("https://mattermost.example.com".to_string())
-            .with_auth(MattermostAuth::BotToken {
+        let config = MattermostConfig::new("https://mattermost.example.com".to_string()).with_auth(
+            MattermostAuth::BotToken {
                 token: "test-token".to_string(),
-            });
+            },
+        );
 
         let channel = MattermostChannel::new(config, "test").await.unwrap();
         let meta = channel.meta();
@@ -655,10 +702,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_channel_capabilities() {
-        let config = MattermostConfig::new("https://mattermost.example.com".to_string())
-            .with_auth(MattermostAuth::BotToken {
+        let config = MattermostConfig::new("https://mattermost.example.com".to_string()).with_auth(
+            MattermostAuth::BotToken {
                 token: "test-token".to_string(),
-            });
+            },
+        );
 
         let channel = MattermostChannel::new(config, "test").await.unwrap();
         let caps = channel.capabilities();

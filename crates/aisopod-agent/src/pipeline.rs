@@ -406,15 +406,16 @@ impl AgentPipeline {
         };
 
         // Add skill tools to the tool definitions
-        let skill_tools: Vec<ToolDefinition> = crate::skills_integration::collect_skill_tools(&skills)
-            .iter()
-            .map(|tool| {
-                let name = tool.name().to_string();
-                let description = tool.description().to_string();
-                let parameters = tool.parameters_schema().clone();
-                ToolDefinition::new(name, description, parameters)
-            })
-            .collect();
+        let skill_tools: Vec<ToolDefinition> =
+            crate::skills_integration::collect_skill_tools(&skills)
+                .iter()
+                .map(|tool| {
+                    let name = tool.name().to_string();
+                    let description = tool.description().to_string();
+                    let parameters = tool.parameters_schema().clone();
+                    ToolDefinition::new(name, description, parameters)
+                })
+                .collect();
         tool_definitions.extend(skill_tools);
 
         // 6. Merge skill prompts into system prompt

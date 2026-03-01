@@ -11,8 +11,7 @@ pub async fn connect_test_client() -> AisopodClient {
     let config = ClientConfig {
         server_url: env::var("AISOPOD_TEST_URL")
             .unwrap_or_else(|_| "ws://127.0.0.1:8080/ws".to_string()),
-        auth_token: env::var("AISOPOD_TEST_TOKEN")
-            .unwrap_or_else(|_| "test-token".to_string()),
+        auth_token: env::var("AISOPOD_TEST_TOKEN").unwrap_or_else(|_| "test-token".to_string()),
         client_name: "conformance-test".to_string(),
         client_version: "0.1.0".to_string(),
         device_id: uuid::Uuid::new_v4(),
@@ -39,7 +38,10 @@ async fn test_successful_handshake() {
     let client = connect_test_client().await;
 
     // Verify the client is connected after successful handshake
-    assert!(client.is_connected(), "Client should be connected after handshake");
+    assert!(
+        client.is_connected(),
+        "Client should be connected after handshake"
+    );
 }
 
 #[tokio::test]
@@ -52,7 +54,7 @@ async fn test_handshake_without_auth_header() {
     // Note: This test requires a modified connection that omits the auth header.
     // The current AisopodClient always includes the Authorization header.
     // This test verifies the expected behavior when auth is missing.
-    
+
     let config = ClientConfig {
         server_url: env::var("AISOPOD_TEST_URL")
             .unwrap_or_else(|_| "ws://127.0.0.1:8080/ws".to_string()),
@@ -65,12 +67,9 @@ async fn test_handshake_without_auth_header() {
 
     // This should fail authentication
     let result = AisopodClient::connect(config).await;
-    
+
     // The test expects the connection to fail with an auth error
-    assert!(
-        result.is_err(),
-        "Handshake without auth should fail"
-    );
+    assert!(result.is_err(), "Handshake without auth should fail");
 }
 
 #[tokio::test]
@@ -89,9 +88,9 @@ async fn test_welcome_message_fields() {
     // This test verifies the basic connection flow works
     // In a full implementation, we would verify:
     // - server_version is not empty
-    // - protocol_version is not empty  
+    // - protocol_version is not empty
     // - session_id is not empty
-    
+
     // For now, we verify the connection was established
     assert_eq!(client.state(), aisopod_client::ClientState::Connected);
 }

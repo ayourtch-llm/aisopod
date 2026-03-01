@@ -3,11 +3,11 @@
 //! This module handles sending text messages with Discord markdown formatting,
 //! chunking long messages (2000 char limit), and sending messages with options.
 
-use aisopod_channel::message::{Media, MessageTarget, MessageContent};
+use aisopod_channel::message::{Media, MessageContent, MessageTarget};
 use anyhow::{anyhow, Result};
 use serenity::{
     all::{ChannelId, CreateMessage, Message, MessageId},
-    builder::{CreateEmbed, CreateEmbedFooter, CreateActionRow},
+    builder::{CreateActionRow, CreateEmbed, CreateEmbedFooter},
 };
 use std::time::Duration;
 
@@ -71,7 +71,8 @@ pub async fn send_message(
     // Check if message needs chunking (2000 char limit)
     if text.len() <= DISCORD_MESSAGE_LIMIT {
         // Single message fits, send it directly
-        let message = create_discord_message(cache_http.clone(), channel_id, text, &options).await?;
+        let message =
+            create_discord_message(cache_http.clone(), channel_id, text, &options).await?;
         Ok(SendMessageResult {
             message_id: message.id,
             was_chunked: false,
@@ -97,7 +98,7 @@ async fn create_discord_message(
     if let Some(reply_id) = options.reply_to_message_id {
         msg_builder = msg_builder.reference_message((channel_id, reply_id));
     }
-    
+
     // Note: mention_reply is now handled via allowed_mentions in CreateAllowedMentions
 
     // Add embeds
@@ -137,7 +138,7 @@ async fn chunk_and_send(
 
     for (i, chunk) in chunks.iter().enumerate() {
         let mut chunk_options = options.clone();
-        
+
         // For chunks after the first, remove reply_to since we're continuing the thread
         if i > 0 {
             chunk_options.reply_to_message_id = None;
@@ -149,7 +150,8 @@ async fn chunk_and_send(
             chunk_options.embeds.clear();
         }
 
-        let message = create_discord_message(cache_http.clone(), channel_id, chunk, &chunk_options).await?;
+        let message =
+            create_discord_message(cache_http.clone(), channel_id, chunk, &chunk_options).await?;
         final_message_id = Some(message.id);
     }
 
@@ -178,7 +180,7 @@ pub fn chunk_text(text: &str) -> Vec<&str> {
 
     while start < text_len {
         let remaining = text_len - start;
-        
+
         if remaining <= DISCORD_MESSAGE_LIMIT {
             chunks.push(&text[start..]);
             break;
@@ -186,7 +188,7 @@ pub fn chunk_text(text: &str) -> Vec<&str> {
 
         // Find a good split point (try to avoid splitting in the middle of words)
         let mut end = start + DISCORD_MESSAGE_LIMIT;
-        
+
         // Look backward for a space or newline to split at
         while end > start {
             if chars[end - 1] == ' ' || chars[end - 1] == '\n' || chars[end - 1] == '\r' {
@@ -256,10 +258,8 @@ pub mod formatting {
 
     /// Escape markdown characters in text.
     pub fn escape_markdown(text: &str) -> Cow<str> {
-        const MARKDOWN_CHARS: [char; 10] = [
-            '*', '_', '`', '[', ']', '(', ')', '~', '>', '#',
-        ];
-        
+        const MARKDOWN_CHARS: [char; 10] = ['*', '_', '`', '[', ']', '(', ')', '~', '>', '#'];
+
         if text.chars().any(|c| MARKDOWN_CHARS.contains(&c)) {
             let escaped: String = text
                 .chars()
@@ -330,10 +330,10 @@ mod tests {
     fn test_chunk_text_preserves_words() {
         let text = "This is a long message that needs to be chunked properly while preserving word boundaries";
         let chunks = chunk_text(text);
-        
+
         // Should be chunked
         assert!(chunks.len() >= 1);
-        
+
         // Check that words aren't broken in the middle (except when necessary)
         for chunk in &chunks {
             let trimmed = chunk.trim();
@@ -348,10 +348,10 @@ mod tests {
     fn test_chunk_text_newlines() {
         let text = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7";
         let chunks = chunk_text(text);
-        
+
         // Should be chunked if over limit
         assert!(chunks.len() >= 1);
-        
+
         // Newlines should be preserved
         for chunk in &chunks {
             assert!(chunk.contains('\n') || chunk.lines().count() > 0);
@@ -361,7 +361,10 @@ mod tests {
     #[test]
     fn test_markdown_bold() {
         assert_eq!(formatting::bold("test"), "**test**");
-        assert_eq!(formatting::bold("test*with*stars"), "**test\\*with\\*stars**");
+        assert_eq!(
+            formatting::bold("test*with*stars"),
+            "**test\\*with\\*stars**"
+        );
     }
 
     #[test]
@@ -382,7 +385,10 @@ mod tests {
     #[test]
     fn test_markdown_code() {
         assert_eq!(formatting::code("test"), "`test`");
-        assert_eq!(formatting::code("test`with`backticks"), "`test\\`with\\`backticks`");
+        assert_eq!(
+            formatting::code("test`with`backticks"),
+            "`test\\`with\\`backticks`"
+        );
     }
 
     #[test]

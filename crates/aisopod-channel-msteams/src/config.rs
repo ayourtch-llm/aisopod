@@ -190,7 +190,9 @@ impl MsTeamsConfig {
     /// Validates the configuration and returns an error if invalid.
     pub fn validate(&self) -> Result<(), anyhow::Error> {
         if self.accounts.is_empty() {
-            return Err(anyhow::anyhow!("At least one Microsoft Teams account is required"));
+            return Err(anyhow::anyhow!(
+                "At least one Microsoft Teams account is required"
+            ));
         }
 
         for account in &self.accounts {
@@ -201,7 +203,9 @@ impl MsTeamsConfig {
                 return Err(anyhow::anyhow!("Client ID is required for each account"));
             }
             if account.client_secret.is_empty() {
-                return Err(anyhow::anyhow!("Client secret is required for each account"));
+                return Err(anyhow::anyhow!(
+                    "Client secret is required for each account"
+                ));
             }
         }
 
@@ -306,7 +310,8 @@ mod tests {
         );
         assert_eq!(config.bot_app_id_or_client_id(), "bot123");
 
-        let config_no_bot = MsTeamsAccountConfig::new("test", "tenant123", "client123", "secret123");
+        let config_no_bot =
+            MsTeamsAccountConfig::new("test", "tenant123", "client123", "secret123");
         assert_eq!(config_no_bot.bot_app_id_or_client_id(), "client123");
     }
 
@@ -316,7 +321,12 @@ mod tests {
         assert!(config.validate().is_err());
 
         let config = MsTeamsConfig {
-            accounts: vec![MsTeamsAccountConfig::new("test", "tenant123", "client123", "secret123")],
+            accounts: vec![MsTeamsAccountConfig::new(
+                "test",
+                "tenant123",
+                "client123",
+                "secret123",
+            )],
             ..Default::default()
         };
         assert!(config.validate().is_ok());

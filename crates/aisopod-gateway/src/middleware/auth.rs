@@ -54,15 +54,19 @@ impl AuthConfigData {
     pub fn new(config: AuthConfig) -> Self {
         let token_map = build_token_map(&config);
         let password_map = build_password_map(&config);
-        
+
         // Check if any password looks like a hash (starts with $argon2)
-        let passwords_hashed = config.passwords.iter().any(|cred| {
-            cred.password.expose().starts_with("$argon2")
-        });
-        
+        let passwords_hashed = config
+            .passwords
+            .iter()
+            .any(|cred| cred.password.expose().starts_with("$argon2"));
+
         // Create token store if using token auth
         let token_store = if config.gateway_mode == aisopod_config::types::AuthMode::Token {
-            config.tokens.first().map(|cred| TokenStore::new(cred.token.clone()))
+            config
+                .tokens
+                .first()
+                .map(|cred| TokenStore::new(cred.token.clone()))
         } else {
             None
         };
@@ -103,7 +107,7 @@ impl AuthConfigData {
                 });
             }
         }
-        
+
         // Fallback to token map for direct lookup
         self.token_map.get(token).cloned()
     }
@@ -335,7 +339,11 @@ pub async fn auth_middleware(
                 None => {
                     let client_ip = get_client_ip(&request);
                     warn!("Invalid Authorization header format for Basic auth");
-                    log_auth_failure(&client_ip, "password", "invalid authorization header format");
+                    log_auth_failure(
+                        &client_ip,
+                        "password",
+                        "invalid authorization header format",
+                    );
                     return if is_rpc_request(&request) {
                         unauthorized_rpc_response("Invalid Authorization header format")
                     } else {
@@ -358,7 +366,11 @@ pub async fn auth_middleware(
                 None => {
                     let client_ip = get_client_ip(&request);
                     warn!("Invalid credentials provided for user: {}", username);
-                    log_auth_failure(&client_ip, "password", &format!("invalid credentials for user {}", username));
+                    log_auth_failure(
+                        &client_ip,
+                        "password",
+                        &format!("invalid credentials for user {}", username),
+                    );
                     if is_rpc_request(&request) {
                         unauthorized_rpc_response("Invalid credentials")
                     } else {

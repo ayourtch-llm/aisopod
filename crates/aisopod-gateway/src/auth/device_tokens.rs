@@ -19,7 +19,7 @@ use crate::auth::scopes::Scope;
 /// The stored token_hash is an argon2id hash of the plaintext token.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceToken {
-    pub token_hash: String,       // Store hash, not plaintext
+    pub token_hash: String, // Store hash, not plaintext
     pub device_name: String,
     pub device_id: String,
     pub scopes: Vec<Scope>,
@@ -248,7 +248,11 @@ mod tests {
     fn test_revoke_prevents_validation() {
         let mut mgr = test_manager();
         let token = mgr
-            .issue("Laptop".into(), "device-2".into(), vec![Scope::OperatorRead])
+            .issue(
+                "Laptop".into(),
+                "device-2".into(),
+                vec![Scope::OperatorRead],
+            )
             .unwrap();
 
         mgr.revoke("device-2").unwrap();
@@ -259,7 +263,11 @@ mod tests {
     fn test_refresh_invalidates_old_token() {
         let mut mgr = test_manager();
         let old_token = mgr
-            .issue("Tablet".into(), "device-3".into(), vec![Scope::OperatorRead])
+            .issue(
+                "Tablet".into(),
+                "device-3".into(),
+                vec![Scope::OperatorRead],
+            )
             .unwrap();
 
         let new_token = mgr.refresh("device-3").unwrap().unwrap();
@@ -294,10 +302,14 @@ mod tests {
     #[test]
     fn test_multiple_devices_with_scopes() {
         let mut mgr = test_manager();
-        
+
         // Issue tokens for multiple devices with different scopes
-        mgr.issue("Phone".into(), "d1".into(), vec![Scope::OperatorRead, Scope::OperatorWrite])
-            .unwrap();
+        mgr.issue(
+            "Phone".into(),
+            "d1".into(),
+            vec![Scope::OperatorRead, Scope::OperatorWrite],
+        )
+        .unwrap();
         mgr.issue("Tablet".into(), "d2".into(), vec![Scope::OperatorAdmin])
             .unwrap();
 
@@ -316,9 +328,7 @@ mod tests {
     #[test]
     fn test_token_hash_not_exposed() {
         let mut mgr = test_manager();
-        let _token = mgr
-            .issue("Phone".into(), "d1".into(), vec![])
-            .unwrap();
+        let _token = mgr.issue("Phone".into(), "d1".into(), vec![]).unwrap();
 
         let list = mgr.list();
         // The list should not contain any token hashes

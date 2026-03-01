@@ -7,15 +7,15 @@
 //!
 //! Note: These tests use reqwest for HTTP requests to the gateway.
 
-use aisopod_config::types::{AuthConfig, AuthMode, TokenCredential, PasswordCredential};
+use aisopod_config::types::{AuthConfig, AuthMode, PasswordCredential, TokenCredential};
 use aisopod_gateway::server::build_app;
 use axum::Router;
 use serde_json::json;
 use std::net::{SocketAddr, TcpListener};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::oneshot;
 use tokio::net::TcpStream;
+use tokio::sync::oneshot;
 
 // ============================================================================
 // Test Helper Functions
@@ -77,7 +77,7 @@ async fn start_test_server_with_auth(config: AuthConfig) -> TestServer {
                 shutdown_rx_server.await.ok();
             })
             .await;
-        
+
         // Log any server errors
         if let Err(e) = result {
             eprintln!("Server task error: {:?}", e);
@@ -87,7 +87,7 @@ async fn start_test_server_with_auth(config: AuthConfig) -> TestServer {
     // Wait for server to be ready by attempting to connect with retries
     let max_retries = 50;
     let retry_delay = Duration::from_millis(100);
-    
+
     for attempt in 0..max_retries {
         match TcpStream::connect(&addr).await {
             Ok(_) => {
@@ -97,7 +97,10 @@ async fn start_test_server_with_auth(config: AuthConfig) -> TestServer {
             }
             Err(_) => {
                 if attempt == max_retries - 1 {
-                    panic!("Server failed to become ready after {} attempts", max_retries);
+                    panic!(
+                        "Server failed to become ready after {} attempts",
+                        max_retries
+                    );
                 }
                 tokio::time::sleep(retry_delay).await;
             }
@@ -105,15 +108,14 @@ async fn start_test_server_with_auth(config: AuthConfig) -> TestServer {
     }
 
     // Return the server guard which holds the shutdown channel
-    TestServer { addr, _shutdown_tx: shutdown_tx }
+    TestServer {
+        addr,
+        _shutdown_tx: shutdown_tx,
+    }
 }
 
 /// Test server builder with token authentication
-async fn build_test_server_with_token(
-    token: &str,
-    role: &str,
-    scopes: Vec<&str>,
-) -> TestServer {
+async fn build_test_server_with_token(token: &str, role: &str, scopes: Vec<&str>) -> TestServer {
     let config = AuthConfig {
         gateway_mode: AuthMode::Token,
         tokens: vec![TokenCredential {
@@ -164,7 +166,8 @@ async fn build_test_server_no_auth() -> TestServer {
 
 #[tokio::test]
 async fn test_unauthenticated_request_rejected() {
-    let server = build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
+    let server =
+        build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
     let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
@@ -183,14 +186,18 @@ async fn test_unauthenticated_request_rejected() {
 
     assert_eq!(response.status(), 401);
 
-    let body = response.json::<serde_json::Value>().await.expect("Failed to parse body");
+    let body = response
+        .json::<serde_json::Value>()
+        .await
+        .expect("Failed to parse body");
     assert!(body["error"].is_object());
     assert_eq!(body["error"]["code"], -32603);
 }
 
 #[tokio::test]
 async fn test_authenticated_request_accepted() {
-    let server = build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
+    let server =
+        build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
     let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
@@ -209,14 +216,19 @@ async fn test_authenticated_request_accepted() {
 
     assert_eq!(response.status(), 200);
 
-    let body = response.json::<serde_json::Value>().await.expect("Failed to parse body");
+    let body = response
+        .json::<serde_json::Value>()
+        .await
+        .expect("Failed to parse body");
     assert!(body["result"].is_object());
     assert_eq!(body["result"]["status"], "ok");
 }
 
 #[tokio::test]
 async fn test_authenticated_password_request_accepted() {
-    let server = build_test_server_with_password("admin", "password123", "operator", vec!["operator.read"]).await;
+    let server =
+        build_test_server_with_password("admin", "password123", "operator", vec!["operator.read"])
+            .await;
     let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
@@ -236,13 +248,17 @@ async fn test_authenticated_password_request_accepted() {
 
     assert_eq!(response.status(), 200);
 
-    let body = response.json::<serde_json::Value>().await.expect("Failed to parse body");
+    let body = response
+        .json::<serde_json::Value>()
+        .await
+        .expect("Failed to parse body");
     assert!(body["result"].is_object());
 }
 
 #[tokio::test]
 async fn test_insufficient_scope_rejected() {
-    let server = build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
+    let server =
+        build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
     let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
@@ -261,7 +277,10 @@ async fn test_insufficient_scope_rejected() {
 
     assert_eq!(response.status(), 200);
 
-    let body = response.json::<serde_json::Value>().await.expect("Failed to parse body");
+    let body = response
+        .json::<serde_json::Value>()
+        .await
+        .expect("Failed to parse body");
     assert!(body["error"].is_object());
     assert!(body["error"]["message"]
         .as_str()
@@ -291,7 +310,10 @@ async fn test_admin_scope_allows_all() {
 
     assert_eq!(response.status(), 200);
 
-    let body = response.json::<serde_json::Value>().await.expect("Failed to parse body");
+    let body = response
+        .json::<serde_json::Value>()
+        .await
+        .expect("Failed to parse body");
     // Admin should be able to access the method (though it may not be implemented)
     // The important thing is that scope check passed
     assert!(body["result"].is_object() || body["error"].is_null());
@@ -317,7 +339,10 @@ async fn test_no_auth_mode_allows_all() {
 
     assert_eq!(response.status(), 200);
 
-    let body = response.json::<serde_json::Value>().await.expect("Failed to parse body");
+    let body = response
+        .json::<serde_json::Value>()
+        .await
+        .expect("Failed to parse body");
     assert!(body["result"].is_object());
 }
 
@@ -404,13 +429,17 @@ async fn test_health_endpoint_always_allowed() {
 
     assert_eq!(response.status(), 200);
 
-    let body = response.json::<serde_json::Value>().await.expect("Failed to parse body");
+    let body = response
+        .json::<serde_json::Value>()
+        .await
+        .expect("Failed to parse body");
     assert_eq!(body["status"], "ok");
 }
 
 #[tokio::test]
 async fn test_read_method_requires_read_scope() {
-    let server = build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
+    let server =
+        build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
     let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
@@ -429,13 +458,17 @@ async fn test_read_method_requires_read_scope() {
 
     assert_eq!(response.status(), 200);
 
-    let body = response.json::<serde_json::Value>().await.expect("Failed to parse body");
+    let body = response
+        .json::<serde_json::Value>()
+        .await
+        .expect("Failed to parse body");
     assert!(body["result"].is_object());
 }
 
 #[tokio::test]
 async fn test_write_method_requires_write_scope() {
-    let server = build_test_server_with_token("test-token", "operator", vec!["operator.write"]).await;
+    let server =
+        build_test_server_with_token("test-token", "operator", vec!["operator.write"]).await;
     let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
@@ -454,14 +487,18 @@ async fn test_write_method_requires_write_scope() {
 
     assert_eq!(response.status(), 200);
 
-    let body = response.json::<serde_json::Value>().await.expect("Failed to parse body");
+    let body = response
+        .json::<serde_json::Value>()
+        .await
+        .expect("Failed to parse body");
     // Should succeed because write scope allows write methods
     assert!(body["result"].is_object());
 }
 
 #[tokio::test]
 async fn test_insufficient_scope_for_write_method() {
-    let server = build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
+    let server =
+        build_test_server_with_token("test-token", "operator", vec!["operator.read"]).await;
     let addr = server.addr();
 
     let url = format!("http://{}/rpc", addr);
@@ -480,7 +517,10 @@ async fn test_insufficient_scope_for_write_method() {
 
     assert_eq!(response.status(), 200);
 
-    let body = response.json::<serde_json::Value>().await.expect("Failed to parse body");
+    let body = response
+        .json::<serde_json::Value>()
+        .await
+        .expect("Failed to parse body");
     assert!(body["error"].is_object());
     assert!(body["error"]["message"]
         .as_str()

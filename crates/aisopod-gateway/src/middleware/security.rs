@@ -30,7 +30,9 @@ impl SecretString {
 
 impl fmt::Debug for SecretString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("SecretString").field(&format_args!("[redacted]")).finish()
+        f.debug_tuple("SecretString")
+            .field(&format_args!("[redacted]"))
+            .finish()
     }
 }
 
@@ -60,10 +62,10 @@ impl PartialEq for SecretString {
 pub fn sanitize_input(input: &str) -> String {
     // Remove null bytes which can cause issues
     let sanitized = input.replace('\0', "");
-    
+
     // Normalize line endings (CRLF -> LF)
     let sanitized = sanitized.replace("\r\n", "\n").replace('\r', "\n");
-    
+
     // Trim leading/trailing whitespace
     sanitized.trim().to_string()
 }
@@ -78,47 +80,82 @@ pub fn sanitize_input(input: &str) -> String {
 /// Returns `Ok(())` if the input appears safe, `Err(reason)` otherwise.
 pub fn validate_no_injection(input: &str) -> Result<(), String> {
     let normalized = input.to_lowercase();
-    
+
     // SQL injection patterns
     let sql_patterns = [
-        "select", "union", "insert", "update", "delete", "drop", "alter",
-        "truncate", "exec", "execute", "xp_", "sp_", "1=1", "1=1--", "' or '",
-        "' or 1=1", "' or ''=", "'; --", "--", "/*", "*/", "benchmark",
-        "sleep", "waitfor", "having", "group by", "into", "load_file",
-        "outfile", "dumpfile", "subselect", "concat",
+        "select",
+        "union",
+        "insert",
+        "update",
+        "delete",
+        "drop",
+        "alter",
+        "truncate",
+        "exec",
+        "execute",
+        "xp_",
+        "sp_",
+        "1=1",
+        "1=1--",
+        "' or '",
+        "' or 1=1",
+        "' or ''=",
+        "'; --",
+        "--",
+        "/*",
+        "*/",
+        "benchmark",
+        "sleep",
+        "waitfor",
+        "having",
+        "group by",
+        "into",
+        "load_file",
+        "outfile",
+        "dumpfile",
+        "subselect",
+        "concat",
     ];
-    
+
     for pattern in sql_patterns {
         if normalized.contains(pattern) {
             return Err(format!("Potential SQL injection detected: '{}'", pattern));
         }
     }
-    
+
     // XSS patterns (basic) - check BEFORE command injection to catch script tags first
-    let xss_patterns = ["<script", "</script>", "javascript:", "onerror=", "onload=", "onclick="];
-    
+    let xss_patterns = [
+        "<script",
+        "</script>",
+        "javascript:",
+        "onerror=",
+        "onload=",
+        "onclick=",
+    ];
+
     for pattern in xss_patterns {
         if normalized.contains(pattern) {
             return Err(format!("Potential XSS injection detected: '{}'", pattern));
         }
     }
-    
+
     // Command injection patterns
     let cmd_patterns = [
-        "|", ";", "&", "$", "`", "$( ", "$(.", ">", "<", ">>", "<<",
-        "| cat", "; cat", "& cat", "| ls", "; ls", "& ls",
-        "| rm", "; rm", "& rm", "| wget", "; wget", "& wget",
-        "| curl", "; curl", "& curl", "| nc", "; nc", "& nc",
-        "| netcat", "; netcat", "& netcat", "| /bin/", "; /bin/", "& /bin/",
-        "| /sh", "; /sh", "& /sh", "| sh", "; sh", "& sh",
+        "|", ";", "&", "$", "`", "$( ", "$(.", ">", "<", ">>", "<<", "| cat", "; cat", "& cat",
+        "| ls", "; ls", "& ls", "| rm", "; rm", "& rm", "| wget", "; wget", "& wget", "| curl",
+        "; curl", "& curl", "| nc", "; nc", "& nc", "| netcat", "; netcat", "& netcat", "| /bin/",
+        "; /bin/", "& /bin/", "| /sh", "; /sh", "& /sh", "| sh", "; sh", "& sh",
     ];
-    
+
     for pattern in cmd_patterns {
         if normalized.contains(pattern) {
-            return Err(format!("Potential command injection detected: '{}'", pattern));
+            return Err(format!(
+                "Potential command injection detected: '{}'",
+                pattern
+            ));
         }
     }
-    
+
     Ok(())
 }
 
@@ -136,9 +173,9 @@ pub struct RequestSizeLimits {
 impl Default for RequestSizeLimits {
     fn default() -> Self {
         Self {
-            max_body_size: 10 * 1024 * 1024,      // 10MB default
-            max_headers_size: 8192,                // 8KB default
-            max_headers_count: 100,                // 100 headers default
+            max_body_size: 10 * 1024 * 1024, // 10MB default
+            max_headers_size: 8192,          // 8KB default
+            max_headers_count: 100,          // 100 headers default
         }
     }
 }
@@ -152,7 +189,7 @@ impl RequestSizeLimits {
             max_headers_count,
         }
     }
-    
+
     /// Check if a request body size is within limits
     pub fn check_body_size(&self, size: usize) -> Result<(), String> {
         if size > self.max_body_size {
@@ -164,7 +201,7 @@ impl RequestSizeLimits {
             Ok(())
         }
     }
-    
+
     /// Check if a headers size is within limits
     pub fn check_headers_size(&self, size: usize) -> Result<(), String> {
         if size > self.max_headers_size {
@@ -176,7 +213,7 @@ impl RequestSizeLimits {
             Ok(())
         }
     }
-    
+
     /// Check if headers count is within limits
     pub fn check_headers_count(&self, count: usize) -> Result<(), String> {
         if count > self.max_headers_count {
@@ -213,7 +250,7 @@ mod tests {
         let secret1 = SecretString::new("same".to_string());
         let secret2 = SecretString::new("same".to_string());
         let secret3 = SecretString::new("different".to_string());
-        
+
         assert!(secret1 == secret2);
         assert!(secret1 != secret3);
     }
@@ -351,7 +388,7 @@ mod tests {
     #[test]
     fn test_request_size_limits_check_body() {
         let limits = RequestSizeLimits::new(100, 50, 10);
-        
+
         assert!(limits.check_body_size(50).is_ok());
         assert!(limits.check_body_size(100).is_ok());
         assert!(limits.check_body_size(101).is_err());
@@ -360,7 +397,7 @@ mod tests {
     #[test]
     fn test_request_size_limits_check_headers_size() {
         let limits = RequestSizeLimits::new(1000, 100, 10);
-        
+
         assert!(limits.check_headers_size(50).is_ok());
         assert!(limits.check_headers_size(100).is_ok());
         assert!(limits.check_headers_size(101).is_err());
@@ -369,7 +406,7 @@ mod tests {
     #[test]
     fn test_request_size_limits_check_headers_count() {
         let limits = RequestSizeLimits::new(1000, 1000, 5);
-        
+
         assert!(limits.check_headers_count(3).is_ok());
         assert!(limits.check_headers_count(5).is_ok());
         assert!(limits.check_headers_count(6).is_err());

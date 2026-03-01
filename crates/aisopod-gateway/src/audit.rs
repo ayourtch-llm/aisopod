@@ -56,12 +56,7 @@ pub fn log_auth_failure(client_ip: &str, auth_mode: &str, reason: &str) {
 /// * `required_scope` - The scope required to access the method
 /// * `granted` - Whether access was granted
 /// * `client_ip` - The IP address of the client making the request
-pub fn log_authz_decision(
-    method: &str,
-    required_scope: &str,
-    granted: bool,
-    client_ip: &str,
-) {
+pub fn log_authz_decision(method: &str, required_scope: &str, granted: bool, client_ip: &str) {
     if granted {
         info!(
             target: "audit",
@@ -93,12 +88,7 @@ pub fn log_authz_decision(
 /// * `agent_id` - The ID of the agent executing the tool
 /// * `sandboxed` - Whether the tool runs in a sandbox
 /// * `session_key` - The session key for correlation
-pub fn log_tool_execution(
-    tool_name: &str,
-    agent_id: &str,
-    sandboxed: bool,
-    session_key: &str,
-) {
+pub fn log_tool_execution(tool_name: &str, agent_id: &str, sandboxed: bool, session_key: &str) {
     info!(
         target: "audit",
         event = "tool_execution",

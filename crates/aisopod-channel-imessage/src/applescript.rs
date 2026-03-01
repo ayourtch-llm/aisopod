@@ -119,12 +119,7 @@ impl ApplescriptBackend {
     ///
     /// # Returns
     /// AppleScript code as a string
-    pub fn create_send_script(
-        &self,
-        to: &str,
-        text: &str,
-        group_id: Option<&str>,
-    ) -> String {
+    pub fn create_send_script(&self, to: &str, text: &str, group_id: Option<&str>) -> String {
         // Escape special characters in strings
         let escaped_to = to.replace('\\', "\\\\").replace('"', "\\\"");
         let escaped_text = text.replace('\\', "\\\\").replace('"', "\\\"");
@@ -247,7 +242,8 @@ impl ApplescriptBackend {
             end repeat
             return groupList as JSON
         end tell
-        "#.to_string()
+        "#
+        .to_string()
     }
 
     /// Creates AppleScript code to get sender information.
@@ -259,7 +255,7 @@ impl ApplescriptBackend {
     /// AppleScript code as a string
     pub fn create_get_sender_script(&self, chat_id: &str) -> String {
         let escaped_id = chat_id.replace('\\', "\\\\").replace('"', "\\\"");
-        
+
         format!(
             r#"
             tell application "Messages"
@@ -322,19 +318,19 @@ impl Default for ApplescriptBackend {
 pub trait AppleScriptBackendImpl: Send + Sync {
     /// Connect to Messages.app
     async fn connect(&mut self) -> ImessageResult<()>;
-    
+
     /// Disconnect from Messages.app
     async fn disconnect(&mut self) -> ImessageResult<()>;
-    
+
     /// Check if connected
     fn is_connected(&self) -> bool;
-    
+
     /// Send a text message
     async fn send_text(&self, to: &str, text: &str) -> ImessageResult<String>;
-    
+
     /// Send a text message to a group
     async fn send_text_to_group(&self, group_id: &str, text: &str) -> ImessageResult<String>;
-    
+
     /// Send media
     async fn send_media(
         &self,
@@ -342,7 +338,7 @@ pub trait AppleScriptBackendImpl: Send + Sync {
         media_path: &str,
         mime_type: &str,
     ) -> ImessageResult<String>;
-    
+
     /// Send media to a group
     async fn send_media_to_group(
         &self,
@@ -520,7 +516,8 @@ impl ApplescriptBackend {
         media_path: &str,
         mime_type: &str,
     ) -> ImessageResult<String> {
-        <Self as AppleScriptBackendImpl>::send_media_to_group(self, group_id, media_path, mime_type).await
+        <Self as AppleScriptBackendImpl>::send_media_to_group(self, group_id, media_path, mime_type)
+            .await
     }
 
     /// Extracts a message ID from the AppleScript output.
@@ -530,7 +527,7 @@ impl ApplescriptBackend {
         // AppleScript output may contain message IDs in various formats
         // Try to extract common patterns
         let output = output.trim();
-        
+
         // Look for UUID-like patterns
         let pattern = r"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}";
         if let Ok(re) = regex::Regex::new(pattern) {
@@ -540,7 +537,7 @@ impl ApplescriptBackend {
         } else if !output.is_empty() {
             return Some(output.to_string());
         }
-        
+
         None
     }
 }
@@ -553,7 +550,7 @@ mod tests {
     fn test_create_send_script_dm() {
         let backend = ApplescriptBackend::new();
         let script = backend.create_send_script("+1234567890", "Hello", None);
-        
+
         assert!(script.contains("tell application \"Messages\""));
         assert!(script.contains("+1234567890"));
         assert!(script.contains("Hello"));
@@ -563,7 +560,7 @@ mod tests {
     fn test_create_send_script_group() {
         let backend = ApplescriptBackend::new();
         let script = backend.create_send_script("chat123", "Hello", Some("chat123"));
-        
+
         assert!(script.contains("tell application \"Messages\""));
         assert!(script.contains("chat id \"chat123\""));
         assert!(script.contains("Hello"));
@@ -573,7 +570,7 @@ mod tests {
     fn test_create_send_media_script() {
         let backend = ApplescriptBackend::new();
         let script = backend.create_send_media_script("+1234567890", "/path/to/image.jpg", None);
-        
+
         assert!(script.contains("POSIX file"));
         assert!(script.contains("/path/to/image.jpg"));
     }
@@ -582,7 +579,7 @@ mod tests {
     fn test_create_get_group_chats_script() {
         let backend = ApplescriptBackend::new();
         let script = backend.create_get_group_chats_script();
-        
+
         assert!(script.contains("tell application \"Messages\""));
         assert!(script.contains("chats"));
     }
@@ -590,7 +587,7 @@ mod tests {
     #[test]
     fn test_default_backend() {
         let backend = ApplescriptBackend::new();
-        
+
         assert!(!backend.is_connected());
     }
 
@@ -601,9 +598,9 @@ mod tests {
             verbose: true,
             ..Default::default()
         };
-        
+
         let backend = ApplescriptBackend::with_config(config);
-        
+
         assert_eq!(backend.config.timeout_seconds, 60);
         assert!(backend.config.verbose);
     }
@@ -612,10 +609,10 @@ mod tests {
     fn test_is_macos_detection() {
         // This test verifies the platform detection compiles
         let result = is_macos();
-        
+
         #[cfg(target_os = "macos")]
         assert!(result, "Should be macOS");
-        
+
         #[cfg(not(target_os = "macos"))]
         assert!(!result, "Should not be macOS");
     }

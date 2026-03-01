@@ -5,11 +5,11 @@
 
 use crate::events::NostrEvent;
 use anyhow::{anyhow, Result};
-use futures::{stream::StreamExt, TryStreamExt, SinkExt};
+use futures::{stream::StreamExt, SinkExt, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::sync::Mutex;
-use tokio_tungstenite::{connect_async, tungstenite::Message, WebSocketStream, MaybeTlsStream};
+use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use tracing::{debug, error, info, warn};
 
 /// A relay connection with its WebSocket.
@@ -63,24 +63,24 @@ impl RelayPool {
     /// * `Err(anyhow::Error)` - An error if any connection fails
     pub async fn connect(urls: &[String]) -> Result<Self> {
         let mut pool = Self::new();
-        
+
         for url in urls {
             let (ws, _) = connect_async(url)
                 .await
                 .map_err(|e| anyhow!("Failed to connect to relay {}: {}", url, e))?;
-            
+
             let connection = RelayConnection {
                 url: url.clone(),
-                ws: Some(ws),  // WebSocketStream<MaybeTlsStream<TcpStream>>
+                ws: Some(ws), // WebSocketStream<MaybeTlsStream<TcpStream>>
             };
-            
+
             let index = pool.relays.len();
             pool.url_to_index.insert(url.clone(), index);
             pool.relays.push(connection);
-            
+
             info!("Connected to relay: {}", url);
         }
-        
+
         Ok(pool)
     }
 
@@ -105,12 +105,12 @@ impl RelayPool {
     pub async fn publish(&mut self, event: &NostrEvent) -> Result<()> {
         let event_json = event.to_json_value();
         let msg = serde_json::json!(["EVENT", event_json]);
-        let msg_str = serde_json::to_string(&msg)
-            .map_err(|e| anyhow!("Failed to serialize event: {}", e))?;
-        
+        let msg_str =
+            serde_json::to_string(&msg).map_err(|e| anyhow!("Failed to serialize event: {}", e))?;
+
         let mut success = false;
         let msg = Message::text(msg_str);
-        
+
         for relay in &mut self.relays {
             if let Some(ref mut ws) = relay.ws {
                 if ws.send(msg.clone()).await.is_ok() {
@@ -121,7 +121,7 @@ impl RelayPool {
                 }
             }
         }
-        
+
         if success {
             Ok(())
         } else {
@@ -142,9 +142,9 @@ impl RelayPool {
         let msg = serde_json::json!(["REQ", sub_id, filters]);
         let msg_str = serde_json::to_string(&msg)
             .map_err(|e| anyhow!("Failed to serialize subscription: {}", e))?;
-        
+
         let msg = Message::text(msg_str);
-        
+
         for relay in &mut self.relays {
             if let Some(ref mut ws) = relay.ws {
                 if ws.send(msg.clone()).await.is_err() {
@@ -154,7 +154,7 @@ impl RelayPool {
                 }
             }
         }
-        
+
         Ok(())
     }
 
@@ -166,16 +166,15 @@ impl RelayPool {
     pub async fn next_event(&mut self) -> Result<Option<NostrEvent>> {
         for relay in &mut self.relays {
             if let Some(ref mut ws) = relay.ws {
-                match tokio::time::timeout(
-                    std::time::Duration::from_millis(100),
-                    ws.next()
-                ).await {
+                match tokio::time::timeout(std::time::Duration::from_millis(100), ws.next()).await {
                     Ok(Some(Ok(msg))) => {
                         if let Message::Text(text) = msg {
-                            if let Ok(json) = serde_json::from_str::<Vec<serde_json::Value>>(&text) {
+                            if let Ok(json) = serde_json::from_str::<Vec<serde_json::Value>>(&text)
+                            {
                                 if json[0] == "EVENT" && json.len() >= 3 {
                                     // ["EVENT", sub_id, event]
-                                    if let Ok(event) = NostrEvent::from_json_value(json[2].clone()) {
+                                    if let Ok(event) = NostrEvent::from_json_value(json[2].clone())
+                                    {
                                         debug!("Received event from relay: {}", relay.url);
                                         return Ok(Some(event));
                                     }
@@ -195,7 +194,7 @@ impl RelayPool {
                 }
             }
         }
-        
+
         Ok(None)
     }
 

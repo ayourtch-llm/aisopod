@@ -11,7 +11,9 @@ use std::fs;
 use std::sync::{Arc, Mutex};
 use tracing::{debug, error, info};
 
-use crate::config::{OAuth2Config as OAuth2ConfigType, ServiceAccountConfig as ServiceAccountConfigType};
+use crate::config::{
+    OAuth2Config as OAuth2ConfigType, ServiceAccountConfig as ServiceAccountConfigType,
+};
 
 /// Authentication token for Google Chat API access.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,11 +97,14 @@ impl GoogleChatAuth for OAuth2Auth {
         self.refresh_token(&GoogleChatAuthToken {
             refresh_token: Some(self.config.refresh_token.clone()),
             ..Default::default()
-        }).await
+        })
+        .await
     }
 
     async fn refresh_token(&self, token: &GoogleChatAuthToken) -> Result<GoogleChatAuthToken> {
-        let refresh_token = token.refresh_token.as_ref()
+        let refresh_token = token
+            .refresh_token
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("No refresh token available"))?;
 
         // Prepare the token refresh request
@@ -250,8 +255,8 @@ impl GoogleChatAuth for ServiceAccountAuth {
 impl ServiceAccountAuth {
     /// Generate a JWT token for service account authentication.
     async fn generate_jwt_token(&self) -> Result<GoogleChatAuthToken> {
-        use jsonwebtoken::{encode, EncodingKey, Header};
         use jsonwebtoken::Algorithm::RS256;
+        use jsonwebtoken::{encode, EncodingKey, Header};
 
         // Create the JWT claims
         let now = Utc::now().timestamp();
@@ -308,11 +313,11 @@ impl ServiceAccountAuth {
 /// JWT claims for service account authentication.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct JwtClaims {
-    iss: String,      // Issuer
-    scope: String,    // Scopes
-    aud: String,      // Audience
-    iat: i64,         // Issued at
-    exp: i64,         // Expiration time
+    iss: String,   // Issuer
+    scope: String, // Scopes
+    aud: String,   // Audience
+    iat: i64,      // Issued at
+    exp: i64,      // Expiration time
 }
 
 /// Token response from Google OAuth 2.0 endpoint.

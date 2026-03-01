@@ -78,16 +78,19 @@ mod nip04;
 mod relay;
 
 // Re-export common types
-pub use crate::channel::{NostrAccount, NostrChannel, register};
+pub use crate::channel::{register, NostrAccount, NostrChannel};
 pub use crate::config::NostrConfig;
+pub use crate::events::{EventError, NostrEvent};
 pub use crate::keys::NostrKeys;
-pub use crate::events::{NostrEvent, EventError};
-pub use crate::relay::{RelayPool, RelayConnection};
+pub use crate::relay::{RelayConnection, RelayPool};
 
 // Re-export types from aisopod-channel for convenience
-pub use aisopod_channel::message::{IncomingMessage, OutgoingMessage, MessageTarget, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo};
-pub use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+pub use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, OutgoingMessage, PeerInfo,
+    PeerKind, SenderInfo,
+};
 pub use aisopod_channel::plugin::ChannelPlugin;
+pub use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 pub use aisopod_channel::ChannelRegistry;
 
 /// Result type for Nostr channel operations.
@@ -105,7 +108,7 @@ mod tests {
             enable_dms: true,
             channels: vec![],
         };
-        
+
         assert!(config.enable_dms);
         assert_eq!(config.relays.len(), 1);
     }
@@ -118,7 +121,7 @@ mod tests {
             enable_dms: true,
             channels: vec![],
         };
-        
+
         assert!(config.validate().is_err());
     }
 
@@ -130,7 +133,7 @@ mod tests {
             enable_dms: true,
             channels: vec![],
         };
-        
+
         assert!(config.validate().is_err());
     }
 
@@ -142,7 +145,7 @@ mod tests {
             enable_dms: true,
             channels: vec![],
         };
-        
+
         assert!(config.validate().is_err());
     }
 }

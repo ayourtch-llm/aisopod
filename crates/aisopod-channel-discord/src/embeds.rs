@@ -61,7 +61,7 @@ pub struct EmbedBuilder {
     image: Option<String>,
     thumbnail: Option<String>,
     author: Option<(String, Option<String>, Option<String>)>, // (name, url, icon_url)
-    fields: Vec<(String, String, bool)>, // (name, value, inline)
+    fields: Vec<(String, String, bool)>,                      // (name, value, inline)
 }
 
 impl EmbedBuilder {
@@ -78,7 +78,10 @@ impl EmbedBuilder {
 
     /// Set the embed description.
     pub fn description(mut self, description: &str) -> Self {
-        self.description = Some(limit_string(description.to_string(), MAX_DESCRIPTION_LENGTH));
+        self.description = Some(limit_string(
+            description.to_string(),
+            MAX_DESCRIPTION_LENGTH,
+        ));
         self
     }
 
@@ -140,11 +143,11 @@ impl EmbedBuilder {
     pub fn field(mut self, name: &str, value: &str, inline: bool) -> Self {
         let limited_name = limit_string(name.to_string(), MAX_FIELD_NAME_LENGTH);
         let limited_value = limit_string(value.to_string(), MAX_FIELD_VALUE_LENGTH);
-        
+
         if self.fields.len() < MAX_FIELDS {
             self.fields.push((limited_name, limited_value, inline));
         }
-        
+
         self
     }
 
@@ -439,9 +442,7 @@ mod tests {
 
     #[test]
     fn test_embed_builder_with_color() {
-        let builder = EmbedBuilder::new()
-            .title("Test")
-            .color(colors::RED);
+        let builder = EmbedBuilder::new().title("Test").color(colors::RED);
 
         assert_eq!(builder.color, Some(colors::RED));
     }
@@ -449,14 +450,11 @@ mod tests {
     #[test]
     fn test_embed_builder_with_timestamp() {
         // Use from_timestamp which is the appropriate method for v0.12
-        let timestamp = chrono::DateTime::<chrono::Utc>::from_timestamp(
-            chrono::Utc::now().timestamp(),
-            0,
-        ).unwrap();
-        
-        let builder = EmbedBuilder::new()
-            .title("Test")
-            .timestamp(timestamp);
+        let timestamp =
+            chrono::DateTime::<chrono::Utc>::from_timestamp(chrono::Utc::now().timestamp(), 0)
+                .unwrap();
+
+        let builder = EmbedBuilder::new().title("Test").timestamp(timestamp);
 
         assert!(builder.timestamp.is_some());
     }
@@ -492,9 +490,11 @@ mod tests {
 
     #[test]
     fn test_embed_builder_with_author() {
-        let builder = EmbedBuilder::new()
-            .title("Test")
-            .author("Author Name", Some("https://example.com"), Some("https://example.com/icon.png"));
+        let builder = EmbedBuilder::new().title("Test").author(
+            "Author Name",
+            Some("https://example.com"),
+            Some("https://example.com/icon.png"),
+        );
 
         assert!(builder.author.is_some());
         let (name, _, _) = builder.author.unwrap();
@@ -516,7 +516,7 @@ mod tests {
     #[test]
     fn test_embed_builder_field_limit() {
         let mut builder = EmbedBuilder::new().title("Test");
-        
+
         // Try to add more fields than the limit
         for i in 0..MAX_FIELDS + 10 {
             builder = builder.field(&format!("Field {}", i), "Value", false);
@@ -528,8 +528,7 @@ mod tests {
     #[test]
     fn test_embed_builder_title_limit() {
         let long_title = "a".repeat(MAX_TITLE_LENGTH + 100);
-        let builder = EmbedBuilder::new()
-            .title(&long_title);
+        let builder = EmbedBuilder::new().title(&long_title);
 
         // The builder truncates the title internally, verify via the builder field
         assert!(builder.title.unwrap_or_default().len() <= MAX_TITLE_LENGTH);
@@ -538,8 +537,7 @@ mod tests {
     #[test]
     fn test_embed_builder_description_limit() {
         let long_desc = "a".repeat(MAX_DESCRIPTION_LENGTH + 100);
-        let builder = EmbedBuilder::new()
-            .description(&long_desc);
+        let builder = EmbedBuilder::new().description(&long_desc);
 
         // The builder truncates the description internally, verify via the builder field
         assert!(builder.description.unwrap_or_default().len() <= MAX_DESCRIPTION_LENGTH);
@@ -555,15 +553,19 @@ mod tests {
         let builder = EmbedBuilder::new()
             .title("Tool Result")
             .description("The tool executed successfully");
-        
-        let builder = if true { // Simulate the function's behavior
+
+        let builder = if true {
+            // Simulate the function's behavior
             builder.fields_from_map(&fields)
         } else {
             builder
         };
 
         assert_eq!(builder.title, Some("Tool Result".to_string()));
-        assert_eq!(builder.description, Some("The tool executed successfully".to_string()));
+        assert_eq!(
+            builder.description,
+            Some("The tool executed successfully".to_string())
+        );
         assert_eq!(builder.fields.len(), 1);
     }
 
@@ -576,7 +578,10 @@ mod tests {
 
         assert_eq!(builder.title, Some("Error".to_string()));
         assert_eq!(builder.color, Some(colors::RED));
-        assert_eq!(builder.description, Some("Something went wrong".to_string()));
+        assert_eq!(
+            builder.description,
+            Some("Something went wrong".to_string())
+        );
     }
 
     #[test]

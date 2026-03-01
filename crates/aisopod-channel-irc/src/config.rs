@@ -81,7 +81,7 @@ mod tests {
         let json = serde_json::to_string(&config).unwrap();
         assert!(json.contains("irc.example.com"));
         assert!(json.contains("testbot"));
-        
+
         let deserialized: IrcServerConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.server, config.server);
         assert_eq!(deserialized.nickname, config.nickname);

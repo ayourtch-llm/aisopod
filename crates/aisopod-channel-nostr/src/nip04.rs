@@ -5,10 +5,10 @@
 //! Elliptic Curve Diffie-Hellman (ECDH) key exchange.
 
 use aes::Aes256;
-use cipher::{BlockDecrypt, BlockEncrypt, KeyInit};
 use cipher::generic_array::GenericArray;
+use cipher::{BlockDecrypt, BlockEncrypt, KeyInit};
 use rand::Rng;
-use secp256k1::{PublicKey, SecretKey, Secp256k1, All, ecdh::SharedSecret};
+use secp256k1::{ecdh::SharedSecret, All, PublicKey, Secp256k1, SecretKey};
 
 /// Error types for NIP-04 operations.
 #[derive(Debug, thiserror::Error)]
@@ -57,7 +57,7 @@ pub fn encrypt(
 
     // Encrypt using AES-256-CBC - convert to GenericArray
     let cipher = Aes256::new(GenericArray::from_slice(aes_key));
-    
+
     // Pad plaintext to multiple of 16 bytes (PKCS#7)
     let padded_len = ((plaintext.len() + 15) / 16) * 16;
     let mut padded = vec![0u8; padded_len];
@@ -70,19 +70,19 @@ pub fn encrypt(
     // Encrypt each block
     let mut ciphertext = vec![0u8; padded.len()];
     let mut prev_block = iv.clone();
-    
+
     for (i, block) in padded.chunks(16).enumerate() {
         let mut block_array = [0u8; 16];
         block_array.copy_from_slice(block);
-        
+
         // XOR with previous ciphertext block (or IV)
         for j in 0..16 {
             block_array[j] ^= prev_block[j];
         }
-        
+
         // Encrypt
         cipher.encrypt_block(&mut block_array.into());
-        
+
         ciphertext[i * 16..(i + 1) * 16].copy_from_slice(&block_array);
         prev_block.copy_from_slice(&block_array);
     }
@@ -118,15 +118,12 @@ pub fn decrypt(
         .split_once("?iv=")
         .ok_or_else(|| Nip04Error::InvalidBase64("Missing ?iv= separator".to_string()))?;
 
-    let ciphertext = base64::decode(ciphertext_b64)
-        .map_err(|e| Nip04Error::InvalidBase64(e.to_string()))?;
-    let iv = base64::decode(iv_b64)
-        .map_err(|e| Nip04Error::InvalidBase64(e.to_string()))?;
+    let ciphertext =
+        base64::decode(ciphertext_b64).map_err(|e| Nip04Error::InvalidBase64(e.to_string()))?;
+    let iv = base64::decode(iv_b64).map_err(|e| Nip04Error::InvalidBase64(e.to_string()))?;
 
     if iv.len() != 16 {
-        return Err(Nip04Error::InvalidBase64(
-            "IV must be 16 bytes".to_string(),
-        ));
+        return Err(Nip04Error::InvalidBase64("IV must be 16 bytes".to_string()));
     }
 
     // Parse sender public key
@@ -141,7 +138,7 @@ pub fn decrypt(
 
     // Decrypt using AES-256-CBC - convert to GenericArray
     let cipher = Aes256::new(GenericArray::from_slice(aes_key));
-    
+
     if ciphertext.is_empty() || ciphertext.len() % 16 != 0 {
         return Err(Nip04Error::AesError(
             "Invalid ciphertext length".to_string(),
@@ -169,16 +166,12 @@ pub fn decrypt(
     // Remove PKCS#7 padding
     let pad_len = plaintext[plaintext.len() - 1] as usize;
     if pad_len == 0 || pad_len > 16 || pad_len > plaintext.len() {
-        return Err(Nip04Error::AesError(
-            "Invalid padding".to_string(),
-        ));
+        return Err(Nip04Error::AesError("Invalid padding".to_string()));
     }
 
     for i in 0..pad_len {
         if plaintext[plaintext.len() - 1 - i] != pad_len as u8 {
-            return Err(Nip04Error::AesError(
-                "Invalid padding".to_string(),
-            ));
+            return Err(Nip04Error::AesError("Invalid padding".to_string()));
         }
     }
 

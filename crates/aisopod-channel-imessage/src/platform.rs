@@ -50,7 +50,7 @@ pub fn check_platform_support(config: &ImessageAccountConfig) -> ImessageResult<
                     "AppleScript backend requires macOS".to_string(),
                 ));
             }
-            
+
             // Additional check for osascript binary
             if std::path::Path::new("/usr/bin/osascript").exists() {
                 Ok(())
@@ -72,7 +72,7 @@ pub fn check_platform_support(config: &ImessageAccountConfig) -> ImessageResult<
 #[cfg(target_os = "macos")]
 pub mod macos {
     use super::*;
-    
+
     /// Format a message for AppleScript delivery.
     ///
     /// This function converts the internal message format to AppleScript-compatible
@@ -88,7 +88,7 @@ pub mod macos {
         // Escape special characters in text
         let escaped_text = text.replace('\\', "\\\\").replace('"', "\\\"");
         let escaped_to = to.replace('\\', "\\\\").replace('"', "\\\"");
-        
+
         // AppleScript expects a specific JSON format
         serde_json::json!({
             "to": escaped_to,
@@ -96,7 +96,7 @@ pub mod macos {
         })
         .to_string()
     }
-    
+
     /// Format a group message for AppleScript delivery.
     ///
     /// # Arguments
@@ -108,7 +108,7 @@ pub mod macos {
     pub fn format_applescript_group_message(group_id: &str, text: &str) -> String {
         let escaped_text = text.replace('\\', "\\\\").replace('"', "\\\"");
         let escaped_group = group_id.replace('\\', "\\\\").replace('"', "\\\"");
-        
+
         serde_json::json!({
             "group_id": escaped_group,
             "text": escaped_text
@@ -133,7 +133,10 @@ pub mod non_macos {
     }
 
     /// Stub function for non-macOS platforms.
-    pub fn format_applescript_group_message(group_id: &str, text: &str) -> Result<String, ImessageError> {
+    pub fn format_applescript_group_message(
+        group_id: &str,
+        text: &str,
+    ) -> Result<String, ImessageError> {
         Err(ImessageError::PlatformUnsupported(
             "AppleScript is only available on macOS".to_string(),
         ))
@@ -142,10 +145,10 @@ pub mod non_macos {
 
 /// Platform-specific message formatting re-export.
 #[cfg(target_os = "macos")]
-pub use macos::{format_applescript_message, format_applescript_group_message};
+pub use macos::{format_applescript_group_message, format_applescript_message};
 
 #[cfg(not(target_os = "macos"))]
-pub use non_macos::{format_applescript_message, format_applescript_group_message};
+pub use non_macos::{format_applescript_group_message, format_applescript_message};
 
 /// Test platform detection functions.
 #[cfg(test)]
@@ -157,10 +160,10 @@ mod tests {
         // This test verifies the platform detection compiles
         // The actual result depends on the compile target
         let result = is_macos();
-        
+
         #[cfg(target_os = "macos")]
         assert!(result, "Should be macOS");
-        
+
         #[cfg(not(target_os = "macos"))]
         assert!(!result, "Should not be macOS");
     }
@@ -228,12 +231,12 @@ mod tests {
     fn test_format_applescript_message() {
         // Test that formatting works without panicking
         let result = format_applescript_message("+1234567890", "Hello, World!");
-        
+
         #[cfg(target_os = "macos")]
         {
             assert!(result.is_json());
         }
-        
+
         #[cfg(not(target_os = "macos"))]
         {
             assert!(matches!(result, Err(ImessageError::PlatformUnsupported(_))));

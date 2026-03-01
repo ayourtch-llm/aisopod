@@ -17,10 +17,17 @@ use crate::auth::ZaloAuth;
 use crate::config::ZaloConfig;
 use crate::webhook::{create_webhook_router, WebhookState};
 
-use aisopod_channel::adapters::{AccountConfig, AccountSnapshot, ChannelConfigAdapter, SecurityAdapter};
-use aisopod_channel::message::{IncomingMessage, MessageTarget, MessageContent as ChannelMessageContent, MessagePart, Media, PeerInfo, PeerKind, SenderInfo};
-use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType as ChannelMediaType};
+use aisopod_channel::adapters::{
+    AccountConfig, AccountSnapshot, ChannelConfigAdapter, SecurityAdapter,
+};
+use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent as ChannelMessageContent, MessagePart, MessageTarget,
+    PeerInfo, PeerKind, SenderInfo,
+};
 use aisopod_channel::plugin::ChannelPlugin;
+use aisopod_channel::types::{
+    ChannelCapabilities, ChannelMeta, ChatType, MediaType as ChannelMediaType,
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -69,14 +76,17 @@ impl ZaloAccount {
             self.config.app_secret.clone(),
             self.config.refresh_token.clone(),
         );
-        
+
         // Attempt to get an access token (this will refresh if needed)
         let mut api = ZaloApi::new(auth);
         match api.get_access_token().await {
             Ok(_) => Ok(()),
             Err(e) => {
                 warn!("Failed to validate Zalo credentials: {}", e);
-                Err(anyhow::anyhow!("Failed to validate Zalo credentials: {}", e))
+                Err(anyhow::anyhow!(
+                    "Failed to validate Zalo credentials: {}",
+                    e
+                ))
             }
         }
     }
@@ -150,10 +160,7 @@ impl ZaloChannel {
             supports_typing: false,
             supports_voice: false,
             max_message_length: Some(1000),
-            supported_media_types: vec![
-                ChannelMediaType::Image,
-                ChannelMediaType::Document,
-            ],
+            supported_media_types: vec![ChannelMediaType::Image, ChannelMediaType::Document],
         };
         let accounts = vec![account];
         let config_adapter = ZaloChannelConfigAdapter::new(accounts.clone());
@@ -212,11 +219,15 @@ impl ZaloChannel {
             ));
         }
 
-        let account = self.get_account(&target.account_id)
+        let account = self
+            .get_account(&target.account_id)
             .ok_or_else(|| anyhow::anyhow!("Account {} not found", target.account_id))?;
 
         if !account.is_enabled() {
-            return Err(anyhow::anyhow!("Account {} is not enabled", target.account_id));
+            return Err(anyhow::anyhow!(
+                "Account {} is not enabled",
+                target.account_id
+            ));
         }
 
         let auth = ZaloAuth::new(
@@ -256,11 +267,15 @@ impl ZaloChannel {
             ));
         }
 
-        let account = self.get_account(&target.account_id)
+        let account = self
+            .get_account(&target.account_id)
             .ok_or_else(|| anyhow::anyhow!("Account {} not found", target.account_id))?;
 
         if !account.is_enabled() {
-            return Err(anyhow::anyhow!("Account {} is not enabled", target.account_id));
+            return Err(anyhow::anyhow!(
+                "Account {} is not enabled",
+                target.account_id
+            ));
         }
 
         let auth = ZaloAuth::new(
@@ -292,13 +307,8 @@ impl ZaloChannel {
     /// # Returns
     ///
     /// The updated router with webhook routes
-    pub fn register_webhook_routes(
-        &self,
-        router: axum::Router,
-        account_id: &str,
-    ) -> axum::Router {
-        let account = self.get_account(account_id)
-            .expect("Account not found");
+    pub fn register_webhook_routes(&self, router: axum::Router, account_id: &str) -> axum::Router {
+        let account = self.get_account(account_id).expect("Account not found");
 
         router.merge(create_webhook_router(
             account.config.oa_secret_key.clone(),
@@ -350,7 +360,8 @@ impl ChannelConfigAdapter for ZaloChannelConfigAdapter {
     }
 
     fn resolve_account(&self, id: &str) -> Result<AccountSnapshot> {
-        self.accounts.iter()
+        self.accounts
+            .iter()
             .find(|a| a.id == id)
             .map(|a| AccountSnapshot {
                 id: a.id.clone(),
@@ -436,7 +447,9 @@ impl ChannelPlugin for ZaloChannel {
 
     /// Returns the security adapter for this channel.
     fn security(&self) -> Option<&dyn SecurityAdapter> {
-        self.security_adapter.as_ref().map(|a| a as &dyn SecurityAdapter)
+        self.security_adapter
+            .as_ref()
+            .map(|a| a as &dyn SecurityAdapter)
     }
 }
 

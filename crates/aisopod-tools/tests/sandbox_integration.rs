@@ -66,11 +66,13 @@ async fn test_readonly_workspace_prevents_writes() {
 
     // Should fail because workspace is mounted read-only
     assert_ne!(result.exit_code, 0);
-    
+
     // Should have an error message about read-only file system
-    assert!(result.stderr.contains("Read-only file system")
-        || result.stderr.contains("read-only")
-        || result.exit_code != 0);
+    assert!(
+        result.stderr.contains("Read-only file system")
+            || result.stderr.contains("read-only")
+            || result.exit_code != 0
+    );
 }
 
 #[tokio::test]
@@ -94,11 +96,13 @@ async fn test_no_workspace_mount() {
 
     // /workspace should not exist when access is None
     assert_ne!(result.exit_code, 0);
-    
+
     // Should have an error about no such file or directory
-    assert!(result.stderr.contains("No such file or directory")
-        || result.stderr.contains("cannot access")
-        || result.exit_code != 0);
+    assert!(
+        result.stderr.contains("No such file or directory")
+            || result.stderr.contains("cannot access")
+            || result.exit_code != 0
+    );
 }
 
 #[tokio::test]
@@ -142,7 +146,11 @@ async fn test_workspace_read_write_allows_writes() {
     };
 
     let result = executor
-        .run_one_shot(&config, "touch /workspace/test.txt && echo success", workspace.path())
+        .run_one_shot(
+            &config,
+            "touch /workspace/test.txt && echo success",
+            workspace.path(),
+        )
         .await
         .expect("Failed to run command in sandbox");
 
@@ -175,13 +183,12 @@ async fn test_workspace_read_write_can_write_to_file() {
         .expect("Failed to run command in sandbox");
 
     assert_eq!(result.exit_code, 0);
-    
+
     // Verify the file was written to the workspace
     let test_file = workspace.path().join("test.txt");
     assert!(test_file.exists());
-    
-    let written_content = std::fs::read_to_string(&test_file)
-        .expect("Failed to read test file");
+
+    let written_content = std::fs::read_to_string(&test_file).expect("Failed to read test file");
     assert!(written_content.contains(test_content));
 }
 
@@ -226,7 +233,11 @@ async fn test_network_isolation() {
 
     // Try to access an external service (should fail)
     let result = executor
-        .run_one_shot(&config, "wget -q -O- --timeout=2 http://example.com 2>&1", workspace.path())
+        .run_one_shot(
+            &config,
+            "wget -q -O- --timeout=2 http://example.com 2>&1",
+            workspace.path(),
+        )
         .await
         .expect("Failed to run command in sandbox");
 

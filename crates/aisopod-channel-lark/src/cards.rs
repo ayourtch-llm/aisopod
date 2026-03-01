@@ -220,11 +220,8 @@ mod tests {
 
     #[test]
     fn test_image_card() {
-        let card = MessageCard::with_image(
-            "Test Title",
-            "img_v3_02abc123",
-            Some("Image description"),
-        );
+        let card =
+            MessageCard::with_image("Test Title", "img_v3_02abc123", Some("Image description"));
         assert_eq!(card.header.template, Some("orange".to_string()));
         assert_eq!(card.elements.len(), 2);
     }
@@ -233,7 +230,7 @@ mod tests {
     fn test_card_to_json() {
         let card = MessageCard::simple("Test", "Hello **World**");
         let json = card.to_json().unwrap();
-        
+
         assert_eq!(json["config"]["wide_screen_mode"], true);
         assert_eq!(json["header"]["title"]["content"], "Test");
         assert_eq!(json["header"]["template"], "blue");

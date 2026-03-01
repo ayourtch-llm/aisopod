@@ -186,7 +186,10 @@ pub async fn create_client(
         .map_err(|e| anyhow::anyhow!("Failed to create Discord client: {}", e))?;
 
     // Wrap in Arc for sharing
-    Ok(DiscordClientHandle::new(account_id.to_string(), Arc::new(client)))
+    Ok(DiscordClientHandle::new(
+        account_id.to_string(),
+        Arc::new(client),
+    ))
 }
 
 /// Start the Discord client in a background task.

@@ -90,14 +90,19 @@ mod websocket;
 // Re-export common types
 pub use crate::api::{ApiError, Channel, ChannelType, MattermostApi, Post, User};
 pub use crate::auth::{AuthError, AuthResult};
-pub use crate::channel::{MattermostAccount, MattermostAccountWithConnections, MattermostChannel, register};
+pub use crate::channel::{
+    register, MattermostAccount, MattermostAccountWithConnections, MattermostChannel,
+};
 pub use crate::config::{MattermostAuth, MattermostConfig};
 pub use crate::websocket::{MattermostEvent, MattermostWebSocket, WebSocketError};
 
 // Re-export types from aisopod-channel for convenience
-pub use aisopod_channel::message::{IncomingMessage, OutgoingMessage, MessageTarget, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo};
-pub use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+pub use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, OutgoingMessage, PeerInfo,
+    PeerKind, SenderInfo,
+};
 pub use aisopod_channel::plugin::ChannelPlugin;
+pub use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 
 /// Result type for Mattermost channel operations.
 pub type MattermostResult<T> = std::result::Result<T, anyhow::Error>;

@@ -44,7 +44,8 @@ impl GoogleChatClient {
 
         debug!("GET {}", url);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .bearer_auth(&token.token)
             .send()
@@ -54,13 +55,18 @@ impl GoogleChatClient {
     }
 
     /// Send a POST request to the Google Chat API.
-    async fn post<T: for<'de> Deserialize<'de>, B: Serialize>(&self, path: &str, body: &B) -> Result<T> {
+    async fn post<T: for<'de> Deserialize<'de>, B: Serialize>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T> {
         let token = self.get_access_token().await?;
         let url = format!("{}{}", GOOGLE_CHAT_API_BASE_URL, path);
 
         debug!("POST {}", url);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .bearer_auth(&token.token)
             .json(body)
@@ -71,13 +77,18 @@ impl GoogleChatClient {
     }
 
     /// Send a PUT request to the Google Chat API.
-    async fn put<T: for<'de> Deserialize<'de>, B: Serialize>(&self, path: &str, body: &B) -> Result<T> {
+    async fn put<T: for<'de> Deserialize<'de>, B: Serialize>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T> {
         let token = self.get_access_token().await?;
         let url = format!("{}{}", GOOGLE_CHAT_API_BASE_URL, path);
 
         debug!("PUT {}", url);
 
-        let response = self.client
+        let response = self
+            .client
             .put(&url)
             .bearer_auth(&token.token)
             .json(body)
@@ -94,7 +105,8 @@ impl GoogleChatClient {
 
         debug!("DELETE {}", url);
 
-        let response = self.client
+        let response = self
+            .client
             .delete(&url)
             .bearer_auth(&token.token)
             .send()
@@ -104,7 +116,10 @@ impl GoogleChatClient {
     }
 
     /// Handle API response and extract the result.
-    async fn handle_response<T: for<'de> Deserialize<'de>>(&self, response: reqwest::Response) -> Result<T> {
+    async fn handle_response<T: for<'de> Deserialize<'de>>(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<T> {
         if response.status().is_success() {
             let result = response.json::<T>().await?;
             Ok(result)
@@ -131,13 +146,27 @@ impl GoogleChatClient {
     }
 
     /// Send a message to a space.
-    pub async fn create_message(&self, space_id: &str, message: &CreateMessageRequest) -> Result<Message> {
-        self.post(&format!("/spaces/{}/messages", space_id), message).await
+    pub async fn create_message(
+        &self,
+        space_id: &str,
+        message: &CreateMessageRequest,
+    ) -> Result<Message> {
+        self.post(&format!("/spaces/{}/messages", space_id), message)
+            .await
     }
 
     /// Update an existing message.
-    pub async fn update_message(&self, message_name: &str, message: &UpdateMessageRequest, update_mask: &str) -> Result<Message> {
-        let url = format!("/{}?update_mask={}", message_name, urlencoding::encode(update_mask));
+    pub async fn update_message(
+        &self,
+        message_name: &str,
+        message: &UpdateMessageRequest,
+        update_mask: &str,
+    ) -> Result<Message> {
+        let url = format!(
+            "/{}?update_mask={}",
+            message_name,
+            urlencoding::encode(update_mask)
+        );
         self.put(&url, message).await
     }
 
@@ -153,9 +182,13 @@ impl GoogleChatClient {
     }
 
     /// List messages in a space.
-    pub async fn list_messages(&self, space_id: &str, filter: Option<&str>) -> Result<ListMessagesResponse> {
+    pub async fn list_messages(
+        &self,
+        space_id: &str,
+        filter: Option<&str>,
+    ) -> Result<ListMessagesResponse> {
         let mut path = format!("/spaces/{}/messages", space_id);
-        
+
         let mut query_params = Vec::new();
         if let Some(filter) = filter {
             query_params.push(("filter", filter));
@@ -179,8 +212,10 @@ impl GoogleChatClient {
         let reaction = Reaction {
             emoji: Some(emoji.to_string()),
         };
-        
-        let _: () = self.post(&format!("/{}?fields=name", message_name), &reaction).await?;
+
+        let _: () = self
+            .post(&format!("/{}?fields=name", message_name), &reaction)
+            .await?;
         Ok(())
     }
 
@@ -189,7 +224,7 @@ impl GoogleChatClient {
         let _reaction = Reaction {
             emoji: Some(emoji.to_string()),
         };
-        
+
         self.delete::<()>(&format!("/{}/reactions/{}", message_name, emoji))
             .await?;
         Ok(())
@@ -206,8 +241,13 @@ impl GoogleChatClient {
     }
 
     /// Create a user invitation.
-    pub async fn create_user_invitation(&self, space_id: &str, invitation: &CreateUserInvitationRequest) -> Result<Invitation> {
-        self.post(&format!("/spaces/{}/userInvitations", space_id), invitation).await
+    pub async fn create_user_invitation(
+        &self,
+        space_id: &str,
+        invitation: &CreateUserInvitationRequest,
+    ) -> Result<Invitation> {
+        self.post(&format!("/spaces/{}/userInvitations", space_id), invitation)
+            .await
     }
 }
 

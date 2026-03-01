@@ -17,7 +17,7 @@ mod migration_tests {
     fn test_migrate_openclaw_basic_config() {
         // This test verifies the migration command can parse and convert
         // OpenClaw JSON5 config to aisopod format
-        
+
         let openclaw_json5 = r#"{
             server: {
                 port: 3000,
@@ -55,14 +55,16 @@ mod migration_tests {
         assert!(output_path.exists(), "Output file was not created");
 
         // Verify output is valid JSON
-        let output_content = fs::read_to_string(&output_path)
-            .expect("Failed to read output file");
-        
-        let parsed: serde_json::Value = serde_json::from_str(&output_content)
-            .expect("Failed to parse output JSON");
+        let output_content = fs::read_to_string(&output_path).expect("Failed to read output file");
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&output_content).expect("Failed to parse output JSON");
 
         // Verify key structure was migrated
-        assert!(parsed.get("gateway").is_some(), "Gateway config not migrated");
+        assert!(
+            parsed.get("gateway").is_some(),
+            "Gateway config not migrated"
+        );
         assert!(parsed.get("models").is_some(), "Models config not migrated");
     }
 
@@ -100,14 +102,16 @@ mod migration_tests {
         let result = aisopod::commands::migrate::run_migrate(args);
         assert!(result.is_ok());
 
-        let output_content = fs::read_to_string(&output_path)
-            .expect("Failed to read output file");
-        
-        let parsed: serde_json::Value = serde_json::from_str(&output_content)
-            .expect("Failed to parse output JSON");
+        let output_content = fs::read_to_string(&output_path).expect("Failed to read output file");
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&output_content).expect("Failed to parse output JSON");
 
         assert!(parsed.get("auth").is_some(), "Auth config not migrated");
-        assert!(parsed.get("channels").is_some(), "Channels config not migrated");
+        assert!(
+            parsed.get("channels").is_some(),
+            "Channels config not migrated"
+        );
     }
 
     #[test]
@@ -131,22 +135,27 @@ mod migration_tests {
         };
 
         let result = aisopod::commands::migrate::run_migrate(args);
-        assert!(result.is_ok(), "Migration should succeed even with minimal config");
+        assert!(
+            result.is_ok(),
+            "Migration should succeed even with minimal config"
+        );
 
-        let output_content = fs::read_to_string(&output_path)
-            .expect("Failed to read output file");
-        
-        let parsed: serde_json::Value = serde_json::from_str(&output_content)
-            .expect("Failed to parse output JSON");
+        let output_content = fs::read_to_string(&output_path).expect("Failed to read output file");
 
-        assert!(parsed.get("gateway").is_some(), "Gateway config should be present");
+        let parsed: serde_json::Value =
+            serde_json::from_str(&output_content).expect("Failed to parse output JSON");
+
+        assert!(
+            parsed.get("gateway").is_some(),
+            "Gateway config should be present"
+        );
     }
 
     #[test]
     fn test_config_key_mapping() {
         // Test that the key mapping function exists and returns expected mappings
         let mapping = aisopod::commands::migrate::config_key_mapping();
-        
+
         assert!(mapping.contains_key("server.port"));
         assert!(mapping.contains_key("server.host"));
         assert!(mapping.contains_key("models"));
@@ -157,9 +166,13 @@ mod migration_tests {
     fn test_env_var_mapping() {
         // Test that environment variable mapping exists
         let mapping = aisopod::commands::migrate::env_var_mapping();
-        
-        assert!(mapping.iter().any(|(old, _)| *old == "OPENCLAW_SERVER_PORT"));
-        assert!(mapping.iter().any(|(old, _)| *old == "OPENCLAW_SERVER_HOST"));
+
+        assert!(mapping
+            .iter()
+            .any(|(old, _)| *old == "OPENCLAW_SERVER_PORT"));
+        assert!(mapping
+            .iter()
+            .any(|(old, _)| *old == "OPENCLAW_SERVER_HOST"));
     }
 
     #[test]
@@ -186,12 +199,10 @@ mod deployment_smoke_tests {
     fn docker_image_builds() {
         // This test verifies that the Docker image can be built
         // It's marked as ignored by default and should only run in CI/CD or when explicitly requested
-        
+
         // Skip if Docker is not available
-        let docker_status = Command::new("docker")
-            .arg("--version")
-            .status();
-        
+        let docker_status = Command::new("docker").arg("--version").status();
+
         if let Ok(status) = docker_status {
             if !status.success() {
                 println!("Docker is not available, skipping test");
@@ -229,12 +240,10 @@ mod deployment_smoke_tests {
     #[ignore = "Docker container test - requires Docker daemon and built image"]
     fn docker_container_starts_and_responds() {
         // This test verifies that a Docker container can start and respond to health checks
-        
+
         // Skip if Docker is not available
-        let docker_status = Command::new("docker")
-            .arg("--version")
-            .status();
-        
+        let docker_status = Command::new("docker").arg("--version").status();
+
         if let Ok(status) = docker_status {
             if !status.success() {
                 println!("Docker is not available, skipping test");
@@ -246,7 +255,7 @@ mod deployment_smoke_tests {
         }
 
         let container_name = "aisopod-smoke-test-container";
-        
+
         // Cleanup any existing container first
         let _ = Command::new("docker")
             .args(["rm", "-f", container_name])
@@ -255,8 +264,12 @@ mod deployment_smoke_tests {
         // Start container in background
         let run_output = Command::new("docker")
             .args([
-                "run", "-d", "--name", container_name,
-                "-p", "18799:8080",
+                "run",
+                "-d",
+                "--name",
+                container_name,
+                "-p",
+                "18799:8080",
                 "aisopod-smoke-test",
             ])
             .output();

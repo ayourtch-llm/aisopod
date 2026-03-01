@@ -59,16 +59,19 @@ fn load_config_or_default(config_path: Option<&str>) -> Result<aisopod_config::A
     match config_path {
         Some(path) => {
             let config_path = Path::new(path);
-            load_config(config_path).map_err(|e| {
-                anyhow!("Failed to load configuration from '{}': {}", path, e)
-            })
+            load_config(config_path)
+                .map_err(|e| anyhow!("Failed to load configuration from '{}': {}", path, e))
         }
         None => {
             // Use default config path
             let default_path = aisopod_config::default_config_path();
             if default_path.exists() {
                 load_config(&default_path).map_err(|e| {
-                    anyhow!("Failed to load configuration from '{}': {}", default_path.display(), e)
+                    anyhow!(
+                        "Failed to load configuration from '{}': {}",
+                        default_path.display(),
+                        e
+                    )
                 })
             } else {
                 // If no config file exists, return empty config
@@ -176,15 +179,9 @@ pub fn run(args: AgentArgs, config_path: Option<String>) -> Result<()> {
             println!("Workspace:          {}", agent.workspace);
             println!("Sandbox:            {}", agent.sandbox);
             println!("System prompt:      {}", agent.system_prompt);
-            println!(
-                "Max subagent depth: {}",
-                agent.max_subagent_depth
-            );
+            println!("Max subagent depth: {}", agent.max_subagent_depth);
             if !agent.subagents.is_empty() {
-                println!(
-                    "Subagents:          {}",
-                    agent.subagents.join(", ")
-                );
+                println!("Subagents:          {}", agent.subagents.join(", "));
             }
         }
     }
@@ -193,10 +190,7 @@ pub fn run(args: AgentArgs, config_path: Option<String>) -> Result<()> {
 }
 
 /// Save configuration to file
-fn save_config(
-    config: &aisopod_config::AisopodConfig,
-    config_path: Option<String>,
-) -> Result<()> {
+fn save_config(config: &aisopod_config::AisopodConfig, config_path: Option<String>) -> Result<()> {
     let path = match config_path {
         Some(p) => p,
         None => {

@@ -211,13 +211,15 @@ impl RateLimiter {
         let global_requests = self.global_requests.read().await;
         if let Some(timestamps) = global_requests.get(&()) {
             let window_start = now - self.config.global_limit.window_duration;
-            let old_timestamps: Vec<&Instant> = timestamps.iter().filter(|t| **t < window_start).collect();
+            let old_timestamps: Vec<&Instant> =
+                timestamps.iter().filter(|t| **t < window_start).collect();
             let count = timestamps.len() - old_timestamps.len();
 
             if count >= self.config.global_limit.max_requests as usize {
                 // Find the oldest timestamp that would expire
                 if let Some(oldest) = timestamps.first() {
-                    min_wait = min_wait.max(*oldest + self.config.global_limit.window_duration - now);
+                    min_wait =
+                        min_wait.max(*oldest + self.config.global_limit.window_duration - now);
                 }
             }
         }
@@ -264,7 +266,9 @@ impl RateLimiter {
         // Record per-chat request if provided
         if let Some(chat_id) = chat_id {
             let mut per_chat_requests = self.per_chat_requests.write().await;
-            let timestamps = per_chat_requests.entry(chat_id.to_string()).or_insert_with(Vec::new);
+            let timestamps = per_chat_requests
+                .entry(chat_id.to_string())
+                .or_insert_with(Vec::new);
             timestamps.push(now);
             self.cleanup_old_timestamps(timestamps, now);
         }
@@ -372,7 +376,10 @@ mod tests {
     fn test_platform_default_configs() {
         let telegram = Platform::Telegram.default_config();
         assert_eq!(telegram.global_limit.max_requests, 30);
-        assert_eq!(telegram.global_limit.window_duration, Duration::from_secs(1));
+        assert_eq!(
+            telegram.global_limit.window_duration,
+            Duration::from_secs(1)
+        );
 
         let discord = Platform::Discord.default_config();
         assert_eq!(discord.global_limit.max_requests, 5);

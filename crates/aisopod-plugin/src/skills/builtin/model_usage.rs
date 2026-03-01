@@ -97,11 +97,7 @@ impl Tool for GetUsageSummaryTool {
         })
     }
 
-    async fn execute(
-        &self,
-        _params: serde_json::Value,
-        _ctx: &ToolContext,
-    ) -> Result<ToolResult> {
+    async fn execute(&self, _params: serde_json::Value, _ctx: &ToolContext) -> Result<ToolResult> {
         // For now, return empty usage data as we don't have direct access to the usage tracker
         // The actual implementation would query the UsageTracker via the SkillContext
         let summary = serde_json::json!({
@@ -150,11 +146,7 @@ impl Tool for GetTokenConsumptionTool {
         })
     }
 
-    async fn execute(
-        &self,
-        _params: serde_json::Value,
-        _ctx: &ToolContext,
-    ) -> Result<ToolResult> {
+    async fn execute(&self, _params: serde_json::Value, _ctx: &ToolContext) -> Result<ToolResult> {
         // For now, return empty consumption data as we don't have direct access to the usage tracker
         // The actual implementation would query the UsageTracker via the SkillContext
         let data = serde_json::json!({

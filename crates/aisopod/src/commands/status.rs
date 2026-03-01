@@ -57,19 +57,13 @@ pub struct HealthArgs {
 /// Run the status command
 pub async fn run_status(args: StatusArgs, config_path: Option<String>, json: bool) -> Result<()> {
     // Load config from default path if not specified
-    let config_path = config_path
-        .as_deref()
-        .unwrap_or("aisopod-config.json5");
+    let config_path = config_path.as_deref().unwrap_or("aisopod-config.json5");
     let config = load_config(Path::new(config_path))?;
     let gateway_url = gateway_http_url(&config.gateway);
 
     // Check gateway connectivity
     let client = reqwest::Client::new();
-    let gateway_status = match client
-        .get(format!("{}/health", gateway_url))
-        .send()
-        .await
-    {
+    let gateway_status = match client.get(format!("{}/health", gateway_url)).send().await {
         Ok(resp) if resp.status().is_success() => "running",
         Ok(_) => "unhealthy",
         Err(_) => "not running",
@@ -81,7 +75,7 @@ pub async fn run_status(args: StatusArgs, config_path: Option<String>, json: boo
             "gateway_status": gateway_status,
         });
         println!("{}", serde_json::to_string_pretty(&status_json)?);
-        
+
         if gateway_status == "running" {
             // Fetch detailed status from gateway
             let status: GatewayStatus = client
@@ -128,9 +122,7 @@ pub async fn run_status(args: StatusArgs, config_path: Option<String>, json: boo
 /// Run the health check command
 pub async fn run_health(config_path: Option<String>, json: bool) -> Result<()> {
     // Load config from default path if not specified
-    let config_path = config_path
-        .as_deref()
-        .unwrap_or("aisopod-config.json5");
+    let config_path = config_path.as_deref().unwrap_or("aisopod-config.json5");
     let config = load_config(Path::new(config_path))?;
     let gateway_url = gateway_http_url(&config.gateway);
 
@@ -142,7 +134,7 @@ pub async fn run_health(config_path: Option<String>, json: bool) -> Result<()> {
             .send()
             .await
             .is_ok();
-        
+
         let config_ok = config.validate().is_ok();
         let agents_ok = !config.agents.agents.is_empty();
         let all_ok = gw_ok && config_ok && agents_ok;
@@ -156,7 +148,7 @@ pub async fn run_health(config_path: Option<String>, json: bool) -> Result<()> {
             "overall": if all_ok { "HEALTHY" } else { "UNHEALTHY" }
         });
         println!("{}", serde_json::to_string_pretty(&result)?);
-        
+
         // Set non-zero exit code if health checks fail
         if !all_ok {
             std::process::exit(1);
@@ -183,7 +175,10 @@ pub async fn run_health(config_path: Option<String>, json: bool) -> Result<()> {
         print_check("Agents configured", agents_ok);
 
         let all_ok = gw_ok && config_ok && agents_ok;
-        println!("\nOverall: {}", if all_ok { "HEALTHY" } else { "UNHEALTHY" });
+        println!(
+            "\nOverall: {}",
+            if all_ok { "HEALTHY" } else { "UNHEALTHY" }
+        );
 
         // Set non-zero exit code if health checks fail
         if !all_ok {
@@ -203,9 +198,7 @@ fn print_check(name: &str, ok: bool) {
 /// Run the dashboard command - displays a live-updating status view
 pub async fn run_dashboard(config_path: Option<String>) -> Result<()> {
     let config_path_clone = config_path.clone();
-    let config_path = config_path
-        .as_deref()
-        .unwrap_or("aisopod-config.json5");
+    let config_path = config_path.as_deref().unwrap_or("aisopod-config.json5");
     let args = StatusArgs { detailed: true };
 
     loop {

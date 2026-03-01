@@ -10,7 +10,9 @@ use futures::{SinkExt, StreamExt, TryFutureExt};
 use serde::Deserialize;
 use std::collections::HashMap;
 use tokio::net::TcpStream;
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, WebSocketStream, MaybeTlsStream};
+use tokio_tungstenite::{
+    connect_async, tungstenite::protocol::Message, MaybeTlsStream, WebSocketStream,
+};
 use tracing::{debug, error, info, warn};
 
 /// Twitch message received from the server.
@@ -72,16 +74,15 @@ impl TmiClient {
     /// * `Ok(TmiClient)` - The connected client
     /// * `Err(anyhow::Error)` - An error if connection fails
     pub async fn connect(username: &str, oauth_token: &str) -> Result<Self> {
-        info!(
-            "Connecting to Twitch TMI as {}",
-            username
-        );
+        info!("Connecting to Twitch TMI as {}", username);
 
         // Connect to Twitch's WebSocket TMI server
-        let (websocket, _) = connect_async("wss://irc-ws.chat.twitch.tv:443").map_err(|e| {
-            error!("Failed to connect to Twitch TMI: {}", e);
-            anyhow!("Failed to connect to Twitch TMI: {}", e)
-        }).await?;
+        let (websocket, _) = connect_async("wss://irc-ws.chat.twitch.tv:443")
+            .map_err(|e| {
+                error!("Failed to connect to Twitch TMI: {}", e);
+                anyhow!("Failed to connect to Twitch TMI: {}", e)
+            })
+            .await?;
 
         let mut client = Self {
             websocket,
@@ -100,9 +101,7 @@ impl TmiClient {
             .await?;
 
         // Send NICK with username
-        client
-            .send_command(&format!("NICK {}", username))
-            .await?;
+        client.send_command(&format!("NICK {}", username)).await?;
 
         info!("Connected to Twitch TMI as {}", username);
         Ok(client)
@@ -197,8 +196,7 @@ impl TmiClient {
                     if text.starts_with("PING") {
                         let ping_value = text.trim_start_matches("PING").trim();
                         debug!("Sending PONG for: {}", ping_value);
-                        self.send_command(&format!("PONG {}", ping_value))
-                            .await?;
+                        self.send_command(&format!("PONG {}", ping_value)).await?;
                         continue; // Continue reading for actual messages
                     }
 
@@ -273,10 +271,13 @@ impl TmiClient {
                         if parts.len() >= 2 {
                             // Extract username and message from whisper format
                             let whisper_rest = content.strip_prefix("PRIVMSG #").unwrap_or(content);
-                            let whisper_rest = whisper_rest.strip_prefix(&self.username).unwrap_or(whisper_rest);
+                            let whisper_rest = whisper_rest
+                                .strip_prefix(&self.username)
+                                .unwrap_or(whisper_rest);
                             let whisper_rest = whisper_rest.trim();
                             if whisper_rest.starts_with("/w ") {
-                                let whisper_content = whisper_rest.strip_prefix("/w ").unwrap_or(whisper_rest);
+                                let whisper_content =
+                                    whisper_rest.strip_prefix("/w ").unwrap_or(whisper_rest);
                                 if let Some((user, msg)) = whisper_content.split_once(' ') {
                                     username = user.to_string();
                                     text = msg.to_string();
@@ -327,8 +328,12 @@ impl TmiClient {
             if let Some((key, value)) = tag.split_once('=') {
                 match key {
                     "display-name" => tags.display_name = value.to_string(),
-                    "badges" => tags.badges = parse_badges(value).iter().map(|b| b.name.clone()).collect(),
-                    "badges-info" => tags.badge_info = value.split(',').map(|s| s.to_string()).collect(),
+                    "badges" => {
+                        tags.badges = parse_badges(value).iter().map(|b| b.name.clone()).collect()
+                    }
+                    "badges-info" => {
+                        tags.badge_info = value.split(',').map(|s| s.to_string()).collect()
+                    }
                     "mod" => tags.is_mod = value == "1",
                     "subscriber" => tags.is_subscriber = value == "1",
                     "user-id" => tags.user_id = value.to_string(),
@@ -362,7 +367,9 @@ impl TmiClient {
 /// # Returns
 ///
 /// A tuple of (tags, prefix, command, params) or an error.
-pub fn parse_irc_line(line: &str) -> Result<(
+pub fn parse_irc_line(
+    line: &str,
+) -> Result<(
     Option<HashMap<String, String>>,
     Option<String>,
     String,
@@ -378,14 +385,18 @@ pub fn parse_irc_line(line: &str) -> Result<(
 
     // Parse tags if present
     if remaining.starts_with('@') {
-        let (tags_str, rest) = remaining.split_once(' ').ok_or_else(|| anyhow!("No space after tags"))?;
+        let (tags_str, rest) = remaining
+            .split_once(' ')
+            .ok_or_else(|| anyhow!("No space after tags"))?;
         tags = Some(parse_tag_string(tags_str.trim_start_matches('@')));
         remaining = rest.trim_start();
     }
 
     // Parse prefix if present
     if remaining.starts_with(':') {
-        let (pref, rest) = remaining.split_once(' ').ok_or_else(|| anyhow!("No space after prefix"))?;
+        let (pref, rest) = remaining
+            .split_once(' ')
+            .ok_or_else(|| anyhow!("No space after prefix"))?;
         prefix = Some(pref.trim_start_matches(':').to_string());
         remaining = rest.trim_start();
     }
@@ -454,7 +465,10 @@ mod tests {
         let (tags, prefix, cmd, params) = parse_irc_line(line).unwrap();
 
         assert!(tags.is_some());
-        assert_eq!(prefix, Some("testbot!testbot@testbot.tmi.twitch.tv".to_string()));
+        assert_eq!(
+            prefix,
+            Some("testbot!testbot@testbot.tmi.twitch.tv".to_string())
+        );
         assert_eq!(cmd, "PRIVMSG");
         assert_eq!(params, vec!["#channel", "Hello world"]);
     }
@@ -465,7 +479,10 @@ mod tests {
         let (tags, prefix, cmd, params) = parse_irc_line(line).unwrap();
 
         assert!(tags.is_none());
-        assert_eq!(prefix, Some("testbot!testbot@testbot.tmi.twitch.tv".to_string()));
+        assert_eq!(
+            prefix,
+            Some("testbot!testbot@testbot.tmi.twitch.tv".to_string())
+        );
         assert_eq!(cmd, "PRIVMSG");
         assert_eq!(params, vec!["#channel", "Hello world"]);
     }

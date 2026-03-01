@@ -35,7 +35,7 @@ impl NextcloudTalkApi {
     pub fn new(server_url: &str, username: &str, password: &str) -> Result<Self> {
         // Ensure the URL doesn't have a trailing slash
         let base_url = server_url.trim_end_matches('/').to_string();
-        
+
         Ok(Self {
             base_url,
             auth: (username.to_string(), password.to_string()),
@@ -78,7 +78,8 @@ impl NextcloudTalkApi {
 
         debug!("Sending message to room {}: {}", room_token, message);
 
-        let response = self.http
+        let response = self
+            .http
             .post(&url)
             .basic_auth(&self.auth.0, Some(&self.auth.1))
             .header("OCS-APIRequest", "true")
@@ -125,7 +126,8 @@ impl NextcloudTalkApi {
             room_token, last_known_id
         );
 
-        let response = self.http
+        let response = self
+            .http
             .get(&url)
             .basic_auth(&self.auth.0, Some(&self.auth.1))
             .header("OCS-APIRequest", "true")
@@ -143,7 +145,10 @@ impl NextcloudTalkApi {
         } else {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
-            error!("Failed to receive messages: status={}, body={}", status, text);
+            error!(
+                "Failed to receive messages: status={}, body={}",
+                status, text
+            );
             Err(anyhow!("Failed to receive messages: HTTP {}", status))
         }
     }
@@ -156,14 +161,12 @@ impl NextcloudTalkApi {
     /// * `Err(anyhow::Error)` - An error if fetching rooms fails
     #[instrument(skip(self))]
     pub async fn get_rooms(&self) -> Result<Vec<TalkRoom>> {
-        let url = format!(
-            "{}/ocs/v2.php/apps/spreed/api/v4/room",
-            self.base_url
-        );
+        let url = format!("{}/ocs/v2.php/apps/spreed/api/v4/room", self.base_url);
 
         debug!("Fetching rooms");
 
-        let response = self.http
+        let response = self
+            .http
             .get(&url)
             .basic_auth(&self.auth.0, Some(&self.auth.1))
             .header("OCS-APIRequest", "true")
@@ -285,7 +288,7 @@ mod tests {
     fn test_api_client_creation() {
         let api = NextcloudTalkApi::new("https://cloud.example.com/", "user", "pass");
         assert!(api.is_ok());
-        
+
         let api = api.unwrap();
         assert_eq!(api.base_url(), "https://cloud.example.com");
     }

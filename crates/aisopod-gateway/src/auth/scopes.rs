@@ -43,9 +43,15 @@ impl Scope {
         match self {
             Self::OperatorAdmin => true, // Admin can do everything
             Self::OperatorRead => matches!(target_scope, Scope::OperatorRead),
-            Self::OperatorWrite => matches!(target_scope, Scope::OperatorRead | Scope::OperatorWrite),
-            Self::OperatorApprovals => matches!(target_scope, Scope::OperatorRead | Scope::OperatorApprovals),
-            Self::OperatorPairing => matches!(target_scope, Scope::OperatorRead | Scope::OperatorPairing),
+            Self::OperatorWrite => {
+                matches!(target_scope, Scope::OperatorRead | Scope::OperatorWrite)
+            }
+            Self::OperatorApprovals => {
+                matches!(target_scope, Scope::OperatorRead | Scope::OperatorApprovals)
+            }
+            Self::OperatorPairing => {
+                matches!(target_scope, Scope::OperatorRead | Scope::OperatorPairing)
+            }
         }
     }
 }
@@ -68,47 +74,48 @@ pub fn required_scope(method: &str) -> Option<&'static Scope> {
 ///
 /// Each RPC method namespace requires a specific scope to access it.
 /// Methods not in this map are accessible without scope validation.
-static METHOD_SCOPES: std::sync::LazyLock<HashMap<&'static str, Scope>> = std::sync::LazyLock::new(|| {
-    let mut m = HashMap::new();
+static METHOD_SCOPES: std::sync::LazyLock<HashMap<&'static str, Scope>> =
+    std::sync::LazyLock::new(|| {
+        let mut m = HashMap::new();
 
-    // Read-only methods (public/list endpoints)
-    m.insert("system.ping", Scope::OperatorRead);
-    m.insert("system.info", Scope::OperatorRead);
-    m.insert("agent.list", Scope::OperatorRead);
-    m.insert("agent.get", Scope::OperatorRead);
-    m.insert("session.list", Scope::OperatorRead);
-    m.insert("session.get", Scope::OperatorRead);
-    m.insert("chat.history", Scope::OperatorRead);
-    m.insert("tools.list", Scope::OperatorRead);
-    m.insert("models.list", Scope::OperatorRead);
-    m.insert("channels.list", Scope::OperatorRead);
-    m.insert("config.get", Scope::OperatorRead);
-    m.insert("health.check", Scope::OperatorRead);
-    m.insert("memory.query", Scope::OperatorRead);
-    m.insert("approval.list", Scope::OperatorRead);
+        // Read-only methods (public/list endpoints)
+        m.insert("system.ping", Scope::OperatorRead);
+        m.insert("system.info", Scope::OperatorRead);
+        m.insert("agent.list", Scope::OperatorRead);
+        m.insert("agent.get", Scope::OperatorRead);
+        m.insert("session.list", Scope::OperatorRead);
+        m.insert("session.get", Scope::OperatorRead);
+        m.insert("chat.history", Scope::OperatorRead);
+        m.insert("tools.list", Scope::OperatorRead);
+        m.insert("models.list", Scope::OperatorRead);
+        m.insert("channels.list", Scope::OperatorRead);
+        m.insert("config.get", Scope::OperatorRead);
+        m.insert("health.check", Scope::OperatorRead);
+        m.insert("memory.query", Scope::OperatorRead);
+        m.insert("approval.list", Scope::OperatorRead);
 
-    // Write methods (create/update endpoints)
-    m.insert("agent.start", Scope::OperatorWrite);
-    m.insert("agent.stop", Scope::OperatorWrite);
-    m.insert("chat.send", Scope::OperatorWrite);
-    m.insert("session.create", Scope::OperatorWrite);
-    m.insert("session.close", Scope::OperatorWrite);
-    m.insert("config.update", Scope::OperatorWrite);
+        // Write methods (create/update endpoints)
+        m.insert("agent.start", Scope::OperatorWrite);
+        m.insert("agent.stop", Scope::OperatorWrite);
+        m.insert("chat.send", Scope::OperatorWrite);
+        m.insert("session.create", Scope::OperatorWrite);
+        m.insert("session.close", Scope::OperatorWrite);
+        m.insert("config.update", Scope::OperatorWrite);
 
-    // Approval methods (approve/reject endpoints)
-    m.insert("approval.request", Scope::OperatorApprovals);
-    m.insert("approval.approve", Scope::OperatorApprovals);
-    m.insert("approval.deny", Scope::OperatorApprovals);
+        // Approval methods (approve/reject endpoints)
+        m.insert("approval.request", Scope::OperatorApprovals);
+        m.insert("approval.approve", Scope::OperatorApprovals);
+        m.insert("approval.deny", Scope::OperatorApprovals);
 
-    // Pairing methods (device pairing endpoints)
-    m.insert("pairing.initiate", Scope::OperatorPairing);
-    m.insert("pairing.confirm", Scope::OperatorPairing);
+        // Pairing methods (device pairing endpoints)
+        m.insert("pairing.initiate", Scope::OperatorPairing);
+        m.insert("pairing.confirm", Scope::OperatorPairing);
 
-    // Admin methods (destructive/administrative endpoints)
-    m.insert("admin.shutdown", Scope::OperatorAdmin);
+        // Admin methods (destructive/administrative endpoints)
+        m.insert("admin.shutdown", Scope::OperatorAdmin);
 
-    m
-});
+        m
+    });
 
 /// Check if a method requires scope validation.
 ///
@@ -135,7 +142,10 @@ mod tests {
         assert_eq!(format!("{}", Scope::OperatorAdmin), "operator.admin");
         assert_eq!(format!("{}", Scope::OperatorRead), "operator.read");
         assert_eq!(format!("{}", Scope::OperatorWrite), "operator.write");
-        assert_eq!(format!("{}", Scope::OperatorApprovals), "operator.approvals");
+        assert_eq!(
+            format!("{}", Scope::OperatorApprovals),
+            "operator.approvals"
+        );
         assert_eq!(format!("{}", Scope::OperatorPairing), "operator.pairing");
     }
 
@@ -190,16 +200,34 @@ mod tests {
         assert_eq!(required_scope("config.update"), Some(&Scope::OperatorWrite));
 
         // Approval methods
-        assert_eq!(required_scope("approval.request"), Some(&Scope::OperatorApprovals));
-        assert_eq!(required_scope("approval.approve"), Some(&Scope::OperatorApprovals));
-        assert_eq!(required_scope("approval.deny"), Some(&Scope::OperatorApprovals));
+        assert_eq!(
+            required_scope("approval.request"),
+            Some(&Scope::OperatorApprovals)
+        );
+        assert_eq!(
+            required_scope("approval.approve"),
+            Some(&Scope::OperatorApprovals)
+        );
+        assert_eq!(
+            required_scope("approval.deny"),
+            Some(&Scope::OperatorApprovals)
+        );
 
         // Pairing methods
-        assert_eq!(required_scope("pairing.initiate"), Some(&Scope::OperatorPairing));
-        assert_eq!(required_scope("pairing.confirm"), Some(&Scope::OperatorPairing));
+        assert_eq!(
+            required_scope("pairing.initiate"),
+            Some(&Scope::OperatorPairing)
+        );
+        assert_eq!(
+            required_scope("pairing.confirm"),
+            Some(&Scope::OperatorPairing)
+        );
 
         // Admin methods
-        assert_eq!(required_scope("admin.shutdown"), Some(&Scope::OperatorAdmin));
+        assert_eq!(
+            required_scope("admin.shutdown"),
+            Some(&Scope::OperatorAdmin)
+        );
 
         // Methods without scope requirement
         assert_eq!(required_scope("unknown.method"), None);

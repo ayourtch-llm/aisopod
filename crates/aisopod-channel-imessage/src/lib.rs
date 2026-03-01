@@ -41,11 +41,14 @@ pub mod config;
 pub mod platform;
 
 // Re-export types for convenience
-pub use config::{ImessageAccountConfig, ImessageError, ImessageResult, BackendType};
-pub use channel::{ImessageChannel, ImessageAccount, register, parse_imessage_message};
 pub use applescript::ApplescriptBackend;
 pub use bluebubbles::BlueBubblesBackend;
+pub use channel::{parse_imessage_message, register, ImessageAccount, ImessageChannel};
+pub use config::{BackendType, ImessageAccountConfig, ImessageError, ImessageResult};
 
 // Re-export message types from aisopod-channel
-pub use aisopod_channel::message::{IncomingMessage, OutgoingMessage, MessageTarget, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo};
+pub use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, OutgoingMessage, PeerInfo,
+    PeerKind, SenderInfo,
+};
 pub use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};

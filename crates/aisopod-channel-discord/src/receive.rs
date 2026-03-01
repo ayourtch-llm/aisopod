@@ -4,7 +4,9 @@
 //! to the shared `IncomingMessage` type.
 
 use crate::DiscordAccountConfig;
-use aisopod_channel::message::{IncomingMessage, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo};
+use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo,
+};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use tracing::{debug, error, info, warn};
@@ -40,7 +42,10 @@ pub fn should_filter_message(
     // Check if channel is allowed
     if let Some(ref allowed_channels) = config.allowed_channels {
         if !allowed_channels.contains(&channel_id) {
-            debug!("Message filtered: channel {} not in allowed list", channel_id);
+            debug!(
+                "Message filtered: channel {} not in allowed list",
+                channel_id
+            );
             return true;
         }
     }
@@ -136,7 +141,12 @@ pub fn normalize_message(
     };
 
     // Extract sender information
-    let display_name = msg.author.global_name.as_ref().map(|s| s.as_str()).or(Some(msg.author.name.as_str()));
+    let display_name = msg
+        .author
+        .global_name
+        .as_ref()
+        .map(|s| s.as_str())
+        .or(Some(msg.author.name.as_str()));
     let sender = SenderInfo {
         id: msg.author.id.to_string(),
         display_name: display_name.map(|s| s.to_string()),
@@ -176,14 +186,14 @@ pub fn normalize_message(
         .referenced_message
         .as_ref()
         .map(|msg| msg.id.to_string())
-        .or_else(|| msg.message_reference.as_ref().and_then(|r| r.message_id.map(|id| id.get().to_string())));
+        .or_else(|| {
+            msg.message_reference
+                .as_ref()
+                .and_then(|r| r.message_id.map(|id| id.get().to_string()))
+        });
 
     // Create unique message ID
-    let message_id = format!(
-        "discord:{}:{}",
-        guild_id.unwrap_or(0),
-        msg.id.get()
-    );
+    let message_id = format!("discord:{}:{}", guild_id.unwrap_or(0), msg.id.get());
 
     // Build metadata
     let metadata = serde_json::json!({
@@ -256,7 +266,11 @@ pub fn process_discord_message(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serenity::model::{channel::Message, id::{ChannelId, GuildId, MessageId, UserId}, user::User};
+    use serenity::model::{
+        channel::Message,
+        id::{ChannelId, GuildId, MessageId, UserId},
+        user::User,
+    };
     use std::num::NonZeroU16;
 
     fn create_test_message(content: &str, is_bot: bool) -> Message {
@@ -398,7 +412,7 @@ mod tests {
         user1.name = "test1".to_string();
         user1.discriminator = Some(NonZeroU16::new(1).unwrap());
         user1.bot = false;
-        
+
         let mut user2 = User::default();
         user2.id = UserId::new(999);
         user2.name = "test2".to_string();
@@ -415,7 +429,7 @@ mod tests {
         user3.name = "test3".to_string();
         user3.discriminator = Some(NonZeroU16::new(3).unwrap());
         user3.bot = false;
-        
+
         let mut user4 = User::default();
         user4.id = UserId::new(200);
         user4.name = "test4".to_string();

@@ -3,10 +3,13 @@
 //! This module provides common test utilities and fixtures that can be
 //! used across all channel integration tests.
 
-use aisopod_channel::message::{IncomingMessage, OutgoingMessage, MessageContent, MessagePart, Media, PeerInfo, PeerKind, SenderInfo, MessageTarget};
+use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, OutgoingMessage, PeerInfo,
+    PeerKind, SenderInfo,
+};
 use aisopod_channel::types::MediaType;
-use std::time::{SystemTime, UNIX_EPOCH};
 use chrono::{DateTime, Utc};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Creates a simple test outgoing message.
 ///
@@ -20,7 +23,12 @@ use chrono::{DateTime, Utc};
 /// # Returns
 ///
 /// An OutgoingMessage with the specified content.
-pub fn test_outbound_message(text: &str, channel: &str, account_id: &str, peer_id: &str) -> OutgoingMessage {
+pub fn test_outbound_message(
+    text: &str,
+    channel: &str,
+    account_id: &str,
+    peer_id: &str,
+) -> OutgoingMessage {
     OutgoingMessage {
         target: MessageTarget {
             channel: channel.to_string(),
@@ -50,12 +58,18 @@ pub fn test_outbound_message(text: &str, channel: &str, account_id: &str, peer_i
 /// # Returns
 ///
 /// An IncomingMessage with the specified content.
-pub fn test_inbound_message(text: &str, channel: &str, account_id: &str, sender_id: &str, sender_name: Option<&str>) -> IncomingMessage {
+pub fn test_inbound_message(
+    text: &str,
+    channel: &str,
+    account_id: &str,
+    sender_id: &str,
+    sender_name: Option<&str>,
+) -> IncomingMessage {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("Time went backwards")
         .as_secs() as i64;
-    
+
     IncomingMessage {
         id: format!("msg_{}", timestamp),
         channel: channel.to_string(),
@@ -91,7 +105,13 @@ pub fn test_inbound_message(text: &str, channel: &str, account_id: &str, sender_
 /// # Returns
 ///
 /// An OutgoingMessage with media content.
-pub fn test_media_message(media_type: MediaType, url: &str, channel: &str, account_id: &str, peer_id: &str) -> OutgoingMessage {
+pub fn test_media_message(
+    media_type: MediaType,
+    url: &str,
+    channel: &str,
+    account_id: &str,
+    peer_id: &str,
+) -> OutgoingMessage {
     OutgoingMessage {
         target: MessageTarget {
             channel: channel.to_string(),

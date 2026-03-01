@@ -11,8 +11,8 @@ use aisopod_channel::adapters::{
     AccountConfig, AccountSnapshot, ChannelConfigAdapter, SecurityAdapter,
 };
 use aisopod_channel::message::{IncomingMessage, MessageTarget, PeerInfo, PeerKind, SenderInfo};
-use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use aisopod_channel::plugin::ChannelPlugin;
+use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -96,9 +96,7 @@ impl GoogleChatChannel {
     /// * `Ok(GoogleChatChannel)` - The channel if configuration is valid
     /// * `Err(anyhow::Error)` - An error if the configuration is invalid
     pub async fn new(config: GoogleChatConfig, account_id: &str) -> Result<Self> {
-        let account_config = config.accounts.get(0)
-            .cloned()
-            .unwrap_or_default();
+        let account_config = config.accounts.get(0).cloned().unwrap_or_default();
 
         let account = GoogleChatAccount::new(account_id.to_string(), account_config);
 
@@ -127,10 +125,7 @@ impl GoogleChatChannel {
             supports_typing: false,
             supports_voice: false,
             max_message_length: Some(4096),
-            supported_media_types: vec![
-                MediaType::Image,
-                MediaType::Document,
-            ],
+            supported_media_types: vec![MediaType::Image, MediaType::Document],
         };
         let accounts = vec![account];
         let config_adapter = GoogleChatChannelConfigAdapter::new(accounts.clone());
@@ -165,18 +160,24 @@ impl GoogleChatChannel {
 
     /// Create an API client for the given account.
     pub fn create_client(&self, account_id: &str) -> Result<GoogleChatClient> {
-        let account = self.get_account(account_id)
+        let account = self
+            .get_account(account_id)
             .ok_or_else(|| anyhow::anyhow!("Account {} not found", account_id))?;
 
         let auth: Box<dyn GoogleChatAuth> = match account.config.auth_type {
             crate::config::AuthType::OAuth2 => {
-                let oauth2 = account.config.oauth2.as_ref()
+                let oauth2 = account
+                    .config
+                    .oauth2
+                    .as_ref()
                     .ok_or_else(|| anyhow::anyhow!("OAuth2 configuration not found"))?;
                 Box::new(OAuth2Auth::new(oauth2.clone()))
             }
             crate::config::AuthType::ServiceAccount => {
-                let sa = account.config.service_account.as_ref()
-                    .ok_or_else(|| anyhow::anyhow!("Service account configuration not found"))?;
+                let sa =
+                    account.config.service_account.as_ref().ok_or_else(|| {
+                        anyhow::anyhow!("Service account configuration not found")
+                    })?;
                 Box::new(ServiceAccountAuth::new(sa.clone())?)
             }
         };
@@ -194,13 +195,8 @@ impl GoogleChatChannel {
     /// # Returns
     ///
     /// The updated router with webhook routes
-    pub fn register_webhook_routes(
-        &self,
-        router: axum::Router,
-        account_id: &str,
-    ) -> axum::Router {
-        let account = self.get_account(account_id)
-            .expect("Account not found");
+    pub fn register_webhook_routes(&self, router: axum::Router, account_id: &str) -> axum::Router {
+        let account = self.get_account(account_id).expect("Account not found");
 
         let webhook_state = WebhookState::new(
             self.webhook_config.verify_token.clone(),
@@ -223,7 +219,8 @@ impl GoogleChatChannel {
     /// * `Ok(Message)` - The sent message
     /// * `Err(anyhow::Error)` - An error if sending fails
     pub async fn send_message(&self, space_id: &str, text: &str) -> Result<Message> {
-        let account = self.get_account(space_id)
+        let account = self
+            .get_account(space_id)
             .ok_or_else(|| anyhow::anyhow!("Account {} not found", space_id))?;
 
         let client = self.create_client(&account.id)?;
@@ -250,7 +247,8 @@ impl GoogleChatChannel {
     /// * `Ok(Message)` - The sent message
     /// * `Err(anyhow::Error)` - An error if sending fails
     pub async fn send_card(&self, space_id: &str, card: serde_json::Value) -> Result<Message> {
-        let account = self.get_account(space_id)
+        let account = self
+            .get_account(space_id)
             .ok_or_else(|| anyhow::anyhow!("Account {} not found", space_id))?;
 
         let client = self.create_client(&account.id)?;
@@ -277,7 +275,8 @@ impl GoogleChatChannel {
     /// * `false` - The message should be filtered out
     pub fn should_process_message(&self, message: &IncomingMessage) -> bool {
         // Check if the sender is in the allowed list
-        if let Some(ref allowed_users) = self.get_account(&message.account_id)
+        if let Some(ref allowed_users) = self
+            .get_account(&message.account_id)
             .and_then(|a| a.config.allowed_users.clone())
         {
             if !allowed_users.contains(&message.sender.id) {
@@ -314,7 +313,8 @@ impl ChannelConfigAdapter for GoogleChatChannelConfigAdapter {
     }
 
     fn resolve_account(&self, id: &str) -> Result<AccountSnapshot> {
-        self.accounts.iter()
+        self.accounts
+            .iter()
             .find(|a| a.id == id)
             .map(|a| AccountSnapshot {
                 id: a.id.clone(),
@@ -369,9 +369,13 @@ impl SecurityAdapter for GoogleChatSecurityAdapter {
                 }
             }
         }
-        
+
         // If no allowed list is configured, allow all senders
-        self.accounts.is_empty() || self.accounts.iter().any(|a| a.config.allowed_users.is_none())
+        self.accounts.is_empty()
+            || self
+                .accounts
+                .iter()
+                .any(|a| a.config.allowed_users.is_none())
     }
 
     fn requires_mention_in_group(&self) -> bool {
@@ -408,7 +412,9 @@ impl ChannelPlugin for GoogleChatChannel {
 
     /// Returns the security adapter for this channel.
     fn security(&self) -> Option<&dyn SecurityAdapter> {
-        self.security_adapter.as_ref().map(|a| a as &dyn SecurityAdapter)
+        self.security_adapter
+            .as_ref()
+            .map(|a| a as &dyn SecurityAdapter)
     }
 }
 
@@ -464,11 +470,14 @@ mod tests {
     #[test]
     fn test_google_chat_channel_default() {
         let config = GoogleChatConfig::default();
-        
+
         // Test that new() returns an error when no accounts are configured
         // The new function is async so we need to handle it differently in a sync test
         // For now, just verify that the default config has no accounts
-        assert!(config.accounts.is_empty(), "Default config should have no accounts");
+        assert!(
+            config.accounts.is_empty(),
+            "Default config should have no accounts"
+        );
     }
 
     #[test]
@@ -487,10 +496,10 @@ mod tests {
             ..Default::default()
         };
 
-        let result = tokio::runtime::Runtime::new().unwrap().block_on(
-            GoogleChatChannel::new(config, "test-account")
-        );
-        
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(GoogleChatChannel::new(config, "test-account"));
+
         assert!(result.is_ok());
         let channel = result.unwrap();
         assert_eq!(channel.id(), "googlechat-test-account");
@@ -499,20 +508,18 @@ mod tests {
 
     #[test]
     fn test_google_chat_security_adapter() {
-        let accounts = vec![
-            GoogleChatAccount::new(
-                "account1".to_string(),
-                GoogleChatAccountConfig {
-                    auth_type: crate::config::AuthType::OAuth2,
-                    oauth2: Some(crate::config::OAuth2Config::default()),
-                    allowed_users: Some(vec!["user1".to_string()]),
-                    ..Default::default()
-                }
-            ),
-        ];
+        let accounts = vec![GoogleChatAccount::new(
+            "account1".to_string(),
+            GoogleChatAccountConfig {
+                auth_type: crate::config::AuthType::OAuth2,
+                oauth2: Some(crate::config::OAuth2Config::default()),
+                allowed_users: Some(vec!["user1".to_string()]),
+                ..Default::default()
+            },
+        )];
 
         let adapter = GoogleChatSecurityAdapter::new(accounts);
-        
+
         // Test allowed sender
         let allowed_sender = SenderInfo {
             id: "user1".to_string(),
@@ -521,7 +528,7 @@ mod tests {
             is_bot: false,
         };
         assert!(adapter.is_allowed_sender(&allowed_sender));
-        
+
         // Test disallowed sender
         let disallowed_sender = SenderInfo {
             id: "user2".to_string(),
@@ -534,19 +541,17 @@ mod tests {
 
     #[test]
     fn test_google_chat_security_adapter_no_allowlist() {
-        let accounts = vec![
-            GoogleChatAccount::new(
-                "account1".to_string(),
-                GoogleChatAccountConfig {
-                    auth_type: crate::config::AuthType::OAuth2,
-                    oauth2: Some(crate::config::OAuth2Config::default()),
-                    ..Default::default()
-                }
-            ),
-        ];
+        let accounts = vec![GoogleChatAccount::new(
+            "account1".to_string(),
+            GoogleChatAccountConfig {
+                auth_type: crate::config::AuthType::OAuth2,
+                oauth2: Some(crate::config::OAuth2Config::default()),
+                ..Default::default()
+            },
+        )];
 
         let adapter = GoogleChatSecurityAdapter::new(accounts);
-        
+
         // With no allowlist, all senders are allowed
         let sender = SenderInfo {
             id: "any-user".to_string(),
@@ -565,7 +570,7 @@ mod tests {
         )];
 
         let adapter = GoogleChatSecurityAdapter::new(accounts);
-        
+
         // Google Chat requires mentions in groups by default
         assert!(adapter.requires_mention_in_group());
     }

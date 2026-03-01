@@ -111,7 +111,10 @@ impl LarkAuth {
     /// * `Ok(String)` - The new tenant access token
     /// * `Err(anyhow::Error)` - An error if the request fails
     async fn refresh_token(&mut self) -> Result<String> {
-        let url = format!("{}/open-apis/auth/v3/tenant_access_token/internal", self.base_url);
+        let url = format!(
+            "{}/open-apis/auth/v3/tenant_access_token/internal",
+            self.base_url
+        );
 
         let client = reqwest::Client::new();
         let body = serde_json::json!({
@@ -130,7 +133,11 @@ impl LarkAuth {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
             warn!("Token request failed: {} - {}", status, body);
-            return Err(anyhow::anyhow!("Token request failed: HTTP {}: {}", status, body));
+            return Err(anyhow::anyhow!(
+                "Token request failed: HTTP {}: {}",
+                status,
+                body
+            ));
         }
 
         let token_response: TokenResponse = response.json().await.map_err(|e| {
@@ -142,10 +149,7 @@ impl LarkAuth {
         self.tenant_access_token = Some(token_response.tenant_access_token.clone());
         self.token_expiry = Some(Utc::now() + expire_duration - Duration::minutes(5));
 
-        debug!(
-            "Token refreshed, expires at: {:?}",
-            self.token_expiry
-        );
+        debug!("Token refreshed, expires at: {:?}", self.token_expiry);
 
         Ok(token_response.tenant_access_token)
     }

@@ -207,7 +207,7 @@ pub fn build_list_channels_payload(
     types: Option<&str>,
 ) -> serde_json::Value {
     let mut payload = serde_json::json!({});
-    
+
     if let Some(c) = cursor {
         payload["cursor"] = serde_json::json!(c);
     }
@@ -217,7 +217,7 @@ pub fn build_list_channels_payload(
     if let Some(t) = types {
         payload["types"] = serde_json::json!(t);
     }
-    
+
     payload
 }
 
@@ -241,11 +241,11 @@ pub async fn list_channels(
     types: Option<&str>,
 ) -> Result<serde_json::Value> {
     let payload = build_list_channels_payload(cursor, limit, types);
-    
+
     let response = client
         .post("https://slack.com/api/conversations.list", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     Ok(json)
 }
@@ -268,17 +268,20 @@ pub async fn get_channel_info(
     let payload = serde_json::json!({
         "channel": channel_id
     });
-    
+
     let response = client
         .post("https://slack.com/api/conversations.info", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
-    
+
     if let Some(error) = json.get("error") {
-        return Err(anyhow::anyhow!("conversations.info failed: {}", error.as_str().unwrap_or("Unknown error")));
+        return Err(anyhow::anyhow!(
+            "conversations.info failed: {}",
+            error.as_str().unwrap_or("Unknown error")
+        ));
     }
-    
+
     let channel: ChannelInfo = serde_json::from_value(json["channel"].clone())?;
     Ok(channel)
 }
@@ -301,17 +304,20 @@ pub async fn get_user_info(
     let payload = serde_json::json!({
         "user": user_id
     });
-    
+
     let response = client
         .post("https://slack.com/api/users.info", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
-    
+
     if let Some(error) = json.get("error") {
-        return Err(anyhow::anyhow!("users.info failed: {}", error.as_str().unwrap_or("Unknown error")));
+        return Err(anyhow::anyhow!(
+            "users.info failed: {}",
+            error.as_str().unwrap_or("Unknown error")
+        ));
     }
-    
+
     let user: UserInfo = serde_json::from_value(json["user"].clone())?;
     Ok(user)
 }
@@ -338,18 +344,18 @@ pub async fn get_channel_members(
     let mut payload = serde_json::json!({
         "channel": channel_id
     });
-    
+
     if let Some(c) = cursor {
         payload["cursor"] = serde_json::json!(c);
     }
     if let Some(l) = limit {
         payload["limit"] = serde_json::json!(l);
     }
-    
+
     let response = client
         .post("https://slack.com/api/conversations.members", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     Ok(json)
 }
@@ -379,18 +385,18 @@ pub async fn get_thread_replies(
         "channel": channel_id,
         "ts": thread_ts
     });
-    
+
     if let Some(c) = cursor {
         payload["cursor"] = serde_json::json!(c);
     }
     if let Some(l) = limit {
         payload["limit"] = serde_json::json!(l);
     }
-    
+
     let response = client
         .post("https://slack.com/api/conversations.replies", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     Ok(json)
 }
@@ -413,7 +419,7 @@ pub async fn get_thread_messages(
     thread_ts: &str,
 ) -> Result<Vec<ThreadMessage>> {
     let response = get_thread_replies(client, channel_id, thread_ts, None, None).await?;
-    
+
     let messages: Vec<ThreadMessage> = serde_json::from_value(response["messages"].clone())?;
     Ok(messages)
 }
@@ -442,19 +448,19 @@ pub async fn add_reaction(
         "timestamp": timestamp,
         "name": emoji
     });
-    
+
     let response = client
         .post("https://slack.com/api/reactions.add", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let success: bool = json["ok"].as_bool().unwrap_or(false);
-    
+
     if !success {
         let error = json["error"].as_str().unwrap_or("Unknown error");
         return Err(anyhow::anyhow!("reactions.add failed: {}", error));
     }
-    
+
     Ok(())
 }
 
@@ -482,19 +488,19 @@ pub async fn remove_reaction(
         "timestamp": timestamp,
         "name": emoji
     });
-    
+
     let response = client
         .post("https://slack.com/api/reactions.remove", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let success: bool = json["ok"].as_bool().unwrap_or(false);
-    
+
     if !success {
         let error = json["error"].as_str().unwrap_or("Unknown error");
         return Err(anyhow::anyhow!("reactions.remove failed: {}", error));
     }
-    
+
     Ok(())
 }
 
@@ -519,14 +525,14 @@ pub async fn get_message_reactions(
         "channel": channel_id,
         "timestamp": timestamp
     });
-    
+
     let response = client
         .post("https://slack.com/api/reactions.get", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let parsed: ReactionsListResponse = serde_json::from_value(json)?;
-    
+
     Ok(parsed)
 }
 
@@ -575,19 +581,18 @@ pub async fn send_thinking_message(
         mrkdwn: Some(true),
         ..Default::default()
     };
-    
-    let response: SendMessageResponse = crate::send::send_ephemeral_message(
-        client,
-        channel_id,
-        user_id,
-        text,
-        Some(&options),
-    ).await?;
-    
+
+    let response: SendMessageResponse =
+        crate::send::send_ephemeral_message(client, channel_id, user_id, text, Some(&options))
+            .await?;
+
     if response.is_ok() {
         Ok(())
     } else {
-        Err(anyhow::anyhow!("Failed to send thinking message: {:?}", response.get_error()))
+        Err(anyhow::anyhow!(
+            "Failed to send thinking message: {:?}",
+            response.get_error()
+        ))
     }
 }
 
@@ -609,19 +614,19 @@ pub async fn mark_channel_as_read(
     let payload = serde_json::json!({
         "channel": channel_id
     });
-    
+
     let response = client
         .post("https://slack.com/api/conversations.mark", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let success: bool = json["ok"].as_bool().unwrap_or(false);
-    
+
     if !success {
         let error = json["error"].as_str().unwrap_or("Unknown error");
         return Err(anyhow::anyhow!("conversations.mark failed: {}", error));
     }
-    
+
     Ok(())
 }
 
@@ -646,19 +651,19 @@ pub async fn pin_message(
         "channel": channel_id,
         "timestamp": timestamp
     });
-    
+
     let response = client
         .post("https://slack.com/api/pins.add", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let success: bool = json["ok"].as_bool().unwrap_or(false);
-    
+
     if !success {
         let error = json["error"].as_str().unwrap_or("Unknown error");
         return Err(anyhow::anyhow!("pins.add failed: {}", error));
     }
-    
+
     Ok(())
 }
 
@@ -683,19 +688,19 @@ pub async fn unpin_message(
         "channel": channel_id,
         "timestamp": timestamp
     });
-    
+
     let response = client
         .post("https://slack.com/api/pins.remove", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let success: bool = json["ok"].as_bool().unwrap_or(false);
-    
+
     if !success {
         let error = json["error"].as_str().unwrap_or("Unknown error");
         return Err(anyhow::anyhow!("pins.remove failed: {}", error));
     }
-    
+
     Ok(())
 }
 
@@ -717,19 +722,19 @@ pub async fn archive_channel(
     let payload = serde_json::json!({
         "channel": channel_id
     });
-    
+
     let response = client
         .post("https://slack.com/api/conversations.archive", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let success: bool = json["ok"].as_bool().unwrap_or(false);
-    
+
     if !success {
         let error = json["error"].as_str().unwrap_or("Unknown error");
         return Err(anyhow::anyhow!("conversations.archive failed: {}", error));
     }
-    
+
     Ok(())
 }
 
@@ -751,19 +756,19 @@ pub async fn unarchive_channel(
     let payload = serde_json::json!({
         "channel": channel_id
     });
-    
+
     let response = client
         .post("https://slack.com/api/conversations.unarchive", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let success: bool = json["ok"].as_bool().unwrap_or(false);
-    
+
     if !success {
         let error = json["error"].as_str().unwrap_or("Unknown error");
         return Err(anyhow::anyhow!("conversations.unarchive failed: {}", error));
     }
-    
+
     Ok(())
 }
 
@@ -773,8 +778,9 @@ mod tests {
 
     #[test]
     fn test_build_list_channels_payload() {
-        let payload = build_list_channels_payload(Some("cursor123"), Some(100), Some("public,private"));
-        
+        let payload =
+            build_list_channels_payload(Some("cursor123"), Some(100), Some("public,private"));
+
         assert_eq!(payload["cursor"], "cursor123");
         assert_eq!(payload["limit"], 100);
         assert_eq!(payload["types"], "public,private");
@@ -812,7 +818,7 @@ mod tests {
             created: Some(1234567890),
             creator: None,
         };
-        
+
         let json = serde_json::to_string(&channel).unwrap();
         assert!(json.contains("C123456"));
         assert!(json.contains("general"));
@@ -840,7 +846,7 @@ mod tests {
             is_ultra_restricted: None,
             profile_image: None,
         };
-        
+
         let json = serde_json::to_string(&user).unwrap();
         assert!(json.contains("U123456"));
         assert!(json.contains("john"));

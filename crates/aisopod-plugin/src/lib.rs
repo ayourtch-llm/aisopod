@@ -176,11 +176,11 @@ pub mod hook;
 pub mod manifest;
 pub mod meta;
 pub mod registry;
-pub mod r#trait;
 pub mod security;
 pub mod skills;
+pub mod r#trait;
 
-pub use abi::{ABI_VERSION, PluginAbiVersionFn, PluginCreateFn, PluginDestroyFn};
+pub use abi::{PluginAbiVersionFn, PluginCreateFn, PluginDestroyFn, ABI_VERSION};
 pub use api::PluginApi;
 pub use command::PluginCommand;
 pub use commands::CommandRegistry;
@@ -188,9 +188,15 @@ pub use config::{ConfigError, ConfigReloadable, PluginConfig, PluginConfigSchema
 pub use context::PluginContext;
 pub use dynamic::{DiscoveredPlugin, DynamicPluginLoader, LoadError};
 pub use hook::{Hook, HookContext, HookHandler, HookRegistry, PluginHookHandler};
-pub use manifest::{ManifestError, PluginCapabilities, PluginCompatibility, PluginManifest, PluginManifestInfo};
+pub use manifest::{
+    ManifestError, PluginCapabilities, PluginCompatibility, PluginManifest, PluginManifestInfo,
+};
 pub use meta::PluginMeta;
-pub use registry::{PluginRegistry, RegistryError};
 pub use r#trait::Plugin;
-pub use security::{SecurityError, MAX_ARG_SIZE, RESERVED_COMMANDS, sanitize_argument, validate_command_name};
-pub use skills::{Skill, SkillCategory, SkillContext, SkillMeta, scaffold_skill, ScaffoldOptions, to_pascal_case};
+pub use registry::{PluginRegistry, RegistryError};
+pub use security::{
+    sanitize_argument, validate_command_name, SecurityError, MAX_ARG_SIZE, RESERVED_COMMANDS,
+};
+pub use skills::{
+    scaffold_skill, to_pascal_case, ScaffoldOptions, Skill, SkillCategory, SkillContext, SkillMeta,
+};

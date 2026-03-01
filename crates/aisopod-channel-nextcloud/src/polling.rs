@@ -34,13 +34,9 @@ impl MessagePoller {
     /// * `api` - The Nextcloud Talk API client
     /// * `rooms` - List of room tokens to poll
     /// * `poll_interval_secs` - Poll interval in seconds
-    pub fn new(
-        api: NextcloudTalkApi,
-        rooms: Vec<String>,
-        poll_interval_secs: u64,
-    ) -> Self {
+    pub fn new(api: NextcloudTalkApi, rooms: Vec<String>, poll_interval_secs: u64) -> Self {
         let last_known_ids = rooms.iter().map(|r| (r.clone(), 0)).collect();
-        
+
         Self {
             api,
             rooms,
@@ -63,17 +59,17 @@ impl MessagePoller {
     #[instrument(skip(self))]
     pub async fn poll_once(&mut self) -> Result<Vec<(String, TalkMessage)>> {
         let mut new_messages = Vec::new();
-        
+
         for room in &self.rooms {
             let last_id = *self.last_known_ids.get(room).unwrap_or(&0);
-            
+
             debug!("Polling room {} for messages after {}", room, last_id);
-            
+
             match self.api.receive_messages(room, last_id).await {
                 Ok(messages) => {
                     if !messages.is_empty() {
                         debug!("Found {} new messages in room {}", messages.len(), room);
-                        
+
                         for msg in &messages {
                             // Update the last known ID
                             if msg.id > self.last_known_ids.get(room).copied().unwrap_or(0) {
@@ -89,7 +85,7 @@ impl MessagePoller {
                 }
             }
         }
-        
+
         Ok(new_messages)
     }
 
@@ -119,7 +115,7 @@ mod tests {
         // This test just validates the API - actual API calls would require a server
         let config = crate::config::NextcloudConfig::default();
         let api = NextcloudTalkApi::new(&config.server_url, &config.username, &config.password);
-        
+
         if api.is_ok() {
             let poller = MessagePoller::new(api.unwrap(), vec!["room1".to_string()], 10);
             assert_eq!(poller.rooms(), &["room1".to_string()]);
@@ -131,11 +127,15 @@ mod tests {
     fn test_multiple_rooms() {
         let config = crate::config::NextcloudConfig::default();
         let api = NextcloudTalkApi::new(&config.server_url, &config.username, &config.password);
-        
+
         if api.is_ok() {
-            let rooms = vec!["room1".to_string(), "room2".to_string(), "room3".to_string()];
+            let rooms = vec![
+                "room1".to_string(),
+                "room2".to_string(),
+                "room3".to_string(),
+            ];
             let poller = MessagePoller::new(api.unwrap(), rooms.clone(), 15);
-            
+
             assert_eq!(poller.rooms().len(), 3);
             assert_eq!(poller.poll_interval().as_secs(), 15);
         }

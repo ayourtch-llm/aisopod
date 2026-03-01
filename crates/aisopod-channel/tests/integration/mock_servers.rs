@@ -4,10 +4,10 @@
 //! messaging platforms (Telegram, Discord, WhatsApp, Slack) for integration
 //! testing purposes.
 
-use wiremock::{MockServer, Mock, ResponseTemplate};
-use wiremock::matchers::{method, path, path_regex};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
+use wiremock::matchers::{method, path, path_regex};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 // ============================================================================
 // Telegram Mock Server
@@ -51,7 +51,7 @@ impl TelegramMockState {
 /// Create a mock Telegram Bot API server
 pub async fn create_telegram_mock_server(_state: Arc<TelegramMockState>) -> MockServer {
     let mock_server = MockServer::start().await;
-    
+
     // Mock /getMe - returns simple response
     Mock::given(method("POST"))
         .and(path("/getMe"))
@@ -66,7 +66,7 @@ pub async fn create_telegram_mock_server(_state: Arc<TelegramMockState>) -> Mock
         })))
         .mount(&mock_server)
         .await;
-    
+
     // Mock /getUpdates - returns empty updates
     Mock::given(method("POST"))
         .and(path("/getUpdates"))
@@ -76,7 +76,7 @@ pub async fn create_telegram_mock_server(_state: Arc<TelegramMockState>) -> Mock
         })))
         .mount(&mock_server)
         .await;
-    
+
     // Mock /sendMessage - returns success
     Mock::given(method("POST"))
         .and(path("/sendMessage"))
@@ -93,7 +93,7 @@ pub async fn create_telegram_mock_server(_state: Arc<TelegramMockState>) -> Mock
         })))
         .mount(&mock_server)
         .await;
-    
+
     // Mock /sendPhoto - returns success
     Mock::given(method("POST"))
         .and(path("/sendPhoto"))
@@ -110,7 +110,7 @@ pub async fn create_telegram_mock_server(_state: Arc<TelegramMockState>) -> Mock
         })))
         .mount(&mock_server)
         .await;
-    
+
     mock_server
 }
 
@@ -143,7 +143,7 @@ impl DiscordMockState {
 /// Create a mock Discord REST API server
 pub async fn create_discord_rest_mock_server(_state: Arc<DiscordMockState>) -> MockServer {
     let mock_server = MockServer::start().await;
-    
+
     // Mock POST /channels/{id}/messages - returns success
     // Use regex matcher to match /channels/{id}/messages pattern
     Mock::given(method("POST"))
@@ -157,7 +157,7 @@ pub async fn create_discord_rest_mock_server(_state: Arc<DiscordMockState>) -> M
         })))
         .mount(&mock_server)
         .await;
-    
+
     mock_server
 }
 
@@ -202,7 +202,7 @@ impl WhatsAppMockState {
 /// Create a mock WhatsApp Business API server
 pub async fn create_whatsapp_mock_server(_state: Arc<WhatsAppMockState>) -> MockServer {
     let mock_server = MockServer::start().await;
-    
+
     // Mock POST /v1/{phone_number_id}/messages - returns success
     Mock::given(method("POST"))
         .and(path("/v1/123456789/messages"))
@@ -213,7 +213,7 @@ pub async fn create_whatsapp_mock_server(_state: Arc<WhatsAppMockState>) -> Mock
         })))
         .mount(&mock_server)
         .await;
-    
+
     mock_server
 }
 
@@ -247,7 +247,7 @@ impl SlackMockState {
 /// Create a mock Slack Web API server
 pub async fn create_slack_mock_server(_state: Arc<SlackMockState>) -> MockServer {
     let mock_server = MockServer::start().await;
-    
+
     // Mock /auth.test - returns success
     Mock::given(method("POST"))
         .and(path("/auth.test"))
@@ -262,7 +262,7 @@ pub async fn create_slack_mock_server(_state: Arc<SlackMockState>) -> MockServer
         })))
         .mount(&mock_server)
         .await;
-    
+
     // Mock /apps.connections.open - returns WebSocket URL
     Mock::given(method("POST"))
         .and(path("/apps.connections.open"))
@@ -275,7 +275,7 @@ pub async fn create_slack_mock_server(_state: Arc<SlackMockState>) -> MockServer
         })))
         .mount(&mock_server)
         .await;
-    
+
     // Mock /chat.postMessage - returns success
     Mock::given(method("POST"))
         .and(path("/chat.postMessage"))
@@ -291,7 +291,7 @@ pub async fn create_slack_mock_server(_state: Arc<SlackMockState>) -> MockServer
         })))
         .mount(&mock_server)
         .await;
-    
+
     mock_server
 }
 
@@ -309,7 +309,7 @@ impl TestServer {
     pub fn from_wiremock(server: MockServer) -> Self {
         Self { server }
     }
-    
+
     /// Get the server URL
     pub fn url(&self) -> String {
         self.server.uri()

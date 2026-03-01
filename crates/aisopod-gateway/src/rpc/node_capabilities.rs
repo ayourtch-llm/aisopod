@@ -88,10 +88,15 @@ impl CapabilityStore {
     }
 
     /// Store capabilities for a connection with optional device_id
-    pub fn store_with_device_id(&self, conn_id: &str, capabilities: Vec<DeviceCapability>, device_id: Option<String>) {
+    pub fn store_with_device_id(
+        &self,
+        conn_id: &str,
+        capabilities: Vec<DeviceCapability>,
+        device_id: Option<String>,
+    ) {
         let mut store = self.capabilities.write().unwrap();
         store.insert(conn_id.to_string(), capabilities);
-        
+
         if let Some(device_id) = device_id {
             let mut device_map = self.device_to_conn.write().unwrap();
             device_map.insert(device_id, conn_id.to_string());
@@ -114,15 +119,16 @@ impl CapabilityStore {
     pub fn remove(&self, conn_id: &str) {
         let mut store = self.capabilities.write().unwrap();
         store.remove(conn_id);
-        
+
         // Also remove from device_to_conn mapping
         let device_id_to_remove = {
             let device_map = self.device_to_conn.read().unwrap();
-            device_map.iter()
+            device_map
+                .iter()
                 .find(|(_, c)| c.as_str() == conn_id)
                 .map(|(d, _)| d.clone())
         };
-        
+
         if let Some(device_id) = device_id_to_remove {
             let mut device_map = self.device_to_conn.write().unwrap();
             device_map.remove(&device_id);
@@ -161,7 +167,10 @@ impl NodeDescribeHandler {
     }
 
     /// Create a new NodeDescribeHandler with dependencies
-    pub fn with_deps(client_registry: Arc<ClientRegistry>, capability_store: Arc<CapabilityStore>) -> Self {
+    pub fn with_deps(
+        client_registry: Arc<ClientRegistry>,
+        capability_store: Arc<CapabilityStore>,
+    ) -> Self {
         Self {
             client_registry: Some(client_registry),
             capability_store,
@@ -216,7 +225,8 @@ impl RpcMethod for NodeDescribeHandler {
         };
 
         // Store capabilities in the capability store
-        self.capability_store.store(&ctx.conn_id, params.capabilities.clone());
+        self.capability_store
+            .store(&ctx.conn_id, params.capabilities.clone());
 
         // Update the client's device_capabilities field if registry is available
         if let Some(client_registry) = self.get_client_registry() {
@@ -255,7 +265,10 @@ pub struct NodeInvokeHandler {
 
 impl NodeInvokeHandler {
     /// Create a new NodeInvokeHandler
-    pub fn new(client_registry: Arc<ClientRegistry>, capability_store: Arc<CapabilityStore>) -> Self {
+    pub fn new(
+        client_registry: Arc<ClientRegistry>,
+        capability_store: Arc<CapabilityStore>,
+    ) -> Self {
         Self {
             client_registry,
             capability_store,
@@ -395,7 +408,7 @@ impl RpcMethod for NodeInvokeHandler {
         // success response. This is a placeholder that should be replaced with proper
         // async response handling using tokio::select! with the response channel.
         let timeout_duration = Duration::from_millis(params.timeout_ms);
-        
+
         // Note: In production, this would use tokio::time::timeout with a response channel
         // instead of block_on. For now, we sleep to simulate the invocation completing.
         tokio::runtime::Handle::current().block_on(async move {
@@ -430,7 +443,7 @@ impl NodeInvokeHandler {
             if let Some(conn_id) = self.capability_store.get_conn_id_by_device_id(device_id) {
                 return Some(conn_id);
             }
-            
+
             // Fallback: search through all node connections for one that advertises this service
             let list = self.client_registry.list();
             for client in list.iter() {
@@ -441,17 +454,17 @@ impl NodeInvokeHandler {
                             self.capability_store.store_with_device_id(
                                 &client.conn_id,
                                 capabilities.clone(),
-                                Some(device_id.to_string())
+                                Some(device_id.to_string()),
                             );
                             return Some(client.conn_id.clone());
                         }
                     }
                 }
             }
-            
+
             return None;
         }
-        
+
         // No device_id provided - return the first node connection that advertises the service
         let list = self.client_registry.list();
         for client in list.iter() {
@@ -463,7 +476,7 @@ impl NodeInvokeHandler {
                 }
             }
         }
-        
+
         None
     }
 }
@@ -496,7 +509,12 @@ mod tests {
     fn test_node_describe_handler_new() {
         let handler = NodeDescribeHandler::new();
         assert!(handler.client_registry.is_none());
-        assert!(handler.capability_store.capabilities.read().unwrap().is_empty());
+        assert!(handler
+            .capability_store
+            .capabilities
+            .read()
+            .unwrap()
+            .is_empty());
     }
 
     #[test]
@@ -519,7 +537,10 @@ mod tests {
 
         assert!(response.error.is_some());
         assert_eq!(response.error.as_ref().unwrap().code, -32003);
-        assert_eq!(response.error.as_ref().unwrap().message, "Connection is not authenticated");
+        assert_eq!(
+            response.error.as_ref().unwrap().message,
+            "Connection is not authenticated"
+        );
     }
 
     #[test]

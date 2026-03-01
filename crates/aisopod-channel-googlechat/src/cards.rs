@@ -633,7 +633,9 @@ pub struct ButtonList {
 impl ButtonList {
     /// Create a new button list.
     pub fn new() -> Self {
-        Self { buttons: Vec::new() }
+        Self {
+            buttons: Vec::new(),
+        }
     }
 
     /// Add a button to the list.
@@ -765,7 +767,11 @@ pub struct PickersItem {
 
 impl PickersItem {
     /// Create a new pickers item.
-    pub fn new(picker_type: PickerType, item_id: impl Into<String>, text: impl Into<String>) -> Self {
+    pub fn new(
+        picker_type: PickerType,
+        item_id: impl Into<String>,
+        text: impl Into<String>,
+    ) -> Self {
         Self {
             picker_type,
             item_id: item_id.into(),
@@ -820,7 +826,11 @@ pub struct SelectionInputWidget {
 
 impl SelectionInputWidget {
     /// Create a new selection input widget.
-    pub fn new(item_id: impl Into<String>, text: impl Into<String>, selection_type: SelectionType) -> Self {
+    pub fn new(
+        item_id: impl Into<String>,
+        text: impl Into<String>,
+        selection_type: SelectionType,
+    ) -> Self {
         Self {
             item_id: item_id.into(),
             text: text.into(),
@@ -1073,13 +1083,14 @@ mod tests {
             .subtitle("Subtitle")
             .image(CardImage::new("https://example.com/image.png"));
 
-        let card = CardBuilder::new()
-            .header(header)
-            .build();
+        let card = CardBuilder::new().header(header).build();
 
         assert_eq!(card["header"]["title"], "Test Card");
         assert_eq!(card["header"]["subtitle"], "Subtitle");
-        assert_eq!(card["header"]["image"]["imageUrl"], "https://example.com/image.png");
+        assert_eq!(
+            card["header"]["image"]["imageUrl"],
+            "https://example.com/image.png"
+        );
     }
 
     #[test]
@@ -1088,12 +1099,13 @@ mod tests {
             .header("Section Title")
             .widget(Widget::TextParagraph(TextParagraph::new("Hello, world!")));
 
-        let card = CardBuilder::new()
-            .section(section)
-            .build();
+        let card = CardBuilder::new().section(section).build();
 
         assert_eq!(card["sections"][0]["header"], "Section Title");
-        assert_eq!(card["sections"][0]["widgets"][0]["textParagraph"]["text"], "Hello, world!");
+        assert_eq!(
+            card["sections"][0]["widgets"][0]["textParagraph"]["text"],
+            "Hello, world!"
+        );
     }
 
     #[test]
@@ -1102,18 +1114,19 @@ mod tests {
             .on_click(OnClick::OpenLink(OpenLink::new("https://example.com")));
 
         let card = CardBuilder::new()
-            .section(
-                CardSection::new()
-                    .widget(Widget::Button(button))
-            )
+            .section(CardSection::new().widget(Widget::Button(button)))
             .build();
 
-        assert_eq!(card["sections"][0]["widgets"][0]["button"]["text"], "Click me");
+        assert_eq!(
+            card["sections"][0]["widgets"][0]["button"]["text"],
+            "Click me"
+        );
     }
 
     #[test]
     fn test_text_paragraph_with_format() {
-        let widget = Widget::TextParagraph(TextParagraph::new("<b>Bold text</b>").format(TextFormat::Html));
+        let widget =
+            Widget::TextParagraph(TextParagraph::new("<b>Bold text</b>").format(TextFormat::Html));
         let json = json!(widget);
         assert_eq!(json["textParagraph"]["text"], "<b>Bold text</b>");
         assert_eq!(json["textParagraph"]["format"], "HTML");
@@ -1121,8 +1134,9 @@ mod tests {
 
     #[test]
     fn test_image_widget_with_layout() {
-        let widget = Widget::Image(ImageWidget::new("https://example.com/image.png")
-            .layout(ImageLayout::Fill));
+        let widget = Widget::Image(
+            ImageWidget::new("https://example.com/image.png").layout(ImageLayout::Fill),
+        );
 
         let json = json!(widget);
         assert_eq!(json["image"]["layout"], "FILL");
@@ -1133,8 +1147,7 @@ mod tests {
         let button1 = ButtonWidget::new("Button 1");
         let button2 = ButtonWidget::new("Button 2");
 
-        let widget = Widget::ButtonList(ButtonList::new()
-            .buttons(vec![button1, button2]));
+        let widget = Widget::ButtonList(ButtonList::new().buttons(vec![button1, button2]));
 
         let json = json!(widget);
         assert_eq!(json["buttonList"]["buttons"].as_array().unwrap().len(), 2);
@@ -1142,9 +1155,11 @@ mod tests {
 
     #[test]
     fn test_decorated_text() {
-        let widget = Widget::DecoratedText(DecoratedText::new("Primary text")
-            .top_label("Top label")
-            .bottom_label("Bottom label"));
+        let widget = Widget::DecoratedText(
+            DecoratedText::new("Primary text")
+                .top_label("Top label")
+                .bottom_label("Bottom label"),
+        );
 
         let json = json!(widget);
         assert_eq!(json["decoratedText"]["text"], "Primary text");
@@ -1157,9 +1172,11 @@ mod tests {
         let item1 = SelectionItem::new("item1", "Item 1");
         let item2 = SelectionItem::new("item2", "Item 2");
 
-        let widget = Widget::SelectionInput(SelectionInputWidget::new("select1", "Select an item", SelectionType::RadioButton)
-            .items(vec![item1, item2])
-            .multi_select(false));
+        let widget = Widget::SelectionInput(
+            SelectionInputWidget::new("select1", "Select an item", SelectionType::RadioButton)
+                .items(vec![item1, item2])
+                .multi_select(false),
+        );
 
         let json = json!(widget);
         assert_eq!(json["selectionInput"]["multiSelect"], false);
@@ -1168,8 +1185,10 @@ mod tests {
 
     #[test]
     fn test_card_with_action() {
-        let card = CardBuilder::new()
-            .action(CardAction::new("Open", OnClick::OpenLink(OpenLink::new("https://example.com"))));
+        let card = CardBuilder::new().action(CardAction::new(
+            "Open",
+            OnClick::OpenLink(OpenLink::new("https://example.com")),
+        ));
 
         let json = card.build();
         assert_eq!(json["action"][0]["text"], "Open");
@@ -1209,36 +1228,45 @@ mod tests {
             .header(
                 CardHeader::new("Project Update")
                     .subtitle("Weekly status report")
-                    .image(CardImage::new("https://example.com/logo.png"))
+                    .image(CardImage::new("https://example.com/logo.png")),
             )
             .section(
                 CardSection::new()
                     .header("Overview")
-                    .widget(Widget::TextParagraph(TextParagraph::new("This week we made progress on the new features.")))
+                    .widget(Widget::TextParagraph(TextParagraph::new(
+                        "This week we made progress on the new features.",
+                    ))),
             )
             .section(
-                CardSection::new()
-                    .widget(Widget::DecoratedText(DecoratedText::new("Task 1: Complete UI design")
+                CardSection::new().widget(Widget::DecoratedText(
+                    DecoratedText::new("Task 1: Complete UI design")
                         .top_label("Status")
                         .bottom_label("In progress")
-                        .start_icon(Icon::CheckBoxOutlineBlank)
-                    ))
+                        .start_icon(Icon::CheckBoxOutlineBlank),
+                )),
             )
             .section(
-                CardSection::new()
-                    .widget(Widget::ButtonList(ButtonList::new()
+                CardSection::new().widget(Widget::ButtonList(
+                    ButtonList::new()
                         .button(
-                            ButtonWidget::new("View Details")
-                                .on_click(OnClick::OpenLink(OpenLink::new("https://example.com/task1")))
+                            ButtonWidget::new("View Details").on_click(OnClick::OpenLink(
+                                OpenLink::new("https://example.com/task1"),
+                            )),
                         )
                         .button(
                             ButtonWidget::new("Update Status")
-                                .on_click(OnClick::Action(Action::new("update_status")))
-                        )
-                    ))
+                                .on_click(OnClick::Action(Action::new("update_status"))),
+                        ),
+                )),
             )
-            .action(CardAction::new("Action 1", OnClick::OpenLink(OpenLink::new("https://example.com/action1"))))
-            .action(CardAction::new("Action 2", OnClick::OpenLink(OpenLink::new("https://example.com/action2"))))
+            .action(CardAction::new(
+                "Action 1",
+                OnClick::OpenLink(OpenLink::new("https://example.com/action1")),
+            ))
+            .action(CardAction::new(
+                "Action 2",
+                OnClick::OpenLink(OpenLink::new("https://example.com/action2")),
+            ))
             .build();
 
         assert_eq!(card["header"]["title"], "Project Update");

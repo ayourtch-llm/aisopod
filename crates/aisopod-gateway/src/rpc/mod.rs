@@ -9,11 +9,25 @@ pub mod node_capabilities;
 pub mod node_pair;
 pub mod types;
 
-pub use handler::{default_router, MethodRouter, PlaceholderHandler, RequestContext, RpcMethod, ApprovalRequestHandler, ApprovalApproveHandler, ApprovalDenyHandler, ApprovalListHandler, CanvasInteractHandler};
-pub use approval::{PendingApproval, ApprovalStatus, ApprovalRequestParams, ApprovalStore};
-pub use canvas::{CanvasState, CanvasUpdateParams, CanvasAction, CanvasContent, CanvasInteractParams, CanvasInteractResult};
-pub use node_capabilities::{NodeDescribeHandler, NodeInvokeHandler, NodeDescribeParams, NodeDescribeResult, NodeInvokeRequest, NodeInvokeResult, CapabilityStore};
-pub use node_pair::{PairingStore, PairRequestHandler, PairConfirmHandler, PairRevokeHandler, PairRequestParams, PairRequestResult, PairConfirmParams, PairConfirmResult, PairRevokeParams, PairRevokeResult, PendingPairing, generate_pairing_code, run_pairing_cleanup_task};
+pub use approval::{ApprovalRequestParams, ApprovalStatus, ApprovalStore, PendingApproval};
+pub use canvas::{
+    CanvasAction, CanvasContent, CanvasInteractParams, CanvasInteractResult, CanvasState,
+    CanvasUpdateParams,
+};
+pub use handler::{
+    default_router, ApprovalApproveHandler, ApprovalDenyHandler, ApprovalListHandler,
+    ApprovalRequestHandler, CanvasInteractHandler, MethodRouter, PlaceholderHandler,
+    RequestContext, RpcMethod,
+};
+pub use node_capabilities::{
+    CapabilityStore, NodeDescribeHandler, NodeDescribeParams, NodeDescribeResult,
+    NodeInvokeHandler, NodeInvokeRequest, NodeInvokeResult,
+};
+pub use node_pair::{
+    generate_pairing_code, run_pairing_cleanup_task, PairConfirmHandler, PairConfirmParams,
+    PairConfirmResult, PairRequestHandler, PairRequestParams, PairRequestResult, PairRevokeHandler,
+    PairRevokeParams, PairRevokeResult, PairingStore, PendingPairing,
+};
 pub use types::{error_codes, parse, RpcError, RpcRequest, RpcResponse};
 
 // Re-export DeviceCapability from client module

@@ -77,7 +77,9 @@ pub fn install_daemon(args: InstallArgs) -> Result<()> {
 
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 pub fn install_daemon(args: InstallArgs) -> Result<()> {
-    Err(anyhow!("Daemon installation not supported on this platform"))
+    Err(anyhow!(
+        "Daemon installation not supported on this platform"
+    ))
 }
 
 /// Install systemd service on Linux
@@ -87,18 +89,25 @@ fn install_systemd_service(exe_path: &Path, system_level: bool) -> Result<()> {
     let service_path = if system_level {
         PathBuf::from("/etc/systemd/system/aisopod.service")
     } else {
-        let home = std::env::var("HOME")
-            .with_context(|| "Cannot determine home directory")?;
+        let home = std::env::var("HOME").with_context(|| "Cannot determine home directory")?;
         let dir = PathBuf::from(&home).join(".config/systemd/user");
         std::fs::create_dir_all(&dir)?;
         dir.join("aisopod.service")
     };
 
-    std::fs::write(&service_path, &unit)
-        .with_context(|| format!("Failed to write systemd service file to {}", service_path.display()))?;
+    std::fs::write(&service_path, &unit).with_context(|| {
+        format!(
+            "Failed to write systemd service file to {}",
+            service_path.display()
+        )
+    })?;
 
     // Reload systemd daemon
-    let daemon_reload_args = if system_level { &["daemon-reload"][..] } else { &["--user", "daemon-reload"][..] };
+    let daemon_reload_args = if system_level {
+        &["daemon-reload"][..]
+    } else {
+        &["--user", "daemon-reload"][..]
+    };
     Command::new("systemctl")
         .args(daemon_reload_args)
         .status()
@@ -120,18 +129,18 @@ fn install_systemd_service(exe_path: &Path, system_level: bool) -> Result<()> {
     } else {
         "User-level systemd service"
     };
-    println!("{} installed and enabled at {}", install_msg, service_path.display());
+    println!(
+        "{} installed and enabled at {}",
+        install_msg,
+        service_path.display()
+    );
     println!("Start with: aisopod daemon start");
     Ok(())
 }
 
 /// Generate systemd unit file content
 fn generate_systemd_unit(exe_path: &Path, system_level: bool) -> String {
-    let user_line = if system_level {
-        "User=aisopod\n"
-    } else {
-        ""
-    };
+    let user_line = if system_level { "User=aisopod\n" } else { "" };
 
     let wanted_by = if system_level {
         "multi-user.target"
@@ -163,12 +172,11 @@ WantedBy={wanted_by}
 /// Install launchctl service on macOS
 #[cfg(target_os = "macos")]
 fn install_launchctl_service(exe_path: &Path) -> Result<()> {
-    let home = std::env::var("HOME")
-        .or_else(|_| {
-            dirs::home_dir()
-                .map(|h| h.to_string_lossy().to_string())
-                .ok_or_else(|| anyhow!("Cannot determine home directory"))
-        })?;
+    let home = std::env::var("HOME").or_else(|_| {
+        dirs::home_dir()
+            .map(|h| h.to_string_lossy().to_string())
+            .ok_or_else(|| anyhow!("Cannot determine home directory"))
+    })?;
 
     let log_dir = format!("{}/Library/Logs/aisopod", home);
     std::fs::create_dir_all(&log_dir)
@@ -308,7 +316,8 @@ pub fn tail_logs(lines: usize, follow: bool) -> Result<()> {
 pub fn tail_logs(lines: usize, follow: bool) -> Result<()> {
     let log_dir = format!(
         "{}/Library/Logs/aisopod",
-        std::env::var("HOME").unwrap_or_else(|_| dirs::home_dir().unwrap().to_string_lossy().to_string())
+        std::env::var("HOME")
+            .unwrap_or_else(|_| dirs::home_dir().unwrap().to_string_lossy().to_string())
     );
     let log_path = format!("{}/aisopod.out.log", log_dir);
     let lines_arg = lines.to_string();
@@ -331,12 +340,11 @@ pub fn tail_logs(lines: usize, follow: bool) -> Result<()> {
 /// Get the plist path for macOS
 #[cfg(target_os = "macos")]
 fn plist_path() -> Result<String> {
-    let home = std::env::var("HOME")
-        .or_else(|_| {
-            dirs::home_dir()
-                .map(|h| h.to_string_lossy().to_string())
-                .ok_or_else(|| anyhow!("Cannot determine home directory"))
-        })?;
+    let home = std::env::var("HOME").or_else(|_| {
+        dirs::home_dir()
+            .map(|h| h.to_string_lossy().to_string())
+            .ok_or_else(|| anyhow!("Cannot determine home directory"))
+    })?;
     Ok(format!(
         "{}/Library/LaunchAgents/com.aisopod.gateway.plist",
         home
@@ -351,8 +359,7 @@ pub fn uninstall_daemon() -> Result<()> {
     // Try to detect whether the service was installed at user or system level
     // by checking both locations
     let system_path = PathBuf::from("/etc/systemd/system/aisopod.service");
-    let user_home = std::env::var("HOME")
-        .with_context(|| "Cannot determine home directory")?;
+    let user_home = std::env::var("HOME").with_context(|| "Cannot determine home directory")?;
     let user_path = PathBuf::from(&user_home).join(".config/systemd/user/aisopod.service");
 
     let (service_path, system_level) = if system_path.exists() {
@@ -395,7 +402,11 @@ pub fn uninstall_daemon() -> Result<()> {
     } else {
         "User-level systemd service"
     };
-    println!("{} uninstalled from {}", uninstall_msg, service_path.display());
+    println!(
+        "{} uninstalled from {}",
+        uninstall_msg,
+        service_path.display()
+    );
     Ok(())
 }
 
@@ -404,7 +415,7 @@ pub fn uninstall_daemon() -> Result<()> {
 pub fn uninstall_daemon() -> Result<()> {
     let plist = plist_path()?;
     let plist_path_obj = PathBuf::from(&plist);
-    
+
     if !plist_path_obj.exists() {
         return Err(anyhow!(
             "aisopod service is not installed. No plist file found at {}",
@@ -427,7 +438,9 @@ pub fn uninstall_daemon() -> Result<()> {
 /// Uninstall aisopod daemon not supported on other platforms
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 pub fn uninstall_daemon() -> Result<()> {
-    Err(anyhow!("Daemon uninstallation not supported on this platform"))
+    Err(anyhow!(
+        "Daemon uninstallation not supported on this platform"
+    ))
 }
 
 /// Run the daemon command with the given arguments
@@ -498,7 +511,10 @@ mod tests {
 
     #[test]
     fn test_daemon_commands_enum() {
-        assert!(matches!(DaemonCommands::Install(InstallArgs { system: false }), DaemonCommands::Install(_)));
+        assert!(matches!(
+            DaemonCommands::Install(InstallArgs { system: false }),
+            DaemonCommands::Install(_)
+        ));
         assert!(matches!(DaemonCommands::Start, DaemonCommands::Start));
         assert!(matches!(DaemonCommands::Stop, DaemonCommands::Stop));
         assert!(matches!(DaemonCommands::Status, DaemonCommands::Status));
@@ -506,7 +522,10 @@ mod tests {
 
     #[test]
     fn test_daemon_uninstall_command() {
-        assert!(matches!(DaemonCommands::Uninstall, DaemonCommands::Uninstall));
+        assert!(matches!(
+            DaemonCommands::Uninstall,
+            DaemonCommands::Uninstall
+        ));
     }
 
     #[test]

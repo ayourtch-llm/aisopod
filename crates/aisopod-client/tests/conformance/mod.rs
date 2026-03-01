@@ -13,9 +13,9 @@ pub mod handshake;
 pub mod rpc_methods;
 pub mod version_negotiation;
 
-pub use aisopod_client::{AisopodClient, ClientConfig};
-pub use aisopod_client::DeviceInfo;
 pub use aisopod_client::DeviceCapability;
+pub use aisopod_client::DeviceInfo;
+pub use aisopod_client::{AisopodClient, ClientConfig};
 
 /// Connect to the test server using configuration from environment variables or defaults
 ///

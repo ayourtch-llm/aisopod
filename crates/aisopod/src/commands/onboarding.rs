@@ -54,7 +54,10 @@ fn prompt_select(prompt_text: &str, options: &[&str]) -> Result<String> {
                 return Ok(options[index - 1].to_string());
             }
         }
-        println!("Invalid choice. Please enter a number between 1 and {}.", options.len());
+        println!(
+            "Invalid choice. Please enter a number between 1 and {}.",
+            options.len()
+        );
     }
 }
 
@@ -63,16 +66,19 @@ fn load_config_or_default(config_path: Option<&str>) -> Result<AisopodConfig> {
     match config_path {
         Some(path) => {
             let config_path = Path::new(path);
-            load_config(config_path).map_err(|e| {
-                anyhow::anyhow!("Failed to load configuration from '{}': {}", path, e)
-            })
+            load_config(config_path)
+                .map_err(|e| anyhow::anyhow!("Failed to load configuration from '{}': {}", path, e))
         }
         None => {
             // Use default config path
             let default_path = aisopod_config::default_config_path();
             if default_path.exists() {
                 load_config(&default_path).map_err(|e| {
-                    anyhow::anyhow!("Failed to load configuration from '{}': {}", default_path.display(), e)
+                    anyhow::anyhow!(
+                        "Failed to load configuration from '{}': {}",
+                        default_path.display(),
+                        e
+                    )
                 })
             } else {
                 // If no config file exists, return empty config

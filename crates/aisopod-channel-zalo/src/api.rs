@@ -177,7 +177,10 @@ impl ZaloApi {
     /// * `Ok(())` - Message sent successfully
     /// * `Err(anyhow::Error)` - An error if sending fails
     pub async fn send_file_message(&mut self, user_id: &str, file_token: &str) -> Result<()> {
-        info!("Sending file message to {} with token {}", user_id, file_token);
+        info!(
+            "Sending file message to {} with token {}",
+            user_id, file_token
+        );
         let token = self.auth.get_access_token().await?;
 
         let payload = MessagePayload {
@@ -218,7 +221,10 @@ impl ZaloApi {
             .http
             .post(&url)
             .bearer_auth(&token)
-            .header("Content-Disposition", format!("attachment; filename=\"{}\"", filename))
+            .header(
+                "Content-Disposition",
+                format!("attachment; filename=\"{}\"", filename),
+            )
             .body(file_data)
             .send()
             .await?;
@@ -266,12 +272,7 @@ impl ZaloApi {
 
         let url = format!("{}/user/{}", self.base_url, user_id);
 
-        let response = self
-            .http
-            .get(&url)
-            .bearer_auth(&token)
-            .send()
-            .await?;
+        let response = self.http.get(&url).bearer_auth(&token).send().await?;
 
         if response.status().is_success() {
             let profile: UserProfile = response.json().await?;
@@ -352,16 +353,15 @@ impl ZaloApi {
     /// * `Ok(bool)` - `true` if token is valid
     /// * `Err(anyhow::Error)` - An error if verification fails
     pub async fn verify_token(&self) -> Result<bool> {
-        validate_access_token(self.auth.access_token().unwrap_or(""), self.auth.app_secret())
-            .await
+        validate_access_token(
+            self.auth.access_token().unwrap_or(""),
+            self.auth.app_secret(),
+        )
+        .await
     }
 
     /// Internal method to POST a message.
-    async fn post_message(
-        &self,
-        token: &str,
-        payload: &MessagePayload,
-    ) -> Result<()> {
+    async fn post_message(&self, token: &str, payload: &MessagePayload) -> Result<()> {
         let url = format!("{}/message/cs", self.base_url);
 
         let response = self

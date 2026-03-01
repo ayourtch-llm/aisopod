@@ -9,9 +9,11 @@ use crate::config::{IrcConfig, IrcServerConfig};
 use aisopod_channel::adapters::{
     AccountConfig, AccountSnapshot, ChannelConfigAdapter, SecurityAdapter,
 };
-use aisopod_channel::message::{IncomingMessage, MessageContent, MessagePart, MessageTarget, PeerInfo, PeerKind, SenderInfo};
-use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+use aisopod_channel::message::{
+    IncomingMessage, MessageContent, MessagePart, MessageTarget, PeerInfo, PeerKind, SenderInfo,
+};
 use aisopod_channel::plugin::ChannelPlugin;
+use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -187,7 +189,7 @@ impl IrcChannel {
             );
 
             let mut connection = IrcConnection::connect(&account.config).await?;
-            
+
             // Join configured channels
             for channel in &account.config.channels {
                 if let Err(e) = connection.join_channel(channel) {
@@ -236,12 +238,7 @@ impl IrcChannel {
     ///
     /// * `Ok(())` - Message was sent successfully
     /// * `Err(anyhow::Error)` - An error if sending fails
-    pub async fn send_message(
-        &self,
-        account_id: &str,
-        target: &str,
-        message: &str,
-    ) -> Result<()> {
+    pub async fn send_message(&self, account_id: &str, target: &str, message: &str) -> Result<()> {
         let account = self
             .get_account(account_id)
             .ok_or_else(|| anyhow::anyhow!("Account {} not found", account_id))?;
@@ -269,7 +266,7 @@ impl IrcChannel {
     pub async fn receive(&mut self) -> Result<IncomingMessage> {
         // For now, we'll simulate receiving by waiting
         // A full implementation would poll all streams using select!
-        
+
         // This is a placeholder implementation
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
@@ -347,16 +344,13 @@ impl IrcSecurityAdapter {
     /// Create a new IrcSecurityAdapter.
     pub fn new(accounts: &[IrcAccount]) -> Self {
         let mut allowed_senders = HashMap::new();
-        
+
         for account in accounts {
             // For now, we'll use the channels as a way to determine allowed senders
             // A more sophisticated implementation would have explicit allowlists
-            allowed_senders.insert(
-                account.id.clone(),
-                account.config.channels.clone(),
-            );
+            allowed_senders.insert(account.id.clone(), account.config.channels.clone());
         }
-        
+
         Self { allowed_senders }
     }
 
@@ -411,7 +405,9 @@ impl ChannelPlugin for IrcChannel {
 
     /// Returns the security adapter for this channel if available.
     fn security(&self) -> Option<&dyn SecurityAdapter> {
-        self.security_adapter.as_ref().map(|a| a as &dyn SecurityAdapter)
+        self.security_adapter
+            .as_ref()
+            .map(|a| a as &dyn SecurityAdapter)
     }
 }
 
@@ -459,7 +455,7 @@ mod tests {
 
         let channel = IrcChannel::new(config, "main").await;
         assert!(channel.is_ok());
-        
+
         let channel = channel.unwrap();
         assert_eq!(channel.id(), "irc-main");
         assert_eq!(channel.list_account_ids().len(), 1);
@@ -492,7 +488,7 @@ mod tests {
 
         let channel = IrcChannel::new(config, "multi").await;
         assert!(channel.is_ok());
-        
+
         let channel = channel.unwrap();
         assert_eq!(channel.list_account_ids().len(), 2);
     }

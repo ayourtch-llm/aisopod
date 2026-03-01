@@ -79,7 +79,8 @@ pub fn run_cli() {
     match cli.command {
         Commands::Gateway(args) => {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-            rt.block_on(crate::commands::gateway::run(args, cli.config)).expect("Gateway command failed");
+            rt.block_on(crate::commands::gateway::run(args, cli.config))
+                .expect("Gateway command failed");
         }
         Commands::Agent(args) => {
             crate::commands::agent::run(args, cli.config).expect("Agent command failed");
@@ -94,49 +95,63 @@ pub fn run_cli() {
         }
         Commands::Status(args) => {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-            rt.block_on(crate::commands::status::run_status(args, cli.config, cli.json)).expect("Status command failed");
+            rt.block_on(crate::commands::status::run_status(
+                args, cli.config, cli.json,
+            ))
+            .expect("Status command failed");
         }
         Commands::Health(args) => {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-            rt.block_on(crate::commands::status::run_health(cli.config, args.json)).expect("Health command failed");
+            rt.block_on(crate::commands::status::run_health(cli.config, args.json))
+                .expect("Health command failed");
         }
         Commands::Dashboard => {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-            rt.block_on(crate::commands::status::run_dashboard(cli.config)).expect("Dashboard command failed");
+            rt.block_on(crate::commands::status::run_dashboard(cli.config))
+                .expect("Dashboard command failed");
         }
-        Commands::Models(args) => {
-            match args.command {
-                crate::commands::models::ModelsCommands::List { provider, json } => {
-                    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-                    rt.block_on(crate::commands::models::list_models(provider, cli.config, json)).expect("Models list command failed");
-                }
-                crate::commands::models::ModelsCommands::Switch { model, json } => {
-                    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-                    let json_output = json || cli.json;
-                    rt.block_on(crate::commands::models::switch_model(&model, cli.config, json_output)).expect("Models switch command failed");
-                }
+        Commands::Models(args) => match args.command {
+            crate::commands::models::ModelsCommands::List { provider, json } => {
+                let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+                rt.block_on(crate::commands::models::list_models(
+                    provider, cli.config, json,
+                ))
+                .expect("Models list command failed");
             }
-        }
+            crate::commands::models::ModelsCommands::Switch { model, json } => {
+                let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+                let json_output = json || cli.json;
+                rt.block_on(crate::commands::models::switch_model(
+                    &model,
+                    cli.config,
+                    json_output,
+                ))
+                .expect("Models switch command failed");
+            }
+        },
         Commands::Channels(args) => {
             crate::commands::channels::run(args, cli.config).expect("Channels command failed");
         }
         Commands::Sessions(args) => {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-            rt.block_on(crate::commands::sessions::run(args, cli.config)).expect("Sessions command failed");
+            rt.block_on(crate::commands::sessions::run(args, cli.config))
+                .expect("Sessions command failed");
         }
         Commands::Daemon(args) => {
             crate::commands::daemon::run(args).expect("Daemon command failed");
         }
         Commands::Doctor(args) => {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-            rt.block_on(crate::commands::doctor::run_doctor(args, cli.config)).expect("Doctor command failed");
+            rt.block_on(crate::commands::doctor::run_doctor(args, cli.config))
+                .expect("Doctor command failed");
         }
         Commands::Auth(args) => {
             crate::commands::auth::run(args, cli.config).expect("Auth command failed");
         }
         Commands::Reset => {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
-            rt.block_on(crate::commands::sessions::run_reset(cli.config)).expect("Reset command failed");
+            rt.block_on(crate::commands::sessions::run_reset(cli.config))
+                .expect("Reset command failed");
         }
         Commands::Completions(args) => {
             crate::commands::completions::run(args);

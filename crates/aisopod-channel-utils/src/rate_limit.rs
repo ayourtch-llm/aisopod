@@ -244,7 +244,7 @@ mod tests {
         assert!(limiter.check("key1").is_allowed());
         let result = limiter.check("key1");
         assert!(result.is_limited());
-        
+
         // Check retry_after is approximately 10 seconds (allow small tolerance for timing)
         let retry_after = result.retry_after().unwrap();
         assert!(retry_after >= Duration::from_secs(9));

@@ -164,23 +164,23 @@ pub fn build_upload_payload(
         "channel_ids": channel_ids,
         "filename": filename,
     });
-    
+
     if let Some(content) = file_content {
         payload["content"] = serde_json::json!(content);
     }
-    
+
     if let Some(t) = title {
         payload["title"] = serde_json::json!(t);
     }
-    
+
     if let Some(comment) = initial_comment {
         payload["initial_comment"] = serde_json::json!(comment);
     }
-    
+
     if let Some(ts) = thread_ts {
         payload["thread_ts"] = serde_json::json!(ts);
     }
-    
+
     payload
 }
 
@@ -214,7 +214,7 @@ pub async fn upload_file(
 ) -> Result<UploadResponse> {
     // Convert file data to Base64
     let content = base64::encode(file_data);
-    
+
     let payload = build_upload_payload(
         channel_ids,
         Some(&content),
@@ -223,14 +223,14 @@ pub async fn upload_file(
         initial_comment,
         thread_ts,
     );
-    
+
     let response = client
         .post("https://slack.com/api/files.uploadV2", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let parsed: UploadResponse = serde_json::from_value(json)?;
-    
+
     Ok(parsed)
 }
 
@@ -262,9 +262,9 @@ pub async fn upload_file_from_path(
         .and_then(|n| n.to_str())
         .unwrap_or("file")
         .to_string();
-    
+
     let file_data = fs::read(file_path)?;
-    
+
     upload_file(
         client,
         channel_ids,
@@ -294,41 +294,41 @@ pub async fn download_file(
 ) -> Result<DownloadResponse> {
     // First, get file info to get the download URL
     let file_info = get_file_info(client, file_id).await?;
-    
+
     let url = file_info
         .get_download_url()
         .ok_or_else(|| anyhow::anyhow!("No download URL available for file {}", file_id))?;
-    
+
     // Download the file using the private URL
     let response = client.get(url).await?;
-    
+
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await?;
-        return Err(anyhow::anyhow!("File download failed with status {}: {}", status, body));
+        return Err(anyhow::anyhow!(
+            "File download failed with status {}: {}",
+            status,
+            body
+        ));
     }
-    
+
     // Get mime_type before consuming response with bytes()
     let mime_type = response
         .headers()
         .get("content-type")
         .and_then(|v: &reqwest::header::HeaderValue| v.to_str().ok())
         .map(|s| s.to_string());
-    
+
     // Now get the bytes
     let bytes = response.bytes().await?;
     let bytes_vec = bytes.to_vec();
-    
+
     let filename = file_info
         .name
         .or(file_info.title)
         .unwrap_or_else(|| "downloaded_file".to_string());
-    
-    Ok(DownloadResponse::new(
-        bytes_vec,
-        mime_type,
-        Some(filename),
-    ))
+
+    Ok(DownloadResponse::new(bytes_vec, mime_type, Some(filename)))
 }
 
 /// Get information about a file.
@@ -349,17 +349,20 @@ pub async fn get_file_info(
     let payload = serde_json::json!({
         "file": file_id
     });
-    
+
     let response = client
         .post("https://slack.com/api/files.info", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
-    
+
     if let Some(error) = json.get("error") {
-        return Err(anyhow::anyhow!("files.info failed: {}", error.as_str().unwrap_or("Unknown error")));
+        return Err(anyhow::anyhow!(
+            "files.info failed: {}",
+            error.as_str().unwrap_or("Unknown error")
+        ));
     }
-    
+
     let file: FileInfo = serde_json::from_value(json["file"].clone())?;
     Ok(file)
 }
@@ -392,7 +395,7 @@ pub async fn list_files(
     let mut payload = serde_json::json!({
         "channel": channel
     });
-    
+
     if let Some(ts) = ts_from {
         payload["ts_from"] = serde_json::json!(ts);
     }
@@ -408,11 +411,11 @@ pub async fn list_files(
     if let Some(p) = page {
         payload["page"] = serde_json::json!(p);
     }
-    
+
     let response = client
         .post("https://slack.com/api/files.list", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     Ok(json)
 }
@@ -435,19 +438,19 @@ pub async fn delete_file(
     let payload = serde_json::json!({
         "file": file_id
     });
-    
+
     let response = client
         .post("https://slack.com/api/files.delete", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let success: bool = json["ok"].as_bool().unwrap_or(false);
-    
+
     if !success {
         let error = json["error"].as_str().unwrap_or("Unknown error");
         return Err(anyhow::anyhow!("files.delete failed: {}", error));
     }
-    
+
     Ok(())
 }
 
@@ -481,7 +484,7 @@ pub fn media_type_to_mime(media_type: &MediaType) -> String {
 /// The corresponding Slack media type
 pub fn mime_to_media_type(mime_type: &str) -> MediaType {
     let mime_lower = mime_type.to_lowercase();
-    
+
     if mime_lower.starts_with("image/") {
         MediaType::Image
     } else if mime_lower.starts_with("audio/") {
@@ -511,7 +514,7 @@ mod tests {
             Some("Check this out!"),
             Some("1234567890.123456"),
         );
-        
+
         assert_eq!(payload["channel_ids"][0], "C123456");
         assert_eq!(payload["filename"], "test.txt");
         assert_eq!(payload["title"], "Test File");
@@ -525,7 +528,10 @@ mod tests {
         assert_eq!(media_type_to_mime(&MediaType::Audio), "audio/*");
         assert_eq!(media_type_to_mime(&MediaType::Video), "video/*");
         assert_eq!(media_type_to_mime(&MediaType::Document), "application/*");
-        assert_eq!(media_type_to_mime(&MediaType::Other("custom".to_string())), "custom");
+        assert_eq!(
+            media_type_to_mime(&MediaType::Other("custom".to_string())),
+            "custom"
+        );
     }
 
     #[test]
@@ -571,7 +577,7 @@ mod tests {
             }),
             error: None,
         };
-        
+
         assert!(response.is_ok());
         assert!(response.get_file().is_some());
         assert_eq!(response.get_file().unwrap().id, "F123456");

@@ -131,7 +131,11 @@ pub struct PluginHookHandler {
 impl PluginHookHandler {
     /// Creates a new [`PluginHookHandler`] instance.
     pub fn new(hook: Hook, plugin_id: String, handler: Arc<dyn HookHandler>) -> Self {
-        Self { hook, plugin_id, handler }
+        Self {
+            hook,
+            plugin_id,
+            handler,
+        }
     }
 }
 
@@ -372,8 +376,12 @@ mod tests {
         let called1 = std::sync::Arc::new(std::sync::Mutex::new(false));
         let called2 = std::sync::Arc::new(std::sync::Mutex::new(false));
 
-        let handler1 = Arc::new(TestHandler { called: called1.clone() });
-        let handler2 = Arc::new(TestHandler { called: called2.clone() });
+        let handler1 = Arc::new(TestHandler {
+            called: called1.clone(),
+        });
+        let handler2 = Arc::new(TestHandler {
+            called: called2.clone(),
+        });
 
         registry.register(Hook::BeforeAgentRun, "plugin-1".to_string(), handler1);
         registry.register(Hook::BeforeAgentRun, "plugin-2".to_string(), handler2);
@@ -424,9 +432,21 @@ mod tests {
         let handler = Arc::new(TestHandler);
 
         // Register multiple handlers for the same hook
-        registry.register(Hook::BeforeAgentRun, "plugin-1".to_string(), handler.clone());
-        registry.register(Hook::BeforeAgentRun, "plugin-2".to_string(), handler.clone());
-        registry.register(Hook::BeforeAgentRun, "plugin-3".to_string(), handler.clone());
+        registry.register(
+            Hook::BeforeAgentRun,
+            "plugin-1".to_string(),
+            handler.clone(),
+        );
+        registry.register(
+            Hook::BeforeAgentRun,
+            "plugin-2".to_string(),
+            handler.clone(),
+        );
+        registry.register(
+            Hook::BeforeAgentRun,
+            "plugin-3".to_string(),
+            handler.clone(),
+        );
 
         assert_eq!(registry.handler_count(&Hook::BeforeAgentRun), 3);
 
@@ -450,9 +470,17 @@ mod tests {
 
         let handler = Arc::new(TestHandler);
 
-        registry.register(Hook::BeforeAgentRun, "plugin-1".to_string(), handler.clone());
+        registry.register(
+            Hook::BeforeAgentRun,
+            "plugin-1".to_string(),
+            handler.clone(),
+        );
         registry.register(Hook::AfterAgentRun, "plugin-2".to_string(), handler.clone());
-        registry.register(Hook::OnSessionCreate, "plugin-3".to_string(), handler.clone());
+        registry.register(
+            Hook::OnSessionCreate,
+            "plugin-3".to_string(),
+            handler.clone(),
+        );
 
         assert_eq!(registry.total_hook_count(), 3);
         assert_eq!(registry.hook_type_count(), 3);

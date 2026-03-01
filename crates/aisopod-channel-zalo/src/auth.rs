@@ -175,10 +175,7 @@ impl ZaloAuth {
                 }
             }
 
-            info!(
-                "Access token refreshed, expires in {} seconds",
-                expires_in
-            );
+            info!("Access token refreshed, expires in {} seconds", expires_in);
 
             Ok(self.access_token.clone().unwrap())
         } else {
@@ -250,10 +247,7 @@ impl ZaloAuth {
 ///
 /// * `Ok(bool)` - `true` if token is valid
 /// * `Err(AuthError)` - An error if validation fails
-pub async fn validate_access_token(
-    access_token: &str,
-    app_secret: &str,
-) -> Result<bool> {
+pub async fn validate_access_token(access_token: &str, app_secret: &str) -> Result<bool> {
     let client = reqwest::Client::new();
 
     let response = client

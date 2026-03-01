@@ -283,10 +283,7 @@ impl CommandRegistry {
     /// assert_eq!(registry.command_count(), 1);
     /// ```
     pub fn command_count(&self) -> usize {
-        self.commands
-            .read()
-            .map(|cmds| cmds.len())
-            .unwrap_or(0)
+        self.commands.read().map(|cmds| cmds.len()).unwrap_or(0)
     }
 
     /// Returns a list of all registered command names.
@@ -444,13 +441,8 @@ mod tests {
         let registry = CommandRegistry::new();
 
         // Try to register a reserved command
-        let command = PluginCommand::new(
-            "help",
-            "Help command",
-            "help",
-            false,
-            Arc::new(|_| Ok(())),
-        );
+        let command =
+            PluginCommand::new("help", "Help command", "help", false, Arc::new(|_| Ok(())));
 
         let result = registry.register(command);
         assert!(matches!(result, Err(SecurityError::ReservedCommandName(_))));
@@ -486,13 +478,7 @@ mod tests {
         let registry = CommandRegistry::new();
 
         // Empty name
-        let command = PluginCommand::new(
-            "",
-            "Empty name command",
-            "",
-            false,
-            Arc::new(|_| Ok(())),
-        );
+        let command = PluginCommand::new("", "Empty name command", "", false, Arc::new(|_| Ok(())));
         assert!(matches!(
             registry.register(command),
             Err(SecurityError::InvalidCommandName(_))
@@ -559,7 +545,9 @@ mod tests {
         );
 
         registry.register(command).unwrap();
-        assert!(registry.execute("myplugin", &["--verbose".to_string()]).is_ok());
+        assert!(registry
+            .execute("myplugin", &["--verbose".to_string()])
+            .is_ok());
     }
 
     #[test]
@@ -642,20 +630,8 @@ mod tests {
     fn test_clear_commands() {
         let registry = CommandRegistry::new();
 
-        let command1 = PluginCommand::new(
-            "cmd1",
-            "Command 1",
-            "cmd1",
-            false,
-            Arc::new(|_| Ok(())),
-        );
-        let command2 = PluginCommand::new(
-            "cmd2",
-            "Command 2",
-            "cmd2",
-            false,
-            Arc::new(|_| Ok(())),
-        );
+        let command1 = PluginCommand::new("cmd1", "Command 1", "cmd1", false, Arc::new(|_| Ok(())));
+        let command2 = PluginCommand::new("cmd2", "Command 2", "cmd2", false, Arc::new(|_| Ok(())));
 
         registry.register(command1).unwrap();
         registry.register(command2).unwrap();

@@ -10,8 +10,8 @@ use matrix_sdk::{
     event_handler::Ctx,
     room::Room,
     ruma::{
-        events::room::message::RoomMessageEventContent,
-        OwnedRoomId, OwnedServerName, RoomId, RoomOrAliasId,
+        events::room::message::RoomMessageEventContent, OwnedRoomId, OwnedServerName, RoomId,
+        RoomOrAliasId,
     },
     Client, ClientBuildError,
 };
@@ -41,10 +41,7 @@ impl MatrixClient {
     /// * `Ok(MatrixClient)` - The connected client
     /// * `Err(anyhow::Error)` - An error if connection or authentication fails
     pub async fn connect(config: &MatrixAccountConfig) -> Result<Self> {
-        info!(
-            "Connecting to Matrix homeserver: {}",
-            config.homeserver_url
-        );
+        info!("Connecting to Matrix homeserver: {}", config.homeserver_url);
 
         // Build the client
         let client = Client::builder()
@@ -110,14 +107,14 @@ impl MatrixClient {
 
         for room_id_or_alias in room_ids {
             info!("Joining room: {}", room_id_or_alias);
-            
+
             // Parse the room ID or alias
             let room_or_alias = RoomOrAliasId::parse(room_id_or_alias)
                 .map_err(|e| anyhow!("Invalid room ID or alias {}: {}", room_id_or_alias, e))?;
-            
+
             // Get server names from the room ID/alias
             let server_names: Vec<OwnedServerName> = vec![];
-            
+
             let room = self
                 .client
                 .join_room_by_id_or_alias(&room_or_alias, &server_names)
@@ -141,9 +138,9 @@ impl MatrixClient {
     /// * `Ok(Room)` - The room if found
     /// * `Err(anyhow::Error)` - An error if the room is not found
     pub async fn get_room(&self, room_id: &str) -> Result<Room> {
-        let room_id: OwnedRoomId = RoomId::parse(room_id)
-            .map_err(|e| anyhow!("Invalid room ID {}: {}", room_id, e))?;
-        
+        let room_id: OwnedRoomId =
+            RoomId::parse(room_id).map_err(|e| anyhow!("Invalid room ID {}: {}", room_id, e))?;
+
         self.client
             .get_room(&room_id)
             .ok_or_else(|| anyhow!("Room {} not found", room_id))
@@ -164,9 +161,10 @@ impl MatrixClient {
         let room = self.get_room(room_id).await?;
 
         let content = RoomMessageEventContent::text_plain(text);
-        
+
         // In v0.8, send() requires owned content (without &)
-        room.send(content).await
+        room.send(content)
+            .await
             .map_err(|e| anyhow!("Failed to send message to room {}: {}", room_id, e))?;
 
         Ok(())
@@ -220,7 +218,7 @@ impl MatrixClient {
         // In v0.8, add_room_event_handler requires a room ID
         // Since we don't have a specific room, we'll just skip event handler setup
         // and rely on the sync loop to deliver events
-        
+
         // Run the sync loop with sync settings
         self.client
             .sync(matrix_sdk::config::SyncSettings::default())

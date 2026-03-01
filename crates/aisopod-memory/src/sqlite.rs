@@ -1241,7 +1241,9 @@ mod tests {
         };
         let entries = store.list(filter).await.unwrap();
         assert_eq!(entries.len(), 2);
-        assert!(entries.iter().all(|e| e.metadata.tags.contains(&"important".to_string())));
+        assert!(entries
+            .iter()
+            .all(|e| e.metadata.tags.contains(&"important".to_string())));
     }
 
     #[tokio::test]
@@ -1265,7 +1267,10 @@ mod tests {
             min_score: Some(0.0),
         };
 
-        let matches = store.query("Test content for embedder", opts).await.unwrap();
+        let matches = store
+            .query("Test content for embedder", opts)
+            .await
+            .unwrap();
         assert!(!matches.is_empty());
         assert_eq!(matches[0].entry.content, "Test content for embedder");
     }

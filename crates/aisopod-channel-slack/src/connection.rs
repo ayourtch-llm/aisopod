@@ -43,7 +43,8 @@ impl SlackClientHandle {
     /// * `Err(anyhow::Error)` - An error if the request fails
     pub async fn auth_test(&self) -> Result<AuthTestResponse> {
         let url = "https://slack.com/api/auth.test";
-        let response = self.client
+        let response = self
+            .client
             .post(url)
             .header("Authorization", format!("Bearer {}", self.bot_token))
             .send()
@@ -52,7 +53,11 @@ impl SlackClientHandle {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await?;
-            return Err(anyhow::anyhow!("auth.test failed with status {}: {}", status, body));
+            return Err(anyhow::anyhow!(
+                "auth.test failed with status {}: {}",
+                status,
+                body
+            ));
         }
 
         let json: AuthTestResponse = response.json().await?;
@@ -70,7 +75,8 @@ impl SlackClientHandle {
     /// * `Err(anyhow::Error)` - An error if the request fails
     pub async fn apps_connections_open(&self) -> Result<AppsConnectionsOpenResponse> {
         let url = "https://slack.com/api/apps.connections.open";
-        let response = self.client
+        let response = self
+            .client
             .post(url)
             .header("Authorization", format!("Bearer {}", self.bot_token))
             .send()
@@ -79,7 +85,11 @@ impl SlackClientHandle {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await?;
-            return Err(anyhow::anyhow!("apps.connections.open failed with status {}: {}", status, body));
+            return Err(anyhow::anyhow!(
+                "apps.connections.open failed with status {}: {}",
+                status,
+                body
+            ));
         }
 
         let json: AppsConnectionsOpenResponse = response.json().await?;
@@ -101,7 +111,8 @@ impl SlackClientHandle {
     /// * `Ok(reqwest::Response)` - The HTTP response
     /// * `Err(anyhow::Error)` - An error if the request fails
     pub async fn post(&self, url: &str, body: &serde_json::Value) -> Result<reqwest::Response> {
-        let response = self.client
+        let response = self
+            .client
             .post(url)
             .header("Authorization", format!("Bearer {}", self.bot_token))
             .json(body)
@@ -125,7 +136,8 @@ impl SlackClientHandle {
     /// * `Ok(reqwest::Response)` - The HTTP response
     /// * `Err(anyhow::Error)` - An error if the request fails
     pub async fn get(&self, url: &str) -> Result<reqwest::Response> {
-        let response = self.client
+        let response = self
+            .client
             .get(url)
             .header("Authorization", format!("Bearer {}", self.bot_token))
             .send()
@@ -182,7 +194,8 @@ impl AppsConnectionsOpenResponse {
 
     /// Get the WebSocket URL, or return an error if missing.
     pub fn get_url(&self) -> Result<String> {
-        self.url.clone()
+        self.url
+            .clone()
             .ok_or_else(|| anyhow::anyhow!("WebSocket URL not provided in response"))
     }
 }

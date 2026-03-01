@@ -493,7 +493,11 @@ mod tests {
         assert!(result.is_err());
 
         match result {
-            Err(ConfigError::InvalidValue { plugin_id, field, message }) => {
+            Err(ConfigError::InvalidValue {
+                plugin_id,
+                field,
+                message,
+            }) => {
                 assert_eq!(plugin_id, "test-plugin");
                 assert_eq!(field, "key");
                 assert!(message.contains("expected string, got number"));
@@ -599,7 +603,9 @@ mod tests {
 
         assert_eq!(config.plugin_id, "my-plugin");
         assert!(config.values.is_object());
-        assert!(config.values.is_null() || config.values.as_object().map_or(true, |o| o.is_empty()));
+        assert!(
+            config.values.is_null() || config.values.as_object().map_or(true, |o| o.is_empty())
+        );
     }
 
     #[test]

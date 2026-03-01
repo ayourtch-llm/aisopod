@@ -30,13 +30,13 @@ use tracing::{info, warn};
 pub fn authenticate_nickserv(client: &irc::client::Client, password: &str) -> Result<()> {
     // Send NickServ IDENTIFY command
     let message = format!("IDENTIFY {}", password);
-    
+
     info!("Authenticating with NickServ");
     client.send_privmsg("NickServ", &message).map_err(|e| {
         warn!("Failed to authenticate with NickServ: {}", e);
         anyhow::anyhow!("Failed to authenticate with NickServ: {}", e)
     })?;
-    
+
     info!("NickServ authentication request sent");
     Ok(())
 }
@@ -62,13 +62,13 @@ pub fn authenticate_with_format(
     command: &str,
 ) -> Result<()> {
     let message = format!("{} {}", command, password);
-    
+
     info!("Authenticating with NickServ using format: {}", command);
     client.send_privmsg("NickServ", &message).map_err(|e| {
         warn!("Failed to authenticate with NickServ: {}", e);
         anyhow::anyhow!("Failed to authenticate with NickServ: {}", e)
     })?;
-    
+
     Ok(())
 }
 
@@ -82,17 +82,17 @@ mod tests {
         // The function should compile and have the expected signature
         let _password = "test_password";
         let _command = "IDENTIFY";
-        
+
         assert_eq!(_password, "test_password");
         assert_eq!(_command, "IDENTIFY");
     }
-    
+
     #[test]
     fn test_custom_command_format() {
         let password = "secret123";
         let command = "IDENTIFY";
         let message = format!("{} {}", command, password);
-        
+
         assert_eq!(message, "IDENTIFY secret123");
     }
 }

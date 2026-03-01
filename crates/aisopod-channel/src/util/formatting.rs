@@ -26,7 +26,10 @@ pub enum FormatSegment {
     /// Inline code
     Code(String),
     /// Code block
-    CodeBlock { language: Option<String>, content: String },
+    CodeBlock {
+        language: Option<String>,
+        content: String,
+    },
     /// Hyperlink
     Link { url: String, text: String },
     /// Quoted text
@@ -215,7 +218,8 @@ impl NormalizedMarkdown {
 
     /// Add a strikethrough segment
     pub fn add_strikethrough(&mut self, text: &str) {
-        self.segments.push(FormatSegment::Strikethrough(text.to_string()));
+        self.segments
+            .push(FormatSegment::Strikethrough(text.to_string()));
     }
 
     /// Add a code segment
@@ -248,7 +252,8 @@ fn escape_telegram(text: &str) -> String {
     let mut result = String::new();
     for c in text.chars() {
         match c {
-            '_' | '*' | '[' | ']' | '(' | ')' | '~' | '`' | '>' | '#' | '+' | '-' | '=' | '|' | '{' | '}' | '.' | '!' => {
+            '_' | '*' | '[' | ']' | '(' | ')' | '~' | '`' | '>' | '#' | '+' | '-' | '=' | '|'
+            | '{' | '}' | '.' | '!' => {
                 result.push('\\');
                 result.push(c);
             }
@@ -481,7 +486,13 @@ fn parse_markdown(input: &str, result: &mut NormalizedMarkdown, format: ParseFor
                 let start = i;
 
                 // Find closing ```
-                while i < chars.len() && !(chars[i] == '`' && i + 1 < chars.len() && chars[i + 1] == '`' && i + 2 < chars.len() && chars[i + 2] == '`') {
+                while i < chars.len()
+                    && !(chars[i] == '`'
+                        && i + 1 < chars.len()
+                        && chars[i + 1] == '`'
+                        && i + 2 < chars.len()
+                        && chars[i + 2] == '`')
+                {
                     i += 1;
                 }
 

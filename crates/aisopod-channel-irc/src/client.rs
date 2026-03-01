@@ -6,9 +6,9 @@
 use crate::config::IrcServerConfig;
 use anyhow::Result;
 use futures::StreamExt;
-use tracing::{error, info};
 use irc::client::prelude::*;
 use std::time::Duration;
+use tracing::{error, info};
 
 /// A wrapper around the IRC client connection.
 ///
@@ -154,10 +154,12 @@ impl IrcConnection {
     /// * `reason` - Optional quit reason
     pub fn quit(&self, reason: Option<&str>) -> Result<()> {
         info!("Quitting IRC server {}: {:?}", self.server_name, reason);
-        self.client.send_quit(reason.unwrap_or("Goodbye")).map_err(|e| {
-            error!("Failed to quit {}: {}", self.server_name, e);
-            anyhow::anyhow!("Failed to quit {}: {}", self.server_name, e)
-        })?;
+        self.client
+            .send_quit(reason.unwrap_or("Goodbye"))
+            .map_err(|e| {
+                error!("Failed to quit {}: {}", self.server_name, e);
+                anyhow::anyhow!("Failed to quit {}: {}", self.server_name, e)
+            })?;
         Ok(())
     }
 
@@ -184,13 +186,13 @@ mod tests {
             channels: vec!["#test".to_string()],
             server_password: None,
         };
-        
+
         // Verify the config has the expected fields
         assert_eq!(_config.server, "irc.example.com");
         assert_eq!(_config.port, 6697);
         assert!(config_use_tls(&IrcServerConfig::default()));
     }
-    
+
     fn config_use_tls(config: &IrcServerConfig) -> bool {
         config.use_tls
     }

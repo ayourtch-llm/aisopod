@@ -11,8 +11,8 @@ use aisopod_channel::adapters::{
     AccountConfig, AccountSnapshot, ChannelConfigAdapter, SecurityAdapter,
 };
 use aisopod_channel::message::{IncomingMessage, MessageTarget, PeerInfo, SenderInfo};
-use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use aisopod_channel::plugin::ChannelPlugin;
+use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -104,10 +104,7 @@ impl SignalChannel {
 
         // Validate the configuration
         if let Err(e) = account.validate() {
-            return Err(anyhow::anyhow!(
-                "Failed to validate Signal account: {}",
-                e
-            ));
+            return Err(anyhow::anyhow!("Failed to validate Signal account: {}", e));
         }
 
         let id = format!("signal-{}", account_id);
@@ -182,28 +179,26 @@ impl SignalChannel {
     pub async fn start_daemon(&mut self) -> Result<()> {
         // Collect account IDs first to avoid borrow conflicts
         let account_ids: Vec<String> = self.accounts.iter().map(|a| a.id.clone()).collect();
-        
+
         for account_id in account_ids {
             let account = self.accounts.iter().find(|a| a.id == account_id).unwrap();
-            info!(
-                "Starting signal-cli daemon for account {}",
-                account.id
-            );
-            
+            info!("Starting signal-cli daemon for account {}", account.id);
+
             let mut runtime = self.runtime.lock().await;
             if let Err(e) = runtime.start_daemon(account).await {
-                error!(
-                    "Failed to start daemon for account {}: {}",
-                    account.id, e
-                );
+                error!("Failed to start daemon for account {}: {}", account.id, e);
                 return Err(anyhow::anyhow!(e));
             }
-            
-            let acc = self.accounts.iter_mut().find(|a| a.id == account_id).unwrap();
+
+            let acc = self
+                .accounts
+                .iter_mut()
+                .find(|a| a.id == account_id)
+                .unwrap();
             acc.connected = true;
             acc.last_connected = Some(Utc::now());
         }
-        
+
         Ok(())
     }
 
@@ -211,16 +206,20 @@ impl SignalChannel {
     pub async fn stop_daemon(&mut self) -> Result<()> {
         // Collect account IDs first to avoid borrow conflicts
         let account_ids: Vec<String> = self.accounts.iter().map(|a| a.id.clone()).collect();
-        
+
         for account_id in account_ids {
             let account = self.accounts.iter().find(|a| a.id == account_id).unwrap();
             info!("Stopping signal-cli daemon for account {}", account.id);
             let mut runtime = self.runtime.lock().await;
             runtime.stop_daemon(account).await;
-            let acc = self.accounts.iter_mut().find(|a| a.id == account_id).unwrap();
+            let acc = self
+                .accounts
+                .iter_mut()
+                .find(|a| a.id == account_id)
+                .unwrap();
             acc.connected = false;
         }
-        
+
         Ok(())
     }
 
@@ -271,7 +270,8 @@ impl ChannelConfigAdapter for SignalChannelConfigAdapter {
     }
 
     fn resolve_account(&self, id: &str) -> Result<AccountSnapshot> {
-        self.accounts.iter()
+        self.accounts
+            .iter()
             .find(|a| a.id == id)
             .map(|a| AccountSnapshot {
                 id: a.id.clone(),
@@ -324,9 +324,13 @@ impl SecurityAdapter for SignalSecurityAdapter {
                 return true;
             }
         }
-        
+
         // If no allowed list is configured, allow all senders
-        self.accounts.is_empty() || self.accounts.iter().any(|a| a.config.allowed_senders.is_none())
+        self.accounts.is_empty()
+            || self
+                .accounts
+                .iter()
+                .any(|a| a.config.allowed_senders.is_none())
     }
 
     fn requires_mention_in_group(&self) -> bool {
@@ -363,7 +367,9 @@ impl ChannelPlugin for SignalChannel {
 
     /// Returns the security adapter for this channel.
     fn security(&self) -> Option<&dyn SecurityAdapter> {
-        self.security_adapter.as_ref().map(|a| a as &dyn SecurityAdapter)
+        self.security_adapter
+            .as_ref()
+            .map(|a| a as &dyn SecurityAdapter)
     }
 }
 
@@ -408,7 +414,7 @@ mod tests {
     #[test]
     fn test_channel_registration() {
         let config = SignalAccountConfig::new("+1234567890".to_string());
-        
+
         // Note: This test would need to be run with tokio runtime
         // For now, we just verify the types compile
         let _channel = SignalChannel::new(config, "test-account");

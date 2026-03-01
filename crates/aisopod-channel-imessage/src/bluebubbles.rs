@@ -42,12 +42,11 @@ pub struct BlueBubblesEndpoints {
 impl BlueBubblesEndpoints {
     /// Creates new endpoints from the base URL.
     pub fn new(base_url: &str) -> Result<Self, ImessageError> {
-        let url = Url::parse(base_url)
-            .map_err(|_| ImessageError::InvalidUrl {
-                url: base_url.to_string(),
-                message: "Invalid BlueBubbles API URL".to_string(),
-            })?;
-        
+        let url = Url::parse(base_url).map_err(|_| ImessageError::InvalidUrl {
+            url: base_url.to_string(),
+            message: "Invalid BlueBubbles API URL".to_string(),
+        })?;
+
         Ok(Self { base_url: url })
     }
 
@@ -75,7 +74,9 @@ impl BlueBubblesEndpoints {
 
     /// Returns the URL for sending media to a group.
     pub fn send_media_to_group(&self) -> Url {
-        self.base_url.join("api/v1/message/sendMedia/group").unwrap()
+        self.base_url
+            .join("api/v1/message/sendMedia/group")
+            .unwrap()
     }
 
     /// Returns the URL for retrieving chat history.
@@ -98,7 +99,7 @@ impl BlueBubblesEndpoints {
     /// Returns the URL for the WebSocket endpoint.
     pub fn websocket(&self) -> Url {
         let mut ws_url = self.base_url.clone();
-        
+
         // Convert http/https to ws/wss
         match ws_url.scheme() {
             "http" => {
@@ -117,7 +118,7 @@ impl BlueBubblesEndpoints {
             }
             _ => {}
         }
-        
+
         ws_url
     }
 
@@ -143,9 +144,10 @@ pub struct BlueBubblesClient {
 impl BlueBubblesClient {
     /// Creates a new BlueBubbles client.
     pub fn new(config: &BlueBubblesConfig) -> Result<Self, ImessageError> {
-        let api_url = config.api_url.as_ref().ok_or_else(|| {
-            ImessageError::MissingBlueBubblesUrl
-        })?;
+        let api_url = config
+            .api_url
+            .as_ref()
+            .ok_or_else(|| ImessageError::MissingBlueBubblesUrl)?;
 
         let endpoints = BlueBubblesEndpoints::new(api_url)?;
         let client = reqwest::Client::new();
@@ -181,7 +183,7 @@ impl BlueBubblesClient {
         body: &T,
     ) -> Result<R, ImessageError> {
         debug!("POST to {}", endpoint);
-        
+
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
             reqwest::header::CONTENT_TYPE,
@@ -193,7 +195,7 @@ impl BlueBubblesClient {
                 headers.insert("password", header_value);
             }
         }
-        
+
         let response = self
             .client
             .post(endpoint.clone())
@@ -205,12 +207,12 @@ impl BlueBubblesClient {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            
+
             warn!(
                 "BlueBubbles API error: status={}, error={}",
                 status, error_text
             );
-            
+
             return Err(ImessageError::BlueBubblesApi(format!(
                 "HTTP {}: {}",
                 status, error_text
@@ -218,22 +220,16 @@ impl BlueBubblesClient {
         }
 
         let result: BlueBubblesResponseWrapper<R> = response.json().await?;
-        
+
         match result.response {
-            BlueBubblesResponse::Success => {
-                Ok(result.data.ok_or_else(|| ImessageError::BlueBubblesApi(
-                    "Expected data in response".to_string()
-                ))?)
-            }
-            BlueBubblesResponse::Fail => {
-                Err(ImessageError::BlueBubblesApi(
-                    result.error.unwrap_or_else(|| "Unknown error".to_string())
-                ))
-            }
+            BlueBubblesResponse::Success => Ok(result.data.ok_or_else(|| {
+                ImessageError::BlueBubblesApi("Expected data in response".to_string())
+            })?),
+            BlueBubblesResponse::Fail => Err(ImessageError::BlueBubblesApi(
+                result.error.unwrap_or_else(|| "Unknown error".to_string()),
+            )),
             BlueBubblesResponse::Pending => {
-                Err(ImessageError::BlueBubblesApi(
-                    "Request pending".to_string()
-                ))
+                Err(ImessageError::BlueBubblesApi("Request pending".to_string()))
             }
         }
     }
@@ -241,7 +237,7 @@ impl BlueBubblesClient {
     /// Sends a GET request to the BlueBubbles API.
     async fn get<R: for<'de> Deserialize<'de>>(&self, endpoint: &Url) -> Result<R, ImessageError> {
         debug!("GET {}", endpoint);
-        
+
         let response = self
             .client
             .get(endpoint.clone())
@@ -252,12 +248,12 @@ impl BlueBubblesClient {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            
+
             warn!(
                 "BlueBubbles API error: status={}, error={}",
                 status, error_text
             );
-            
+
             return Err(ImessageError::BlueBubblesApi(format!(
                 "HTTP {}: {}",
                 status, error_text
@@ -265,22 +261,16 @@ impl BlueBubblesClient {
         }
 
         let result: BlueBubblesResponseWrapper<R> = response.json().await?;
-        
+
         match result.response {
-            BlueBubblesResponse::Success => {
-                Ok(result.data.ok_or_else(|| ImessageError::BlueBubblesApi(
-                    "Expected data in response".to_string()
-                ))?)
-            }
-            BlueBubblesResponse::Fail => {
-                Err(ImessageError::BlueBubblesApi(
-                    result.error.unwrap_or_else(|| "Unknown error".to_string())
-                ))
-            }
+            BlueBubblesResponse::Success => Ok(result.data.ok_or_else(|| {
+                ImessageError::BlueBubblesApi("Expected data in response".to_string())
+            })?),
+            BlueBubblesResponse::Fail => Err(ImessageError::BlueBubblesApi(
+                result.error.unwrap_or_else(|| "Unknown error".to_string()),
+            )),
             BlueBubblesResponse::Pending => {
-                Err(ImessageError::BlueBubblesApi(
-                    "Request pending".to_string()
-                ))
+                Err(ImessageError::BlueBubblesApi("Request pending".to_string()))
             }
         }
     }
@@ -313,10 +303,10 @@ impl BlueBubblesClient {
         };
 
         let response: BlueBubblesSendMessageResponse = self.post(&endpoint, &body).await?;
-        
-        response.message_guid.ok_or_else(|| ImessageError::BlueBubblesApi(
-            "Missing message GUID in response".to_string()
-        ))
+
+        response.message_guid.ok_or_else(|| {
+            ImessageError::BlueBubblesApi("Missing message GUID in response".to_string())
+        })
     }
 
     /// Sends media.
@@ -339,10 +329,7 @@ impl BlueBubblesClient {
         // Read the media file
         let data = tokio::fs::read(media_path)
             .await
-            .map_err(|e| ImessageError::MediaError(format!(
-                "Failed to read media file: {}",
-                e
-            )))?;
+            .map_err(|e| ImessageError::MediaError(format!("Failed to read media file: {}", e)))?;
 
         // Convert to base64
         let data_base64 = base64::encode(data);
@@ -361,10 +348,10 @@ impl BlueBubblesClient {
         };
 
         let response: BlueBubblesSendMessageResponse = self.post(&endpoint, &body).await?;
-        
-        response.message_guid.ok_or_else(|| ImessageError::BlueBubblesApi(
-            "Missing message GUID in response".to_string()
-        ))
+
+        response.message_guid.ok_or_else(|| {
+            ImessageError::BlueBubblesApi("Missing message GUID in response".to_string())
+        })
     }
 
     /// Retrieves chat history.
@@ -381,15 +368,15 @@ impl BlueBubblesClient {
         limit: usize,
     ) -> Result<Vec<BlueBubblesMessage>, ImessageError> {
         let mut endpoint = self.endpoints.chat_history(guid);
-        
+
         // Add query parameters
         {
             let mut query_pairs = endpoint.query_pairs_mut();
             query_pairs.append_pair("limit", &limit.to_string());
         }
-        
+
         let response: BlueBubblesChatHistoryResponse = self.get(&endpoint).await?;
-        
+
         Ok(response.messages.unwrap_or_default())
     }
 
@@ -400,7 +387,7 @@ impl BlueBubblesClient {
     pub async fn list_contacts(&self) -> Result<Vec<BlueBubblesContact>, ImessageError> {
         let endpoint = self.endpoints.contacts();
         let response: BlueBubblesContactListResponse = self.get(&endpoint).await?;
-        
+
         Ok(response.contacts.unwrap_or_default())
     }
 
@@ -411,7 +398,7 @@ impl BlueBubblesClient {
     pub async fn list_chats(&self) -> Result<Vec<BlueBubblesChat>, ImessageError> {
         let endpoint = self.endpoints.chats();
         let response: BlueBubblesChatListResponse = self.get(&endpoint).await?;
-        
+
         Ok(response.chats.unwrap_or_default())
     }
 }
@@ -568,7 +555,7 @@ impl BlueBubblesBackend {
     /// Creates a new BlueBubbles backend.
     pub fn new(config: BlueBubblesConfig) -> Result<Self, ImessageError> {
         let client = BlueBubblesClient::new(&config)?;
-        
+
         Ok(Self {
             client,
             config,
@@ -597,16 +584,16 @@ impl BlueBubblesBackend {
 pub trait BlueBubblesBackendImpl: Send + Sync {
     /// Connect to BlueBubbles server.
     async fn connect(&mut self) -> ImessageResult<()>;
-    
+
     /// Disconnect from BlueBubbles server.
     async fn disconnect(&mut self) -> ImessageResult<()>;
-    
+
     /// Send a text message.
     async fn send_text(&self, to: &str, text: &str) -> ImessageResult<String>;
-    
+
     /// Send a text message to a group.
     async fn send_text_to_group(&self, group_id: &str, text: &str) -> ImessageResult<String>;
-    
+
     /// Send media.
     async fn send_media(
         &self,
@@ -614,7 +601,7 @@ pub trait BlueBubblesBackendImpl: Send + Sync {
         media_path: &str,
         mime_type: &str,
     ) -> ImessageResult<String>;
-    
+
     /// Send media to a group.
     async fn send_media_to_group(
         &self,
@@ -627,8 +614,11 @@ pub trait BlueBubblesBackendImpl: Send + Sync {
 #[async_trait]
 impl BlueBubblesBackendImpl for BlueBubblesBackend {
     async fn connect(&mut self) -> ImessageResult<()> {
-        info!("Connecting to BlueBubbles server at {}", self.config.api_url.as_ref().unwrap());
-        
+        info!(
+            "Connecting to BlueBubbles server at {}",
+            self.config.api_url.as_ref().unwrap()
+        );
+
         // Test connection
         match self.client().list_chats().await {
             Ok(_) => {
@@ -682,7 +672,9 @@ impl BlueBubblesBackendImpl for BlueBubblesBackend {
             ));
         }
 
-        self.client.send_media(to, media_path, mime_type, None).await
+        self.client
+            .send_media(to, media_path, mime_type, None)
+            .await
     }
 
     async fn send_media_to_group(
@@ -710,7 +702,7 @@ mod tests {
     #[test]
     fn test_bluebubbles_endpoints() {
         let endpoints = BlueBubblesEndpoints::new("http://localhost:12345").unwrap();
-        
+
         assert_eq!(endpoints.base_url(), "http://localhost:12345");
         assert_eq!(
             endpoints.send_message().to_string(),
@@ -732,7 +724,7 @@ mod tests {
     fn test_bluebubbles_endpoints_websocket() {
         let endpoints = BlueBubblesEndpoints::new("http://localhost:12345").unwrap();
         let ws_url = endpoints.websocket();
-        
+
         assert_eq!(ws_url.scheme(), "ws");
         assert_eq!(ws_url.host_str(), Some("localhost"));
         assert_eq!(ws_url.port(), Some(12345));
@@ -742,7 +734,7 @@ mod tests {
     fn test_bluebubbles_endpoints_https_websocket() {
         let endpoints = BlueBubblesEndpoints::new("https://example.com:443").unwrap();
         let ws_url = endpoints.websocket();
-        
+
         assert_eq!(ws_url.scheme(), "wss");
         assert_eq!(ws_url.host_str(), Some("example.com"));
         assert_eq!(ws_url.port(), None);
@@ -752,7 +744,7 @@ mod tests {
     fn test_bluebubbles_endpoints_chat_history() {
         let endpoints = BlueBubblesEndpoints::new("http://localhost:12345").unwrap();
         let url = endpoints.chat_history("chat123");
-        
+
         assert_eq!(
             url.to_string(),
             "http://localhost:12345/api/v1/message/getChatHistory/chat123"
@@ -763,7 +755,7 @@ mod tests {
     fn test_bluebubbles_endpoints_contacts() {
         let endpoints = BlueBubblesEndpoints::new("http://localhost:12345").unwrap();
         let url = endpoints.contacts();
-        
+
         assert_eq!(url.to_string(), "http://localhost:12345/api/v1/contact");
     }
 
@@ -771,7 +763,7 @@ mod tests {
     fn test_bluebubbles_endpoints_chats() {
         let endpoints = BlueBubblesEndpoints::new("http://localhost:12345").unwrap();
         let url = endpoints.chats();
-        
+
         assert_eq!(url.to_string(), "http://localhost:12345/api/v1/chat");
     }
 
@@ -779,7 +771,7 @@ mod tests {
     fn test_bluebubbles_endpoints_message_info() {
         let endpoints = BlueBubblesEndpoints::new("http://localhost:12345").unwrap();
         let url = endpoints.message_info("msg123");
-        
+
         assert_eq!(
             url.to_string(),
             "http://localhost:12345/api/v1/message/msg123"

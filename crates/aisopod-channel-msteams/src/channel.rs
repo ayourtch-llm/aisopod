@@ -3,24 +3,24 @@
 //! This module implements the ChannelPlugin trait for Microsoft Teams,
 //! enabling the bot to receive and send messages via the Microsoft Bot Framework.
 
+use crate::auth::{AzureAuthConfig, MsTeamsAuth};
 use crate::botframework::{Activity, BotFrameworkClient};
 use crate::config::{MsTeamsAccountConfig, MsTeamsConfig, WebhookConfig};
-use crate::auth::{AzureAuthConfig, MsTeamsAuth};
 use crate::webhook::{create_webhook_router, WebhookState};
 use aisopod_channel::adapters::{
     AccountConfig, AccountSnapshot, ChannelConfigAdapter, SecurityAdapter,
 };
 use aisopod_channel::message::{IncomingMessage, MessageTarget, PeerInfo, PeerKind, SenderInfo};
-use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use aisopod_channel::plugin::ChannelPlugin;
+use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::Result;
 use async_trait::async_trait;
+use axum::Router;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{error, info, warn};
-use axum::Router;
 
 /// A Microsoft Teams account wraps the configuration with its state.
 #[derive(Clone)]
@@ -122,13 +122,13 @@ impl MsTeamsChannel {
 
         // Create accounts from all configurations in the config
         let mut accounts = Vec::new();
-        
+
         // Create the first account using the provided account_id
         if let Some(first_config) = config.accounts.get(0).cloned() {
             let account = MsTeamsAccount::new(account_id.to_string(), first_config)?;
             accounts.push(account);
         }
-        
+
         // Create additional accounts from remaining configs
         for (i, account_config) in config.accounts.iter().enumerate().skip(1) {
             // Use the index as the account ID for additional accounts
@@ -148,7 +148,10 @@ impl MsTeamsChannel {
         let id = format!("msteams-{}", account_id);
         let meta = ChannelMeta {
             label: "Microsoft Teams".to_string(),
-            docs_url: Some("https://learn.microsoft.com/en-us/microsoftteams/platform/bots/what-are-bots".to_string()),
+            docs_url: Some(
+                "https://learn.microsoft.com/en-us/microsoftteams/platform/bots/what-are-bots"
+                    .to_string(),
+            ),
             ui_hints: serde_json::json!({
                 "tenant_id_field": "tenant_id",
                 "client_id_field": "client_id",
@@ -157,11 +160,7 @@ impl MsTeamsChannel {
             }),
         };
         let capabilities = ChannelCapabilities {
-            chat_types: vec![
-                ChatType::Dm,
-                ChatType::Group,
-                ChatType::Channel,
-            ],
+            chat_types: vec![ChatType::Dm, ChatType::Group, ChatType::Channel],
             supports_media: true,
             supports_reactions: true,
             supports_threads: true,
@@ -258,12 +257,11 @@ impl MsTeamsChannel {
         account_id: Option<&str>,
     ) -> Result<impl std::future::Future<Output = ()> + Send> {
         let accounts_to_poll: Vec<MsTeamsAccount> = match account_id {
-            Some(id) => {
-                self.get_account(id)
-                    .cloned()
-                    .map(|a| vec![a])
-                    .unwrap_or_default()
-            }
+            Some(id) => self
+                .get_account(id)
+                .cloned()
+                .map(|a| vec![a])
+                .unwrap_or_default(),
             None => self.accounts.clone(),
         };
 
@@ -326,7 +324,8 @@ impl MsTeamsChannel {
         port: u16,
     ) -> Result<impl std::future::Future<Output = ()> + Send> {
         // Find the account
-        let account = self.get_account_mut(account_id)
+        let account = self
+            .get_account_mut(account_id)
             .ok_or_else(|| anyhow::anyhow!("Account not found: {}", account_id))?;
 
         // Get webhook configuration
@@ -334,18 +333,31 @@ impl MsTeamsChannel {
         let microsoft_app_password = account.config.bot_app_password.clone().unwrap_or_default();
 
         let client = account.client.clone().ok_or_else(|| {
-            anyhow::anyhow!("Bot Framework client not initialized for account {}", account_id)
+            anyhow::anyhow!(
+                "Bot Framework client not initialized for account {}",
+                account_id
+            )
         })?;
 
-        let webhook_state = WebhookState::new(client, account_id, &microsoft_app_id, &microsoft_app_password);
+        let webhook_state = WebhookState::new(
+            client,
+            account_id,
+            &microsoft_app_id,
+            &microsoft_app_password,
+        );
         let webhook_state = Arc::new(webhook_state);
 
         // Create shutdown signal if not already created
-        let shutdown = self.shutdown_signal.get_or_insert_with(|| Arc::new(tokio::sync::Notify::new()));
+        let shutdown = self
+            .shutdown_signal
+            .get_or_insert_with(|| Arc::new(tokio::sync::Notify::new()));
         let shutdown_task = shutdown.clone();
 
         let task = async move {
-            info!("Starting webhook listener for Microsoft Teams channel on port {}", port);
+            info!(
+                "Starting webhook listener for Microsoft Teams channel on port {}",
+                port
+            );
 
             // In a real implementation, this would set up an HTTP server
             // to receive webhook POST requests from Microsoft Teams.
@@ -368,16 +380,15 @@ impl MsTeamsChannel {
     }
 
     /// Send a message to the specified target.
-    pub async fn send_message(
-        &mut self,
-        target: &MessageTarget,
-        text: &str,
-    ) -> Result<()> {
+    pub async fn send_message(&mut self, target: &MessageTarget, text: &str) -> Result<()> {
         // Find the account
-        let account = self.get_account_mut(&target.account_id)
+        let account = self
+            .get_account_mut(&target.account_id)
             .ok_or_else(|| anyhow::anyhow!("Account not found: {}", target.account_id))?;
 
-        let client = account.client.as_mut()
+        let client = account
+            .client
+            .as_mut()
             .ok_or_else(|| anyhow::anyhow!("Bot Framework client not initialized"))?;
 
         // Extract conversation ID from peer
@@ -396,10 +407,13 @@ impl MsTeamsChannel {
         media: &aisopod_channel::message::Media,
     ) -> Result<()> {
         // Find the account
-        let account = self.get_account_mut(&target.account_id)
+        let account = self
+            .get_account_mut(&target.account_id)
             .ok_or_else(|| anyhow::anyhow!("Account not found: {}", target.account_id))?;
 
-        let client = account.client.as_mut()
+        let client = account
+            .client
+            .as_mut()
             .ok_or_else(|| anyhow::anyhow!("Bot Framework client not initialized"))?;
 
         // Extract conversation ID from peer
@@ -427,12 +441,17 @@ impl MsTeamsChannel {
     /// Create a webhook router for the specified account.
     pub fn create_webhook_router(&self, account_id: &str) -> Option<Router<Arc<WebhookState>>> {
         let account = self.get_account(account_id)?;
-        
+
         let client = account.client.clone()?;
         let microsoft_app_id = account.config.bot_app_id_or_client_id().to_string();
         let microsoft_app_password = account.config.bot_app_password.clone().unwrap_or_default();
 
-        let webhook_state = WebhookState::new(client, account_id, &microsoft_app_id, &microsoft_app_password);
+        let webhook_state = WebhookState::new(
+            client,
+            account_id,
+            &microsoft_app_id,
+            &microsoft_app_password,
+        );
         Some(create_webhook_router(webhook_state))
     }
 }
@@ -455,7 +474,9 @@ impl aisopod_channel::plugin::ChannelPlugin for MsTeamsChannel {
     }
 
     fn security(&self) -> Option<&dyn aisopod_channel::adapters::SecurityAdapter> {
-        self.security_adapter.as_ref().map(|adapter| adapter as &dyn aisopod_channel::adapters::SecurityAdapter)
+        self.security_adapter
+            .as_ref()
+            .map(|adapter| adapter as &dyn aisopod_channel::adapters::SecurityAdapter)
     }
 }
 
@@ -478,7 +499,10 @@ impl ChannelConfigAdapter for MsTeamsChannelConfigAdapter {
     }
 
     fn resolve_account(&self, id: &str) -> Result<AccountSnapshot> {
-        let account = self.accounts.iter().find(|a| a.id == id)
+        let account = self
+            .accounts
+            .iter()
+            .find(|a| a.id == id)
             .ok_or_else(|| anyhow::anyhow!("Account not found: {}", id))?;
 
         Ok(AccountSnapshot {
@@ -527,10 +551,10 @@ impl SecurityAdapter for MsTeamsSecurityAdapter {
         // If any account has restrictions, the user must be allowed by that account
         for account in &self.accounts {
             if !account.is_user_allowed(&sender.id) {
-                return false;  // At least one account doesn't allow this user
+                return false; // At least one account doesn't allow this user
             }
         }
-        true  // All accounts allow this user (or no restrictions on any account)
+        true // All accounts allow this user (or no restrictions on any account)
     }
 
     fn requires_mention_in_group(&self) -> bool {
@@ -543,12 +567,17 @@ impl SecurityAdapter for MsTeamsSecurityAdapter {
 impl MsTeamsAccount {
     /// Check if a user ID is allowed.
     fn is_user_allowed(&self, user_id: &str) -> bool {
-        self.config.allowed_users.is_empty() || self.config.allowed_users.contains(&user_id.to_string())
+        self.config.allowed_users.is_empty()
+            || self.config.allowed_users.contains(&user_id.to_string())
     }
 
     /// Check if a channel ID is allowed.
     fn is_channel_allowed(&self, channel_id: &str) -> bool {
-        self.config.allowed_channels.is_empty() || self.config.allowed_channels.contains(&channel_id.to_string())
+        self.config.allowed_channels.is_empty()
+            || self
+                .config
+                .allowed_channels
+                .contains(&channel_id.to_string())
     }
 }
 
@@ -570,12 +599,19 @@ mod tests {
     #[test]
     fn test_ms_teams_channel_creation() {
         let config = MsTeamsConfig {
-            accounts: vec![MsTeamsAccountConfig::new("test", "tenant123", "client123", "secret123")],
+            accounts: vec![MsTeamsAccountConfig::new(
+                "test",
+                "tenant123",
+                "client123",
+                "secret123",
+            )],
             ..Default::default()
         };
 
-        let channel_result = tokio::runtime::Runtime::new().unwrap().block_on(MsTeamsChannel::new(config, "test1"));
-        
+        let channel_result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(MsTeamsChannel::new(config, "test1"));
+
         assert!(channel_result.is_ok());
     }
 
@@ -583,20 +619,30 @@ mod tests {
     fn test_ms_teams_channel_validation_error() {
         let config = MsTeamsConfig::default();
 
-        let channel_result = tokio::runtime::Runtime::new().unwrap().block_on(MsTeamsChannel::new(config, "test1"));
-        
+        let channel_result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(MsTeamsChannel::new(config, "test1"));
+
         assert!(channel_result.is_err());
     }
 
     #[test]
     fn test_get_account() {
         let config = MsTeamsConfig {
-            accounts: vec![MsTeamsAccountConfig::new("test", "tenant123", "client123", "secret123")],
+            accounts: vec![MsTeamsAccountConfig::new(
+                "test",
+                "tenant123",
+                "client123",
+                "secret123",
+            )],
             ..Default::default()
         };
 
-        let mut channel = tokio::runtime::Runtime::new().unwrap().block_on(MsTeamsChannel::new(config, "test1")).unwrap();
-        
+        let mut channel = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(MsTeamsChannel::new(config, "test1"))
+            .unwrap();
+
         let account = channel.get_account("test1");
         assert!(account.is_some());
     }
@@ -604,12 +650,20 @@ mod tests {
     #[test]
     fn test_remove_account() {
         let config = MsTeamsConfig {
-            accounts: vec![MsTeamsAccountConfig::new("test", "tenant123", "client123", "secret123")],
+            accounts: vec![MsTeamsAccountConfig::new(
+                "test",
+                "tenant123",
+                "client123",
+                "secret123",
+            )],
             ..Default::default()
         };
 
-        let mut channel = tokio::runtime::Runtime::new().unwrap().block_on(MsTeamsChannel::new(config, "test1")).unwrap();
-        
+        let mut channel = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(MsTeamsChannel::new(config, "test1"))
+            .unwrap();
+
         let removed = channel.remove_account("test1");
         assert!(removed);
         assert!(channel.get_account("test1").is_none());
@@ -648,13 +702,19 @@ mod auth_tests {
 
     #[test]
     fn test_auth_config_with_resource() {
-        let config = AzureAuthConfig::with_resource("tenant123", "client123", "secret123", "custom-resource");
+        let config = AzureAuthConfig::with_resource(
+            "tenant123",
+            "client123",
+            "secret123",
+            "custom-resource",
+        );
         assert_eq!(config.resource, Some("custom-resource".to_string()));
     }
 
     #[test]
     fn test_auth_from_account_config() {
-        let account_config = crate::config::MsTeamsAccountConfig::new("test", "tenant123", "client123", "secret123");
+        let account_config =
+            crate::config::MsTeamsAccountConfig::new("test", "tenant123", "client123", "secret123");
         let _auth = MsTeamsAuth::from_account_config(&account_config);
 
         // Basic test to verify auth was created
@@ -697,7 +757,10 @@ mod botframework_tests {
                 ..Default::default()
             }],
         );
-        assert_eq!(activity.activity_type, Some(ActivityType::ConversationUpdate));
+        assert_eq!(
+            activity.activity_type,
+            Some(ActivityType::ConversationUpdate)
+        );
         assert_eq!(activity.action, Some("membersAdded".to_string()));
     }
 
@@ -724,11 +787,10 @@ mod adaptive_cards_tests {
 
     #[test]
     fn test_adaptive_card_with_body() {
-        let card = AdaptiveCard::new()
-            .with_body(vec![
-                AdaptiveCardElement::TextBlock(TextBlock::new("Hello").with_weight("bolder")),
-                AdaptiveCardElement::TextBlock(TextBlock::new("World").with_wrap(true)),
-            ]);
+        let card = AdaptiveCard::new().with_body(vec![
+            AdaptiveCardElement::TextBlock(TextBlock::new("Hello").with_weight("bolder")),
+            AdaptiveCardElement::TextBlock(TextBlock::new("World").with_wrap(true)),
+        ]);
 
         let body = card.body.unwrap();
         assert_eq!(body.len(), 2);

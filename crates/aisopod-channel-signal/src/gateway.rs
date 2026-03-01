@@ -3,7 +3,9 @@
 //! This module handles receiving and parsing messages from signal-cli daemon.
 
 use crate::config::{SignalAccountConfig, SignalError};
-use aisopod_channel::message::{IncomingMessage, MessageContent, MessagePart, Media, PeerInfo, PeerKind, SenderInfo};
+use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo,
+};
 use aisopod_channel::types::MediaType;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -128,26 +130,31 @@ impl SignalGateway {
         debug!("Parsing Signal message: {}", json_str);
 
         // Parse the JSON
-        let signal_msg: SignalMessage = serde_json::from_str(json_str)
-            .map_err(|e| SignalError::JsonParseError(e))?;
+        let signal_msg: SignalMessage =
+            serde_json::from_str(json_str).map_err(|e| SignalError::JsonParseError(e))?;
 
         // Only process receive messages
         if signal_msg.message_type != "receive" {
-            debug!("Skipping non-receive message type: {}", signal_msg.message_type);
+            debug!(
+                "Skipping non-receive message type: {}",
+                signal_msg.message_type
+            );
             return Ok(Vec::new());
         }
 
         // Extract sender info
-        let sender_id = signal_msg.source
+        let sender_id = signal_msg
+            .source
             .clone()
             .unwrap_or_else(|| "unknown".to_string());
 
         // Extract group info if present
         let (peer, chat_type) = if let Some(group) = &signal_msg.group {
-            let group_id = group.group_id
+            let group_id = group
+                .group_id
                 .clone()
                 .unwrap_or_else(|| format!("group-{}", Utc::now().timestamp()));
-            
+
             (
                 PeerInfo {
                     id: group_id,
@@ -171,13 +178,15 @@ impl SignalGateway {
         let content = self.build_message_content(&signal_msg)?;
 
         // Parse timestamp
-        let timestamp = signal_msg.timestamp
+        let timestamp = signal_msg
+            .timestamp
             .map(|ts| DateTime::<Utc>::from_timestamp(ts, 0).unwrap_or_else(Utc::now))
             .unwrap_or_else(Utc::now);
 
         // Create the incoming message
         let incoming = IncomingMessage {
-            id: signal_msg.id
+            id: signal_msg
+                .id
                 .clone()
                 .unwrap_or_else(|| format!("msg-{}", Utc::now().timestamp_nanos())),
             channel: channel_id.to_string(),
@@ -202,7 +211,10 @@ impl SignalGateway {
     }
 
     /// Build the message content from a SignalMessage.
-    fn build_message_content(&self, signal_msg: &SignalMessage) -> Result<MessageContent, SignalError> {
+    fn build_message_content(
+        &self,
+        signal_msg: &SignalMessage,
+    ) -> Result<MessageContent, SignalError> {
         // Build text content
         let mut parts: Vec<MessagePart> = Vec::new();
 
@@ -213,9 +225,8 @@ impl SignalGateway {
         // Add media attachments
         if let Some(attachments) = &signal_msg.attachments {
             for attachment in attachments {
-                let media_type = self.map_content_type_to_media_type(
-                    attachment.content_type.as_deref()
-                );
+                let media_type =
+                    self.map_content_type_to_media_type(attachment.content_type.as_deref());
 
                 parts.push(MessagePart::Media(Media {
                     media_type,
@@ -266,7 +277,8 @@ impl SignalGateway {
                 return true;
             }
         }
-        self.last_message_ids.insert(account_id.to_string(), message_id.to_string());
+        self.last_message_ids
+            .insert(account_id.to_string(), message_id.to_string());
         false
     }
 
@@ -282,7 +294,10 @@ impl SignalGateway {
     }
 
     /// Get handlers for an account.
-    pub fn get_handlers(&self, account_id: &str) -> Vec<&Box<dyn Fn(IncomingMessage) + Send + Sync>> {
+    pub fn get_handlers(
+        &self,
+        account_id: &str,
+    ) -> Vec<&Box<dyn Fn(IncomingMessage) + Send + Sync>> {
         self.message_handlers
             .get(account_id)
             .map(|h| h.iter().collect::<Vec<_>>())
@@ -296,8 +311,7 @@ pub mod message_utils {
 
     /// Parse a JSON-RPC response.
     pub fn parse_jsonrpc_response(json_str: &str) -> Result<serde_json::Value, SignalError> {
-        serde_json::from_str(json_str)
-            .map_err(|e| SignalError::JsonParseError(e))
+        serde_json::from_str(json_str).map_err(|e| SignalError::JsonParseError(e))
     }
 }
 
@@ -318,7 +332,9 @@ mod tests {
         }"#;
 
         let gateway = SignalGateway::new();
-        let messages = gateway.parse_message(json, "test-account", "signal-test").unwrap();
+        let messages = gateway
+            .parse_message(json, "test-account", "signal-test")
+            .unwrap();
 
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].sender.id, "+1234567890");
@@ -342,7 +358,9 @@ mod tests {
         }"#;
 
         let gateway = SignalGateway::new();
-        let messages = gateway.parse_message(json, "test-account", "signal-test").unwrap();
+        let messages = gateway
+            .parse_message(json, "test-account", "signal-test")
+            .unwrap();
 
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].peer.kind, PeerKind::Group);
@@ -368,7 +386,9 @@ mod tests {
         }"#;
 
         let gateway = SignalGateway::new();
-        let messages = gateway.parse_message(json, "test-account", "signal-test").unwrap();
+        let messages = gateway
+            .parse_message(json, "test-account", "signal-test")
+            .unwrap();
 
         assert_eq!(messages.len(), 1);
         match &messages[0].content {
@@ -395,7 +415,9 @@ mod tests {
         }"#;
 
         let gateway = SignalGateway::new();
-        let messages = gateway.parse_message(json, "test-account", "signal-test").unwrap();
+        let messages = gateway
+            .parse_message(json, "test-account", "signal-test")
+            .unwrap();
 
         assert_eq!(messages.len(), 1);
         let metadata = &messages[0].metadata;

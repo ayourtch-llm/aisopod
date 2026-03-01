@@ -6,14 +6,16 @@
 use crate::auth::{validate_token, TokenInfo};
 use crate::badges::{is_moderator, is_subscriber};
 use crate::config::TwitchConfig;
-use crate::tmi::TwitchMessage as TmiMessage;
 use crate::tmi::TmiClient;
+use crate::tmi::TwitchMessage as TmiMessage;
 use aisopod_channel::adapters::{
     AccountConfig, AccountSnapshot, ChannelConfigAdapter, SecurityAdapter,
 };
-use aisopod_channel::message::{IncomingMessage, MessageContent, MessagePart, MessageTarget, PeerInfo, PeerKind, SenderInfo};
-use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+use aisopod_channel::message::{
+    IncomingMessage, MessageContent, MessagePart, MessageTarget, PeerInfo, PeerKind, SenderInfo,
+};
 use aisopod_channel::plugin::ChannelPlugin;
+use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -102,7 +104,7 @@ impl TwitchChannel {
         config.validate()?;
 
         let id = format!("twitch-{}", channel_id);
-        
+
         // Create account for this channel
         let account_id = format!("{}-primary", channel_id);
         let account = TwitchAccount::new(account_id, config.clone());
@@ -111,7 +113,10 @@ impl TwitchChannel {
         let token_info = if let Some(ref client_id) = config.client_id {
             match validate_token(&config.oauth_token, client_id).await {
                 Ok(info) => {
-                    info!("Twitch OAuth token validated successfully for user {}", info.login);
+                    info!(
+                        "Twitch OAuth token validated successfully for user {}",
+                        info.login
+                    );
                     Some(info)
                 }
                 Err(e) => {
@@ -184,13 +189,10 @@ impl TwitchChannel {
             .first_mut()
             .ok_or_else(|| anyhow::anyhow!("No Twitch accounts configured"))?;
 
-        info!(
-            "Connecting to Twitch TMI as {}",
-            account.config.username
-        );
+        info!("Connecting to Twitch TMI as {}", account.config.username);
 
-        let mut client = TmiClient::connect(&account.config.username, &account.config.oauth_token)
-            .await?;
+        let mut client =
+            TmiClient::connect(&account.config.username, &account.config.oauth_token).await?;
 
         // Enable whispers if configured
         if account.config.enable_whispers {
@@ -240,12 +242,7 @@ impl TwitchChannel {
     ///
     /// * `Ok(())` - Message was sent successfully
     /// * `Err(anyhow::Error)` - An error if sending fails
-    pub async fn send_message(
-        &self,
-        account_id: &str,
-        target: &str,
-        message: &str,
-    ) -> Result<()> {
+    pub async fn send_message(&self, account_id: &str, target: &str, message: &str) -> Result<()> {
         let account = self
             .get_account(account_id)
             .ok_or_else(|| anyhow::anyhow!("Account {} not found", account_id))?;
@@ -294,9 +291,14 @@ impl TwitchChannel {
         let tmi_msg = cli.read_message().await?;
         let account_id = account.id.clone();
         let channel_id = self.id.clone();
-        
+
         // Convert TMI message to aisopod IncomingMessage
-        Ok(convert_tmi_message(&channel_id, &account_id, &account, &tmi_msg))
+        Ok(convert_tmi_message(
+            &channel_id,
+            &account_id,
+            &account,
+            &tmi_msg,
+        ))
     }
 }
 
@@ -450,7 +452,7 @@ impl SecurityAdapter for TwitchSecurityAdapter {
         // For Twitch, allow all senders who have access to the channel
         // (moderators, subscribers, or anyone in public chat)
         // A more sophisticated implementation could check against an allowlist
-        
+
         // If the sender is a bot (moderator), always allow
         if sender.is_bot {
             return true;
@@ -492,7 +494,9 @@ impl ChannelPlugin for TwitchChannel {
 
     /// Returns the security adapter for this channel if available.
     fn security(&self) -> Option<&dyn SecurityAdapter> {
-        self.security_adapter.as_ref().map(|a| a as &dyn SecurityAdapter)
+        self.security_adapter
+            .as_ref()
+            .map(|a| a as &dyn SecurityAdapter)
     }
 }
 
@@ -567,7 +571,7 @@ mod tests {
     fn test_parse_twitch_badges() {
         let badge_strings = vec!["moderator".to_string(), "subscriber".to_string()];
         let badges = parse_twitch_badges(&badge_strings);
-        
+
         assert_eq!(badges.len(), 2);
         assert_eq!(badges[0].name, "moderator");
         assert_eq!(badges[1].name, "subscriber");
@@ -579,7 +583,7 @@ mod tests {
             crate::badges::Badge::new("moderator", "1"),
             crate::badges::Badge::new("subscriber", "12"),
         ];
-        
+
         assert!(is_moderator(&badges));
     }
 }

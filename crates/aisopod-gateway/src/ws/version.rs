@@ -145,14 +145,16 @@ pub const SERVER_PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion { major: 1,
 /// let result = negotiate_version(None);
 /// assert!(matches!(result, Ok(v) if v == ProtocolVersion::new(1, 0)));
 /// ```
-pub fn negotiate_version(client_version_str: Option<&str>) -> Result<ProtocolVersion, VersionNegotiationError> {
+pub fn negotiate_version(
+    client_version_str: Option<&str>,
+) -> Result<ProtocolVersion, VersionNegotiationError> {
     // Default to "1.0" if header is missing for backward compatibility
     let version_str = client_version_str.unwrap_or("1.0");
-    
+
     // Parse the client version
-    let client_version = ProtocolVersion::parse(version_str)
-        .map_err(VersionNegotiationError::ParseError)?;
-    
+    let client_version =
+        ProtocolVersion::parse(version_str).map_err(VersionNegotiationError::ParseError)?;
+
     // Check compatibility
     if SERVER_PROTOCOL_VERSION.is_compatible_with(&client_version) {
         Ok(client_version)
@@ -272,7 +274,7 @@ mod tests {
     fn test_negotiate_version_valid_lower_minor() {
         // Server 1.5 can accept client 1.0 (client has older minor)
         // We test this by using a server with version 1.5
-        // But since SERVER_PROTOCOL_VERSION is constant at 1.0, 
+        // But since SERVER_PROTOCOL_VERSION is constant at 1.0,
         // we test the is_compatible_with method directly
         let server = ProtocolVersion::new(1, 5);
         let client = ProtocolVersion::new(1, 0);
@@ -308,7 +310,10 @@ mod tests {
     #[test]
     fn test_negotiate_version_parse_error() {
         let result = negotiate_version(Some("invalid"));
-        assert!(matches!(result, Err(VersionNegotiationError::ParseError(_))));
+        assert!(matches!(
+            result,
+            Err(VersionNegotiationError::ParseError(_))
+        ));
     }
 
     #[test]
@@ -319,7 +324,8 @@ mod tests {
         };
         assert!(err.to_string().contains("Protocol version mismatch"));
 
-        let err = VersionNegotiationError::ParseError(VersionError::InvalidFormat("bad".to_string()));
+        let err =
+            VersionNegotiationError::ParseError(VersionError::InvalidFormat("bad".to_string()));
         assert!(err.to_string().contains("Failed to parse version"));
     }
 

@@ -16,14 +16,12 @@ async fn test_unknown_method_returns_method_not_found() {
     let mut client = connect_test_client().await;
 
     // Try to call an unknown method
-    let result: Result<serde_json::Value, _> =
-        client.request("nonexistent.method", serde_json::json!({})).await;
+    let result: Result<serde_json::Value, _> = client
+        .request("nonexistent.method", serde_json::json!({}))
+        .await;
 
     // Verify we get an error (method not found)
-    assert!(
-        result.is_err(),
-        "Unknown method should return an error"
-    );
+    assert!(result.is_err(), "Unknown method should return an error");
 
     // The error should be a protocol error
     match result {
@@ -54,18 +52,15 @@ async fn test_malformed_json_rpc_returns_error() {
     // handles JSON serialization. We can't directly send malformed JSON
     // through the standard API. This test verifies that the protocol
     // would handle malformed requests.
-    
+
     // Test that we can create a malformed request struct
     let malformed_json = r#"{"not": "valid jsonrpc"}"#;
-    
+
     // Parse it to verify it's indeed malformed from JSON-RPC perspective
     let result: Result<aisopod_client::RpcResponse, _> = serde_json::from_str(malformed_json);
-    
+
     // This should fail because the JSON is missing required fields
-    assert!(
-        result.is_err(),
-        "Malformed JSON-RPC should fail to parse"
-    );
+    assert!(result.is_err(), "Malformed JSON-RPC should fail to parse");
 }
 
 #[tokio::test]

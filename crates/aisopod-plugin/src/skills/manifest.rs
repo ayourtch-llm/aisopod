@@ -255,7 +255,10 @@ mod tests {
         manifest.version = "".to_string();
 
         let result = manifest.validate();
-        assert!(matches!(result, Err(ManifestError::MissingField("version"))));
+        assert!(matches!(
+            result,
+            Err(ManifestError::MissingField("version"))
+        ));
     }
 
     #[test]
@@ -311,7 +314,7 @@ mod tests {
 
         let dir = tempdir().unwrap();
         let manifest_path = dir.path().join("skill.toml");
-        
+
         let content = r#"
 id = "test-skill"
 name = "Test Skill"
@@ -343,7 +346,7 @@ platform = "linux"
 
         let dir = tempdir().unwrap();
         let manifest_path = dir.path().join("skill.toml");
-        
+
         let content = r#"
 id = "minimal-skill"
 name = "Minimal Skill"
@@ -375,7 +378,10 @@ category = "Utility"
         manifest.version = "   ".to_string();
 
         let result = manifest.validate();
-        assert!(matches!(result, Err(ManifestError::MissingField("version"))));
+        assert!(matches!(
+            result,
+            Err(ManifestError::MissingField("version"))
+        ));
     }
 
     #[test]
@@ -386,7 +392,10 @@ category = "Utility"
         // Note: platform validation is case-sensitive (as per the spec in validate())
         // but we normalize in validate_requirements() for runtime checks
         let result = manifest.validate();
-        assert!(result.is_err(), "Validation should reject uppercase platform");
+        assert!(
+            result.is_err(),
+            "Validation should reject uppercase platform"
+        );
     }
 
     #[test]

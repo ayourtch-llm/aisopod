@@ -55,7 +55,7 @@ pub async fn run(args: GatewayArgs, config_path: Option<String>) -> Result<()> {
 
     // Override config with CLI flags for bind address and port
     let bind_addr = format!("{}:{}", args.bind, args.port);
-    
+
     // Update the gateway config with CLI-provided bind address and port
     config.gateway.bind.address = args.bind;
     config.gateway.server.port = args.port;

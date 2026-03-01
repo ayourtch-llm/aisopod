@@ -31,7 +31,7 @@
 //!    - Default values for optional fields
 //!    - Both channels list entry and platform-specific config for backward compatibility
 //!
-//! 5. **Configuration Management**: 
+//! 5. **Configuration Management**:
 //!    - `load_config_or_default` handles missing config files gracefully
 //!    - `save_config` persists configuration in JSON5 format
 //!
@@ -57,7 +57,7 @@
 //!    - Substitutes template variables (name, pascal_name, display_name)
 //!    - Creates complete channel scaffold directory
 //!
-//! 3. **Template Variables**: 
+//! 3. **Template Variables**:
 //!    - `{{name}}` - Original channel name (kebab-case)
 //!    - `{{pascal_name}}` - PascalCase version (e.g., "MyChannel")
 //!    - `{{display_name}}` - Title case version (e.g., "My Channel")
@@ -79,10 +79,10 @@ use std::env;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+use crate::output::Output;
 use aisopod_config::load_config;
 use aisopod_config::sensitive::Sensitive;
-use aisopod_config::types::{AisopodConfig, ChannelConnection, Channel};
-use crate::output::Output;
+use aisopod_config::types::{AisopodConfig, Channel, ChannelConnection};
 
 /// Channel management command arguments
 #[derive(Args)]
@@ -183,16 +183,19 @@ fn load_config_or_default(config_path: Option<&str>) -> Result<AisopodConfig> {
     match config_path {
         Some(path) => {
             let config_path = Path::new(path);
-            load_config(config_path).map_err(|e| {
-                anyhow!("Failed to load configuration from '{}': {}", path, e)
-            })
+            load_config(config_path)
+                .map_err(|e| anyhow!("Failed to load configuration from '{}': {}", path, e))
         }
         None => {
             // Use default config path
             let default_path = aisopod_config::default_config_path();
             if default_path.exists() {
                 load_config(&default_path).map_err(|e| {
-                    anyhow!("Failed to load configuration from '{}': {}", default_path.display(), e)
+                    anyhow!(
+                        "Failed to load configuration from '{}': {}",
+                        default_path.display(),
+                        e
+                    )
                 })
             } else {
                 // If no config file exists, return empty config
@@ -259,7 +262,7 @@ pub async fn list_channels(config_path: Option<String>) -> Result<()> {
             vec![c.channel_type.clone(), status.to_string(), details]
         })
         .collect();
-    
+
     output.print_table(&headers, rows);
 
     Ok(())
@@ -377,19 +380,25 @@ pub fn setup_channel(channel_type: &ChannelType, config_path: Option<String>) ->
         ChannelType::Nextcloud => {
             println!("=== Nextcloud Talk Setup ===\n");
             println!("1. Ensure you have a Nextcloud instance with the Talk app installed");
-            println!("2. Create an app password at: https://your-nextcloud/settings/user/security\n");
+            println!(
+                "2. Create an app password at: https://your-nextcloud/settings/user/security\n"
+            );
 
             let server_url = prompt("Nextcloud server URL (e.g., https://cloud.example.com): ")?;
             let username = prompt("Username: ")?;
             let password = prompt_password("App password: ")?;
-            let rooms = prompt_with_default("Room tokens to join (comma-separated, leave blank for manual join)", "")?;
+            let rooms = prompt_with_default(
+                "Room tokens to join (comma-separated, leave blank for manual join)",
+                "",
+            )?;
             let name = prompt_with_default("Channel name (optional)", "nextcloud")?;
 
             // Parse room tokens
             let room_tokens: Vec<String> = if rooms.trim().is_empty() {
                 vec![]
             } else {
-                rooms.split(',')
+                rooms
+                    .split(',')
                     .map(|s| s.trim().to_string())
                     .filter(|s| !s.is_empty())
                     .collect()
@@ -415,7 +424,10 @@ pub fn setup_channel(channel_type: &ChannelType, config_path: Option<String>) ->
     }
 
     save_config(&config, config_path)?;
-    output.success(&format!("Channel '{}' configured successfully!", channel_type.as_str()));
+    output.success(&format!(
+        "Channel '{}' configured successfully!",
+        channel_type.as_str()
+    ));
     Ok(())
 }
 
@@ -441,25 +453,28 @@ pub fn run(args: ChannelsArgs, config_path: Option<String>) -> Result<()> {
 pub fn run_channel_create(name: &str) -> Result<()> {
     // Validate channel name (kebab-case only)
     validate_channel_name(name)?;
-    
+
     // Determine target directory
     let target_dir = Path::new("crates").join(format!("aisopod-channel-{}", name));
-    
+
     // Check if channel already exists
     if target_dir.exists() {
-        return Err(anyhow!("Channel crate already exists: {}", target_dir.display()));
+        return Err(anyhow!(
+            "Channel crate already exists: {}",
+            target_dir.display()
+        ));
     }
-    
+
     // Generate template variables
     let pascal_name = to_pascal_case(name);
     let display_name = to_title_case(name);
-    
+
     // Get the templates directory path (two levels up from crates/aisopod to workspace root)
     let templates_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(|p| p.parent())
         .map(|p| p.join("templates/channel"));
-    
+
     let templates_dir = if let Some(ref templates_dir) = templates_dir {
         if templates_dir.exists() {
             templates_dir.clone()
@@ -480,27 +495,86 @@ pub fn run_channel_create(name: &str) -> Result<()> {
             ));
         }
     };
-    
+
     // Create target directory structure
     std::fs::create_dir_all(target_dir.join("src"))?;
-    
+
     // Copy and process each template file
-    copy_template_file(&templates_dir, &target_dir, "Cargo.toml.tmpl", name, &pascal_name, &display_name)?;
-    copy_template_file(&templates_dir, &target_dir, "src/lib.rs.tmpl", name, &pascal_name, &display_name)?;
-    copy_template_file(&templates_dir, &target_dir, "src/channel.rs.tmpl", name, &pascal_name, &display_name)?;
-    copy_template_file(&templates_dir, &target_dir, "src/config.rs.tmpl", name, &pascal_name, &display_name)?;
-    copy_template_file(&templates_dir, &target_dir, "src/outbound.rs.tmpl", name, &pascal_name, &display_name)?;
-    copy_template_file(&templates_dir, &target_dir, "src/gateway.rs.tmpl", name, &pascal_name, &display_name)?;
-    copy_template_file(&templates_dir, &target_dir, "src/runtime.rs.tmpl", name, &pascal_name, &display_name)?;
-    copy_template_file(&templates_dir, &target_dir, "src/README.md.tmpl", name, &pascal_name, &display_name)?;
-    
+    copy_template_file(
+        &templates_dir,
+        &target_dir,
+        "Cargo.toml.tmpl",
+        name,
+        &pascal_name,
+        &display_name,
+    )?;
+    copy_template_file(
+        &templates_dir,
+        &target_dir,
+        "src/lib.rs.tmpl",
+        name,
+        &pascal_name,
+        &display_name,
+    )?;
+    copy_template_file(
+        &templates_dir,
+        &target_dir,
+        "src/channel.rs.tmpl",
+        name,
+        &pascal_name,
+        &display_name,
+    )?;
+    copy_template_file(
+        &templates_dir,
+        &target_dir,
+        "src/config.rs.tmpl",
+        name,
+        &pascal_name,
+        &display_name,
+    )?;
+    copy_template_file(
+        &templates_dir,
+        &target_dir,
+        "src/outbound.rs.tmpl",
+        name,
+        &pascal_name,
+        &display_name,
+    )?;
+    copy_template_file(
+        &templates_dir,
+        &target_dir,
+        "src/gateway.rs.tmpl",
+        name,
+        &pascal_name,
+        &display_name,
+    )?;
+    copy_template_file(
+        &templates_dir,
+        &target_dir,
+        "src/runtime.rs.tmpl",
+        name,
+        &pascal_name,
+        &display_name,
+    )?;
+    copy_template_file(
+        &templates_dir,
+        &target_dir,
+        "src/README.md.tmpl",
+        name,
+        &pascal_name,
+        &display_name,
+    )?;
+
     println!("Created channel scaffold at {}", target_dir.display());
     println!("\nNext steps:");
     println!("  1. Edit src/config.rs to add your configuration fields");
     println!("  2. Implement connect/send/receive/disconnect in src/channel.rs");
-    println!("  3. Run `cargo build -p aisopod-channel-{}` to verify", name);
+    println!(
+        "  3. Run `cargo build -p aisopod-channel-{}` to verify",
+        name
+    );
     println!("\nFor more information, see the generated README.md in the channel directory.");
-    
+
     Ok(())
 }
 
@@ -509,21 +583,24 @@ fn validate_channel_name(name: &str) -> Result<()> {
     if name.is_empty() {
         return Err(anyhow!("Channel name cannot be empty"));
     }
-    
+
     // Check that name contains only lowercase letters, numbers, and hyphens
-    if !name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    {
         return Err(anyhow!(
             "Channel name must be kebab-case (lowercase letters, numbers, and hyphens only). Example: 'my-channel'"
         ));
     }
-    
+
     // Check for consecutive hyphens or leading/trailing hyphens
     if name.starts_with('-') || name.ends_with('-') || name.contains("--") {
         return Err(anyhow!(
             "Channel name cannot start or end with a hyphen, or contain consecutive hyphens"
         ));
     }
-    
+
     Ok(())
 }
 
@@ -547,7 +624,10 @@ fn to_title_case(s: &str) -> String {
             let mut chars = word.chars();
             match chars.next() {
                 None => String::new(),
-                Some(c) => c.to_uppercase().chain(chars.map(|c| c.to_ascii_lowercase())).collect(),
+                Some(c) => c
+                    .to_uppercase()
+                    .chain(chars.map(|c| c.to_ascii_lowercase()))
+                    .collect(),
             }
         })
         .collect::<Vec<String>>()
@@ -566,18 +646,18 @@ fn copy_template_file(
     let template_path = templates_dir.join(template_name);
     let target_name = template_name.trim_end_matches(".tmpl");
     let target_path = target_dir.join(target_name);
-    
+
     let content = std::fs::read_to_string(&template_path)
         .with_context(|| format!("Failed to read template file: {}", template_path.display()))?;
-    
+
     let processed = content
         .replace("{{name}}", name)
         .replace("{{pascal_name}}", pascal_name)
         .replace("{{display_name}}", display_name);
-    
+
     std::fs::write(&target_path, processed)
         .with_context(|| format!("Failed to write file: {}", target_path.display()))?;
-    
+
     Ok(())
 }
 
@@ -711,18 +791,29 @@ mod tests {
         let dir = tempdir().unwrap();
         let templates_dir = dir.path().to_path_buf();
         let target_dir = dir.path().join("target");
-        
+
         // Create target directory first
         fs::create_dir(&target_dir).unwrap();
-        
+
         // Create a template file
         let template_content = "name: {{name}}, pascal: {{pascal_name}}, display: {{display_name}}";
         fs::write(templates_dir.join("test.txt.tmpl"), template_content).unwrap();
-        
-        copy_template_file(&templates_dir, &target_dir, "test.txt.tmpl", "my-channel", "MyChannel", "My Channel").unwrap();
-        
+
+        copy_template_file(
+            &templates_dir,
+            &target_dir,
+            "test.txt.tmpl",
+            "my-channel",
+            "MyChannel",
+            "My Channel",
+        )
+        .unwrap();
+
         let result = fs::read_to_string(target_dir.join("test.txt")).unwrap();
-        assert_eq!(result, "name: my-channel, pascal: MyChannel, display: My Channel");
+        assert_eq!(
+            result,
+            "name: my-channel, pascal: MyChannel, display: My Channel"
+        );
     }
 
     #[test]
@@ -730,15 +821,23 @@ mod tests {
         let dir = tempdir().unwrap();
         let templates_dir = dir.path().to_path_buf();
         let target_dir = dir.path().join("target");
-        
+
         // Create target directory first
         fs::create_dir(&target_dir).unwrap();
-        
+
         // Create a template file
         fs::write(templates_dir.join("test.txt.tmpl"), "content").unwrap();
-        
-        copy_template_file(&templates_dir, &target_dir, "test.txt.tmpl", "name", "Pascal", "Display").unwrap();
-        
+
+        copy_template_file(
+            &templates_dir,
+            &target_dir,
+            "test.txt.tmpl",
+            "name",
+            "Pascal",
+            "Display",
+        )
+        .unwrap();
+
         assert!(target_dir.join("test.txt").exists());
     }
 
@@ -747,9 +846,16 @@ mod tests {
         let dir = tempdir().unwrap();
         let templates_dir = dir.path().to_path_buf();
         let target_dir = dir.path().join("target");
-        
-        let result = copy_template_file(&templates_dir, &target_dir, "nonexistent.txt.tmpl", "name", "Pascal", "Display");
-        
+
+        let result = copy_template_file(
+            &templates_dir,
+            &target_dir,
+            "nonexistent.txt.tmpl",
+            "name",
+            "Pascal",
+            "Display",
+        );
+
         assert!(result.is_err());
     }
 }

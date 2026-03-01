@@ -36,7 +36,9 @@ impl MattermostConfig {
     pub fn new(server_url: String) -> Self {
         Self {
             server_url,
-            auth: MattermostAuth::BotToken { token: String::new() },
+            auth: MattermostAuth::BotToken {
+                token: String::new(),
+            },
             channels: Vec::new(),
             team: None,
         }
@@ -92,9 +94,8 @@ impl MattermostConfig {
         }
 
         // Parse and validate URL format
-        let url = url::Url::parse(&self.server_url).map_err(|e| {
-            ConfigError::InvalidServerUrl(format!("Failed to parse URL: {}", e))
-        })?;
+        let url = url::Url::parse(&self.server_url)
+            .map_err(|e| ConfigError::InvalidServerUrl(format!("Failed to parse URL: {}", e)))?;
 
         if url.scheme() != "http" && url.scheme() != "https" {
             return Err(ConfigError::InvalidServerUrl(
@@ -149,10 +150,11 @@ mod tests {
 
     #[test]
     fn test_with_auth() {
-        let config = MattermostConfig::new("https://mattermost.example.com".to_string())
-            .with_auth(MattermostAuth::BotToken {
+        let config = MattermostConfig::new("https://mattermost.example.com".to_string()).with_auth(
+            MattermostAuth::BotToken {
                 token: "test-token".to_string(),
-            });
+            },
+        );
         assert!(matches!(
             config.auth,
             MattermostAuth::BotToken { token } if token == "test-token"
@@ -170,36 +172,39 @@ mod tests {
 
     #[test]
     fn test_with_team() {
-        let config = MattermostConfig::new("https://mattermost.example.com".to_string())
-            .with_team("myteam");
+        let config =
+            MattermostConfig::new("https://mattermost.example.com".to_string()).with_team("myteam");
         assert_eq!(config.team, Some("myteam".to_string()));
     }
 
     #[test]
     fn test_validate_success_bot_token() {
-        let config = MattermostConfig::new("https://mattermost.example.com".to_string())
-            .with_auth(MattermostAuth::BotToken {
+        let config = MattermostConfig::new("https://mattermost.example.com".to_string()).with_auth(
+            MattermostAuth::BotToken {
                 token: "test-token".to_string(),
-            });
+            },
+        );
         assert!(config.validate().is_ok());
     }
 
     #[test]
     fn test_validate_success_personal_token() {
-        let config = MattermostConfig::new("https://mattermost.example.com".to_string())
-            .with_auth(MattermostAuth::PersonalToken {
+        let config = MattermostConfig::new("https://mattermost.example.com".to_string()).with_auth(
+            MattermostAuth::PersonalToken {
                 token: "test-token".to_string(),
-            });
+            },
+        );
         assert!(config.validate().is_ok());
     }
 
     #[test]
     fn test_validate_success_password() {
-        let config = MattermostConfig::new("https://mattermost.example.com".to_string())
-            .with_auth(MattermostAuth::Password {
+        let config = MattermostConfig::new("https://mattermost.example.com".to_string()).with_auth(
+            MattermostAuth::Password {
                 username: "user".to_string(),
                 password: "pass".to_string(),
-            });
+            },
+        );
         assert!(config.validate().is_ok());
     }
 
@@ -223,21 +228,29 @@ mod tests {
 
     #[test]
     fn test_validate_error_bot_token_empty() {
-        let config = MattermostConfig::new("https://mattermost.example.com".to_string())
-            .with_auth(MattermostAuth::BotToken {
+        let config = MattermostConfig::new("https://mattermost.example.com".to_string()).with_auth(
+            MattermostAuth::BotToken {
                 token: "".to_string(),
-            });
-        assert!(matches!(config.validate(), Err(ConfigError::InvalidAuth(_))));
+            },
+        );
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::InvalidAuth(_))
+        ));
     }
 
     #[test]
     fn test_validate_error_password_empty() {
-        let config = MattermostConfig::new("https://mattermost.example.com".to_string())
-            .with_auth(MattermostAuth::Password {
+        let config = MattermostConfig::new("https://mattermost.example.com".to_string()).with_auth(
+            MattermostAuth::Password {
                 username: "".to_string(),
                 password: "pass".to_string(),
-            });
-        assert!(matches!(config.validate(), Err(ConfigError::InvalidAuth(_))));
+            },
+        );
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::InvalidAuth(_))
+        ));
     }
 
     #[test]

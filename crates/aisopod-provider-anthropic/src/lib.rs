@@ -26,7 +26,7 @@ impl AnthropicPlugin {
     /// * `base_url` - Optional base URL for the Anthropic API
     pub fn new(api_key: String, base_url: Option<String>) -> Self {
         let provider = AnthropicProvider::new(api_key, base_url, None, None);
-        
+
         Self { provider }
     }
 
@@ -43,7 +43,10 @@ impl AnthropicPlugin {
 
 impl Default for AnthropicPlugin {
     fn default() -> Self {
-        Self::new("".to_string(), Some("https://api.anthropic.com/v1".to_string()))
+        Self::new(
+            "".to_string(),
+            Some("https://api.anthropic.com/v1".to_string()),
+        )
     }
 }
 
@@ -64,8 +67,10 @@ mod tests {
             "test-key".to_string(),
             Some("https://api.anthropic.com/v1".to_string()),
         );
-        
-        assert!(plugin.provider().api_key().is_empty() || plugin.provider().api_key() == "test-key");
+
+        assert!(
+            plugin.provider().api_key().is_empty() || plugin.provider().api_key() == "test-key"
+        );
     }
 
     #[test]

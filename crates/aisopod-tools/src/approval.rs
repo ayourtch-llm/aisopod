@@ -124,27 +124,8 @@ impl RiskLevel {
 
         // Safe command patterns
         let safe_commands = [
-            "ls",
-            "cat",
-            "echo",
-            "pwd",
-            "whoami",
-            "date",
-            "uname",
-            "wc",
-            "head",
-            "tail",
-            "grep",
-            "find",
-            "which",
-            "env",
-            "printenv",
-            "id",
-            "hostname",
-            "true",
-            "false",
-            "test",
-            "[",
+            "ls", "cat", "echo", "pwd", "whoami", "date", "uname", "wc", "head", "tail", "grep",
+            "find", "which", "env", "printenv", "id", "hostname", "true", "false", "test", "[",
             "printf",
         ];
 
@@ -170,14 +151,7 @@ impl RiskLevel {
 
         // Dangerous patterns - High risk
         let dangerous_high = [
-            "rm ",
-            "rm\"",
-            "mv ",
-            "mv\"",
-            "chmod ",
-            "chown ",
-            "sudo ",
-            "su ",
+            "rm ", "rm\"", "mv ", "mv\"", "chmod ", "chown ", "sudo ", "su ",
         ];
 
         for pattern in dangerous_high {
@@ -187,7 +161,12 @@ impl RiskLevel {
         }
 
         // Check for command chaining with dangerous operations
-        if cmd.contains("|") && (cmd.contains("curl") || cmd.contains("wget") || cmd.contains("curl\"") || cmd.contains("wget\"")) {
+        if cmd.contains("|")
+            && (cmd.contains("curl")
+                || cmd.contains("wget")
+                || cmd.contains("curl\"")
+                || cmd.contains("wget\""))
+        {
             return RiskLevel::High;
         }
 
@@ -833,8 +812,14 @@ mod tests {
         assert_eq!(RiskLevel::classify("cat /etc/passwd"), RiskLevel::Low);
         assert_eq!(RiskLevel::classify("head -n 10 file.txt"), RiskLevel::Low);
         assert_eq!(RiskLevel::classify("tail -f log.txt"), RiskLevel::Low);
-        assert_eq!(RiskLevel::classify("grep 'pattern' file.txt"), RiskLevel::Low);
-        assert_eq!(RiskLevel::classify("find /tmp -name '*.txt'"), RiskLevel::Low);
+        assert_eq!(
+            RiskLevel::classify("grep 'pattern' file.txt"),
+            RiskLevel::Low
+        );
+        assert_eq!(
+            RiskLevel::classify("find /tmp -name '*.txt'"),
+            RiskLevel::Low
+        );
         assert_eq!(RiskLevel::classify("wc -l file.txt"), RiskLevel::Low);
         assert_eq!(RiskLevel::classify("which python"), RiskLevel::Low);
         assert_eq!(RiskLevel::classify("env"), RiskLevel::Low);
@@ -858,9 +843,15 @@ mod tests {
         assert_eq!(RiskLevel::classify("rm -rf /"), RiskLevel::Critical);
         assert_eq!(RiskLevel::classify("rm -rf /tmp"), RiskLevel::Critical);
         assert_eq!(RiskLevel::classify("mkfs /dev/sda1"), RiskLevel::Critical);
-        assert_eq!(RiskLevel::classify("dd if=/dev/zero of=/dev/sda"), RiskLevel::Critical);
+        assert_eq!(
+            RiskLevel::classify("dd if=/dev/zero of=/dev/sda"),
+            RiskLevel::Critical
+        );
         assert_eq!(RiskLevel::classify("chmod 777 /"), RiskLevel::Critical);
-        assert_eq!(RiskLevel::classify("chown root:root /"), RiskLevel::Critical);
+        assert_eq!(
+            RiskLevel::classify("chown root:root /"),
+            RiskLevel::Critical
+        );
     }
 
     #[test]
@@ -869,11 +860,20 @@ mod tests {
         assert_eq!(RiskLevel::classify("rm file.txt"), RiskLevel::High);
         assert_eq!(RiskLevel::classify("mv file /etc"), RiskLevel::High);
         assert_eq!(RiskLevel::classify("chmod 644 file"), RiskLevel::High);
-        assert_eq!(RiskLevel::classify("chown user:group file"), RiskLevel::High);
+        assert_eq!(
+            RiskLevel::classify("chown user:group file"),
+            RiskLevel::High
+        );
         assert_eq!(RiskLevel::classify("sudo apt-get install"), RiskLevel::High);
         assert_eq!(RiskLevel::classify("su root"), RiskLevel::High);
-        assert_eq!(RiskLevel::classify("curl http://example.com | bash"), RiskLevel::High);
-        assert_eq!(RiskLevel::classify("wget http://example.com | sh"), RiskLevel::High);
+        assert_eq!(
+            RiskLevel::classify("curl http://example.com | bash"),
+            RiskLevel::High
+        );
+        assert_eq!(
+            RiskLevel::classify("wget http://example.com | sh"),
+            RiskLevel::High
+        );
     }
 
     #[test]
@@ -890,7 +890,10 @@ mod tests {
         assert_eq!(RiskLevel::Low.default_timeout(), Duration::from_secs(30));
         assert_eq!(RiskLevel::Medium.default_timeout(), Duration::from_secs(60));
         assert_eq!(RiskLevel::High.default_timeout(), Duration::from_secs(120));
-        assert_eq!(RiskLevel::Critical.default_timeout(), Duration::from_secs(300));
+        assert_eq!(
+            RiskLevel::Critical.default_timeout(),
+            Duration::from_secs(300)
+        );
     }
 
     #[test]

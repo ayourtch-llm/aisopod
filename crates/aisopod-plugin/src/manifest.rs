@@ -220,8 +220,8 @@ impl PluginManifest {
     /// "#)?;
     /// ```
     pub fn from_str(content: &str) -> Result<Self, ManifestError> {
-        let manifest: PluginManifest = toml::from_str(content)
-            .map_err(|e| ManifestError::Parse(e.to_string()))?;
+        let manifest: PluginManifest =
+            toml::from_str(content).map_err(|e| ManifestError::Parse(e.to_string()))?;
         manifest.validate()?;
         Ok(manifest)
     }
@@ -290,7 +290,7 @@ mod tests {
 
         let result = PluginManifest::from_str(content);
         assert!(result.is_ok(), "Valid manifest should parse successfully");
-        
+
         let manifest = result.unwrap();
         assert_eq!(manifest.plugin.id, "my-plugin");
         assert_eq!(manifest.plugin.name, "My Plugin");
@@ -320,11 +320,17 @@ mod tests {
         "#;
 
         let result = PluginManifest::from_str(content);
-        assert!(result.is_ok(), "Valid manifest with capabilities should parse");
+        assert!(
+            result.is_ok(),
+            "Valid manifest with capabilities should parse"
+        );
 
         let manifest = result.unwrap();
         let caps = manifest.capabilities.unwrap();
-        assert_eq!(caps.channels, Some(vec!["text".to_string(), "voice".to_string()]));
+        assert_eq!(
+            caps.channels,
+            Some(vec!["text".to_string(), "voice".to_string()])
+        );
         assert_eq!(caps.tools, Some(vec!["custom-tool".to_string()]));
         assert_eq!(caps.commands, Some(vec!["my-command".to_string()]));
     }
@@ -346,7 +352,10 @@ mod tests {
         "#;
 
         let result = PluginManifest::from_str(content);
-        assert!(result.is_ok(), "Valid manifest with compatibility should parse");
+        assert!(
+            result.is_ok(),
+            "Valid manifest with compatibility should parse"
+        );
 
         let manifest = result.unwrap();
         let compat = manifest.compatibility.unwrap();
@@ -594,7 +603,7 @@ mod tests {
 
         let manifest = PluginManifest::from_str(content).unwrap();
         let cloned = manifest.clone();
-        
+
         assert_eq!(manifest.plugin.id, cloned.plugin.id);
         assert_eq!(manifest.capabilities, cloned.capabilities);
     }

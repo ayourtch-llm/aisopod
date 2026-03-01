@@ -46,4 +46,4 @@ pub use auth::{AuthError, LarkAuth};
 pub use cards::{CardElement, CardHeader, CardText, MessageCard};
 pub use channel::{LarkAccount, LarkChannel};
 pub use config::LarkConfig;
-pub use events::{EventType, WebhookRequestBody, handle_event, lark_router, AppState};
+pub use events::{handle_event, lark_router, AppState, EventType, WebhookRequestBody};

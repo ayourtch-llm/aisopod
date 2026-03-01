@@ -209,7 +209,10 @@ impl MattermostApi {
     #[instrument(skip(self, message))]
     pub async fn create_post(&self, channel_id: &str, message: &str) -> Result<Post, ApiError> {
         let url = format!("{}/api/v4/posts", self.base_url);
-        debug!("Creating post in channel {} with message: {}", channel_id, message);
+        debug!(
+            "Creating post in channel {} with message: {}",
+            channel_id, message
+        );
 
         let resp = self
             .http
@@ -230,8 +233,7 @@ impl MattermostApi {
             return Err(ApiError::Http(format!("HTTP {} {}", status, body)));
         }
 
-        let post: Post = resp.json().await
-            .map_err(ApiError::from)?;
+        let post: Post = resp.json().await.map_err(ApiError::from)?;
         Ok(post)
     }
 
@@ -247,16 +249,32 @@ impl MattermostApi {
     /// * `Ok(Channel)` - The channel information
     /// * `Err(ApiError)` - An error if the channel is not found
     #[instrument(skip(self))]
-    pub async fn get_channel_by_name(&self, team_id: &str, name: &str) -> Result<Channel, ApiError> {
-        let url = format!("{}/api/v4/teams/{}/channels/name/{}", self.base_url, team_id, name);
+    pub async fn get_channel_by_name(
+        &self,
+        team_id: &str,
+        name: &str,
+    ) -> Result<Channel, ApiError> {
+        let url = format!(
+            "{}/api/v4/teams/{}/channels/name/{}",
+            self.base_url, team_id, name
+        );
         debug!("Getting channel {}/{}", team_id, name);
 
-        let resp = self.http.get(&url).bearer_auth(&self.token).send().await.map_err(ApiError::from)?;
+        let resp = self
+            .http
+            .get(&url)
+            .bearer_auth(&self.token)
+            .send()
+            .await
+            .map_err(ApiError::from)?;
 
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            error!("get_channel_by_name failed with status {}: {}", status, body);
+            error!(
+                "get_channel_by_name failed with status {}: {}",
+                status, body
+            );
             return Err(ApiError::Http(format!("HTTP {} {}", status, body)));
         }
 
@@ -290,7 +308,10 @@ impl MattermostApi {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            error!("create_direct_channel failed with status {}: {}", status, body);
+            error!(
+                "create_direct_channel failed with status {}: {}",
+                status, body
+            );
             return Err(ApiError::Http(format!("HTTP {} {}", status, body)));
         }
 
@@ -313,7 +334,13 @@ impl MattermostApi {
         let url = format!("{}/api/v4/channels/{}", self.base_url, channel_id);
         debug!("Getting channel {}", channel_id);
 
-        let resp = self.http.get(&url).bearer_auth(&self.token).send().await.map_err(ApiError::from)?;
+        let resp = self
+            .http
+            .get(&url)
+            .bearer_auth(&self.token)
+            .send()
+            .await
+            .map_err(ApiError::from)?;
 
         if !resp.status().is_success() {
             let status = resp.status();
@@ -337,7 +364,13 @@ impl MattermostApi {
         let url = format!("{}/api/v4/users/me", self.base_url);
         debug!("Getting current user");
 
-        let resp = self.http.get(&url).bearer_auth(&self.token).send().await.map_err(ApiError::from)?;
+        let resp = self
+            .http
+            .get(&url)
+            .bearer_auth(&self.token)
+            .send()
+            .await
+            .map_err(ApiError::from)?;
 
         if !resp.status().is_success() {
             let status = resp.status();
@@ -365,7 +398,13 @@ impl MattermostApi {
         let url = format!("{}/api/v4/teams/{}/channels", self.base_url, team_id);
         debug!("Listing channels for team {}", team_id);
 
-        let resp = self.http.get(&url).bearer_auth(&self.token).send().await.map_err(ApiError::from)?;
+        let resp = self
+            .http
+            .get(&url)
+            .bearer_auth(&self.token)
+            .send()
+            .await
+            .map_err(ApiError::from)?;
 
         if !resp.status().is_success() {
             let status = resp.status();
@@ -393,7 +432,13 @@ impl MattermostApi {
         let url = format!("{}/api/v4/teams/{}", self.base_url, team_id);
         debug!("Getting team {}", team_id);
 
-        let resp = self.http.get(&url).bearer_auth(&self.token).send().await.map_err(ApiError::from)?;
+        let resp = self
+            .http
+            .get(&url)
+            .bearer_auth(&self.token)
+            .send()
+            .await
+            .map_err(ApiError::from)?;
 
         if !resp.status().is_success() {
             let status = resp.status();
@@ -421,7 +466,13 @@ impl MattermostApi {
         let url = format!("{}/api/v4/teams/name/{}", self.base_url, name);
         debug!("Getting team by name: {}", name);
 
-        let resp = self.http.get(&url).bearer_auth(&self.token).send().await.map_err(ApiError::from)?;
+        let resp = self
+            .http
+            .get(&url)
+            .bearer_auth(&self.token)
+            .send()
+            .await
+            .map_err(ApiError::from)?;
 
         if !resp.status().is_success() {
             let status = resp.status();
@@ -462,7 +513,13 @@ impl MattermostApi {
             channel_id, page, per_page
         );
 
-        let resp = self.http.get(&url).bearer_auth(&self.token).send().await.map_err(ApiError::from)?;
+        let resp = self
+            .http
+            .get(&url)
+            .bearer_auth(&self.token)
+            .send()
+            .await
+            .map_err(ApiError::from)?;
 
         if !resp.status().is_success() {
             let status = resp.status();

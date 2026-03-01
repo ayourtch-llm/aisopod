@@ -3,8 +3,8 @@
 //! This module provides utilities for Mattermost authentication
 //! and token management.
 
-use crate::config::MattermostAuth;
 use crate::api::ApiError;
+use crate::config::MattermostAuth;
 use anyhow::Result;
 use serde::Serialize;
 
@@ -52,12 +52,8 @@ pub async fn authenticate(
     server_url: &str,
 ) -> Result<AuthResult, AuthError> {
     match auth {
-        MattermostAuth::BotToken { token } => {
-            authenticate_token(token, server_url).await
-        }
-        MattermostAuth::PersonalToken { token } => {
-            authenticate_token(token, server_url).await
-        }
+        MattermostAuth::BotToken { token } => authenticate_token(token, server_url).await,
+        MattermostAuth::PersonalToken { token } => authenticate_token(token, server_url).await,
         MattermostAuth::Password { username, password } => {
             authenticate_password(username, password, server_url).await
         }
@@ -152,13 +148,19 @@ mod tests {
     #[test]
     fn test_validate_token_empty() {
         let token = "".to_string();
-        assert!(matches!(validate_token(&token), Err(AuthError::InvalidCredentials)));
+        assert!(matches!(
+            validate_token(&token),
+            Err(AuthError::InvalidCredentials)
+        ));
     }
 
     #[test]
     fn test_validate_token_too_short() {
         let token = "abc".to_string();
-        assert!(matches!(validate_token(&token), Err(AuthError::TokenAuth(_))));
+        assert!(matches!(
+            validate_token(&token),
+            Err(AuthError::TokenAuth(_))
+        ));
     }
 
     #[test]

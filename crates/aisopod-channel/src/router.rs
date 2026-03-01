@@ -8,13 +8,13 @@ use std::sync::Arc;
 use anyhow::Result;
 use tracing::{instrument, trace};
 
-use crate::message::IncomingMessage;
-use crate::channel::ChannelRegistry;
 use crate::adapters::{ChannelConfigAdapter, SecurityAdapter};
+use crate::channel::ChannelRegistry;
+use crate::message::IncomingMessage;
 use crate::security::SecurityEnforcer;
-use aisopod_session::{SessionKey, routing::resolve_session_key, PeerKind};
 use aisopod_agent::resolution::resolve_session_agent_id;
 use aisopod_config::AisopodConfig;
+use aisopod_session::{routing::resolve_session_key, PeerKind, SessionKey};
 use aisopod_tools::SessionManager;
 
 /// A message router that routes incoming messages to the appropriate agent.
@@ -131,18 +131,25 @@ impl MessageRouter {
         trace!("Normalized channel ID: {}", normalized_channel_id);
 
         // Step 2: Resolve account
-        let plugin = self
-            .registry
-            .get(&normalized_channel_id)
-            .ok_or_else(|| anyhow::anyhow!("Channel not found after normalization: {}", normalized_channel_id))?;
+        let plugin = self.registry.get(&normalized_channel_id).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Channel not found after normalization: {}",
+                normalized_channel_id
+            )
+        })?;
 
         let account = plugin
             .config()
             .resolve_account(&message.account_id)
-            .map_err(|_| anyhow::anyhow!("Account not found or disabled: {}", message.account_id))?;
+            .map_err(|_| {
+                anyhow::anyhow!("Account not found or disabled: {}", message.account_id)
+            })?;
 
         if !account.enabled {
-            return Err(anyhow::anyhow!("Account not found or disabled: {}", message.account_id));
+            return Err(anyhow::anyhow!(
+                "Account not found or disabled: {}",
+                message.account_id
+            ));
         }
         trace!("Resolved account: {}", message.account_id);
 
@@ -179,7 +186,8 @@ impl MessageRouter {
         trace!("Resolved agent: {}", agent_id);
 
         // Step 7: Route to agent runner
-        self.route_to_runner(&session_key, &message, agent_id).await?;
+        self.route_to_runner(&session_key, &message, agent_id)
+            .await?;
 
         Ok(())
     }
@@ -232,7 +240,7 @@ impl MessageRouter {
     ) -> Result<()> {
         // For now, this is a placeholder that will need to be implemented
         // when the agent runner integration is complete
-        // 
+        //
         // A full implementation would:
         // 1. Create or load the session using the session manager
         // 2. Prepare the message history for the agent
@@ -240,7 +248,7 @@ impl MessageRouter {
         // 4. Handle the agent's response
         //
         // This would use the AgentRunner from aisopod-agent
-        
+
         Ok(())
     }
 }

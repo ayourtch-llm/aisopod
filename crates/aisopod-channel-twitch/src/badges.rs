@@ -75,7 +75,9 @@ pub fn parse_badges(badge_str: &str) -> Vec<Badge> {
 ///
 /// `true` if the user is a moderator or broadcaster, `false` otherwise.
 pub fn is_moderator(badges: &[Badge]) -> bool {
-    badges.iter().any(|b| b.name == "moderator" || b.name == "broadcaster")
+    badges
+        .iter()
+        .any(|b| b.name == "moderator" || b.name == "broadcaster")
 }
 
 /// Check if a user is a subscriber based on their badges.

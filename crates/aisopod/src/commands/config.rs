@@ -8,15 +8,15 @@
 //! - init: Initialize a new configuration file from a template
 
 use anyhow::{anyhow, Context, Result};
-    use clap::{Args, Subcommand};
-    use serde_json::{Map, Value};
-    use std::collections::BTreeMap;
-    use std::io::{self, Write};
-    use std::path::{Path, PathBuf};
+use clap::{Args, Subcommand};
+use serde_json::{Map, Value};
+use std::collections::BTreeMap;
+use std::io::{self, Write};
+use std::path::{Path, PathBuf};
 
-    use aisopod_config::load_config;
-    use aisopod_config::sensitive::Sensitive;
-    use aisopod_config::types::{AisopodConfig, ModelProvider};
+use aisopod_config::load_config;
+use aisopod_config::sensitive::Sensitive;
+use aisopod_config::types::{AisopodConfig, ModelProvider};
 
 /// Configuration management command arguments
 #[derive(Args)]
@@ -112,7 +112,10 @@ fn prompt_select(prompt_text: &str, options: &[&str]) -> Result<String> {
                 return Ok(options[index - 1].to_string());
             }
         }
-        println!("Invalid choice. Please enter a number between 1 and {}.", options.len());
+        println!(
+            "Invalid choice. Please enter a number between 1 and {}.",
+            options.len()
+        );
     }
 }
 
@@ -121,16 +124,19 @@ fn load_config_or_default(config_path: Option<&str>) -> Result<AisopodConfig> {
     match config_path {
         Some(path) => {
             let config_path = Path::new(path);
-            load_config(config_path).map_err(|e| {
-                anyhow!("Failed to load configuration from '{}': {}", path, e)
-            })
+            load_config(config_path)
+                .map_err(|e| anyhow!("Failed to load configuration from '{}': {}", path, e))
         }
         None => {
             // Use default config path
             let default_path = aisopod_config::default_config_path();
             if default_path.exists() {
                 load_config(&default_path).map_err(|e| {
-                    anyhow!("Failed to load configuration from '{}': {}", default_path.display(), e)
+                    anyhow!(
+                        "Failed to load configuration from '{}': {}",
+                        default_path.display(),
+                        e
+                    )
                 })
             } else {
                 // If no config file exists, return empty config
@@ -246,7 +252,7 @@ fn show_config(config: &AisopodConfig) -> Result<()> {
 fn set_config(config: &mut AisopodConfig, key: &str, value: &str) -> Result<()> {
     // Clone the config to work with
     let mut cloned_config = config.clone();
-    
+
     // Convert to JSON value for manipulation
     let mut json_value = serde_json::to_value(&cloned_config)
         .map_err(|e| anyhow!("Failed to serialize config: {}", e))?;
@@ -308,15 +314,21 @@ fn run_wizard(config: &mut AisopodConfig) -> Result<()> {
     let api_key = prompt_password(&format!("{} API key: ", provider_name))?;
 
     // Add provider to providers list
-    config.models.providers.push(aisopod_config::types::ModelProvider {
-        name: provider_name,
-        endpoint: "".to_string(),
-        api_key,
-    });
+    config
+        .models
+        .providers
+        .push(aisopod_config::types::ModelProvider {
+            name: provider_name,
+            endpoint: "".to_string(),
+            api_key,
+        });
 
     // Step 3: Confirm and save
     println!("\n=== Configuration Summary ===");
-    println!("Gateway: {}:{}", config.gateway.bind.address, config.gateway.server.port);
+    println!(
+        "Gateway: {}:{}",
+        config.gateway.bind.address, config.gateway.server.port
+    );
     if !config.models.providers.is_empty() {
         println!("Model provider: {}", config.models.providers[0].name);
     }
@@ -367,12 +379,12 @@ fn configure_channels(config: &mut AisopodConfig) -> Result<()> {
 
     loop {
         let channel = prompt_select("Select channel to configure", &channels);
-        
+
         match channel {
             Ok(channel) => {
                 configure_channel(config, &channel)?;
                 println!("\nChannel '{}' configured.", channel);
-                
+
                 let continue_input = prompt("\nConfigure another channel? (y/n): ")?;
                 if continue_input.to_lowercase() != "y" {
                     break;
@@ -402,31 +414,30 @@ fn get_template_content(template_name: &str) -> Result<String> {
     // 2. <workspace-root>/config/templates/ (for installed binaries)
     // 3. <binary-dir>/../config/templates/ (alternative relative path)
     let template_filename = format!("{}.json", template_name);
-    
+
     // Path relative to workspace root (two levels up from crates/aisopod)
     let workspace_root_path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(|p| p.parent())
         .map(|p| p.join("config/templates").join(&template_filename));
-    
+
     // Current working directory path
     let cwd_path = Path::new("config/templates").join(&template_filename);
-    
+
     // Try each path in order of preference
     let possible_paths: Vec<PathBuf> = if let Some(ws_path) = workspace_root_path {
         vec![cwd_path, ws_path]
     } else {
         vec![cwd_path]
     };
-    
+
     for template_path in &possible_paths {
         if template_path.exists() {
-            return std::fs::read_to_string(template_path).map_err(|e| {
-                anyhow!("Failed to read template '{}': {}", template_name, e)
-            });
+            return std::fs::read_to_string(template_path)
+                .map_err(|e| anyhow!("Failed to read template '{}': {}", template_name, e));
         }
     }
-    
+
     Err(anyhow!(
         "Template '{}' not found. Available templates: dev, production, docker",
         template_name
@@ -436,9 +447,9 @@ fn get_template_content(template_name: &str) -> Result<String> {
 /// Initialize a new configuration file from a template
 fn init_config(template: Option<String>, output: Option<String>) -> Result<()> {
     let template_name = template.as_deref().unwrap_or("dev");
-    
+
     let template_content = get_template_content(template_name)?;
-    
+
     // Determine output path
     let output_path = if let Some(path) = output {
         Path::new(&path).to_path_buf()
@@ -446,16 +457,16 @@ fn init_config(template: Option<String>, output: Option<String>) -> Result<()> {
         // Default to current directory
         std::env::current_dir()?.join(aisopod_config::DEFAULT_CONFIG_FILE)
     };
-    
+
     // Write template content to output file
     std::fs::write(&output_path, template_content)?;
-    
+
     println!(
         "Configuration initialized from '{}' template to '{}'",
         template_name,
         output_path.display()
     );
-    
+
     Ok(())
 }
 

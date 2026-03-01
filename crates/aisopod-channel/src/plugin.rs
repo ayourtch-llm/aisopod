@@ -4,9 +4,9 @@
 //! must implement. It provides a unified interface for accessing channel metadata,
 //! capabilities, and configuration.
 
-use crate::types::{ChannelCapabilities, ChannelMeta};
 use crate::adapters::{ChannelConfigAdapter, SecurityAdapter};
 use crate::message::{IncomingMessage, OutgoingMessage};
+use crate::types::{ChannelCapabilities, ChannelMeta};
 use crate::Result;
 use async_trait::async_trait;
 
@@ -94,7 +94,9 @@ pub trait ChannelPlugin: Send + Sync {
     ///
     /// The default implementation returns an error indicating receive is not implemented.
     async fn receive(&mut self) -> Result<IncomingMessage> {
-        Err(anyhow::anyhow!("Receive is not implemented for this channel"))
+        Err(anyhow::anyhow!(
+            "Receive is not implemented for this channel"
+        ))
     }
 
     /// Disconnect from the channel service.

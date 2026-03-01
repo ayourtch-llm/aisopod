@@ -35,10 +35,7 @@ impl TokenStore {
     /// until the next rotation or until `expire_previous()` is called.
     pub fn rotate(&mut self) -> String {
         let new_token = generate_token();
-        self.previous_token = Some(std::mem::replace(
-            &mut self.active_token,
-            new_token.clone(),
-        ));
+        self.previous_token = Some(std::mem::replace(&mut self.active_token, new_token.clone()));
         new_token
     }
 

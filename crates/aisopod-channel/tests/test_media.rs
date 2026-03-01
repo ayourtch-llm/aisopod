@@ -248,16 +248,16 @@ fn test_detect_mime_type_unknown() {
 fn test_resize_image_larger_than_max() {
     // Create a 1000x1000 image
     let img_buffer: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(1000, 1000);
-    
+
     // Encode to PNG bytes
     let dynamic_img = DynamicImage::ImageRgba8(img_buffer);
     let mut buf = Cursor::new(Vec::new());
     dynamic_img.write_to(&mut buf, ImageFormat::Png).unwrap();
     let data = buf.into_inner();
-    
+
     // Resize to max 500x500
     let resized = resize_image(&data, 500, 500).unwrap();
-    
+
     // Verify the result is a valid PNG
     let img = image::load_from_memory(&resized).unwrap();
     let (width, height) = img.dimensions();
@@ -269,16 +269,16 @@ fn test_resize_image_larger_than_max() {
 fn test_resize_image_smaller_than_max() {
     // Create a 200x200 image
     let img_buffer: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(200, 200);
-    
+
     // Encode to PNG bytes
     let dynamic_img = DynamicImage::ImageRgba8(img_buffer);
     let mut buf = Cursor::new(Vec::new());
     dynamic_img.write_to(&mut buf, ImageFormat::Png).unwrap();
     let data = buf.into_inner();
-    
+
     // Resize to max 500x500 (image is already smaller)
     let resized = resize_image(&data, 500, 500).unwrap();
-    
+
     // Verify dimensions are unchanged
     let img = image::load_from_memory(&resized).unwrap();
     let (width, height) = img.dimensions();
@@ -290,16 +290,16 @@ fn test_resize_image_smaller_than_max() {
 fn test_resize_image_preserves_aspect_ratio() {
     // Create a 1000x500 image (2:1 aspect ratio)
     let img_buffer: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(1000, 500);
-    
+
     // Encode to PNG bytes
     let dynamic_img = DynamicImage::ImageRgba8(img_buffer);
     let mut buf = Cursor::new(Vec::new());
     dynamic_img.write_to(&mut buf, ImageFormat::Png).unwrap();
     let data = buf.into_inner();
-    
+
     // Resize to max 400x400
     let resized = resize_image(&data, 400, 400).unwrap();
-    
+
     // Verify aspect ratio is preserved (should be 2:1)
     let img = image::load_from_memory(&resized).unwrap();
     let (width, height) = img.dimensions();
@@ -320,7 +320,7 @@ fn test_validate_media_success() {
         supported_media_types: vec![MediaType::Image, MediaType::Document],
         ..Default::default()
     };
-    
+
     assert!(validate_media(&media_type, &capabilities).is_ok());
 }
 
@@ -332,7 +332,7 @@ fn test_validate_media_not_supported() {
         supported_media_types: vec![MediaType::Image, MediaType::Document],
         ..Default::default()
     };
-    
+
     let result = validate_media(&media_type, &capabilities);
     assert!(result.is_err());
 }
@@ -345,7 +345,7 @@ fn test_validate_media_disabled() {
         supported_media_types: vec![],
         ..Default::default()
     };
-    
+
     let result = validate_media(&media_type, &capabilities);
     assert!(result.is_err());
 }
@@ -358,7 +358,7 @@ fn test_validate_media_type_not_in_supported_list() {
         supported_media_types: vec![MediaType::Image],
         ..Default::default()
     };
-    
+
     let result = validate_media(&media_type, &capabilities);
     assert!(result.is_err());
 }
@@ -372,13 +372,13 @@ fn test_validate_media_all_supported_types() {
         MediaType::Video,
         MediaType::Document,
     ];
-    
+
     let capabilities = aisopod_channel::types::ChannelCapabilities {
         supports_media: true,
         supported_media_types: supported_types.clone(),
         ..Default::default()
     };
-    
+
     for media_type in supported_types {
         assert!(validate_media(&media_type, &capabilities).is_ok());
     }
@@ -421,10 +421,10 @@ fn test_resize_image_png_to_jpeg() {
     let mut buf = Cursor::new(Vec::new());
     dynamic_img.write_to(&mut buf, ImageFormat::Png).unwrap();
     let data = buf.into_inner();
-    
+
     // Resize (preserves original format)
     let resized = resize_image(&data, 50, 50).unwrap();
-    
+
     // Verify it's still a PNG (format is preserved)
     let img = image::load_from_memory(&resized).unwrap();
     assert_eq!(img.dimensions(), (50, 50));
@@ -434,10 +434,10 @@ fn test_resize_image_png_to_jpeg() {
 fn test_detect_media_type_case_insensitive_extension() {
     // Test that extension matching is case-insensitive
     let data = [0x00, 0x00, 0x00, 0x00];
-    
+
     let media_type_upper = detect_media_type(&data, Some("file.JPG"));
     assert_eq!(media_type_upper, MediaType::Image);
-    
+
     let media_type_mixed = detect_media_type(&data, Some("file.PnG"));
     assert_eq!(media_type_mixed, MediaType::Image);
 }

@@ -129,11 +129,7 @@ async fn run_agent_and_stream(
     };
 
     // Prepare agent run parameters
-    let params = aisopod_agent::AgentRunParams::new(
-        session_key.clone(),
-        vec![message],
-        agent_id,
-    );
+    let params = aisopod_agent::AgentRunParams::new(session_key.clone(), vec![message], agent_id);
 
     // Run the agent and get the event stream
     let stream = agent_runner.run(params).await?;
@@ -155,9 +151,12 @@ async fn run_agent_and_stream(
                     }
                 });
 
-                if let Err(e) = ws_sender.send(axum::extract::ws::Message::Text(
-                    serde_json::to_string(&response)?
-                )).await {
+                if let Err(e) = ws_sender
+                    .send(axum::extract::ws::Message::Text(serde_json::to_string(
+                        &response,
+                    )?))
+                    .await
+                {
                     eprintln!("Failed to send text delta: {}", e);
                     break;
                 }
@@ -176,14 +175,21 @@ async fn run_agent_and_stream(
                     }
                 });
 
-                if let Err(e) = ws_sender.send(axum::extract::ws::Message::Text(
-                    serde_json::to_string(&response)?
-                )).await {
+                if let Err(e) = ws_sender
+                    .send(axum::extract::ws::Message::Text(serde_json::to_string(
+                        &response,
+                    )?))
+                    .await
+                {
                     eprintln!("Failed to send tool call start: {}", e);
                     break;
                 }
             }
-            aisopod_agent::AgentEvent::ToolCallResult { call_id, result, is_error } => {
+            aisopod_agent::AgentEvent::ToolCallResult {
+                call_id,
+                result,
+                is_error,
+            } => {
                 // Stream tool call result
                 let response = serde_json::json!({
                     "jsonrpc": "2.0",
@@ -198,9 +204,12 @@ async fn run_agent_and_stream(
                     }
                 });
 
-                if let Err(e) = ws_sender.send(axum::extract::ws::Message::Text(
-                    serde_json::to_string(&response)?
-                )).await {
+                if let Err(e) = ws_sender
+                    .send(axum::extract::ws::Message::Text(serde_json::to_string(
+                        &response,
+                    )?))
+                    .await
+                {
                     eprintln!("Failed to send tool call result: {}", e);
                     break;
                 }
@@ -216,9 +225,12 @@ async fn run_agent_and_stream(
                     }
                 });
 
-                if let Err(e) = ws_sender.send(axum::extract::ws::Message::Text(
-                    serde_json::to_string(&response)?
-                )).await {
+                if let Err(e) = ws_sender
+                    .send(axum::extract::ws::Message::Text(serde_json::to_string(
+                        &response,
+                    )?))
+                    .await
+                {
                     eprintln!("Failed to send error: {}", e);
                 }
                 has_sent_done = true;
@@ -237,9 +249,12 @@ async fn run_agent_and_stream(
                     }
                 });
 
-                if let Err(e) = ws_sender.send(axum::extract::ws::Message::Text(
-                    serde_json::to_string(&response)?
-                )).await {
+                if let Err(e) = ws_sender
+                    .send(axum::extract::ws::Message::Text(serde_json::to_string(
+                        &response,
+                    )?))
+                    .await
+                {
                     eprintln!("Failed to send complete: {}", e);
                 }
                 has_sent_done = true;
@@ -260,9 +275,11 @@ async fn run_agent_and_stream(
             }
         });
 
-        let _ = ws_sender.send(axum::extract::ws::Message::Text(
-            serde_json::to_string(&response)?
-        )).await;
+        let _ = ws_sender
+            .send(axum::extract::ws::Message::Text(serde_json::to_string(
+                &response,
+            )?))
+            .await;
     }
 
     Ok(())

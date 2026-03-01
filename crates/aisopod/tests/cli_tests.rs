@@ -3,10 +3,10 @@
 //! This module contains unit tests for CLI argument parsing and
 //! integration tests for CLI command execution.
 
-use clap::Parser;
 use aisopod::cli::{Cli, Commands};
 use aisopod::commands::agent::AgentCommands;
 use aisopod::commands::config::ConfigCommands;
+use clap::Parser;
 
 // ============================================================================
 // Unit Tests: Argument Parsing
@@ -23,7 +23,14 @@ fn test_parse_gateway_defaults() {
 
 #[test]
 fn test_parse_global_flags() {
-    let cli = Cli::parse_from(["aisopod", "--verbose", "--json", "--config", "/tmp/config.toml", "status"]);
+    let cli = Cli::parse_from([
+        "aisopod",
+        "--verbose",
+        "--json",
+        "--config",
+        "/tmp/config.toml",
+        "status",
+    ]);
     assert!(cli.verbose);
     assert!(cli.json);
     assert_eq!(cli.config.as_deref(), Some("/tmp/config.toml"));
@@ -31,7 +38,15 @@ fn test_parse_global_flags() {
 
 #[test]
 fn test_parse_gateway_with_flags() {
-    let cli = Cli::parse_from(["aisopod", "gateway", "--bind", "0.0.0.0", "--port", "8080", "--allow-unconfigured"]);
+    let cli = Cli::parse_from([
+        "aisopod",
+        "gateway",
+        "--bind",
+        "0.0.0.0",
+        "--port",
+        "8080",
+        "--allow-unconfigured",
+    ]);
     if let Commands::Gateway(args) = cli.command {
         assert_eq!(args.bind, "0.0.0.0");
         assert_eq!(args.port, 8080);

@@ -158,8 +158,16 @@ pub async fn create_thread(
     Ok(ThreadInfo {
         channel_id: channel.id,
         name: channel.name().to_string(),
-        archived: channel.thread_metadata.as_ref().map(|m| m.archived).unwrap_or(false),
-        locked: channel.thread_metadata.as_ref().map(|m| m.locked).unwrap_or(false),
+        archived: channel
+            .thread_metadata
+            .as_ref()
+            .map(|m| m.archived)
+            .unwrap_or(false),
+        locked: channel
+            .thread_metadata
+            .as_ref()
+            .map(|m| m.locked)
+            .unwrap_or(false),
         auto_archive_duration: channel
             .thread_metadata
             .as_ref()
@@ -208,7 +216,7 @@ pub fn detect_thread_in_message(_message: &Message) -> Option<ThreadInfo> {
     // In serenity v0.12, detecting thread membership in messages changed
     // The `channel` field is now a method requiring CacheHttp context
     // For now, we return None as we can't determine thread membership without context
-    
+
     None
 }
 
@@ -241,7 +249,10 @@ pub async fn get_thread_info(ctx: &Context, channel_id: ChannelId) -> Result<Thr
             return Ok(ThreadInfo {
                 channel_id,
                 name: name.to_string(),
-                archived: thread_metadata.as_ref().map(|m| m.archived).unwrap_or(false),
+                archived: thread_metadata
+                    .as_ref()
+                    .map(|m| m.archived)
+                    .unwrap_or(false),
                 locked: thread_metadata.as_ref().map(|m| m.locked).unwrap_or(false),
                 auto_archive_duration: thread_metadata
                     .as_ref()
@@ -285,7 +296,7 @@ pub async fn add_reaction(
         .message(&ctx.http, message_id)
         .await
         .map_err(|e| anyhow!("Failed to get message for reaction: {}", e))?;
-    
+
     // Note: This requires the message object to add reactions
     // For now, we'll skip this or use a different approach
 
@@ -317,14 +328,14 @@ pub async fn remove_reaction(
     // It now takes (channel_id, message_id, emoji, user_id)
     // where emoji is the reaction type (emoji name)
     // and user_id is Option<UserId>
-    
+
     let emoji_name = if emoji.starts_with('<') && emoji.ends_with('>') {
         // Custom emoji format: <:name:id>
         emoji.split(':').nth(1).unwrap_or("unknown")
     } else {
         emoji
     };
-    
+
     match user_id {
         Some(uid) => {
             // In v0.12, delete_reaction takes (message_id, reaction_type, user_id)
@@ -362,16 +373,17 @@ fn parse_reaction_emoji(emoji: &str) -> Result<ReactionType> {
     // Check if it's a custom emoji with animated flag
     if emoji.starts_with("<a:") || emoji.starts_with("<:") {
         // Parse full custom emoji format: <a:name:id> or <:name:id>
-        let cleaned = emoji
-            .trim_start_matches('<')
-            .trim_end_matches('>');
-        
+        let cleaned = emoji.trim_start_matches('<').trim_end_matches('>');
+
         // Split from the right to get the ID part
         if let Some((name_part, id_str)) = cleaned.rsplit_once(':') {
             let animated = name_part.starts_with("a:");
             let name = if animated {
                 // Strip "a:" prefix from name for animated emojis
-                name_part.strip_prefix("a:").unwrap_or(name_part).to_string()
+                name_part
+                    .strip_prefix("a:")
+                    .unwrap_or(name_part)
+                    .to_string()
             } else {
                 name_part.to_string()
             };
@@ -485,7 +497,13 @@ pub async fn list_guilds(ctx: &Context) -> Result<Vec<GuildInfo>> {
                 id: guild.id,
                 name: guild.name.clone(),
                 member_count: guild.member_count,
-                icon: guild.icon.map(|icon| format!("https://cdn.discordapp.com/icons/{}/{}.png", guild_id.get(), icon)),
+                icon: guild.icon.map(|icon| {
+                    format!(
+                        "https://cdn.discordapp.com/icons/{}/{}.png",
+                        guild_id.get(),
+                        icon
+                    )
+                }),
                 description: guild.description.clone(),
                 channel_count,
             });
@@ -507,9 +525,10 @@ pub async fn list_guilds(ctx: &Context) -> Result<Vec<GuildInfo>> {
 /// * `Ok(Vec<ChannelInfo>)` - List of channels
 /// * `Err(anyhow::Error)` - An error if listing fails
 pub async fn list_channels(ctx: &Context, guild_id: GuildId) -> Result<Vec<ChannelInfo>> {
-    let guild = ctx.cache.guild(guild_id).ok_or_else(|| {
-        anyhow!("Guild {} not found in cache", guild_id.get())
-    })?;
+    let guild = ctx
+        .cache
+        .guild(guild_id)
+        .ok_or_else(|| anyhow!("Guild {} not found in cache", guild_id.get()))?;
 
     let mut result = Vec::new();
 
@@ -522,7 +541,7 @@ pub async fn list_channels(ctx: &Context, guild_id: GuildId) -> Result<Vec<Chann
             position,
             ..
         } = channel;
-        
+
         result.push(ChannelInfo {
             id: *id,
             name: name.clone(),
@@ -558,7 +577,13 @@ pub async fn find_channel_by_name(
         .into_iter()
         .find(|c| c.name.to_lowercase() == channel_name.to_lowercase())
         .map(|c| c.id)
-        .ok_or_else(|| anyhow!("Channel '{}' not found in guild {}", channel_name, guild_id.get()))
+        .ok_or_else(|| {
+            anyhow!(
+                "Channel '{}' not found in guild {}",
+                channel_name,
+                guild_id.get()
+            )
+        })
 }
 
 // ============================================================================
@@ -587,7 +612,7 @@ pub async fn edit_message(
     // In serenity v0.12, edit_message signature changed
     // It now takes (message_id, edit_message) and returns Result<Message>
     let edit = serenity::all::EditMessage::new().content(new_content);
-    
+
     let message = channel_id
         .edit_message(&ctx.http, message_id, edit)
         .await
@@ -643,9 +668,7 @@ pub async fn bulk_delete_messages(
     }
 
     if message_ids.len() > 100 {
-        return Err(anyhow!(
-            "Cannot bulk delete more than 100 messages at once"
-        ));
+        return Err(anyhow!("Cannot bulk delete more than 100 messages at once"));
     }
 
     channel_id
@@ -670,7 +693,7 @@ mod tests {
     fn test_parse_reaction_emoji_custom() {
         // Custom emoji format: name:id
         let result = parse_reaction_emoji("emoji:123456789").unwrap();
-        
+
         if let ReactionType::Custom { name, id, animated } = result {
             assert_eq!(name, Some("emoji".to_string()));
             assert_eq!(id.get(), 123456789);
@@ -684,10 +707,10 @@ mod tests {
     fn test_parse_reaction_emoji_animated() {
         // Animated custom emoji format: <a:name:id>
         let result = parse_reaction_emoji("<a:emoji:123456789>").unwrap();
-        
+
         // Debug: print the result to see what we got
         eprintln!("parse_reaction_emoji result: {:?}", result);
-        
+
         if let ReactionType::Custom { name, id, animated } = result {
             assert_eq!(name, Some("emoji".to_string()));
             assert_eq!(id.get(), 123456789);

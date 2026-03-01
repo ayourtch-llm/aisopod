@@ -241,9 +241,11 @@ where
 
         // Check if more retries available
         if !self.state.has_more_retries() {
-            return RetryResult::Failed(
-                TotalRetryError::new(self.state.current_attempt(), "Max retries exceeded", Duration::ZERO),
-            );
+            return RetryResult::Failed(TotalRetryError::new(
+                self.state.current_attempt(),
+                "Max retries exceeded",
+                Duration::ZERO,
+            ));
         }
 
         let start = Instant::now();

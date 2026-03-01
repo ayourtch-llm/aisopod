@@ -51,10 +51,7 @@ impl ZaloConfig {
 
     /// Returns the webhook URL for event subscriptions.
     pub fn webhook_url(&self, hostname: &str) -> String {
-        format!(
-            "https://{hostname}{}",
-            self.webhook_path
-        )
+        format!("https://{hostname}{}", self.webhook_path)
     }
 }
 

@@ -107,17 +107,20 @@ mod encryption;
 
 // Re-export common types
 pub use crate::channel::{
-    MatrixAccount, MatrixChannel, MatrixChannelConfigAdapter, MatrixSecurityAdapter,
-    register, matrix_event_to_incoming_message,
+    matrix_event_to_incoming_message, register, MatrixAccount, MatrixChannel,
+    MatrixChannelConfigAdapter, MatrixSecurityAdapter,
 };
 pub use crate::client::MatrixClient;
 pub use crate::config::{MatrixAccountConfig, MatrixAuth};
 pub use crate::encryption::{setup_e2ee, E2EEConfig};
 
 // Re-export types from aisopod-channel for convenience
-pub use aisopod_channel::message::{IncomingMessage, OutgoingMessage, MessageTarget, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo};
-pub use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+pub use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, OutgoingMessage, PeerInfo,
+    PeerKind, SenderInfo,
+};
 pub use aisopod_channel::plugin::ChannelPlugin;
+pub use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 pub use aisopod_channel::ChannelRegistry;
 
 /// Result type for Matrix channel operations.

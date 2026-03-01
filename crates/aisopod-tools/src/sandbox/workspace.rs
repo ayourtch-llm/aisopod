@@ -193,8 +193,7 @@ mod tests {
         let subdir = temp_dir.join("test_subdir");
         let _ = fs::create_dir(&subdir);
 
-        let guard =
-            WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::ReadWrite).unwrap();
+        let guard = WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::ReadWrite).unwrap();
 
         let result = guard.validate_path(&subdir);
         // The path should be valid (may or may not exist depending on temp dir)
@@ -205,8 +204,7 @@ mod tests {
     #[test]
     fn test_path_escape_rejected() {
         let temp_dir = std::env::temp_dir();
-        let guard =
-            WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::ReadWrite).unwrap();
+        let guard = WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::ReadWrite).unwrap();
 
         // Try to escape to parent directory
         let escape = temp_dir.join("../../etc/passwd");
@@ -218,14 +216,13 @@ mod tests {
     #[test]
     fn test_relative_path_within_workspace() {
         let temp_dir = std::env::temp_dir();
-        let guard =
-            WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::ReadWrite).unwrap();
+        let guard = WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::ReadWrite).unwrap();
 
         // Relative path that stays within workspace - but the directory may not exist
         // This should create the path by joining with root, then canonicalize will fail
         // because the path doesn't exist
         let result = guard.validate_path(Path::new("some/path"));
-        
+
         // The path doesn't exist, so canonicalize will return PathEscape error
         // This is correct behavior - we can only validate paths that exist
         assert!(matches!(result, Err(WorkspaceError::PathEscape(_))));
@@ -234,8 +231,7 @@ mod tests {
     #[test]
     fn test_absolute_path_outside_workspace() {
         let temp_dir = std::env::temp_dir();
-        let guard =
-            WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::ReadWrite).unwrap();
+        let guard = WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::ReadWrite).unwrap();
 
         // Absolute path outside the workspace
         let result = guard.validate_path(Path::new("/etc/passwd"));
@@ -246,8 +242,7 @@ mod tests {
     #[test]
     fn test_none_access_no_mount() {
         let temp_dir = std::env::temp_dir();
-        let guard =
-            WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::None).unwrap();
+        let guard = WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::None).unwrap();
 
         assert!(guard.mount_args().is_none());
         assert!(guard.bind_mount().is_none());
@@ -256,8 +251,7 @@ mod tests {
     #[test]
     fn test_readonly_mount_has_ro_flag() {
         let temp_dir = std::env::temp_dir();
-        let guard =
-            WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::ReadOnly).unwrap();
+        let guard = WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::ReadOnly).unwrap();
 
         let args = guard.mount_args().unwrap();
         assert_eq!(args[0], "-v");
@@ -270,8 +264,7 @@ mod tests {
     #[test]
     fn test_readwrite_mount_has_rw_flag() {
         let temp_dir = std::env::temp_dir();
-        let guard =
-            WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::ReadWrite).unwrap();
+        let guard = WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::ReadWrite).unwrap();
 
         let args = guard.mount_args().unwrap();
         assert_eq!(args[0], "-v");
@@ -288,18 +281,19 @@ mod tests {
         let mut dir_with_slash = temp_dir.clone();
         dir_with_slash.push("");
 
-        let guard =
-            WorkspaceGuard::new(dir_with_slash, WorkspaceAccess::ReadWrite).unwrap();
+        let guard = WorkspaceGuard::new(dir_with_slash, WorkspaceAccess::ReadWrite).unwrap();
 
         // Should still work correctly
-        assert_eq!(guard.root().to_string_lossy(), temp_dir.canonicalize().unwrap().to_string_lossy());
+        assert_eq!(
+            guard.root().to_string_lossy(),
+            temp_dir.canonicalize().unwrap().to_string_lossy()
+        );
     }
 
     #[test]
     fn test_path_with_symlink_escape() {
         let temp_dir = std::env::temp_dir();
-        let guard =
-            WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::ReadWrite).unwrap();
+        let guard = WorkspaceGuard::new(temp_dir.clone(), WorkspaceAccess::ReadWrite).unwrap();
 
         // Test with a path that would have a symlink pointing outside
         let test_path = temp_dir.join("some_file");

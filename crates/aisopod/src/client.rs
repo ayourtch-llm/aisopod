@@ -4,13 +4,13 @@
 //! and handling responses, including streaming responses. It also manages authentication
 //! tokens with secure file storage.
 
-use tokio_tungstenite::{connect_async, tungstenite::Message};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 /// Gateway client for WebSocket communication with the gateway server
 pub struct GatewayClient {
@@ -41,10 +41,10 @@ impl GatewayClient {
         let gateway = &config.gateway;
         let bind_addr = &gateway.bind.address;
         let port = gateway.server.port;
-        
+
         // Determine protocol based on TLS config
         let protocol = if gateway.tls.enabled { "wss" } else { "ws" };
-        
+
         format!("{}://{}:{}", protocol, bind_addr, port)
     }
 
@@ -52,9 +52,7 @@ impl GatewayClient {
     pub fn load_auth_token() -> anyhow::Result<Option<String>> {
         let path = token_path()?;
         if path.exists() {
-            let token = std::fs::read_to_string(&path)?
-                .trim()
-                .to_string();
+            let token = std::fs::read_to_string(&path)?.trim().to_string();
             Ok(Some(token))
         } else {
             Ok(None)
@@ -74,13 +72,14 @@ impl GatewayClient {
                 "id": 0
             });
             ws_stream.send(Message::Text(auth_msg.to_string())).await?;
-            
+
             // Wait for and validate auth response
             if let Some(Ok(Message::Text(resp))) = ws_stream.next().await {
                 let resp_str = resp.to_string();
                 let resp: Value = serde_json::from_str(&resp_str)?;
                 if let Some(error) = resp.get("error") {
-                    let message = error.get("message")
+                    let message = error
+                        .get("message")
                         .and_then(|m| m.as_str())
                         .unwrap_or("Authentication failed");
                     anyhow::bail!("{}", message);
@@ -135,7 +134,7 @@ impl GatewayClient {
                 "id": 0
             });
             ws_stream.send(Message::Text(auth_msg.to_string())).await?;
-            
+
             // Consume auth response (we don't validate here for streaming)
             let _ = ws_stream.next().await;
         }
@@ -180,7 +179,7 @@ thread_local! {
 
 /// Set a custom home directory for testing purposes.
 /// This allows tests to control where token files are stored.
-/// 
+///
 /// # Arguments
 /// * `path` - The path to use as home directory, or None to use the real home directory
 pub fn set_home_dir_for_testing(path: Option<&std::path::Path>) {
@@ -195,14 +194,14 @@ pub fn set_home_dir_for_testing(path: Option<&std::path::Path>) {
 pub fn store_token(token: &str) -> anyhow::Result<()> {
     let path = token_path()?;
     std::fs::write(&path, token)?;
-    
+
     // Set restrictive permissions (owner read/write only)
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
     }
-    
+
     Ok(())
 }
 
@@ -210,9 +209,7 @@ pub fn store_token(token: &str) -> anyhow::Result<()> {
 pub fn load_token() -> anyhow::Result<Option<String>> {
     let path = token_path()?;
     if path.exists() {
-        let token = std::fs::read_to_string(&path)?
-            .trim()
-            .to_string();
+        let token = std::fs::read_to_string(&path)?.trim().to_string();
         Ok(Some(token))
     } else {
         Ok(None)
@@ -232,7 +229,11 @@ pub fn clear_token() -> anyhow::Result<()> {
 pub fn token_path() -> anyhow::Result<PathBuf> {
     // Use overridden path for testing, otherwise use real home directory
     let home = HOME_DIR_OVERRIDE.with(|override_path| {
-        override_path.lock().unwrap().clone().or_else(|| dirs::home_dir())
+        override_path
+            .lock()
+            .unwrap()
+            .clone()
+            .or_else(|| dirs::home_dir())
             .ok_or_else(|| anyhow::anyhow!("Cannot determine home directory"))
     })?;
     Ok(home.join(TOKEN_FILE))
@@ -241,8 +242,8 @@ pub fn token_path() -> anyhow::Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::env;
+    use tempfile::TempDir;
 
     #[test]
     fn test_gateway_ws_url_http() {
@@ -282,15 +283,15 @@ mod tests {
         // Use a temporary directory for testing
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let token_file = temp_dir.path().join(TOKEN_FILE);
-        
+
         // Set temp dir as home for token functions
         set_home_dir_for_testing(Some(temp_dir.path()));
-        
+
         // Store token
         let result = store_token("test-token-123");
         assert!(result.is_ok());
         assert!(token_file.exists());
-        
+
         // Verify permissions
         #[cfg(unix)]
         {
@@ -299,11 +300,11 @@ mod tests {
             let mode = metadata.permissions().mode();
             assert_eq!(mode & 0o777, 0o600);
         }
-        
+
         // Load token
         let loaded = load_token().expect("Failed to load token");
         assert_eq!(loaded, Some("test-token-123".to_string()));
-        
+
         // Clear the override after test
         set_home_dir_for_testing(None);
     }
@@ -312,23 +313,23 @@ mod tests {
     fn test_clear_token() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let token_file = temp_dir.path().join(TOKEN_FILE);
-        
+
         // Create token file
         std::fs::write(&token_file, "test-token").expect("Failed to write token");
         assert!(token_file.exists());
-        
+
         // Set temp dir as home for token functions
         set_home_dir_for_testing(Some(temp_dir.path()));
-        
+
         // Clear token
         let result = clear_token();
         assert!(result.is_ok());
         assert!(!token_file.exists());
-        
+
         // Verify load returns None
         let loaded = load_token().expect("Failed to load token");
         assert_eq!(loaded, None);
-        
+
         // Clear the override after test
         set_home_dir_for_testing(None);
     }
@@ -336,12 +337,12 @@ mod tests {
     #[test]
     fn test_load_token_nonexistent() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
-        
+
         set_home_dir_for_testing(Some(temp_dir.path()));
-        
+
         let loaded = load_token().expect("Failed to load token");
         assert_eq!(loaded, None);
-        
+
         // Clear the override after test
         set_home_dir_for_testing(None);
     }
@@ -349,7 +350,7 @@ mod tests {
     #[test]
     fn test_token_path() {
         let path = token_path().expect("Failed to get token path");
-        
+
         // Check that it ends with the token file name
         assert!(path.file_name().is_some());
         assert_eq!(path.file_name().unwrap(), TOKEN_FILE);

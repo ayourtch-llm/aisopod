@@ -4,7 +4,7 @@
 //! for receiving real-time events from Slack.
 
 use anyhow::Result;
-use futures_util::{StreamExt, SinkExt};
+use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::net::TcpStream;
@@ -38,7 +38,7 @@ impl SlackSocketModeConnection {
     /// This method fetches the WebSocket URL from Slack's apps.connections.open endpoint.
     pub async fn new(config: &crate::SlackAccountConfig, account_id: &str) -> Result<Self> {
         let client = SlackClientHandle::new(config.bot_token.clone());
-        
+
         // Fetch the WebSocket URL
         let response = client.apps_connections_open().await?;
         let websocket_url = response.get_url()?;
@@ -73,7 +73,9 @@ impl SlackSocketModeConnection {
     /// This method establishes the WebSocket connection and returns
     /// a stream of events.
     pub async fn connect(&mut self) -> Result<()> {
-        let url = self.websocket_url.clone()
+        let url = self
+            .websocket_url
+            .clone()
             .ok_or_else(|| anyhow::anyhow!("WebSocket URL not available"))?;
 
         info!("Connecting to Slack Socket Mode: {}", url);
@@ -87,14 +89,20 @@ impl SlackSocketModeConnection {
         // For now, we just mark as connected
         let _ = ws_stream;
 
-        info!("Socket Mode connection established for account {}", self.account_id);
+        info!(
+            "Socket Mode connection established for account {}",
+            self.account_id
+        );
         Ok(())
     }
 
     /// Disconnect from the Socket Mode WebSocket.
     pub async fn disconnect(&mut self) -> Result<()> {
         if self.connected {
-            info!("Disconnecting from Socket Mode for account {}", self.account_id);
+            info!(
+                "Disconnecting from Socket Mode for account {}",
+                self.account_id
+            );
             self.connected = false;
         }
         Ok(())
@@ -115,17 +123,25 @@ impl SlackSocketModeConnection {
     /// * `Err(anyhow::Error)` - An error if sending fails
     pub async fn send_message(&self, channel_id: &str, text: &str) -> Result<()> {
         // Use the client to call the chat.postMessage endpoint
-        let response = self.client
-            .post("https://slack.com/api/chat.postMessage", &serde_json::json!({
-                "channel": channel_id,
-                "text": text
-            }))
+        let response = self
+            .client
+            .post(
+                "https://slack.com/api/chat.postMessage",
+                &serde_json::json!({
+                    "channel": channel_id,
+                    "text": text
+                }),
+            )
             .await?;
 
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await?;
-            return Err(anyhow::anyhow!("chat.postMessage failed with status {}: {}", status, body));
+            return Err(anyhow::anyhow!(
+                "chat.postMessage failed with status {}: {}",
+                status,
+                body
+            ));
         }
 
         debug!("Message sent to channel {}: {}", channel_id, text);
@@ -267,12 +283,15 @@ pub async fn start_socket_mode_task(
 ) {
     // Clone account_id for error logging after the task moves it
     let account_id_for_error = account_id.clone();
-    
+
     info!("Starting Socket Mode task for account {}", account_id);
 
     // Connect to Socket Mode
     if let Err(e) = connection.connect().await {
-        error!("Failed to connect to Socket Mode for account {}: {}", account_id, e);
+        error!(
+            "Failed to connect to Socket Mode for account {}: {}",
+            account_id, e
+        );
         return;
     }
 
@@ -283,7 +302,7 @@ pub async fn start_socket_mode_task(
         // 2. Parse them into SocketModeEvent
         // 3. Acknowledge each envelope_id
         // 4. Process message events
-        
+
         // For now, just wait for shutdown
         shutdown.notified().await;
         info!("Socket Mode task shutting down for account {}", account_id);
@@ -294,7 +313,10 @@ pub async fn start_socket_mode_task(
 
     // Disconnect
     if let Err(e) = connection.disconnect().await {
-        error!("Failed to disconnect from Socket Mode for account {}: {}", account_id_for_error, e);
+        error!(
+            "Failed to disconnect from Socket Mode for account {}: {}",
+            account_id_for_error, e
+        );
     }
 }
 

@@ -2,8 +2,8 @@
 //!
 //! This module handles sending messages through signal-cli.
 
-use crate::config::{SignalAccountConfig, SignalError};
 use crate::channel::SignalAccount;
+use crate::config::{SignalAccountConfig, SignalError};
 use aisopod_channel::message::{Media, MessageContent, MessageTarget, PeerKind};
 use aisopod_channel::types::MediaType;
 use anyhow::Result;
@@ -27,9 +27,7 @@ impl Default for SignalOutbound {
 impl SignalOutbound {
     /// Create a new SignalOutbound instance.
     pub fn new() -> Self {
-        Self {
-            send_timeout: 30,
-        }
+        Self { send_timeout: 30 }
     }
 
     /// Create a new SignalOutbound with custom timeout.
@@ -57,18 +55,17 @@ impl SignalOutbound {
         text: &str,
         account: &SignalAccountConfig,
     ) -> Result<()> {
-        info!(
-            "Sending text message to {} via Signal",
-            target.peer.id
-        );
+        info!("Sending text message to {} via Signal", target.peer.id);
 
         // Get the phone number for the target
         let phone_number = &target.peer.id;
 
         // Build the signal-cli send command
         let mut command = Command::new(
-            account.signal_cli_path.as_ref()
-                .unwrap_or(&"signal-cli".to_string())
+            account
+                .signal_cli_path
+                .as_ref()
+                .unwrap_or(&"signal-cli".to_string()),
         );
         command
             .arg("-u")
@@ -84,7 +81,8 @@ impl SignalOutbound {
         }
 
         // Create child process and send text via stdin
-        let mut child = command.spawn()
+        let mut child = command
+            .spawn()
             .map_err(|e| SignalError::SendCommandFailed(e.to_string()))?;
 
         // Write text to stdin
@@ -92,20 +90,15 @@ impl SignalOutbound {
         std::io::Write::write_all(stdin, text.as_bytes())?;
 
         // Wait for the command to complete
-        let status = child.wait()
+        let status = child
+            .wait()
             .map_err(|e| SignalError::ReceiveResponseFailed(e.to_string()))?;
 
         if status.success() {
-            info!(
-                "Successfully sent message to {}",
-                target.peer.id
-            );
+            info!("Successfully sent message to {}", target.peer.id);
             Ok(())
         } else {
-            error!(
-                "Failed to send message to {}",
-                target.peer.id
-            );
+            error!("Failed to send message to {}", target.peer.id);
             Err(SignalError::SendCommandFailed("Command failed".to_string()).into())
         }
     }
@@ -128,22 +121,20 @@ impl SignalOutbound {
         media: &Media,
         account: &SignalAccountConfig,
     ) -> Result<()> {
-        info!(
-            "Sending media to {} via Signal",
-            target.peer.id
-        );
+        info!("Sending media to {} via Signal", target.peer.id);
 
         // Download or get the media file path
-        let media_path = self.get_media_path(media)
-            .await?;
+        let media_path = self.get_media_path(media).await?;
 
         // Get the phone number for the target
         let phone_number = &target.peer.id;
 
         // Build the signal-cli send command with attachment
         let mut command = Command::new(
-            account.signal_cli_path.as_ref()
-                .unwrap_or(&"signal-cli".to_string())
+            account
+                .signal_cli_path
+                .as_ref()
+                .unwrap_or(&"signal-cli".to_string()),
         );
         command
             .arg("-u")
@@ -165,17 +156,11 @@ impl SignalOutbound {
             .map_err(|e| SignalError::SendCommandFailed(e.to_string()))?;
 
         if output.status.success() {
-            info!(
-                "Successfully sent media to {}",
-                target.peer.id
-            );
+            info!("Successfully sent media to {}", target.peer.id);
             Ok(())
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            error!(
-                "Failed to send media to {}: {}",
-                target.peer.id, stderr
-            );
+            error!("Failed to send media to {}: {}", target.peer.id, stderr);
             Err(SignalError::SendCommandFailed(stderr.to_string()).into())
         }
     }
@@ -199,12 +184,8 @@ impl SignalOutbound {
         account: &SignalAccountConfig,
     ) -> Result<()> {
         match content {
-            MessageContent::Text(text) => {
-                self.send_text(target, text, account).await
-            }
-            MessageContent::Media(media) => {
-                self.send_media(target, media, account).await
-            }
+            MessageContent::Text(text) => self.send_text(target, text, account).await,
+            MessageContent::Media(media) => self.send_media(target, media, account).await,
             MessageContent::Mixed(parts) => {
                 // Handle mixed content by sending each part separately
                 // Signal doesn't support mixed content in a single message
@@ -241,29 +222,33 @@ impl SignalOutbound {
                 .await
                 .map_err(|e| SignalError::MediaError(format!("Failed to download media: {}", e)))?;
 
-            let bytes = response.bytes()
-                .await
-                .map_err(|e| SignalError::MediaError(format!("Failed to read media bytes: {}", e)))?;
+            let bytes = response.bytes().await.map_err(|e| {
+                SignalError::MediaError(format!("Failed to read media bytes: {}", e))
+            })?;
 
             // Create a temporary file to store the media
-            let temp_file = tempfile::NamedTempFile::new()
-                .map_err(|e| SignalError::MediaError(format!("Failed to create temp file: {}", e)))?;
+            let temp_file = tempfile::NamedTempFile::new().map_err(|e| {
+                SignalError::MediaError(format!("Failed to create temp file: {}", e))
+            })?;
 
-            std::fs::write(&temp_file, &bytes)
-                .map_err(|e| SignalError::MediaError(format!("Failed to write temp file: {}", e)))?;
+            std::fs::write(&temp_file, &bytes).map_err(|e| {
+                SignalError::MediaError(format!("Failed to write temp file: {}", e))
+            })?;
 
             Ok(temp_file.path().to_string_lossy().to_string())
-        } 
+        }
         // If we have raw data, create a temporary file
         else if let Some(data) = &media.data {
-            let temp_file = tempfile::NamedTempFile::new()
-                .map_err(|e| SignalError::MediaError(format!("Failed to create temp file: {}", e)))?;
+            let temp_file = tempfile::NamedTempFile::new().map_err(|e| {
+                SignalError::MediaError(format!("Failed to create temp file: {}", e))
+            })?;
 
-            std::fs::write(&temp_file, data)
-                .map_err(|e| SignalError::MediaError(format!("Failed to write temp file: {}", e)))?;
+            std::fs::write(&temp_file, data).map_err(|e| {
+                SignalError::MediaError(format!("Failed to write temp file: {}", e))
+            })?;
 
             Ok(temp_file.path().to_string_lossy().to_string())
-        } 
+        }
         // If no URL or data, we can't send
         else {
             Err(SignalError::MediaError("No media URL or data available".to_string()).into())

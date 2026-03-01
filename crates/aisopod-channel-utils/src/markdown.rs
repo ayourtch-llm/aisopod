@@ -203,7 +203,9 @@ fn parse_standard_markdown(input: &str) -> Vec<MarkdownNode> {
                     i = end + 2;
                     continue;
                 }
-            } else if (chars[i] == '*' || chars[i] == '_') && (i + 1 >= chars.len() || chars[i] != chars[i + 1]) {
+            } else if (chars[i] == '*' || chars[i] == '_')
+                && (i + 1 >= chars.len() || chars[i] != chars[i + 1])
+            {
                 // Italic (single * or _, but not ** or __)
                 let end = find_matching_delimiter(&chars, i, 1);
                 if end > i {
@@ -336,7 +338,9 @@ fn parse_standard_markdown_with_underline(input: &str) -> Vec<MarkdownNode> {
                     i = end + 2;
                     continue;
                 }
-            } else if (chars[i] == '*' || chars[i] == '_') && (i + 1 >= chars.len() || chars[i] != chars[i + 1]) {
+            } else if (chars[i] == '*' || chars[i] == '_')
+                && (i + 1 >= chars.len() || chars[i] != chars[i + 1])
+            {
                 // Italic (single * or _, but not ** or __)
                 let end = find_matching_delimiter(&chars, i, 1);
                 if end > i {
@@ -450,7 +454,7 @@ fn parse_slack_markdown(input: &str) -> Vec<MarkdownNode> {
                     _ => {}
                 }
             }
-            
+
             // Check for single-character delimiters (only if 2-char didn't match)
             match chars[i] {
                 '*' => {
@@ -540,10 +544,13 @@ fn parse_html(input: &str) -> Vec<MarkdownNode> {
                     }
                 }
 
-                if tag.starts_with("<s>") || tag.starts_with("<strike>") || tag.starts_with("<del>") {
+                if tag.starts_with("<s>") || tag.starts_with("<strike>") || tag.starts_with("<del>")
+                {
                     if let Some(end) = find_html_end_tag(&chars, i, &tag) {
                         let content = chars[i + tag.len()..end].iter().collect::<String>();
-                        nodes.push(MarkdownNode::Strikethrough(vec![MarkdownNode::Text(content)]));
+                        nodes.push(MarkdownNode::Strikethrough(vec![MarkdownNode::Text(
+                            content,
+                        )]));
                         i = end + 4; // Move past </s>
                         continue;
                     }
@@ -567,7 +574,11 @@ fn parse_html(input: &str) -> Vec<MarkdownNode> {
 
                 if tag.starts_with("<pre>") {
                     if let Some(end) = find_html_end_tag(&chars, i, "<pre>") {
-                        let content = chars[i + 5..end].iter().collect::<String>().trim().to_string();
+                        let content = chars[i + 5..end]
+                            .iter()
+                            .collect::<String>()
+                            .trim()
+                            .to_string();
                         nodes.push(MarkdownNode::CodeBlock {
                             language: None,
                             code: content,
@@ -646,7 +657,9 @@ fn parse_irc_formatting(input: &str) -> Vec<MarkdownNode> {
             let end = find_irc_control_code(&chars, i, '\x16');
             if end > i {
                 let content = chars[i + 1..end].iter().collect::<String>();
-                nodes.push(MarkdownNode::Strikethrough(vec![MarkdownNode::Text(content)]));
+                nodes.push(MarkdownNode::Strikethrough(vec![MarkdownNode::Text(
+                    content,
+                )]));
                 i = end + 1;
                 continue;
             }
@@ -810,18 +823,18 @@ fn parse_html_link(chars: &[char], i: &mut usize) -> Option<MarkdownNode> {
 fn find_matching_delimiter(chars: &[char], start: usize, delimiter_len: usize) -> usize {
     // Get the delimiter characters we're looking for
     let delimiter_start: Vec<char> = chars[start..start + delimiter_len].to_vec();
-    
+
     let mut i = start + delimiter_len;
     let max_iterations = chars.len() - i; // Safety limit to prevent infinite loop
     let mut iterations = 0;
-    
+
     while i + delimiter_len <= chars.len() {
         iterations += 1;
         if iterations > max_iterations {
             // Safety: Prevent infinite loop
             return chars.len();
         }
-        
+
         // Compare the current position with the delimiter without creating new collections
         let mut matches = true;
         for j in 0..delimiter_len {
@@ -830,7 +843,7 @@ fn find_matching_delimiter(chars: &[char], start: usize, delimiter_len: usize) -
                 break;
             }
         }
-        
+
         if matches {
             return i;
         }
@@ -966,7 +979,7 @@ fn render_underline(children: &[MarkdownNode], format: &MarkdownFormat) -> Strin
         MarkdownFormat::Discord => format!("__{}__", content),
         MarkdownFormat::Slack => format!("_{}_", content), // Slack uses single underscore
         MarkdownFormat::Telegram => format!("__{}__", content), // Telegram uses __...__ for italic (no native underline)
-        MarkdownFormat::Html => format!("__{}__", content), // Keep underline syntax for HTML
+        MarkdownFormat::Html => format!("__{}__", content),     // Keep underline syntax for HTML
         MarkdownFormat::Plain => content,
         MarkdownFormat::Matrix => format!("__{}__", content),
         MarkdownFormat::Irc => format!("\x1F{}\x1F", content),

@@ -52,16 +52,17 @@ impl AisopodClient {
         );
 
         // Parse URL first to validate it
-        let parsed_url = config.server_url.parse::<url::Url>().map_err(|e| {
-            ClientError::Protocol(format!("Invalid server URL: {}", e))
-        })?;
+        let parsed_url = config
+            .server_url
+            .parse::<url::Url>()
+            .map_err(|e| ClientError::Protocol(format!("Invalid server URL: {}", e)))?;
 
         // Prepare upgrade headers
         let url_str = parsed_url.as_str();
         let mut request = tungstenite::handshake::client::Request::new(());
-        *request.uri_mut() = url_str.parse().map_err(|e| {
-            ClientError::Protocol(format!("Invalid server URL: {}", e))
-        })?;
+        *request.uri_mut() = url_str
+            .parse()
+            .map_err(|e| ClientError::Protocol(format!("Invalid server URL: {}", e)))?;
         request.headers_mut().insert(
             "Authorization",
             format!("Bearer {}", config.auth_token)
@@ -76,11 +77,18 @@ impl AisopodClient {
         );
         request.headers_mut().insert(
             "X-Aisopod-Device-Id",
-            config.device_id.to_string().parse().unwrap_or_else(|_| "unknown".parse().unwrap()),
+            config
+                .device_id
+                .to_string()
+                .parse()
+                .unwrap_or_else(|_| "unknown".parse().unwrap()),
         );
         request.headers_mut().insert(
             "X-Aisopod-Protocol-Version",
-            config.protocol_version.parse().unwrap_or_else(|_| "1.0".parse().unwrap()),
+            config
+                .protocol_version
+                .parse()
+                .unwrap_or_else(|_| "1.0".parse().unwrap()),
         );
 
         // Connect to WebSocket
@@ -113,7 +121,9 @@ impl AisopodClient {
                 Ok(())
             }
             Message::Close(_) => Err(ClientError::Closed),
-            _ => Err(ClientError::Protocol("Expected text message for welcome".to_string())),
+            _ => Err(ClientError::Protocol(
+                "Expected text message for welcome".to_string(),
+            )),
         }
     }
 
@@ -170,7 +180,11 @@ impl AisopodClient {
     }
 
     /// Send a chat message to an agent
-    pub async fn chat_send(&mut self, agent_id: &str, message: &str) -> Result<crate::types::ChatResponse> {
+    pub async fn chat_send(
+        &mut self,
+        agent_id: &str,
+        message: &str,
+    ) -> Result<crate::types::ChatResponse> {
         let params = serde_json::json!({
             "agent_id": agent_id,
             "message": message
@@ -246,11 +260,11 @@ impl AisopodClient {
             "canvas_id": canvas_id,
             "interaction_type": interaction_type
         });
-        
+
         if let Some(ref data_value) = data {
             params["data"] = data_value.clone();
         }
-        
+
         self.request("canvas.interact", params).await
     }
 

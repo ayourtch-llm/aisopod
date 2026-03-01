@@ -28,24 +28,24 @@ const PAIRING_CODE_EXPIRY: Duration = Duration::from_secs(5 * 60);
 #[derive(Debug, Clone, Deserialize)]
 pub struct PairRequestParams {
     pub device_name: String,
-    pub device_type: String,       // "ios", "android", "desktop"
+    pub device_type: String, // "ios", "android", "desktop"
     pub client_version: String,
-    pub device_id: String,         // Device identifier (UUID string)
+    pub device_id: String, // Device identifier (UUID string)
 }
 
 /// Pairing request result
 #[derive(Debug, Serialize)]
 pub struct PairRequestResult {
-    pub pairing_code: String,      // 6-digit code
+    pub pairing_code: String, // 6-digit code
     pub expires_at: DateTime<Utc>,
-    pub expires_in: u64,           // Seconds until expiration
+    pub expires_in: u64, // Seconds until expiration
 }
 
 /// Pairing confirmation parameters
 #[derive(Debug, Deserialize)]
 pub struct PairConfirmParams {
     pub pairing_code: String,
-    pub device_id: String,         // Device identifier (UUID string)
+    pub device_id: String, // Device identifier (UUID string)
 }
 
 /// Pairing confirmation result
@@ -59,7 +59,7 @@ pub struct PairConfirmResult {
 /// Pairing revoke parameters
 #[derive(Debug, Deserialize)]
 pub struct PairRevokeParams {
-    pub device_id: String,         // Device identifier (UUID string)
+    pub device_id: String, // Device identifier (UUID string)
 }
 
 /// Pairing revoke result
@@ -98,7 +98,7 @@ impl PairingStore {
     pub fn store(&self, pairing: PendingPairing) {
         let code = pairing.pairing_code.clone();
         let device_id = pairing.params.device_id.clone();
-        
+
         {
             let mut pending = self.pending_pairings.lock().unwrap();
             pending.insert(code.clone(), pairing);
@@ -130,13 +130,13 @@ impl PairingStore {
             let mut pending = self.pending_pairings.lock().unwrap();
             pending.remove(code).map(|p| p.params.device_id)
         };
-        
+
         // Remove from device_to_code map
         if let Some(device_id) = pending_device_id {
             let mut device_map = self.device_to_code.lock().unwrap();
             device_map.remove(&device_id);
         }
-        
+
         // We can't return the PendingPairing since we already removed it
         None
     }
@@ -147,13 +147,13 @@ impl PairingStore {
             let mut device_map = self.device_to_code.lock().unwrap();
             device_map.remove(device_id)
         };
-        
+
         // Remove from pending_pairings map
         if let Some(code) = code {
             let mut pending = self.pending_pairings.lock().unwrap();
             return pending.remove(&code);
         }
-        
+
         None
     }
 
@@ -174,14 +174,14 @@ impl PairingStore {
         for code in &expired_codes {
             let mut pending = self.pending_pairings.lock().unwrap();
             let device_id = pending.remove(code).map(|p| p.params.device_id);
-            
+
             if let Some(device_id) = device_id {
                 let mut device_map = self.device_to_code.lock().unwrap();
                 device_map.remove(&device_id);
                 removed_codes.push(code.clone());
             }
         }
-        
+
         removed_codes
     }
 
@@ -232,13 +232,16 @@ impl PairRequestHandler {
         Self {
             pairing_store: Arc::new(PairingStore::new()),
             token_manager: Arc::new(Mutex::new(DeviceTokenManager::new(
-                std::path::PathBuf::from("device_tokens.toml")
+                std::path::PathBuf::from("device_tokens.toml"),
             ))),
         }
     }
 
     /// Create a new PairRequestHandler with custom dependencies
-    pub fn with_deps(pairing_store: Arc<PairingStore>, token_manager: Arc<Mutex<DeviceTokenManager>>) -> Self {
+    pub fn with_deps(
+        pairing_store: Arc<PairingStore>,
+        token_manager: Arc<Mutex<DeviceTokenManager>>,
+    ) -> Self {
         Self {
             pairing_store,
             token_manager,
@@ -247,12 +250,19 @@ impl PairRequestHandler {
 
     /// Validate device type is supported
     fn is_valid_device_type(device_type: &str) -> bool {
-        matches!(device_type.to_lowercase().as_str(), "ios" | "android" | "desktop")
+        matches!(
+            device_type.to_lowercase().as_str(),
+            "ios" | "android" | "desktop"
+        )
     }
 }
 
 impl RpcMethod for PairRequestHandler {
-    fn handle(&self, ctx: &RequestContext, params: Option<serde_json::Value>) -> types::RpcResponse {
+    fn handle(
+        &self,
+        ctx: &RequestContext,
+        params: Option<serde_json::Value>,
+    ) -> types::RpcResponse {
         // Parse parameters
         let params: PairRequestParams = match params {
             Some(p) => match serde_json::from_value(p) {
@@ -261,7 +271,7 @@ impl RpcMethod for PairRequestHandler {
                     return types::RpcResponse::error(
                         Some(serde_json::json!(ctx.conn_id.clone())),
                         -32602,
-                        format!("Invalid parameters: {}", e)
+                        format!("Invalid parameters: {}", e),
                     );
                 }
             },
@@ -269,7 +279,7 @@ impl RpcMethod for PairRequestHandler {
                 return types::RpcResponse::error(
                     Some(serde_json::json!(ctx.conn_id.clone())),
                     -32602,
-                    "Missing parameters"
+                    "Missing parameters",
                 );
             }
         };
@@ -279,7 +289,10 @@ impl RpcMethod for PairRequestHandler {
             return types::RpcResponse::error(
                 Some(serde_json::json!(ctx.conn_id.clone())),
                 -32602,
-                format!("Invalid device_type: '{}'. Must be 'ios', 'android', or 'desktop'", params.device_type)
+                format!(
+                    "Invalid device_type: '{}'. Must be 'ios', 'android', or 'desktop'",
+                    params.device_type
+                ),
             );
         }
 
@@ -288,7 +301,10 @@ impl RpcMethod for PairRequestHandler {
             return types::RpcResponse::error(
                 Some(serde_json::json!(ctx.conn_id.clone())),
                 -32602,
-                format!("Invalid device_id: '{}'. Must be a valid UUID string", params.device_id)
+                format!(
+                    "Invalid device_id: '{}'. Must be a valid UUID string",
+                    params.device_id
+                ),
             );
         }
 
@@ -331,13 +347,16 @@ impl PairConfirmHandler {
         Self {
             pairing_store: Arc::new(PairingStore::new()),
             token_manager: Arc::new(Mutex::new(DeviceTokenManager::new(
-                std::path::PathBuf::from("device_tokens.toml")
+                std::path::PathBuf::from("device_tokens.toml"),
             ))),
         }
     }
 
     /// Create a new PairConfirmHandler with custom dependencies
-    pub fn with_deps(pairing_store: Arc<PairingStore>, token_manager: Arc<Mutex<DeviceTokenManager>>) -> Self {
+    pub fn with_deps(
+        pairing_store: Arc<PairingStore>,
+        token_manager: Arc<Mutex<DeviceTokenManager>>,
+    ) -> Self {
         Self {
             pairing_store,
             token_manager,
@@ -346,7 +365,11 @@ impl PairConfirmHandler {
 }
 
 impl RpcMethod for PairConfirmHandler {
-    fn handle(&self, ctx: &RequestContext, params: Option<serde_json::Value>) -> types::RpcResponse {
+    fn handle(
+        &self,
+        ctx: &RequestContext,
+        params: Option<serde_json::Value>,
+    ) -> types::RpcResponse {
         // Parse parameters
         let params: PairConfirmParams = match params {
             Some(p) => match serde_json::from_value(p) {
@@ -355,7 +378,7 @@ impl RpcMethod for PairConfirmHandler {
                     return types::RpcResponse::error(
                         Some(serde_json::json!(ctx.conn_id.clone())),
                         -32602,
-                        format!("Invalid parameters: {}", e)
+                        format!("Invalid parameters: {}", e),
                     );
                 }
             },
@@ -363,7 +386,7 @@ impl RpcMethod for PairConfirmHandler {
                 return types::RpcResponse::error(
                     Some(serde_json::json!(ctx.conn_id.clone())),
                     -32602,
-                    "Missing parameters"
+                    "Missing parameters",
                 );
             }
         };
@@ -375,7 +398,7 @@ impl RpcMethod for PairConfirmHandler {
                 return types::RpcResponse::error(
                     Some(serde_json::json!(ctx.conn_id.clone())),
                     -32003,
-                    "Invalid or expired pairing code"
+                    "Invalid or expired pairing code",
                 );
             }
         };
@@ -388,7 +411,7 @@ impl RpcMethod for PairConfirmHandler {
             return types::RpcResponse::error(
                 Some(serde_json::json!(ctx.conn_id.clone())),
                 -32003,
-                "Pairing code has expired"
+                "Pairing code has expired",
             );
         }
 
@@ -397,14 +420,14 @@ impl RpcMethod for PairConfirmHandler {
             return types::RpcResponse::error(
                 Some(serde_json::json!(ctx.conn_id.clone())),
                 -32003,
-                "Device ID does not match pairing request"
+                "Device ID does not match pairing request",
             );
         }
 
         // Issue device token
         let scopes = vec![Scope::OperatorRead.as_str().to_string()];
         let device_id = pairing.params.device_id.clone();
-        
+
         let token = {
             let mut tm = self.token_manager.lock().unwrap();
             match tm.issue(
@@ -417,7 +440,7 @@ impl RpcMethod for PairConfirmHandler {
                     return types::RpcResponse::error(
                         Some(serde_json::json!(ctx.conn_id.clone())),
                         -32003,
-                        format!("Failed to issue device token: {}", e)
+                        format!("Failed to issue device token: {}", e),
                     );
                 }
             }
@@ -449,21 +472,23 @@ impl PairRevokeHandler {
     pub fn new() -> Self {
         Self {
             token_manager: Arc::new(Mutex::new(DeviceTokenManager::new(
-                std::path::PathBuf::from("device_tokens.toml")
+                std::path::PathBuf::from("device_tokens.toml"),
             ))),
         }
     }
 
     /// Create a new PairRevokeHandler with custom dependencies
     pub fn with_deps(token_manager: Arc<Mutex<DeviceTokenManager>>) -> Self {
-        Self {
-            token_manager,
-        }
+        Self { token_manager }
     }
 }
 
 impl RpcMethod for PairRevokeHandler {
-    fn handle(&self, ctx: &RequestContext, params: Option<serde_json::Value>) -> types::RpcResponse {
+    fn handle(
+        &self,
+        ctx: &RequestContext,
+        params: Option<serde_json::Value>,
+    ) -> types::RpcResponse {
         // Parse parameters
         let params: PairRevokeParams = match params {
             Some(p) => match serde_json::from_value(p) {
@@ -472,7 +497,7 @@ impl RpcMethod for PairRevokeHandler {
                     return types::RpcResponse::error(
                         Some(serde_json::json!(ctx.conn_id.clone())),
                         -32602,
-                        format!("Invalid parameters: {}", e)
+                        format!("Invalid parameters: {}", e),
                     );
                 }
             },
@@ -480,7 +505,7 @@ impl RpcMethod for PairRevokeHandler {
                 return types::RpcResponse::error(
                     Some(serde_json::json!(ctx.conn_id.clone())),
                     -32602,
-                    "Missing parameters"
+                    "Missing parameters",
                 );
             }
         };
@@ -494,7 +519,7 @@ impl RpcMethod for PairRevokeHandler {
                     return types::RpcResponse::error(
                         Some(serde_json::json!(ctx.conn_id.clone())),
                         -32003,
-                        format!("Failed to revoke device token: {}", e)
+                        format!("Failed to revoke device token: {}", e),
                     );
                 }
             }
@@ -528,11 +553,13 @@ mod tests {
     fn create_handlers() -> (PairRequestHandler, PairConfirmHandler, PairRevokeHandler) {
         let pairing_store = Arc::new(PairingStore::new());
         let token_manager = Arc::new(Mutex::new(DeviceTokenManager::new(
-            std::path::PathBuf::from("/tmp/test_device_tokens.toml")
+            std::path::PathBuf::from("/tmp/test_device_tokens.toml"),
         )));
 
-        let request_handler = PairRequestHandler::with_deps(pairing_store.clone(), token_manager.clone());
-        let confirm_handler = PairConfirmHandler::with_deps(pairing_store.clone(), token_manager.clone());
+        let request_handler =
+            PairRequestHandler::with_deps(pairing_store.clone(), token_manager.clone());
+        let confirm_handler =
+            PairConfirmHandler::with_deps(pairing_store.clone(), token_manager.clone());
         let revoke_handler = PairRevokeHandler::with_deps(token_manager);
 
         (request_handler, confirm_handler, revoke_handler)
@@ -568,7 +595,7 @@ mod tests {
     fn test_pair_request_success() {
         let (handler, _, _) = create_handlers();
         let ctx = RequestContext::new("test-conn".to_string(), "127.0.0.1:8080".parse().unwrap());
-        
+
         let params = serde_json::json!({
             "device_name": "Test Phone",
             "device_type": "ios",
@@ -577,7 +604,7 @@ mod tests {
         });
 
         let response = handler.handle(&ctx, Some(params));
-        
+
         assert!(response.result.is_some());
         let result = response.result.as_ref().unwrap();
         assert_eq!(result["pairing_code"].as_str().unwrap().len(), 6);
@@ -588,7 +615,7 @@ mod tests {
     fn test_pair_request_invalid_device_type() {
         let (handler, _, _) = create_handlers();
         let ctx = RequestContext::new("test-conn".to_string(), "127.0.0.1:8080".parse().unwrap());
-        
+
         let params = serde_json::json!({
             "device_name": "Test Phone",
             "device_type": "web",
@@ -597,7 +624,7 @@ mod tests {
         });
 
         let response = handler.handle(&ctx, Some(params));
-        
+
         assert!(response.error.is_some());
         assert_eq!(response.error.as_ref().unwrap().code, -32602);
     }
@@ -606,7 +633,7 @@ mod tests {
     fn test_pair_request_invalid_device_id() {
         let (handler, _, _) = create_handlers();
         let ctx = RequestContext::new("test-conn".to_string(), "127.0.0.1:8080".parse().unwrap());
-        
+
         let params = serde_json::json!({
             "device_name": "Test Phone",
             "device_type": "ios",
@@ -615,7 +642,7 @@ mod tests {
         });
 
         let response = handler.handle(&ctx, Some(params));
-        
+
         assert!(response.error.is_some());
         assert_eq!(response.error.as_ref().unwrap().code, -32602);
     }
@@ -624,9 +651,9 @@ mod tests {
     fn test_pair_request_missing_params() {
         let (handler, _, _) = create_handlers();
         let ctx = RequestContext::new("test-conn".to_string(), "127.0.0.1:8080".parse().unwrap());
-        
+
         let response = handler.handle(&ctx, None);
-        
+
         assert!(response.error.is_some());
         assert_eq!(response.error.as_ref().unwrap().code, -32602);
     }
@@ -635,7 +662,7 @@ mod tests {
     fn test_pair_confirm_success() {
         let (request_handler, confirm_handler, _) = create_handlers();
         let ctx = RequestContext::new("test-conn".to_string(), "127.0.0.1:8080".parse().unwrap());
-        
+
         // First, create a pairing
         let request_params = serde_json::json!({
             "device_name": "Test Phone",
@@ -643,20 +670,23 @@ mod tests {
             "client_version": "1.0.0",
             "device_id": "123e4567-e89b-12d3-a456-426614174000"
         });
-        
+
         let request_response = request_handler.handle(&ctx, Some(request_params));
         assert!(request_response.result.is_some());
-        
-        let pairing_code = request_response.result.as_ref().unwrap()["pairing_code"].as_str().unwrap().to_string();
-        
+
+        let pairing_code = request_response.result.as_ref().unwrap()["pairing_code"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
         // Now confirm the pairing
         let confirm_params = serde_json::json!({
             "pairing_code": pairing_code,
             "device_id": "123e4567-e89b-12d3-a456-426614174000"
         });
-        
+
         let confirm_response = confirm_handler.handle(&ctx, Some(confirm_params));
-        
+
         assert!(confirm_response.result.is_some());
         let result = confirm_response.result.as_ref().unwrap();
         assert!(result["device_token"].is_string());
@@ -667,24 +697,29 @@ mod tests {
     fn test_pair_confirm_invalid_code() {
         let (_, confirm_handler, _) = create_handlers();
         let ctx = RequestContext::new("test-conn".to_string(), "127.0.0.1:8080".parse().unwrap());
-        
+
         let params = serde_json::json!({
             "pairing_code": "000000",
             "device_id": "123e4567-e89b-12d3-a456-426614174000"
         });
-        
+
         let response = confirm_handler.handle(&ctx, Some(params));
-        
+
         assert!(response.error.is_some());
         assert_eq!(response.error.as_ref().unwrap().code, -32003);
-        assert!(response.error.as_ref().unwrap().message.contains("Invalid or expired"));
+        assert!(response
+            .error
+            .as_ref()
+            .unwrap()
+            .message
+            .contains("Invalid or expired"));
     }
 
     #[test]
     fn test_pair_confirm_device_id_mismatch() {
         let (request_handler, confirm_handler, _) = create_handlers();
         let ctx = RequestContext::new("test-conn".to_string(), "127.0.0.1:8080".parse().unwrap());
-        
+
         // Create pairing with one device_id
         let request_params = serde_json::json!({
             "device_name": "Test Phone",
@@ -692,51 +727,65 @@ mod tests {
             "client_version": "1.0.0",
             "device_id": "123e4567-e89b-12d3-a456-426614174000"
         });
-        
+
         let request_response = request_handler.handle(&ctx, Some(request_params));
         assert!(request_response.result.is_some());
-        
-        let pairing_code = request_response.result.as_ref().unwrap()["pairing_code"].as_str().unwrap().to_string();
-        
+
+        let pairing_code = request_response.result.as_ref().unwrap()["pairing_code"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
         // Try to confirm with different device_id
         let confirm_params = serde_json::json!({
             "pairing_code": pairing_code,
             "device_id": "00000000-0000-0000-0000-000000000000"
         });
-        
+
         let response = confirm_handler.handle(&ctx, Some(confirm_params));
-        
+
         assert!(response.error.is_some());
         assert_eq!(response.error.as_ref().unwrap().code, -32003);
-        assert!(response.error.as_ref().unwrap().message.contains("Device ID does not match"));
+        assert!(response
+            .error
+            .as_ref()
+            .unwrap()
+            .message
+            .contains("Device ID does not match"));
     }
 
     #[test]
     fn test_pair_revoke_success() {
         let (_, _, revoke_handler) = create_handlers();
         let ctx = RequestContext::new("test-conn".to_string(), "127.0.0.1:8080".parse().unwrap());
-        
+
         // First, issue a token
         let token = {
             let mut tm = revoke_handler.token_manager.lock().unwrap();
-            let token = tm.issue("Test Device".to_string(), "test-device-1".to_string(), vec![Scope::OperatorRead]).unwrap();
-            
+            let token = tm
+                .issue(
+                    "Test Device".to_string(),
+                    "test-device-1".to_string(),
+                    vec![Scope::OperatorRead],
+                )
+                .unwrap();
+
             // Verify token is valid
             assert!(tm.validate(&token).is_some());
             token
         };
-        
+
         // Revoke the device
         let params = serde_json::json!({
             "device_id": "test-device-1"
         });
-        
+
         let response = revoke_handler.handle(&ctx, Some(params));
-        
+
         assert!(response.result.is_some());
         let result = response.result.as_ref().unwrap();
         assert_eq!(result["revoked"].as_bool().unwrap(), true);
-        
+
         // Verify token is no longer valid
         {
             let mut tm = revoke_handler.token_manager.lock().unwrap();
@@ -748,13 +797,13 @@ mod tests {
     fn test_pair_revoke_nonexistent_device() {
         let (_, _, revoke_handler) = create_handlers();
         let ctx = RequestContext::new("test-conn".to_string(), "127.0.0.1:8080".parse().unwrap());
-        
+
         let params = serde_json::json!({
             "device_id": "nonexistent-device"
         });
-        
+
         let response = revoke_handler.handle(&ctx, Some(params));
-        
+
         assert!(response.result.is_some());
         let result = response.result.as_ref().unwrap();
         assert_eq!(result["revoked"].as_bool().unwrap(), false);
@@ -763,7 +812,7 @@ mod tests {
     #[test]
     fn test_pairing_store_cleanup_expired() {
         let store = Arc::new(PairingStore::new());
-        
+
         // Store a pairing
         let pairing = PendingPairing {
             params: PairRequestParams {
@@ -777,7 +826,7 @@ mod tests {
             expires_at: Utc::now() - chrono::Duration::minutes(1), // Already expired
         };
         store.store(pairing);
-        
+
         // Cleanup should remove it
         let removed = store.cleanup_expired();
         assert_eq!(removed.len(), 1);
@@ -788,7 +837,7 @@ mod tests {
     fn test_full_pairing_flow() {
         let (request_handler, confirm_handler, revoke_handler) = create_handlers();
         let ctx = RequestContext::new("test-conn".to_string(), "127.0.0.1:8080".parse().unwrap());
-        
+
         // Step 1: Request pairing
         let request_params = serde_json::json!({
             "device_name": "Test Phone",
@@ -796,23 +845,29 @@ mod tests {
             "client_version": "1.0.0",
             "device_id": "123e4567-e89b-12d3-a456-426614174000"
         });
-        
+
         let request_response = request_handler.handle(&ctx, Some(request_params));
         assert!(request_response.result.is_some());
-        
-        let pairing_code = request_response.result.as_ref().unwrap()["pairing_code"].as_str().unwrap().to_string();
-        
+
+        let pairing_code = request_response.result.as_ref().unwrap()["pairing_code"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
         // Step 2: Confirm pairing
         let confirm_params = serde_json::json!({
             "pairing_code": pairing_code,
             "device_id": "123e4567-e89b-12d3-a456-426614174000"
         });
-        
+
         let confirm_response = confirm_handler.handle(&ctx, Some(confirm_params));
         assert!(confirm_response.result.is_some());
-        
-        let device_token = confirm_response.result.as_ref().unwrap()["device_token"].as_str().unwrap().to_string();
-        
+
+        let device_token = confirm_response.result.as_ref().unwrap()["device_token"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
         // Step 3: Verify token is valid
         {
             let mut tm = revoke_handler.token_manager.lock().unwrap();
@@ -820,16 +875,18 @@ mod tests {
             assert!(validated_token.is_some());
             assert_eq!(validated_token.unwrap().device_name, "Test Phone");
         }
-        
+
         // Step 4: Revoke device
         let params = serde_json::json!({
             "device_id": "123e4567-e89b-12d3-a456-426614174000"
         });
-        
+
         let revoke_response = revoke_handler.handle(&ctx, Some(params));
         assert!(revoke_response.result.is_some());
-        assert!(revoke_response.result.as_ref().unwrap()["revoked"].as_bool().unwrap());
-        
+        assert!(revoke_response.result.as_ref().unwrap()["revoked"]
+            .as_bool()
+            .unwrap());
+
         // Step 5: Verify token is no longer valid
         {
             let mut tm = revoke_handler.token_manager.lock().unwrap();

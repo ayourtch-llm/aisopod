@@ -57,10 +57,7 @@ impl SandboxExecutor {
     /// The container is created in a stopped state with resource limits
     /// and workspace mounts applied. Use `start_container()` to start it
     /// or `run_one_shot()` for automatic lifecycle management.
-    pub async fn create_container(
-        &self,
-        config: &SandboxConfig,
-    ) -> Result<ContainerId> {
+    pub async fn create_container(&self, config: &SandboxConfig) -> Result<ContainerId> {
         let mut cmd = Command::new(self.runtime_command());
         cmd.args(["create", "--rm"]);
 
@@ -101,18 +98,13 @@ impl SandboxExecutor {
         cmd.arg("sleep").arg("infinity");
 
         let output = cmd.output().await?;
-        
+
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(anyhow!(
-                "Failed to create container: {}",
-                stderr.trim()
-            ));
+            return Err(anyhow!("Failed to create container: {}", stderr.trim()));
         }
 
-        let container_id = String::from_utf8_lossy(&output.stdout)
-            .trim()
-            .to_string();
+        let container_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
         if container_id.is_empty() {
             return Err(anyhow!("Container creation returned empty ID"));

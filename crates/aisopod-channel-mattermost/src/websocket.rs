@@ -4,7 +4,7 @@
 //! from Mattermost servers.
 
 use anyhow::{anyhow, Result};
-use futures::{StreamExt, SinkExt};
+use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
@@ -212,8 +212,9 @@ impl MattermostWebSocket {
                     debug!("Received WebSocket message: {}", text);
 
                     // Parse the JSON message
-                    let event: MattermostEvent = serde_json::from_str(&text)
-                        .map_err(|e| WebSocketError::Parse(format!("Failed to parse JSON: {}", e)))?;
+                    let event: MattermostEvent = serde_json::from_str(&text).map_err(|e| {
+                        WebSocketError::Parse(format!("Failed to parse JSON: {}", e))
+                    })?;
 
                     // Filter for meaningful events (ignore status updates)
                     if !self.is_status_event(&event) {
@@ -291,8 +292,9 @@ impl MattermostWebSocket {
                     debug!("Received WebSocket message: {}", text);
 
                     // Parse the JSON message
-                    let event: MattermostEvent = serde_json::from_str(&text)
-                        .map_err(|e| WebSocketError::Parse(format!("Failed to parse JSON: {}", e)))?;
+                    let event: MattermostEvent = serde_json::from_str(&text).map_err(|e| {
+                        WebSocketError::Parse(format!("Failed to parse JSON: {}", e))
+                    })?;
 
                     // Return the authentication challenge
                     return Ok(event);

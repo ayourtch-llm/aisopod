@@ -7,7 +7,7 @@
 //! to device pairing. Channel plugins implement only the adapters they support.
 
 use crate::message::{Media, MessageTarget, SenderInfo};
-use crate::types::{ChannelMeta, ChannelCapabilities};
+use crate::types::{ChannelCapabilities, ChannelMeta};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

@@ -13,18 +13,90 @@ use thiserror::Error;
 /// register a command with one of these names will receive a
 /// `SecurityError::ReservedCommandName` error.
 pub const RESERVED_COMMANDS: &[&str] = &[
-    "help", "version", "config", "init", "start", "stop", "restart",
-    "status", "log", "logs", "plugin", "plugins", "install", "uninstall",
-    "update", "upgrade", "enable", "disable", "list", "show", "get",
-    "set", "delete", "remove", "create", "new", "run", "exec", "shell",
-    "repl", "chat", "send", "receive", "connect", "disconnect", "login",
-    "logout", "auth", "token", "key", "secret", "env", "export", "import",
-    "backup", "restore", "migrate", "reset", "clear", "clean", "purge",
-    "test", "check", "validate", "lint", "format", "build", "deploy",
-    "publish", "release", "tag", "branch", "commit", "push", "pull",
-    "fetch", "clone", "diff", "merge", "rebase", "stash", "pop",
-    "apply", "patch", "doctor", "diagnose", "debug", "trace", "profile",
-    "benchmark", "info", "about", "license", "completions",
+    "help",
+    "version",
+    "config",
+    "init",
+    "start",
+    "stop",
+    "restart",
+    "status",
+    "log",
+    "logs",
+    "plugin",
+    "plugins",
+    "install",
+    "uninstall",
+    "update",
+    "upgrade",
+    "enable",
+    "disable",
+    "list",
+    "show",
+    "get",
+    "set",
+    "delete",
+    "remove",
+    "create",
+    "new",
+    "run",
+    "exec",
+    "shell",
+    "repl",
+    "chat",
+    "send",
+    "receive",
+    "connect",
+    "disconnect",
+    "login",
+    "logout",
+    "auth",
+    "token",
+    "key",
+    "secret",
+    "env",
+    "export",
+    "import",
+    "backup",
+    "restore",
+    "migrate",
+    "reset",
+    "clear",
+    "clean",
+    "purge",
+    "test",
+    "check",
+    "validate",
+    "lint",
+    "format",
+    "build",
+    "deploy",
+    "publish",
+    "release",
+    "tag",
+    "branch",
+    "commit",
+    "push",
+    "pull",
+    "fetch",
+    "clone",
+    "diff",
+    "merge",
+    "rebase",
+    "stash",
+    "pop",
+    "apply",
+    "patch",
+    "doctor",
+    "diagnose",
+    "debug",
+    "trace",
+    "profile",
+    "benchmark",
+    "info",
+    "about",
+    "license",
+    "completions",
 ];
 
 /// Maximum allowed size for a single command argument in bytes.
@@ -142,7 +214,10 @@ pub fn validate_command_name(name: &str) -> Result<(), SecurityError> {
     }
 
     // Check for valid characters (alphanumeric, hyphen, underscore)
-    if !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+    if !name
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+    {
         return Err(SecurityError::InvalidCommandName(name.to_string()));
     }
 
@@ -300,7 +375,9 @@ mod tests {
             let result = validate_command_name(cmd);
             assert!(
                 matches!(result, Err(SecurityError::ReservedCommandName(_))),
-                "Expected ReservedCommandName error for '{}', got {:?}", cmd, result
+                "Expected ReservedCommandName error for '{}', got {:?}",
+                cmd,
+                result
             );
         }
     }
@@ -335,7 +412,10 @@ mod tests {
         // Arguments exceeding MAX_ARG_SIZE should fail
         let large_arg = "a".repeat(MAX_ARG_SIZE + 1);
         let result = sanitize_argument(&large_arg);
-        assert!(matches!(result, Err(SecurityError::ArgumentTooLarge { .. })));
+        assert!(matches!(
+            result,
+            Err(SecurityError::ArgumentTooLarge { .. })
+        ));
 
         // Exactly MAX_ARG_SIZE should succeed
         let exact_arg = "a".repeat(MAX_ARG_SIZE);
@@ -361,10 +441,7 @@ mod tests {
         let debug_str = format!("{:?}", e);
         assert!(debug_str.contains("CommandNotFound"));
 
-        let e = SecurityError::ArgumentTooLarge {
-            size: 100,
-            max: 50,
-        };
+        let e = SecurityError::ArgumentTooLarge { size: 100, max: 50 };
         let debug_str = format!("{:?}", e);
         assert!(debug_str.contains("ArgumentTooLarge"));
 

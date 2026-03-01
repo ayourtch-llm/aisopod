@@ -1917,18 +1917,15 @@ pub mod helpers {
 
     /// Creates a simple message card with text.
     pub fn create_message_card(title: &str, message: &str) -> AdaptiveCard {
-        AdaptiveCard::new()
-            .with_body(vec![
-                AdaptiveCardElement::TextBlock(
-                    TextBlock::new(title)
-                        .with_weight("bolder")
-                        .with_size("large")
-                        .with_color("accent")
-                ),
-                AdaptiveCardElement::TextBlock(
-                    TextBlock::new(message).with_wrap(true)
-                ),
-            ])
+        AdaptiveCard::new().with_body(vec![
+            AdaptiveCardElement::TextBlock(
+                TextBlock::new(title)
+                    .with_weight("bolder")
+                    .with_size("large")
+                    .with_color("accent"),
+            ),
+            AdaptiveCardElement::TextBlock(TextBlock::new(message).with_wrap(true)),
+        ])
     }
 
     /// Creates a card with action buttons.
@@ -1939,25 +1936,21 @@ pub mod helpers {
                     TextBlock::new(title)
                         .with_weight("bolder")
                         .with_size("large")
-                        .with_color("accent")
+                        .with_color("accent"),
                 ),
-                AdaptiveCardElement::TextBlock(
-                    TextBlock::new(message).with_wrap(true)
-                ),
-                AdaptiveCardElement::Spacer(
-                    Spacer::new().with_size("medium")
-                ),
+                AdaptiveCardElement::TextBlock(TextBlock::new(message).with_wrap(true)),
+                AdaptiveCardElement::Spacer(Spacer::new().with_size("medium")),
             ])
             .with_actions(vec![
                 AdaptiveCardAction::Submit(
                     SubmitAction::new("OK")
                         .with_style("positive")
-                        .with_data(serde_json::json!({"action": "ok"}))
+                        .with_data(serde_json::json!({"action": "ok"})),
                 ),
                 AdaptiveCardAction::Submit(
                     SubmitAction::new("Cancel")
                         .with_style("destructive")
-                        .with_data(serde_json::json!({"action": "cancel"}))
+                        .with_data(serde_json::json!({"action": "cancel"})),
                 ),
             ]);
 
@@ -1971,11 +1964,9 @@ pub mod helpers {
                 TextBlock::new(title)
                     .with_weight("bolder")
                     .with_size("medium")
-                    .with_color("accent")
+                    .with_color("accent"),
             ),
-            AdaptiveCardElement::Spacer(
-                Spacer::new().with_size("small")
-            ),
+            AdaptiveCardElement::Spacer(Spacer::new().with_size("small")),
         ];
 
         for field in fields {
@@ -1983,53 +1974,43 @@ pub mod helpers {
         }
 
         body.push(AdaptiveCardElement::Spacer(
-            Spacer::new().with_size("medium")
+            Spacer::new().with_size("medium"),
         ));
 
         AdaptiveCard::new()
             .with_body(body)
-            .with_actions(vec![
-                AdaptiveCardAction::Submit(
-                    SubmitAction::new("Submit")
-                        .with_style("positive")
-                        .with_data(serde_json::json!({"form": "submitted"}))
-                ),
-            ])
+            .with_actions(vec![AdaptiveCardAction::Submit(
+                SubmitAction::new("Submit")
+                    .with_style("positive")
+                    .with_data(serde_json::json!({"form": "submitted"})),
+            )])
     }
 
     /// Creates a card with an image.
     pub fn create_image_card(title: &str, image_url: &str, caption: &str) -> AdaptiveCard {
-        AdaptiveCard::new()
-            .with_body(vec![
-                AdaptiveCardElement::TextBlock(
-                    TextBlock::new(title)
-                        .with_weight("bolder")
-                        .with_size("large")
-                        .with_color("accent")
-                ),
-                AdaptiveCardElement::Image(
-                    Image::new(image_url).with_alt_text(caption)
-                ),
-                AdaptiveCardElement::TextBlock(
-                    TextBlock::new(caption).with_wrap(true)
-                ),
-            ])
+        AdaptiveCard::new().with_body(vec![
+            AdaptiveCardElement::TextBlock(
+                TextBlock::new(title)
+                    .with_weight("bolder")
+                    .with_size("large")
+                    .with_color("accent"),
+            ),
+            AdaptiveCardElement::Image(Image::new(image_url).with_alt_text(caption)),
+            AdaptiveCardElement::TextBlock(TextBlock::new(caption).with_wrap(true)),
+        ])
     }
 
     /// Creates a card with facts.
     pub fn create_fact_card(title: &str, facts: Vec<Fact>) -> AdaptiveCard {
-        AdaptiveCard::new()
-            .with_body(vec![
-                AdaptiveCardElement::TextBlock(
-                    TextBlock::new(title)
-                        .with_weight("bolder")
-                        .with_size("large")
-                        .with_color("accent")
-                ),
-                AdaptiveCardElement::FactSet(
-                    FactSet::new().with_facts(facts)
-                ),
-            ])
+        AdaptiveCard::new().with_body(vec![
+            AdaptiveCardElement::TextBlock(
+                TextBlock::new(title)
+                    .with_weight("bolder")
+                    .with_size("large")
+                    .with_color("accent"),
+            ),
+            AdaptiveCardElement::FactSet(FactSet::new().with_facts(facts)),
+        ])
     }
 
     /// Creates a card with a column layout.
@@ -2039,23 +2020,18 @@ pub mod helpers {
         right_content: Vec<AdaptiveCardElement>,
     ) -> AdaptiveCard {
         let column_set = ColumnSet::new()
-            .add_column(
-                Column::new()
-                    .with_width("200px")
-                    .with_items(left_content),
-            )
+            .add_column(Column::new().with_width("200px").with_items(left_content))
             .add_column(Column::new().with_items(right_content));
 
-        AdaptiveCard::new()
-            .with_body(vec![
-                AdaptiveCardElement::TextBlock(
-                    TextBlock::new(title)
-                        .with_weight("bolder")
-                        .with_size("large")
-                        .with_color("accent")
-                ),
-                AdaptiveCardElement::ColumnSet(column_set),
-            ])
+        AdaptiveCard::new().with_body(vec![
+            AdaptiveCardElement::TextBlock(
+                TextBlock::new(title)
+                    .with_weight("bolder")
+                    .with_size("large")
+                    .with_color("accent"),
+            ),
+            AdaptiveCardElement::ColumnSet(column_set),
+        ])
     }
 }
 
@@ -2072,11 +2048,10 @@ mod tests {
 
     #[test]
     fn test_adaptive_card_with_body() {
-        let card = AdaptiveCard::new()
-            .with_body(vec![
-                AdaptiveCardElement::TextBlock(TextBlock::new("Hello").with_weight("bolder")),
-                AdaptiveCardElement::TextBlock(TextBlock::new("World").with_wrap(true)),
-            ]);
+        let card = AdaptiveCard::new().with_body(vec![
+            AdaptiveCardElement::TextBlock(TextBlock::new("Hello").with_weight("bolder")),
+            AdaptiveCardElement::TextBlock(TextBlock::new("World").with_wrap(true)),
+        ]);
 
         let body = card.body.unwrap();
         assert_eq!(body.len(), 2);
@@ -2138,8 +2113,9 @@ mod tests {
 
     #[test]
     fn test_adaptive_card_serialization() {
-        let card = AdaptiveCard::new()
-            .with_body(vec![AdaptiveCardElement::TextBlock(TextBlock::new("Hello World"))]);
+        let card = AdaptiveCard::new().with_body(vec![AdaptiveCardElement::TextBlock(
+            TextBlock::new("Hello World"),
+        )]);
 
         let json = card.to_json().unwrap();
         assert!(json.contains("AdaptiveCard"));
@@ -2236,7 +2212,9 @@ mod tests {
         let card = helpers::create_column_card(
             "Dashboard",
             vec![AdaptiveCardElement::TextBlock(TextBlock::new("Left Panel"))],
-            vec![AdaptiveCardElement::TextBlock(TextBlock::new("Right Panel"))],
+            vec![AdaptiveCardElement::TextBlock(TextBlock::new(
+                "Right Panel",
+            ))],
         );
 
         let body = card.body.unwrap();

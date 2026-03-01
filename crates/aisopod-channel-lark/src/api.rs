@@ -144,7 +144,8 @@ impl LarkApi {
     /// * `Err(ApiError)` - An error occurred
     pub async fn send_text(&mut self, chat_id: &str, text: &str) -> Result<(), ApiError> {
         let content = serde_json::json!({ "text": text }).to_string();
-        self.send_message(chat_id, "chat_id", "text", &content).await
+        self.send_message(chat_id, "chat_id", "text", &content)
+            .await
     }
 
     /// Sends a rich message card to a chat.
@@ -158,9 +159,14 @@ impl LarkApi {
     ///
     /// * `Ok(())` - Message was sent successfully
     /// * `Err(ApiError)` - An error occurred
-    pub async fn send_card(&mut self, chat_id: &str, card: serde_json::Value) -> Result<(), ApiError> {
+    pub async fn send_card(
+        &mut self,
+        chat_id: &str,
+        card: serde_json::Value,
+    ) -> Result<(), ApiError> {
         let content = card.to_string();
-        self.send_message(chat_id, "chat_id", "interactive", &content).await
+        self.send_message(chat_id, "chat_id", "interactive", &content)
+            .await
     }
 
     /// Gets user profile information.

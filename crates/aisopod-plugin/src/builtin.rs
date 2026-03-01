@@ -79,9 +79,9 @@ pub fn register_builtin_plugins(registry: &mut PluginRegistry) -> Result<(), Reg
 /// Registers the Telegram channel plugin.
 #[cfg(feature = "plugin-telegram")]
 fn register_telegram_plugin(registry: &mut PluginRegistry) -> Result<(), RegistryError> {
-    use aisopod_channel_telegram::TelegramChannel;
     use aisopod_channel::ChannelPlugin;
-    
+    use aisopod_channel_telegram::TelegramChannel;
+
     let channel = TelegramChannel::default();
     registry.register(Arc::new(channel));
     info!("Registered built-in plugin: telegram");
@@ -91,9 +91,9 @@ fn register_telegram_plugin(registry: &mut PluginRegistry) -> Result<(), Registr
 /// Registers the Discord channel plugin.
 #[cfg(feature = "plugin-discord")]
 fn register_discord_plugin(registry: &mut PluginRegistry) -> Result<(), RegistryError> {
-    use aisopod_channel_discord::DiscordChannel;
     use aisopod_channel::ChannelPlugin;
-    
+    use aisopod_channel_discord::DiscordChannel;
+
     let channel = DiscordChannel::default();
     registry.register(Arc::new(channel));
     info!("Registered built-in plugin: discord");
@@ -103,9 +103,9 @@ fn register_discord_plugin(registry: &mut PluginRegistry) -> Result<(), Registry
 /// Registers the Slack channel plugin.
 #[cfg(feature = "plugin-slack")]
 fn register_slack_plugin(registry: &mut PluginRegistry) -> Result<(), RegistryError> {
-    use aisopod_channel_slack::SlackChannel;
     use aisopod_channel::ChannelPlugin;
-    
+    use aisopod_channel_slack::SlackChannel;
+
     let channel = SlackChannel::default();
     registry.register(Arc::new(channel));
     info!("Registered built-in plugin: slack");
@@ -115,9 +115,9 @@ fn register_slack_plugin(registry: &mut PluginRegistry) -> Result<(), RegistryEr
 /// Registers the WhatsApp channel plugin.
 #[cfg(feature = "plugin-whatsapp")]
 fn register_whatsapp_plugin(registry: &mut PluginRegistry) -> Result<(), RegistryError> {
-    use aisopod_channel_whatsapp::WhatsAppChannel;
     use aisopod_channel::ChannelPlugin;
-    
+    use aisopod_channel_whatsapp::WhatsAppChannel;
+
     let channel = WhatsAppChannel::default();
     registry.register(Arc::new(channel));
     info!("Registered built-in plugin: whatsapp");

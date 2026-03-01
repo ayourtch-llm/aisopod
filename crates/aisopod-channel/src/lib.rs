@@ -88,15 +88,15 @@ pub mod util;
 
 // Re-export message types
 pub use message::{
-    IncomingMessage, OutgoingMessage, MessageContent, MessagePart, MessageTarget,
-    PeerInfo, PeerKind, Media,
+    IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, OutgoingMessage, PeerInfo,
+    PeerKind,
 };
 
 // Re-export router
-pub use router::{MessageRouter, AgentResolver, ConfigAgentResolver};
+pub use router::{AgentResolver, ConfigAgentResolver, MessageRouter};
 
 // Re-export security types
-pub use security::{SecurityEnforcer, MentionCheckResult};
+pub use security::{MentionCheckResult, SecurityEnforcer};
 
 // Re-export core types
 pub use plugin::ChannelPlugin;
@@ -104,17 +104,16 @@ pub use types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 
 // Re-export media utilities
 pub use media::{
-    AudioTranscriber, DocumentExtractor, detect_media_type, detect_mime_type,
-    resize_image, convert_image_format, validate_media,
+    convert_image_format, detect_media_type, detect_mime_type, resize_image, validate_media,
+    AudioTranscriber, DocumentExtractor,
 };
 
 // Re-export adapter traits and types from adapters module
 pub use adapters::{
-    AccountConfig, AccountSnapshot, AuthAdapter, AuthToken, ChannelConfigAdapter,
-    ChannelHealth, DirectoryAdapter, GatewayAdapter, GroupInfo, HeartbeatAdapter,
-    MemberInfo, MessagingAdapter, OnboardingAdapter, OnboardingContext,
-    PairingAdapter, PairingCode, SecurityAdapter, StatusAdapter, ThreadingAdapter,
-    TypingAdapter, OutboundAdapter,
+    AccountConfig, AccountSnapshot, AuthAdapter, AuthToken, ChannelConfigAdapter, ChannelHealth,
+    DirectoryAdapter, GatewayAdapter, GroupInfo, HeartbeatAdapter, MemberInfo, MessagingAdapter,
+    OnboardingAdapter, OnboardingContext, OutboundAdapter, PairingAdapter, PairingCode,
+    SecurityAdapter, StatusAdapter, ThreadingAdapter, TypingAdapter,
 };
 
 // Re-export channel registry
@@ -124,9 +123,12 @@ pub use channel::{ChannelAlias, ChannelRegistry};
 pub use util::{
     connection::{ConnectionManager, ConnectionState},
     errors::ChannelError,
-    formatting::{from_discord_markdown, from_plain_text, from_slack_mrkdwn, from_telegram_markdown, NormalizedMarkdown},
+    formatting::{
+        from_discord_markdown, from_plain_text, from_slack_mrkdwn, from_telegram_markdown,
+        NormalizedMarkdown,
+    },
     media::{ensure_compatible_format, MediaAttachment, Platform},
-    rate_limit::{RateLimiter, RateLimitConfig, RateLimitError},
+    rate_limit::{RateLimitConfig, RateLimitError, RateLimiter},
 };
 
 // Re-export anyhow Result for convenience

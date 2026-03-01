@@ -89,16 +89,26 @@ pub mod config;
 pub mod webhook;
 
 // Re-export common types
-pub use api::{ZaloApi, UserProfile, MessagePayload, Recipient, MessageContent, Attachment};
-pub use auth::{ZaloAuth, TokenResponse, validate_access_token, TOKEN_ENDPOINT, VERIFY_ENDPOINT};
-pub use channel::{ZaloChannel, ZaloAccount, ZaloChannelConfigAdapter, ZaloSecurityAdapter, register};
+pub use api::{Attachment, MessageContent, MessagePayload, Recipient, UserProfile, ZaloApi};
+pub use auth::{validate_access_token, TokenResponse, ZaloAuth, TOKEN_ENDPOINT, VERIFY_ENDPOINT};
+pub use channel::{
+    register, ZaloAccount, ZaloChannel, ZaloChannelConfigAdapter, ZaloSecurityAdapter,
+};
 pub use config::ZaloConfig;
-pub use webhook::{WebhookEventType, WebhookState, WebhookVerifyResponse, DEFAULT_WEBHOOK_PATH, ZALO_SIGNATURE_HEADER};
+pub use webhook::{
+    WebhookEventType, WebhookState, WebhookVerifyResponse, DEFAULT_WEBHOOK_PATH,
+    ZALO_SIGNATURE_HEADER,
+};
 
 // Re-export types from aisopod-channel for convenience
-pub use aisopod_channel::message::{IncomingMessage, OutgoingMessage, MessageTarget, Media, MessageContent as ChannelMessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo};
-pub use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType as ChannelMediaType};
+pub use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent as ChannelMessageContent, MessagePart, MessageTarget,
+    OutgoingMessage, PeerInfo, PeerKind, SenderInfo,
+};
 pub use aisopod_channel::plugin::ChannelPlugin;
+pub use aisopod_channel::types::{
+    ChannelCapabilities, ChannelMeta, ChatType, MediaType as ChannelMediaType,
+};
 pub use aisopod_channel::ChannelRegistry;
 
 /// Result type for Zalo channel operations.
@@ -110,8 +120,14 @@ mod tests {
 
     #[test]
     fn test_zalo_constants() {
-        assert_eq!(auth::TOKEN_ENDPOINT, "https://oauth.zaloapp.com/v4/oa/access_token");
-        assert_eq!(auth::VERIFY_ENDPOINT, "https://oauth.zaloapp.com/v4/oa/verify");
+        assert_eq!(
+            auth::TOKEN_ENDPOINT,
+            "https://oauth.zaloapp.com/v4/oa/access_token"
+        );
+        assert_eq!(
+            auth::VERIFY_ENDPOINT,
+            "https://oauth.zaloapp.com/v4/oa/verify"
+        );
         assert_eq!(api::BASE_URL, "https://openapi.zalo.me/v3.0/oa");
         assert_eq!(webhook::DEFAULT_WEBHOOK_PATH, "/zalo/webhook");
     }

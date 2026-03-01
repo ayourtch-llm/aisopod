@@ -80,30 +80,33 @@
 //! }
 //! ```
 
+mod builtin;
 mod context;
 mod discovery;
 mod manifest;
 mod meta;
 mod registry;
-mod r#trait;
-mod builtin;
 mod scaffold;
+mod r#trait;
 
 use std::sync::Arc;
 
-pub use context::SkillContext;
-pub use discovery::{discover_skill_dirs, validate_requirements, load_skills, DiscoveryError, DiscoveryResult, DiscoveredSkill};
-pub use manifest::{SkillManifest, ManifestError, parse_manifest};
-pub use meta::{SkillCategory, SkillMeta};
-pub use registry::{SkillRegistry, SkillStatus};
-pub use r#trait::Skill;
-pub use scaffold::{scaffold_skill, ScaffoldOptions, to_pascal_case};
 #[cfg(feature = "skill-healthcheck")]
 pub use builtin::healthcheck;
-#[cfg(feature = "skill-session-logs")]
-pub use builtin::session_logs;
 #[cfg(feature = "skill-model-usage")]
 pub use builtin::model_usage;
+#[cfg(feature = "skill-session-logs")]
+pub use builtin::session_logs;
+pub use context::SkillContext;
+pub use discovery::{
+    discover_skill_dirs, load_skills, validate_requirements, DiscoveredSkill, DiscoveryError,
+    DiscoveryResult,
+};
+pub use manifest::{parse_manifest, ManifestError, SkillManifest};
+pub use meta::{SkillCategory, SkillMeta};
+pub use r#trait::Skill;
+pub use registry::{SkillRegistry, SkillStatus};
+pub use scaffold::{scaffold_skill, to_pascal_case, ScaffoldOptions};
 
 /// Merges skill system prompt fragments into a base prompt.
 ///
@@ -132,7 +135,7 @@ pub use builtin::model_usage;
 /// ```
 pub fn merge_skill_prompts(base: &str, skills: &[Arc<dyn Skill>]) -> String {
     let mut result = String::from(base);
-    
+
     for skill in skills {
         if let Some(fragment) = skill.system_prompt_fragment() {
             if !fragment.is_empty() {
@@ -142,14 +145,14 @@ pub fn merge_skill_prompts(base: &str, skills: &[Arc<dyn Skill>]) -> String {
             }
         }
     }
-    
+
     result
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::skills::{SkillMeta, SkillCategory};
+    use crate::skills::{SkillCategory, SkillMeta};
     use aisopod_tools::Tool;
     use async_trait::async_trait;
     use std::sync::Arc;
@@ -197,7 +200,10 @@ mod tests {
             vec![]
         }
 
-        async fn init(&self, _ctx: &crate::skills::SkillContext) -> Result<(), Box<dyn std::error::Error>> {
+        async fn init(
+            &self,
+            _ctx: &crate::skills::SkillContext,
+        ) -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         }
     }
@@ -206,19 +212,22 @@ mod tests {
     fn test_merge_skill_prompts_empty_skills() {
         let base = "Base prompt.";
         let skills: Vec<Arc<dyn Skill>> = vec![];
-        
+
         let result = merge_skill_prompts(base, &skills);
-        
+
         assert_eq!(result, "Base prompt.");
     }
 
     #[test]
     fn test_merge_skill_prompts_with_one_skill() {
         let base = "Base prompt.";
-        let skills: Vec<Arc<dyn Skill>> = vec![Arc::new(TestSkill::new("skill1", Some("Skill 1 fragment.")))];
-        
+        let skills: Vec<Arc<dyn Skill>> = vec![Arc::new(TestSkill::new(
+            "skill1",
+            Some("Skill 1 fragment."),
+        ))];
+
         let result = merge_skill_prompts(base, &skills);
-        
+
         assert!(result.contains("Base prompt."));
         assert!(result.contains("Skill 1 fragment."));
     }
@@ -231,9 +240,9 @@ mod tests {
             Arc::new(TestSkill::new("skill2", Some("Skill 2 fragment."))),
             Arc::new(TestSkill::new("skill3", Some("Skill 3 fragment."))),
         ];
-        
+
         let result = merge_skill_prompts(base, &skills);
-        
+
         assert!(result.contains("Base prompt."));
         assert!(result.contains("Skill 1 fragment."));
         assert!(result.contains("Skill 2 fragment."));
@@ -245,12 +254,12 @@ mod tests {
         let base = "Base prompt.";
         let skills: Vec<Arc<dyn Skill>> = vec![
             Arc::new(TestSkill::new("skill1", None)),
-            Arc::new(TestSkill::new("skill2", Some(""))),  // Empty string - should be skipped
+            Arc::new(TestSkill::new("skill2", Some(""))), // Empty string - should be skipped
             Arc::new(TestSkill::new("skill3", Some("Real fragment."))),
         ];
-        
+
         let result = merge_skill_prompts(base, &skills);
-        
+
         assert!(result.contains("Base prompt."));
         // Check that skill1 (None fragment) and skill2 (empty fragment) are NOT in result
         assert!(!result.contains("skill1"));
@@ -261,12 +270,13 @@ mod tests {
     #[test]
     fn test_merge_skill_prompts_with_newlines() {
         let base = "Base prompt.";
-        let skills: Vec<Arc<dyn Skill>> = vec![
-            Arc::new(TestSkill::new("skill1", Some("Skill 1\nMulti-line\nFragment."))),
-        ];
-        
+        let skills: Vec<Arc<dyn Skill>> = vec![Arc::new(TestSkill::new(
+            "skill1",
+            Some("Skill 1\nMulti-line\nFragment."),
+        ))];
+
         let result = merge_skill_prompts(base, &skills);
-        
+
         assert!(result.contains("Base prompt."));
         assert!(result.contains("Skill 1"));
         assert!(result.contains("Multi-line"));
@@ -281,14 +291,14 @@ mod tests {
             Arc::new(TestSkill::new("second", Some("Second."))),
             Arc::new(TestSkill::new("third", Some("Third."))),
         ];
-        
+
         let result = merge_skill_prompts(base, &skills);
-        
+
         // Check order is preserved
         let first_pos = result.find("First").unwrap();
         let second_pos = result.find("Second").unwrap();
         let third_pos = result.find("Third").unwrap();
-        
+
         assert!(first_pos < second_pos);
         assert!(second_pos < third_pos);
     }

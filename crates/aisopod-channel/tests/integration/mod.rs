@@ -5,9 +5,9 @@
 
 #![deny(unused_must_use)]
 
-pub mod mock_servers;
-pub mod telegram;
-pub mod discord;
-pub mod whatsapp;
-pub mod slack;
 pub mod cross_channel;
+pub mod discord;
+pub mod mock_servers;
+pub mod slack;
+pub mod telegram;
+pub mod whatsapp;

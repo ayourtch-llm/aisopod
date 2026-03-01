@@ -11,9 +11,11 @@ use crate::relay::RelayPool;
 use aisopod_channel::adapters::{
     AccountConfig, AccountSnapshot, ChannelConfigAdapter, SecurityAdapter,
 };
-use aisopod_channel::message::{IncomingMessage, MessageContent, MessagePart, MessageTarget, PeerInfo, PeerKind, SenderInfo};
-use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+use aisopod_channel::message::{
+    IncomingMessage, MessageContent, MessagePart, MessageTarget, PeerInfo, PeerKind, SenderInfo,
+};
 use aisopod_channel::plugin::ChannelPlugin;
+use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -181,19 +183,19 @@ impl NostrChannel {
             account.relay_pool = Some(pool.clone());
             account.connected = true;
 
-        // Subscribe to events from all relays
-        // For now, we'll use a simple filter for all events
-        // A more sophisticated implementation would filter by public key or event kind
-        let filters = vec![serde_json::json!({
-            "kinds": [1, 4],  // text notes and encrypted DMs
-        })];
+            // Subscribe to events from all relays
+            // For now, we'll use a simple filter for all events
+            // A more sophisticated implementation would filter by public key or event kind
+            let filters = vec![serde_json::json!({
+                "kinds": [1, 4],  // text notes and encrypted DMs
+            })];
 
-        {
-            let mut pool_mut = pool.lock().await;
-            if let Err(e) = pool_mut.subscribe(filters).await {
-                warn!("Failed to subscribe on relay: {}", e);
+            {
+                let mut pool_mut = pool.lock().await;
+                if let Err(e) = pool_mut.subscribe(filters).await {
+                    warn!("Failed to subscribe on relay: {}", e);
+                }
             }
-        }
 
             info!(
                 "Connected to {} relays for account {}",
@@ -284,7 +286,10 @@ impl NostrChannel {
         }
 
         if !account.config.enable_dms {
-            return Err(anyhow::anyhow!("Encrypted DMs are disabled for account {}", account_id));
+            return Err(anyhow::anyhow!(
+                "Encrypted DMs are disabled for account {}",
+                account_id
+            ));
         }
 
         // Convert recipient pubkey to hex format
@@ -329,7 +334,7 @@ impl NostrChannel {
     pub async fn receive(&mut self) -> Result<IncomingMessage> {
         // For now, we'll simulate receiving by waiting
         // A full implementation would poll all streams using select!
-        
+
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
         // Return a dummy message for testing
@@ -444,7 +449,9 @@ impl ChannelPlugin for NostrChannel {
 
     /// Returns the security adapter for this channel if available.
     fn security(&self) -> Option<&dyn SecurityAdapter> {
-        self.security_adapter.as_ref().map(|a| a as &dyn SecurityAdapter)
+        self.security_adapter
+            .as_ref()
+            .map(|a| a as &dyn SecurityAdapter)
     }
 }
 
@@ -479,7 +486,8 @@ mod tests {
     #[tokio::test]
     async fn test_nostr_channel_new() {
         let config = NostrConfig {
-            private_key: "0000000000000000000000000000000000000000000000000000000000000001".to_string(),
+            private_key: "0000000000000000000000000000000000000000000000000000000000000001"
+                .to_string(),
             relays: vec!["wss://relay.example.com".to_string()],
             enable_dms: true,
             channels: vec![],
@@ -487,7 +495,7 @@ mod tests {
 
         let channel = NostrChannel::new(config, "main").await;
         assert!(channel.is_ok());
-        
+
         let channel = channel.unwrap();
         assert_eq!(channel.id(), "nostr-main");
         assert_eq!(channel.list_account_ids().len(), 1);
@@ -496,7 +504,8 @@ mod tests {
     #[tokio::test]
     async fn test_nostr_channel_multiple_relays() {
         let config = NostrConfig {
-            private_key: "0000000000000000000000000000000000000000000000000000000000000001".to_string(),
+            private_key: "0000000000000000000000000000000000000000000000000000000000000001"
+                .to_string(),
             relays: vec![
                 "wss://relay.example.com".to_string(),
                 "wss://relay2.example.com".to_string(),
@@ -514,7 +523,8 @@ mod tests {
         let account = NostrAccount::new(
             "test-account".to_string(),
             NostrConfig {
-                private_key: "0000000000000000000000000000000000000000000000000000000000000001".to_string(),
+                private_key: "0000000000000000000000000000000000000000000000000000000000000001"
+                    .to_string(),
                 relays: vec!["wss://relay.example.com".to_string()],
                 enable_dms: true,
                 channels: vec![],

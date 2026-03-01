@@ -111,10 +111,7 @@ pub fn resolve_agent_skills(
 ///
 /// Returns the merged system prompt with skill fragments appended.
 /// Each fragment is separated by two newlines from the base prompt and from each other.
-pub fn merge_skill_prompts(
-    base_prompt: &str,
-    skills: &[Arc<dyn Skill>],
-) -> String {
+pub fn merge_skill_prompts(base_prompt: &str, skills: &[Arc<dyn Skill>]) -> String {
     let mut prompt = base_prompt.to_string();
     for skill in skills {
         if let Some(fragment) = skill.system_prompt_fragment() {
@@ -137,13 +134,8 @@ pub fn merge_skill_prompts(
 /// # Returns
 ///
 /// Returns a vector of `Arc<dyn Tool>` references from all assigned skills.
-pub fn collect_skill_tools(
-    skills: &[Arc<dyn Skill>],
-) -> Vec<Arc<dyn aisopod_tools::Tool>> {
-    skills
-        .iter()
-        .flat_map(|skill| skill.tools())
-        .collect()
+pub fn collect_skill_tools(skills: &[Arc<dyn Skill>]) -> Vec<Arc<dyn aisopod_tools::Tool>> {
+    skills.iter().flat_map(|skill| skill.tools()).collect()
 }
 
 /// A skill registry implementation for agent skill management.

@@ -4,7 +4,7 @@
 //! JSON output mode, and progress indicators.
 
 use colored::Colorize;
-use comfy_table::{Table, presets::UTF8_FULL};
+use comfy_table::{presets::UTF8_FULL, Table};
 use indicatif::{ProgressBar, ProgressStyle};
 
 /// Output formatting options
@@ -56,7 +56,10 @@ impl Output {
     /// Print a success message
     pub fn success(&self, msg: &str) {
         if self.json_mode {
-            println!(r#"{{"status":"success","message":"{}"}}"#, escape_json_string(msg));
+            println!(
+                r#"{{"status":"success","message":"{}"}}"#,
+                escape_json_string(msg)
+            );
         } else if Output::is_tty() {
             println!("{} {}", "✓".green(), msg);
         } else {
@@ -67,7 +70,10 @@ impl Output {
     /// Print an error message
     pub fn error(&self, msg: &str) {
         if self.json_mode {
-            eprintln!(r#"{{"status":"error","message":"{}"}}"#, escape_json_string(msg));
+            eprintln!(
+                r#"{{"status":"error","message":"{}"}}"#,
+                escape_json_string(msg)
+            );
         } else if Output::is_tty() {
             eprintln!("{} {}", "✗".red(), msg);
         } else {
@@ -78,7 +84,10 @@ impl Output {
     /// Print an info message
     pub fn info(&self, msg: &str) {
         if self.json_mode {
-            println!(r#"{{"status":"info","message":"{}"}}"#, escape_json_string(msg));
+            println!(
+                r#"{{"status":"info","message":"{}"}}"#,
+                escape_json_string(msg)
+            );
         } else if Output::is_tty() {
             println!("{} {}", "ℹ".blue(), msg);
         } else {
@@ -89,7 +98,10 @@ impl Output {
     /// Print a warning message
     pub fn warning(&self, msg: &str) {
         if self.json_mode {
-            println!(r#"{{"status":"warning","message":"{}"}}"#, escape_json_string(msg));
+            println!(
+                r#"{{"status":"warning","message":"{}"}}"#,
+                escape_json_string(msg)
+            );
         } else if Output::is_tty() {
             println!("{} {}", "⚠".yellow(), msg);
         } else {

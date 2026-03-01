@@ -61,10 +61,7 @@ impl Skill for HealthcheckSkill {
     }
 
     fn tools(&self) -> Vec<Arc<dyn Tool>> {
-        vec![
-            Arc::new(CheckSystemHealthTool),
-            Arc::new(GetSystemInfoTool),
-        ]
+        vec![Arc::new(CheckSystemHealthTool), Arc::new(GetSystemInfoTool)]
     }
 
     async fn init(&self, _ctx: &SkillContext) -> Result<(), Box<dyn std::error::Error>> {
@@ -93,11 +90,7 @@ impl Tool for CheckSystemHealthTool {
         })
     }
 
-    async fn execute(
-        &self,
-        _params: serde_json::Value,
-        _ctx: &ToolContext,
-    ) -> Result<ToolResult> {
+    async fn execute(&self, _params: serde_json::Value, _ctx: &ToolContext) -> Result<ToolResult> {
         let health = serde_json::json!({
             "gateway": "ok",
             "channels": [],
@@ -133,11 +126,7 @@ impl Tool for GetSystemInfoTool {
         })
     }
 
-    async fn execute(
-        &self,
-        _params: serde_json::Value,
-        _ctx: &ToolContext,
-    ) -> Result<ToolResult> {
+    async fn execute(&self, _params: serde_json::Value, _ctx: &ToolContext) -> Result<ToolResult> {
         let info = serde_json::json!({
             "os": std::env::consts::OS,
             "arch": std::env::consts::ARCH,
@@ -179,7 +168,7 @@ mod tests {
         let skill = HealthcheckSkill::new();
         let tools = skill.tools();
         assert_eq!(tools.len(), 2);
-        
+
         let tool_names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
         assert!(tool_names.contains(&"check_system_health"));
         assert!(tool_names.contains(&"get_system_info"));
@@ -208,9 +197,9 @@ mod tests {
     async fn test_check_system_health_execution() {
         let tool = CheckSystemHealthTool;
         let ctx = ToolContext::new("test-agent", "test-session");
-        
+
         let result = tool.execute(serde_json::json!({}), &ctx).await.unwrap();
-        
+
         assert!(!result.is_error);
         let health: serde_json::Value = serde_json::from_str(&result.content).unwrap();
         assert_eq!(health["gateway"], "ok");
@@ -221,9 +210,9 @@ mod tests {
     async fn test_get_system_info_execution() {
         let tool = GetSystemInfoTool;
         let ctx = ToolContext::new("test-agent", "test-session");
-        
+
         let result = tool.execute(serde_json::json!({}), &ctx).await.unwrap();
-        
+
         assert!(!result.is_error);
         let info: serde_json::Value = serde_json::from_str(&result.content).unwrap();
         assert_eq!(info["os"], std::env::consts::OS);

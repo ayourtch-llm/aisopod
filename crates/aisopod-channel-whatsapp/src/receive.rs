@@ -1,6 +1,8 @@
 //! WhatsApp webhook message receiving and parsing.
 
-use aisopod_channel::message::{IncomingMessage, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo};
+use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo,
+};
 use aisopod_channel::types::MediaType;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
@@ -232,7 +234,9 @@ pub fn normalize_message(
     // Determine peer info (DM vs Group)
     // Check if the message is in a group context by looking at the metadata's chat field
     // In WhatsApp's API, group messages include a "chat" field with the group ID
-    let chat_id = message.content.get("chat")
+    let chat_id = message
+        .content
+        .get("chat")
         .and_then(|v| v.as_object())
         .and_then(|obj| obj.get("id"))
         .and_then(|v| v.as_str())
@@ -292,8 +296,14 @@ pub fn normalize_message(
                     media_type: MediaType::Image,
                     url: None,
                     data: None,
-                    filename: data.get("filename").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                    mime_type: data.get("mime_type").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    filename: data
+                        .get("filename")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    mime_type: data
+                        .get("mime_type")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
                     size_bytes: None,
                 };
                 MessageContent::Media(media)
@@ -307,8 +317,14 @@ pub fn normalize_message(
                     media_type: MediaType::Audio,
                     url: None,
                     data: None,
-                    filename: data.get("filename").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                    mime_type: data.get("mime_type").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    filename: data
+                        .get("filename")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    mime_type: data
+                        .get("mime_type")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
                     size_bytes: None,
                 };
                 MessageContent::Media(media)
@@ -322,8 +338,14 @@ pub fn normalize_message(
                     media_type: MediaType::Video,
                     url: None,
                     data: None,
-                    filename: data.get("filename").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                    mime_type: data.get("mime_type").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    filename: data
+                        .get("filename")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    mime_type: data
+                        .get("mime_type")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
                     size_bytes: None,
                 };
                 MessageContent::Media(media)
@@ -337,8 +359,14 @@ pub fn normalize_message(
                     media_type: MediaType::Document,
                     url: None,
                     data: None,
-                    filename: data.get("filename").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                    mime_type: data.get("mime_type").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    filename: data
+                        .get("filename")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    mime_type: data
+                        .get("mime_type")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
                     size_bytes: None,
                 };
                 MessageContent::Media(media)
@@ -360,14 +388,30 @@ pub fn normalize_message(
         Some("location") => {
             if let Some(serde_json::Value::Object(data)) = message.content.get("location") {
                 let latitude = data.get("latitude").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                let longitude = data.get("longitude").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                let name = data.get("name").and_then(|v| v.as_str()).map(|s| s.to_string());
-                let address = data.get("address").and_then(|v| v.as_str()).map(|s| s.to_string());
-                
+                let longitude = data
+                    .get("longitude")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0);
+                let name = data
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let address = data
+                    .get("address")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+
                 let location_text = match (&name, &address) {
-                    (Some(name), Some(address)) => format!("Location: {} - {} ({}°N, {}°E)", name, address, latitude, longitude),
-                    (Some(name), None) => format!("Location: {} ({}°N, {}°E)", name, latitude, longitude),
-                    (None, Some(address)) => format!("Location: {} ({}°N, {}°E)", address, latitude, longitude),
+                    (Some(name), Some(address)) => format!(
+                        "Location: {} - {} ({}°N, {}°E)",
+                        name, address, latitude, longitude
+                    ),
+                    (Some(name), None) => {
+                        format!("Location: {} ({}°N, {}°E)", name, latitude, longitude)
+                    }
+                    (None, Some(address)) => {
+                        format!("Location: {} ({}°N, {}°E)", address, latitude, longitude)
+                    }
                     (None, None) => format!("Location: {}°N, {}°E", latitude, longitude),
                 };
                 MessageContent::Text(location_text)
@@ -378,21 +422,13 @@ pub fn normalize_message(
         Some("contacts") => {
             MessageContent::Text("[Contact messages not fully supported]".to_string())
         }
-        Some("button") => {
-            MessageContent::Text("[Button messages not fully supported]".to_string())
-        }
+        Some("button") => MessageContent::Text("[Button messages not fully supported]".to_string()),
         Some("reaction") => {
             MessageContent::Text("[Reaction messages not fully supported]".to_string())
         }
-        Some("system") => {
-            MessageContent::Text("[System messages not fully supported]".to_string())
-        }
-        Some("unknown") | None => {
-            MessageContent::Text("[Unknown message type]".to_string())
-        }
-        _ => {
-            MessageContent::Text("[Unknown message type]".to_string())
-        }
+        Some("system") => MessageContent::Text("[System messages not fully supported]".to_string()),
+        Some("unknown") | None => MessageContent::Text("[Unknown message type]".to_string()),
+        _ => MessageContent::Text("[Unknown message type]".to_string()),
     };
 
     // Build the incoming message
@@ -500,7 +536,7 @@ mod tests {
         assert!(result.is_ok(), "Failed to parse: {:?}", result);
         let messages = result.unwrap();
         assert_eq!(messages.len(), 1);
-        
+
         // Check the media content
         if let MessageContent::Media(media) = &messages[0].content {
             assert_eq!(media.media_type, MediaType::Image);
@@ -545,7 +581,7 @@ mod tests {
         assert!(result.is_ok(), "Failed to parse: {:?}", result);
         let messages = result.unwrap();
         assert_eq!(messages.len(), 1);
-        
+
         // Check the location content
         if let MessageContent::Text(text) = &messages[0].content {
             assert!(text.contains("San Francisco"));
@@ -701,14 +737,14 @@ mod tests {
         assert!(result.is_ok(), "Failed to parse: {:?}", result);
         let messages = result.unwrap();
         assert_eq!(messages.len(), 1);
-        
+
         // Verify it's recognized as a group message
         assert_eq!(messages[0].peer.kind, PeerKind::Group);
         assert_eq!(messages[0].peer.id, "332020202020202020");
-        
+
         // Verify the sender is still the individual user
         assert_eq!(messages[0].sender.id, "15551234567");
-        
+
         // Verify the content
         if let MessageContent::Text(text) = &messages[0].content {
             assert_eq!(*text, "Hello, group!");
@@ -754,11 +790,11 @@ mod tests {
         assert!(result.is_ok(), "Failed to parse: {:?}", result);
         let messages = result.unwrap();
         assert_eq!(messages.len(), 1);
-        
+
         // Verify it's recognized as a group message
         assert_eq!(messages[0].peer.kind, PeerKind::Group);
         assert_eq!(messages[0].peer.id, "441010101010101010");
-        
+
         // Check the media content
         if let MessageContent::Media(media) = &messages[0].content {
             assert_eq!(media.media_type, MediaType::Image);
@@ -809,7 +845,7 @@ mod tests {
         assert!(result.is_ok(), "Failed to parse: {:?}", result);
         let messages = result.unwrap();
         assert_eq!(messages.len(), 2);
-        
+
         // Verify both are group messages
         assert_eq!(messages[0].peer.kind, PeerKind::Group);
         assert_eq!(messages[1].peer.kind, PeerKind::Group);

@@ -108,10 +108,7 @@ impl LarkChannel {
             supports_typing: true,
             supports_voice: false,
             max_message_length: Some(2000),
-            supported_media_types: vec![
-                MediaType::Image,
-                MediaType::Document,
-            ],
+            supported_media_types: vec![MediaType::Image, MediaType::Document],
         };
 
         let accounts = vec![account];
@@ -169,9 +166,9 @@ impl LarkChannel {
     /// * `chat_id` - The chat ID to send to
     /// * `text` - The text content to send
     pub async fn send_text(&self, account_id: &str, chat_id: &str, text: &str) -> Result<()> {
-        let account = self.get_account(account_id).ok_or_else(|| {
-            anyhow::anyhow!("Account {} not found", account_id)
-        })?;
+        let account = self
+            .get_account(account_id)
+            .ok_or_else(|| anyhow::anyhow!("Account {} not found", account_id))?;
 
         let mut api = account.api.lock().await;
         api.send_text(chat_id, text).await?;
@@ -191,9 +188,9 @@ impl LarkChannel {
         chat_id: &str,
         card: MessageCard,
     ) -> Result<()> {
-        let account = self.get_account(account_id).ok_or_else(|| {
-            anyhow::anyhow!("Account {} not found", account_id)
-        })?;
+        let account = self
+            .get_account(account_id)
+            .ok_or_else(|| anyhow::anyhow!("Account {} not found", account_id))?;
 
         let mut api = account.api.lock().await;
         let card_json = card.to_json()?;
@@ -292,7 +289,9 @@ impl ChannelPlugin for LarkChannel {
     }
 
     fn security(&self) -> Option<&dyn SecurityAdapter> {
-        self.security_adapter.as_ref().map(|a| a as &dyn SecurityAdapter)
+        self.security_adapter
+            .as_ref()
+            .map(|a| a as &dyn SecurityAdapter)
     }
 
     async fn connect(&mut self) -> Result<()> {
@@ -308,9 +307,9 @@ impl ChannelPlugin for LarkChannel {
         let account_id = &msg.target.account_id;
 
         // Get the account
-        let account = self.get_account(account_id).ok_or_else(|| {
-            anyhow::anyhow!("Account {} not found", account_id)
-        })?;
+        let account = self
+            .get_account(account_id)
+            .ok_or_else(|| anyhow::anyhow!("Account {} not found", account_id))?;
 
         let mut api = account.api.lock().await;
 
@@ -319,9 +318,7 @@ impl ChannelPlugin for LarkChannel {
 
         // Process message content
         match &msg.content {
-            aisopod_channel::MessageContent::Text(text) => {
-                api.send_text(&chat_id, text).await?
-            }
+            aisopod_channel::MessageContent::Text(text) => api.send_text(&chat_id, text).await?,
             aisopod_channel::MessageContent::Mixed(parts) => {
                 for part in parts {
                     match part {
@@ -331,14 +328,16 @@ impl ChannelPlugin for LarkChannel {
                         aisopod_channel::MessagePart::Media(media) => {
                             // For now, just send a text notification
                             // In a real implementation, upload and send media
-                            let url: String = media.url.as_ref().map(|s| s.clone())
-                                .unwrap_or_else(|| media.data.as_ref().map(|v| v.len().to_string())
-                                .unwrap_or_else(|| "unknown".to_string()));
-                            api.send_text(
-                                &chat_id,
-                                &format!("Sent media: {}", url),
-                            )
-                            .await?
+                            let url: String =
+                                media.url.as_ref().map(|s| s.clone()).unwrap_or_else(|| {
+                                    media
+                                        .data
+                                        .as_ref()
+                                        .map(|v| v.len().to_string())
+                                        .unwrap_or_else(|| "unknown".to_string())
+                                });
+                            api.send_text(&chat_id, &format!("Sent media: {}", url))
+                                .await?
                         }
                     }
                 }
@@ -346,10 +345,15 @@ impl ChannelPlugin for LarkChannel {
             aisopod_channel::MessageContent::Media(media) => {
                 // For now, just send a text notification
                 // In a real implementation, upload and send media
-                let url: String = media.url.as_ref().map(|s| s.clone())
-                    .unwrap_or_else(|| media.data.as_ref().map(|v| v.len().to_string())
-                    .unwrap_or_else(|| "unknown".to_string()));
-                api.send_text(&chat_id, &format!("Sent media: {}", url)).await?
+                let url: String = media.url.as_ref().map(|s| s.clone()).unwrap_or_else(|| {
+                    media
+                        .data
+                        .as_ref()
+                        .map(|v| v.len().to_string())
+                        .unwrap_or_else(|| "unknown".to_string())
+                });
+                api.send_text(&chat_id, &format!("Sent media: {}", url))
+                    .await?
             }
         }
 
@@ -358,7 +362,9 @@ impl ChannelPlugin for LarkChannel {
 
     async fn receive(&mut self) -> Result<aisopod_channel::IncomingMessage> {
         // In a real implementation, wait for incoming messages from webhooks or polling
-        Err(anyhow::anyhow!("Receive is not implemented for this channel"))
+        Err(anyhow::anyhow!(
+            "Receive is not implemented for this channel"
+        ))
     }
 
     async fn disconnect(&mut self) -> Result<()> {

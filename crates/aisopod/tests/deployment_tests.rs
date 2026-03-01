@@ -18,10 +18,8 @@ use std::process::Command;
 #[ignore = "Docker build test - requires Docker daemon"]
 fn docker_image_builds() {
     // Skip if Docker is not available
-    let docker_status = Command::new("docker")
-        .arg("--version")
-        .status();
-    
+    let docker_status = Command::new("docker").arg("--version").status();
+
     if let Ok(status) = docker_status {
         if !status.success() {
             println!("Docker is not available, skipping test");
@@ -60,10 +58,8 @@ fn docker_image_builds() {
 #[ignore = "Docker container test - requires Docker daemon and built image"]
 fn docker_container_starts_and_responds() {
     // Skip if Docker is not available
-    let docker_status = Command::new("docker")
-        .arg("--version")
-        .status();
-    
+    let docker_status = Command::new("docker").arg("--version").status();
+
     if let Ok(status) = docker_status {
         if !status.success() {
             println!("Docker is not available, skipping test");
@@ -75,7 +71,7 @@ fn docker_container_starts_and_responds() {
     }
 
     let container_name = "aisopod-smoke-test-container";
-    
+
     // Cleanup any existing container first
     let _ = Command::new("docker")
         .args(["rm", "-f", container_name])
@@ -84,8 +80,12 @@ fn docker_container_starts_and_responds() {
     // Start container in background
     let run_output = Command::new("docker")
         .args([
-            "run", "-d", "--name", container_name,
-            "-p", "18799:8080",
+            "run",
+            "-d",
+            "--name",
+            container_name,
+            "-p",
+            "18799:8080",
             "aisopod-smoke-test",
         ])
         .output();

@@ -149,7 +149,11 @@ pub struct WebhookState {
 
 impl WebhookState {
     /// Create a new webhook state.
-    pub fn new(verify_token: impl Into<String>, account_id: impl Into<String>, channel: impl Into<String>) -> Self {
+    pub fn new(
+        verify_token: impl Into<String>,
+        account_id: impl Into<String>,
+        channel: impl Into<String>,
+    ) -> Self {
         Self {
             verify_token: verify_token.into(),
             account_id: account_id.into(),
@@ -226,8 +230,7 @@ async fn webhook_verify_handler(
     if query.hub_verify_token != Some(state.verify_token.clone()) {
         error!(
             "Invalid verify token: expected '{}', got {:?}",
-            state.verify_token,
-            query.hub_verify_token
+            state.verify_token, query.hub_verify_token
         );
         return (
             StatusCode::FORBIDDEN,
@@ -253,12 +256,15 @@ async fn webhook_message_handler(
 ) -> impl IntoResponse {
     info!(
         "Received webhook event: type={:?}, space={}",
-        payload.event_type,
-        payload.space.name
+        payload.event_type, payload.space.name
     );
 
     // Validate the space
-    let space_id = payload.space.name.strip_prefix("spaces/").unwrap_or(&payload.space.name);
+    let space_id = payload
+        .space
+        .name
+        .strip_prefix("spaces/")
+        .unwrap_or(&payload.space.name);
     if !state.is_space_allowed(space_id) {
         error!(
             "Event from space {} not in allowed list",
@@ -276,7 +282,11 @@ async fn webhook_message_handler(
             if let Some(ref message) = payload.message {
                 info!(
                     "Message from {}: {}",
-                    message.sender.as_ref().map(|s| s.display_name.as_deref().unwrap_or("unknown")).unwrap_or("unknown"),
+                    message
+                        .sender
+                        .as_ref()
+                        .map(|s| s.display_name.as_deref().unwrap_or("unknown"))
+                        .unwrap_or("unknown"),
                     message.text.as_deref().unwrap_or("")
                 );
             }
@@ -284,7 +294,11 @@ async fn webhook_message_handler(
         EventType::RoomCreated => {
             info!(
                 "Room created: {}",
-                payload.space.display_name.as_deref().unwrap_or(&payload.space.name)
+                payload
+                    .space
+                    .display_name
+                    .as_deref()
+                    .unwrap_or(&payload.space.name)
             );
         }
         EventType::UserJoined | EventType::UserAdded => {
@@ -308,7 +322,11 @@ async fn webhook_message_handler(
         EventType::CardClicked => {
             info!(
                 "Card action: {}",
-                payload.card_action.as_ref().and_then(|a| a.action_name.as_deref()).unwrap_or("unknown")
+                payload
+                    .card_action
+                    .as_ref()
+                    .and_then(|a| a.action_name.as_deref())
+                    .unwrap_or("unknown")
             );
         }
         _ => {
@@ -323,7 +341,10 @@ async fn webhook_message_handler(
         }
     }
 
-    (StatusCode::OK, Json(serde_json::json!({"status": "received"})))
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"status": "received"})),
+    )
 }
 
 /// Parse a timestamp string to DateTime.
@@ -332,12 +353,12 @@ pub fn parse_timestamp(timestamp: &str) -> Result<DateTime<Utc>> {
     // Example: "2021-04-15T10:30:00.000000000Z"
     let timestamp = timestamp.trim_end_matches('Z');
     let timestamp = timestamp.trim_end_matches('0').trim_end_matches('.');
-    
+
     // Try parsing with nanoseconds first
     if let Ok(dt) = DateTime::parse_from_rfc3339(timestamp) {
         return Ok(dt.with_timezone(&Utc));
     }
-    
+
     // Try with just seconds
     let timestamp = format!("{}Z", timestamp);
     DateTime::parse_from_rfc3339(&timestamp)
@@ -358,7 +379,7 @@ mod tests {
             hub_challenge: Some("123456".to_string()),
             hub_verify_token: Some("mytoken".to_string()),
         };
-        
+
         assert_eq!(query.hub_mode, Some("subscribe".to_string()));
         assert_eq!(query.hub_challenge, Some("123456".to_string()));
         assert_eq!(query.hub_verify_token, Some("mytoken".to_string()));
@@ -397,10 +418,13 @@ mod tests {
         let result: Result<WebhookPayload, _> = serde_json::from_str(payload);
         assert!(result.is_ok());
         let payload = result.unwrap();
-        
+
         assert_eq!(payload.event_type, EventType::Message);
         assert_eq!(payload.space.name, "spaces/SPACE123");
-        assert_eq!(payload.message.as_ref().unwrap().text, Some("Hello, world!".to_string()));
+        assert_eq!(
+            payload.message.as_ref().unwrap().text,
+            Some("Hello, world!".to_string())
+        );
     }
 
     #[test]
@@ -433,9 +457,12 @@ mod tests {
         let result: Result<WebhookPayload, _> = serde_json::from_str(payload);
         assert!(result.is_ok());
         let payload = result.unwrap();
-        
+
         assert_eq!(payload.event_type, EventType::CardClicked);
-        assert_eq!(payload.card_action.as_ref().unwrap().action_name, Some("update_status".to_string()));
+        assert_eq!(
+            payload.card_action.as_ref().unwrap().action_name,
+            Some("update_status".to_string())
+        );
     }
 
     #[test]
@@ -453,7 +480,7 @@ mod tests {
     #[test]
     fn test_webhook_state_default() {
         let state = WebhookState::new("mytoken", "account1", "googlechat");
-        
+
         assert_eq!(state.verify_token, "mytoken");
         assert_eq!(state.account_id, "account1");
         assert_eq!(state.channel, "googlechat");
@@ -465,7 +492,7 @@ mod tests {
     fn test_webhook_state_allowed_spaces() {
         let state = WebhookState::new("mytoken", "account1", "googlechat")
             .allowed_spaces(vec!["SPACE123".to_string(), "SPACE456".to_string()]);
-        
+
         assert!(state.is_space_allowed("SPACE123"));
         assert!(state.is_space_allowed("SPACE456"));
         assert!(!state.is_space_allowed("SPACE789"));
@@ -476,7 +503,7 @@ mod tests {
         let timestamp = "2021-04-15T10:30:00.000000000Z";
         let result = parse_timestamp(timestamp);
         assert!(result.is_ok());
-        
+
         let dt = result.unwrap();
         assert_eq!(dt.year(), 2021);
         assert_eq!(dt.month(), 4);
@@ -487,13 +514,14 @@ mod tests {
     fn test_webhook_state_with_callback() {
         let callback_called = std::sync::Arc::new(AtomicBool::new(false));
         let callback_called_clone = callback_called.clone();
-        
-        let state = WebhookState::new("mytoken", "account1", "googlechat")
-            .event_callback(move |payload: WebhookPayload| {
+
+        let state = WebhookState::new("mytoken", "account1", "googlechat").event_callback(
+            move |payload: WebhookPayload| {
                 callback_called_clone.store(true, std::sync::atomic::Ordering::SeqCst);
                 Ok(())
-            });
-        
+            },
+        );
+
         if let Some(ref callback) = state.event_callback {
             let _ = callback(WebhookPayload {
                 event_type: EventType::Message,
@@ -509,7 +537,7 @@ mod tests {
                 card_action: None,
             });
         }
-        
+
         assert!(callback_called.load(std::sync::atomic::Ordering::SeqCst));
     }
 
@@ -519,7 +547,7 @@ mod tests {
             status: "received".to_string(),
             message: Some("Success".to_string()),
         };
-        
+
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("received"));
         assert!(json.contains("Success"));
@@ -528,7 +556,7 @@ mod tests {
     #[test]
     fn test_webhook_state_without_allowlist() {
         let state = WebhookState::new("mytoken", "account1", "googlechat");
-        
+
         // Without allowlist, all spaces are allowed
         assert!(state.is_space_allowed("SPACE123"));
         assert!(state.is_space_allowed("SPACE456"));
@@ -564,13 +592,16 @@ mod tests {
 
         let result: Result<WebhookPayload, _> = serde_json::from_str(payload);
         assert!(result.is_ok());
-        
+
         let payload = result.unwrap();
         let card_action = payload.card_action.unwrap();
-        
+
         assert_eq!(card_action.action_name, Some("update_status".to_string()));
         assert_eq!(card_action.action_id, Some("update_button".to_string()));
-        assert_eq!(card_action.resource_name, Some("spaces/SPACE123/messages/MESSAGE123".to_string()));
+        assert_eq!(
+            card_action.resource_name,
+            Some("spaces/SPACE123/messages/MESSAGE123".to_string())
+        );
         assert_eq!(card_action.parameters.len(), 1);
         assert_eq!(card_action.parameters[0].name, "status");
         assert_eq!(card_action.parameters[0].value, "complete");

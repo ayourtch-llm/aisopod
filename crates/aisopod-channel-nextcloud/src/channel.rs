@@ -9,9 +9,11 @@ use crate::polling::MessagePoller;
 use aisopod_channel::adapters::{
     AccountConfig, AccountSnapshot, ChannelConfigAdapter, SecurityAdapter,
 };
-use aisopod_channel::message::{IncomingMessage, MessageContent, MessagePart, MessageTarget, PeerInfo, PeerKind, SenderInfo};
-use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+use aisopod_channel::message::{
+    IncomingMessage, MessageContent, MessagePart, MessageTarget, PeerInfo, PeerKind, SenderInfo,
+};
 use aisopod_channel::plugin::ChannelPlugin;
+use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -112,10 +114,7 @@ impl NextcloudChannel {
 
         // Validate the configuration by attempting to create API client
         if let Err(e) = account.get_api() {
-            return Err(anyhow::anyhow!(
-                "Failed to create API client: {}",
-                e
-            ));
+            return Err(anyhow::anyhow!("Failed to create API client: {}", e));
         }
 
         let id = format!("nextcloud-{}", account_id);
@@ -130,10 +129,7 @@ impl NextcloudChannel {
             }),
         };
         let capabilities = ChannelCapabilities {
-            chat_types: vec![
-                ChatType::Group,
-                ChatType::Channel,
-            ],
+            chat_types: vec![ChatType::Group, ChatType::Channel],
             supports_media: true,
             supports_reactions: true,
             supports_threads: true,
@@ -186,26 +182,23 @@ impl NextcloudChannel {
             );
 
             let api = account.get_api()?;
-            
+
             // Get list of rooms to verify connection
             match api.get_rooms().await {
                 Ok(rooms) => {
                     info!("Connected to Nextcloud, found {} rooms", rooms.len());
-                    
+
                     // Print available rooms for reference
                     for room in &rooms {
                         info!("  - {} (token: {})", room.name, room.token);
                     }
-                    
+
                     account.connected = true;
                 }
                 Err(e) => {
                     error!("Failed to get rooms: {}", e);
                     account.connected = false;
-                    return Err(anyhow::anyhow!(
-                        "Failed to connect to Nextcloud: {}",
-                        e
-                    ));
+                    return Err(anyhow::anyhow!("Failed to connect to Nextcloud: {}", e));
                 }
             }
         }
@@ -246,17 +239,19 @@ impl NextcloudChannel {
                 return api.send_message(room_token, message).await;
             }
         }
-        
+
         Err(anyhow::anyhow!("No connected accounts available"))
     }
 
     /// Create a message poller for this channel.
     pub fn create_poller(&self) -> Result<MessagePoller> {
-        let account = self.accounts.first()
+        let account = self
+            .accounts
+            .first()
             .ok_or_else(|| anyhow::anyhow!("No accounts configured"))?;
-        
+
         let api = account.get_api()?;
-        
+
         Ok(MessagePoller::new(
             api,
             account.config.rooms.clone(),
@@ -286,7 +281,8 @@ impl ChannelConfigAdapter for NextcloudChannelConfigAdapter {
     }
 
     fn resolve_account(&self, id: &str) -> Result<AccountSnapshot> {
-        self.accounts.iter()
+        self.accounts
+            .iter()
             .find(|a| a.id == id)
             .map(|a| AccountSnapshot {
                 id: a.id.clone(),
@@ -358,7 +354,9 @@ impl ChannelPlugin for NextcloudChannel {
     }
 
     fn security(&self) -> Option<&dyn SecurityAdapter> {
-        self.security_adapter.as_ref().map(|a| a as &dyn SecurityAdapter)
+        self.security_adapter
+            .as_ref()
+            .map(|a| a as &dyn SecurityAdapter)
     }
 
     async fn connect(&mut self) -> Result<()> {
@@ -374,17 +372,16 @@ impl ChannelPlugin for NextcloudChannel {
                 // For media messages, create a placeholder text
                 format!("[Media: {}]", media.url.as_deref().unwrap_or("unknown"))
             }
-            MessageContent::Mixed(parts) => {
-                parts.iter()
-                    .map(|part| match part {
-                        MessagePart::Text(text) => text.clone(),
-                        MessagePart::Media(media) => {
-                            format!("[Media: {}]", media.url.as_deref().unwrap_or("unknown"))
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            }
+            MessageContent::Mixed(parts) => parts
+                .iter()
+                .map(|part| match part {
+                    MessagePart::Text(text) => text.clone(),
+                    MessagePart::Media(media) => {
+                        format!("[Media: {}]", media.url.as_deref().unwrap_or("unknown"))
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" "),
         };
 
         self.send_to_room(&room_token, &message).await
@@ -394,19 +391,22 @@ impl ChannelPlugin for NextcloudChannel {
         // This is a simplified implementation - in production, you'd want
         // a proper polling or WebSocket-based approach
         let mut poller = self.create_poller()?;
-        
+
         loop {
             match poller.poll_once().await {
                 Ok(messages) => {
                     if !messages.is_empty() {
-                        let (room, talk_msg) = messages.first()
+                        let (room, talk_msg) = messages
+                            .first()
                             .ok_or_else(|| anyhow::anyhow!("No messages received"))?;
-                        
+
                         // Convert Nextcloud Talk message to aisopod IncomingMessage
                         let incoming = IncomingMessage {
                             id: format!("nc-{}", talk_msg.id),
                             channel: self.id.clone(),
-                            account_id: self.accounts.first()
+                            account_id: self
+                                .accounts
+                                .first()
                                 .map(|a| a.id.clone())
                                 .unwrap_or_default(),
                             sender: SenderInfo {
@@ -429,7 +429,7 @@ impl ChannelPlugin for NextcloudChannel {
                                 "chat_id": talk_msg.chat_id
                             }),
                         };
-                        
+
                         return Ok(incoming);
                     }
                 }
@@ -437,7 +437,7 @@ impl ChannelPlugin for NextcloudChannel {
                     warn!("Polling failed: {}", e);
                 }
             }
-            
+
             // Wait before polling again
             tokio::time::sleep(poller.poll_interval()).await;
         }
@@ -469,7 +469,7 @@ mod tests {
             rooms: vec![],
             poll_interval_secs: 10,
         };
-        
+
         let result = NextcloudChannel::new(config, "test");
         assert!(result.is_err());
     }
@@ -483,7 +483,7 @@ mod tests {
             rooms: vec![],
             poll_interval_secs: 10,
         };
-        
+
         let result = NextcloudChannel::new(config, "test");
         assert!(result.is_err());
     }
@@ -497,7 +497,7 @@ mod tests {
             rooms: vec![],
             poll_interval_secs: 10,
         };
-        
+
         let result = NextcloudChannel::new(config, "test");
         assert!(result.is_err());
     }
@@ -511,7 +511,7 @@ mod tests {
             rooms: vec!["room1".to_string()],
             poll_interval_secs: 10,
         };
-        
+
         // This should succeed (API validation happens at connect time)
         let result = NextcloudChannel::new(config, "test");
         assert!(result.is_ok());

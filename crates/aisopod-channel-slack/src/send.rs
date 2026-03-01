@@ -104,7 +104,7 @@ impl SendMessageResponse {
 /// The converted mrkdwn text
 pub fn markdown_to_mrkdwn(text: &str) -> String {
     let mut result = text.to_string();
-    
+
     // Bold: **text** or __text__ → *text*
     result = regex::Regex::new(r"\*\*(.+?)\*\*")
         .map(|re: regex::Regex| re.replace_all(&result, "*$1*").to_string())
@@ -112,32 +112,32 @@ pub fn markdown_to_mrkdwn(text: &str) -> String {
     result = regex::Regex::new(r"__(.+?)__")
         .map(|re: regex::Regex| re.replace_all(&result, "*$1*").to_string())
         .unwrap_or(result.clone());
-    
+
     // Italic: _text_ → _text_ (single underscore is already valid Slack mrkdwn)
     // Note: **bold** is converted to *bold* first, so we only need to handle _text_
     // Single *text* patterns are already valid Slack mrkdwn (from bold conversion)
     // and should not be modified
-    
+
     // Strikethrough: ~~text~~ → ~text~
     result = regex::Regex::new(r"~~(.+?)~~")
         .map(|re: regex::Regex| re.replace_all(&result, "~$1~").to_string())
         .unwrap_or(result.clone());
-    
+
     // Inline code: `code` → `code`
     // Code blocks: ```code``` → ```code```
-    
+
     // Quotes: > text → > text (already compatible)
-    
+
     // Headers: # Header → *Header* (multiline)
     result = regex::Regex::new(r"(?m)^#\s+(.+)$")
         .map(|re: regex::Regex| re.replace_all(&result, "*$1*").to_string())
         .unwrap_or(result.clone());
-    
+
     // Subheaders: ## Subheader → *Subheader* (multiline)
     result = regex::Regex::new(r"(?m)^##\s+(.+)$")
         .map(|re: regex::Regex| re.replace_all(&result, "*$1*").to_string())
         .unwrap_or(result.clone());
-    
+
     // Lists: 1. item, - item, * item → • item (multiline)
     result = regex::Regex::new(r"(?m)^\s*[\d]+\.\s+(.+)$")
         .map(|re: regex::Regex| re.replace_all(&result, "• $1").to_string())
@@ -148,12 +148,12 @@ pub fn markdown_to_mrkdwn(text: &str) -> String {
     result = regex::Regex::new(r"(?m)^\s*\*\s+(.+)$")
         .map(|re: regex::Regex| re.replace_all(&result, "• $1").to_string())
         .unwrap_or(result.clone());
-    
+
     // Links: [text](url) → <url|text>
     result = regex::Regex::new(r"\[([^\]]+)\]\(([^)]+)\)")
         .map(|re: regex::Regex| re.replace_all(&result, "<$2|$1>").to_string())
         .unwrap_or(result.clone());
-    
+
     result
 }
 
@@ -172,14 +172,14 @@ pub fn markdown_to_mrkdwn(text: &str) -> String {
 /// A vector of message chunks
 pub fn split_message(text: &str, max_length: usize) -> Vec<String> {
     let max_len = max_length.min(3900); // Safety margin
-    
+
     if text.len() <= max_len {
         return vec![text.to_string()];
     }
-    
+
     let mut chunks = Vec::new();
     let mut remaining = text.to_string();
-    
+
     while remaining.len() > max_len {
         // Try to find a natural break point (newline, space, or punctuation)
         let chunk = if let Some(newline_pos) = remaining[..max_len].rfind('\n') {
@@ -199,14 +199,14 @@ pub fn split_message(text: &str, max_length: usize) -> Vec<String> {
             remaining = remaining[after_start..].to_string();
             chunk
         };
-        
+
         chunks.push(chunk);
     }
-    
+
     if !remaining.is_empty() {
         chunks.push(remaining);
     }
-    
+
     chunks
 }
 
@@ -232,7 +232,7 @@ pub fn build_send_message_payload(
         "channel": channel_id,
         "text": text
     });
-    
+
     if let Some(opts) = options {
         if let Some(ts) = &opts.thread_ts {
             payload["thread_ts"] = serde_json::json!(ts);
@@ -253,11 +253,11 @@ pub fn build_send_message_payload(
             payload["as_user"] = serde_json::json!(as_user);
         }
     }
-    
+
     if let Some(b) = blocks {
         payload["blocks"] = b.clone();
     }
-    
+
     payload
 }
 
@@ -283,14 +283,14 @@ pub async fn send_text_message(
     options: Option<&SendOptions>,
 ) -> Result<SendMessageResponse> {
     let payload = build_send_message_payload(channel_id, text, options, None);
-    
+
     let response = client
         .post("https://slack.com/api/chat.postMessage", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let parsed: SendMessageResponse = serde_json::from_value(json)?;
-    
+
     Ok(parsed)
 }
 
@@ -316,14 +316,14 @@ pub async fn send_message_with_blocks(
     options: Option<&SendOptions>,
 ) -> Result<SendMessageResponse> {
     let payload = build_send_message_payload(channel_id, text, options, Some(blocks));
-    
+
     let response = client
         .post("https://slack.com/api/chat.postMessage", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let parsed: SendMessageResponse = serde_json::from_value(json)?;
-    
+
     Ok(parsed)
 }
 
@@ -353,23 +353,23 @@ pub async fn edit_message(
         "ts": ts,
         "text": text
     });
-    
+
     if let Some(b) = blocks {
         payload["blocks"] = b.clone();
     }
-    
+
     let response = client
         .post("https://slack.com/api/chat.update", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let success: bool = json["ok"].as_bool().unwrap_or(false);
-    
+
     if !success {
         let error = json["error"].as_str().unwrap_or("Unknown error");
         return Err(anyhow::anyhow!("chat.update failed: {}", error));
     }
-    
+
     Ok(())
 }
 
@@ -394,19 +394,19 @@ pub async fn delete_message(
         "channel": channel_id,
         "ts": ts
     });
-    
+
     let response = client
         .post("https://slack.com/api/chat.delete", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let success: bool = json["ok"].as_bool().unwrap_or(false);
-    
+
     if !success {
         let error = json["error"].as_str().unwrap_or("Unknown error");
         return Err(anyhow::anyhow!("chat.delete failed: {}", error));
     }
-    
+
     Ok(())
 }
 
@@ -438,20 +438,20 @@ pub async fn send_ephemeral_message(
         "user": user_id,
         "text": text
     });
-    
+
     if let Some(opts) = options {
         if let Some(ts) = &opts.thread_ts {
             payload["thread_ts"] = serde_json::json!(ts);
         }
     }
-    
+
     let response = client
         .post("https://slack.com/api/chat.postEphemeral", &payload)
         .await?;
-    
+
     let json: serde_json::Value = response.json().await?;
     let parsed: SendMessageResponse = serde_json::from_value(json)?;
-    
+
     Ok(parsed)
 }
 
@@ -508,12 +508,12 @@ mod tests {
         let text = "a".repeat(5000);
         let chunks = split_message(&text, 1000);
         assert!(chunks.len() > 1);
-        
+
         // Verify all chunks are within the limit
         for chunk in &chunks {
             assert!(chunk.len() <= 1000);
         }
-        
+
         // Verify all characters are preserved
         let combined = chunks.join("");
         assert_eq!(combined.len(), text.len());
@@ -521,13 +521,8 @@ mod tests {
 
     #[test]
     fn test_build_send_message_payload() {
-        let payload = build_send_message_payload(
-            "C123456",
-            "Hello, world!",
-            None,
-            None,
-        );
-        
+        let payload = build_send_message_payload("C123456", "Hello, world!", None, None);
+
         assert_eq!(payload["channel"], "C123456");
         assert_eq!(payload["text"], "Hello, world!");
     }
@@ -540,7 +535,7 @@ mod tests {
             mrkdwn: Some(true),
             ..Default::default()
         };
-        
+
         let json = serde_json::to_string(&options).unwrap();
         assert!(json.contains("thread_ts"));
         assert!(json.contains("reply_broadcast"));
@@ -557,7 +552,7 @@ mod tests {
             error: None,
             response_metadata: None,
         };
-        
+
         assert!(response.is_ok());
         assert_eq!(response.get_ts(), Some("1234567890.123456"));
         assert_eq!(response.get_error(), None);

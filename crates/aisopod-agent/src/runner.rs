@@ -498,7 +498,7 @@ impl AgentRunner {
     /// Returns the final result of the agent run, or an error if
     /// the run failed.
     pub async fn run_and_get_result(&self, params: AgentRunParams) -> Result<AgentRunResult> {
-        let pipeline = if let (Some(memory_pipeline), Some(memory_manager)) = 
+        let pipeline = if let (Some(memory_pipeline), Some(memory_manager)) =
             (self.memory_pipeline.clone(), self.memory_manager.clone())
         {
             // Use memory-enabled pipeline with skills if available
@@ -728,9 +728,11 @@ impl SubagentRunnerExt for AgentRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aisopod_session::SessionStore;
-    use aisopod_memory::{MemoryManager, MemoryManagerConfig, MemoryQueryPipeline, MockEmbeddingProvider};
     use aisopod_memory::sqlite::SqliteMemoryStore;
+    use aisopod_memory::{
+        MemoryManager, MemoryManagerConfig, MemoryQueryPipeline, MockEmbeddingProvider,
+    };
+    use aisopod_session::SessionStore;
     use tempfile::tempdir;
 
     #[test]
@@ -755,10 +757,14 @@ mod tests {
         let store = SqliteMemoryStore::new(db_path.to_str().unwrap(), 4).unwrap();
         let store = Arc::new(store) as Arc<dyn aisopod_memory::MemoryStore>;
         let embedder = Arc::new(MockEmbeddingProvider::new(4));
-        
+
         let pipeline = Arc::new(MemoryQueryPipeline::new(store.clone(), embedder.clone()));
-        let manager = Arc::new(MemoryManager::new(store, embedder, MemoryManagerConfig::default()));
-        
+        let manager = Arc::new(MemoryManager::new(
+            store,
+            embedder,
+            MemoryManagerConfig::default(),
+        ));
+
         let config = Arc::new(aisopod_config::AisopodConfig::default());
         let providers = Arc::new(aisopod_provider::ProviderRegistry::new());
         let mut tools = aisopod_tools::ToolRegistry::new();
@@ -768,19 +774,16 @@ mod tests {
             SessionStore::new_in_memory().expect("Failed to create in-memory session store"),
         );
 
-        let runner = AgentRunner::new_with_memory(
-            config,
-            providers,
-            tools,
-            sessions,
-            pipeline,
-            manager,
-        );
+        let runner =
+            AgentRunner::new_with_memory(config, providers, tools, sessions, pipeline, manager);
 
         // Verify memory tool is registered
         let tools = runner.tools();
         let registered_tools = tools.list();
-        assert!(registered_tools.contains(&"memory".to_string()), 
-                "Memory tool should be registered. Registered tools: {:?}", registered_tools);
+        assert!(
+            registered_tools.contains(&"memory".to_string()),
+            "Memory tool should be registered. Registered tools: {:?}",
+            registered_tools
+        );
     }
 }

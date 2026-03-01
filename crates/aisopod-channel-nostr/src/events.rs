@@ -55,7 +55,7 @@ impl NostrEvent {
     pub fn new_text_note(keys: &NostrKeys, content: &str) -> Result<Self, EventError> {
         let created_at = Utc::now().timestamp() as u64;
         let pubkey = keys.pubkey_hex();
-        
+
         // Create the event without ID and signature
         let mut event = NostrEvent {
             id: String::new(),
@@ -66,10 +66,10 @@ impl NostrEvent {
             content: content.to_string(),
             sig: String::new(),
         };
-        
+
         // Compute ID and sign
         event.compute_id_and_sign(keys)?;
-        
+
         Ok(event)
     }
 
@@ -90,7 +90,7 @@ impl NostrEvent {
     ) -> Result<Self, EventError> {
         let created_at = Utc::now().timestamp() as u64;
         let pubkey = keys.pubkey_hex();
-        
+
         // Encrypt the content using NIP-04
         let encrypted_content = crate::nip04::encrypt(
             keys.secret_key(),
@@ -100,7 +100,7 @@ impl NostrEvent {
             plaintext,
         )
         .map_err(|e| EventError::Encoding(e.to_string()))?;
-        
+
         // Create the event with recipient tag
         let mut event = NostrEvent {
             id: String::new(),
@@ -111,10 +111,10 @@ impl NostrEvent {
             content: encrypted_content,
             sig: String::new(),
         };
-        
+
         // Compute ID and sign
         event.compute_id_and_sign(keys)?;
-        
+
         Ok(event)
     }
 
@@ -129,37 +129,36 @@ impl NostrEvent {
             self.tags,
             self.content
         ]);
-        
+
         // Serialize to JSON without whitespace for consistent hashing
-        let event_json = serde_json::to_string(&event_data)
-            .map_err(|e| EventError::Encoding(e.to_string()))?;
-        
+        let event_json =
+            serde_json::to_string(&event_data).map_err(|e| EventError::Encoding(e.to_string()))?;
+
         // Compute SHA256 hash for event ID
         let mut hasher = Sha256::new();
         hasher.update(event_json.as_bytes());
         let hash = hasher.finalize();
         self.id = hex::encode(hash);
-        
+
         // Sign the event ID
         self.sig = keys.sign(self.id.as_bytes())?;
-        
+
         Ok(())
     }
 
     /// Verify the event signature.
     pub fn verify(&self) -> Result<bool, EventError> {
-        let public_key = hex::decode(&self.pubkey)
-            .map_err(|e| EventError::Encoding(e.to_string()))?;
+        let public_key =
+            hex::decode(&self.pubkey).map_err(|e| EventError::Encoding(e.to_string()))?;
         let public_key = secp256k1::PublicKey::from_slice(&public_key)
             .map_err(|e| EventError::Signing(e.into()))?;
-        
-        let signature = hex::decode(&self.sig)
-            .map_err(|e| EventError::Encoding(e.to_string()))?;
+
+        let signature = hex::decode(&self.sig).map_err(|e| EventError::Encoding(e.to_string()))?;
         let signature = secp256k1::ecdsa::Signature::from_compact(&signature)
             .map_err(|e| EventError::Signing(e.into()))?;
-        
+
         let secp = secp256k1::Secp256k1::<secp256k1::All>::new();
-        
+
         // Recreate the event data for verification
         let event_data = serde_json::json!([
             0,
@@ -169,15 +168,15 @@ impl NostrEvent {
             self.tags,
             self.content
         ]);
-        let event_json = serde_json::to_string(&event_data)
-            .map_err(|e| EventError::Encoding(e.to_string()))?;
-        
+        let event_json =
+            serde_json::to_string(&event_data).map_err(|e| EventError::Encoding(e.to_string()))?;
+
         let mut hasher = Sha256::new();
         hasher.update(event_json.as_bytes());
         let hash = hasher.finalize();
         let msg = secp256k1::Message::from_slice(&hash)
             .map_err(|e| EventError::Encoding(e.to_string()))?;
-        
+
         Ok(secp.verify_ecdsa(&msg, &signature, &public_key).is_ok())
     }
 
@@ -196,28 +195,41 @@ impl NostrEvent {
 
     /// Parse an event from a JSON value received from a relay.
     pub fn from_json_value(value: serde_json::Value) -> Result<Self, EventError> {
-        let id = value["id"].as_str()
+        let id = value["id"]
+            .as_str()
             .ok_or_else(|| EventError::InvalidData("Missing id".to_string()))?
             .to_string();
-        let pubkey = value["pubkey"].as_str()
+        let pubkey = value["pubkey"]
+            .as_str()
             .ok_or_else(|| EventError::InvalidData("Missing pubkey".to_string()))?
             .to_string();
-        let created_at = value["created_at"].as_u64()
+        let created_at = value["created_at"]
+            .as_u64()
             .ok_or_else(|| EventError::InvalidData("Missing created_at".to_string()))?;
-        let kind = value["kind"].as_u64()
-            .ok_or_else(|| EventError::InvalidData("Missing kind".to_string()))? as u32;
-        let tags = value["tags"].as_array()
+        let kind = value["kind"]
+            .as_u64()
+            .ok_or_else(|| EventError::InvalidData("Missing kind".to_string()))?
+            as u32;
+        let tags = value["tags"]
+            .as_array()
             .ok_or_else(|| EventError::InvalidData("Missing tags".to_string()))?
             .iter()
-            .map(|t| t.as_array()
-                .ok_or_else(|| EventError::InvalidData("Invalid tag".to_string()))
-                .map(|arr| arr.iter().map(|s| s.as_str().unwrap_or("").to_string()).collect())
-            )
+            .map(|t| {
+                t.as_array()
+                    .ok_or_else(|| EventError::InvalidData("Invalid tag".to_string()))
+                    .map(|arr| {
+                        arr.iter()
+                            .map(|s| s.as_str().unwrap_or("").to_string())
+                            .collect()
+                    })
+            })
             .collect::<Result<Vec<_>, _>>()?;
-        let content = value["content"].as_str()
+        let content = value["content"]
+            .as_str()
             .ok_or_else(|| EventError::InvalidData("Missing content".to_string()))?
             .to_string();
-        let sig = value["sig"].as_str()
+        let sig = value["sig"]
+            .as_str()
             .ok_or_else(|| EventError::InvalidData("Missing sig".to_string()))?
             .to_string();
 

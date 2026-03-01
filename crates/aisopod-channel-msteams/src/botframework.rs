@@ -55,7 +55,7 @@ impl BotFrameworkClient {
     async fn create_client_with_auth(&mut self) -> Result<reqwest::Client> {
         let token = self.get_access_token().await?;
         let bearer_token = format!("Bearer {}", token.token);
-        
+
         let client = reqwest::Client::new();
         Ok(client)
     }
@@ -75,11 +75,7 @@ impl BotFrameworkClient {
 
         debug!("Sending activity to {}", url);
 
-        let response = client
-            .post(&url)
-            .json(activity)
-            .send()
-            .await?;
+        let response = client.post(&url).json(activity).send().await?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -104,17 +100,16 @@ impl BotFrameworkClient {
     }
 
     /// Creates a new conversation with a user.
-    pub async fn create_conversation(&mut self, activity: &Activity) -> Result<ConversationResponse> {
+    pub async fn create_conversation(
+        &mut self,
+        activity: &Activity,
+    ) -> Result<ConversationResponse> {
         let client = self.create_client_with_auth().await?;
         let url = format!("{}/v3/conversations", self.base_url);
 
         debug!("Creating new conversation at {}", url);
 
-        let response = client
-            .post(&url)
-            .json(activity)
-            .send()
-            .await?;
+        let response = client.post(&url).json(activity).send().await?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -128,17 +123,18 @@ impl BotFrameworkClient {
     }
 
     /// Gets a message activity.
-    pub async fn get_activity(&mut self, conversation_id: &str, activity_id: &str) -> Result<Activity> {
+    pub async fn get_activity(
+        &mut self,
+        conversation_id: &str,
+        activity_id: &str,
+    ) -> Result<Activity> {
         let client = self.create_client_with_auth().await?;
         let url = format!(
             "{}/v3/conversations/{}/activities/{}",
             self.base_url, conversation_id, activity_id
         );
 
-        let response = client
-            .get(&url)
-            .send()
-            .await?;
+        let response = client.get(&url).send().await?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -164,11 +160,7 @@ impl BotFrameworkClient {
             self.base_url, conversation_id, activity_id
         );
 
-        let response = client
-            .put(&url)
-            .json(activity)
-            .send()
-            .await?;
+        let response = client.put(&url).json(activity).send().await?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -192,10 +184,7 @@ impl BotFrameworkClient {
             self.base_url, conversation_id, activity_id
         );
 
-        let response = client
-            .delete(&url)
-            .send()
-            .await?;
+        let response = client.delete(&url).send().await?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -218,16 +207,16 @@ impl BotFrameworkClient {
             self.base_url, conversation_id
         );
 
-        let response = client
-            .get(&url)
-            .send()
-            .await?;
+        let response = client.get(&url).send().await?;
 
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
             error!("Failed to get conversation members: {} - {}", status, body);
-            return Err(anyhow::anyhow!("Failed to get conversation members: {}", status));
+            return Err(anyhow::anyhow!(
+                "Failed to get conversation members: {}",
+                status
+            ));
         }
 
         let members: Vec<ConversationMember> = response.json().await?;
@@ -245,10 +234,7 @@ impl BotFrameworkClient {
             self.base_url, conversation_id
         );
 
-        let response = client
-            .get(&url)
-            .send()
-            .await?;
+        let response = client.get(&url).send().await?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -630,7 +616,10 @@ mod tests {
                 ..Default::default()
             }],
         );
-        assert_eq!(activity.activity_type, Some(ActivityType::ConversationUpdate));
+        assert_eq!(
+            activity.activity_type,
+            Some(ActivityType::ConversationUpdate)
+        );
         assert_eq!(activity.action, Some("membersAdded".to_string()));
     }
 

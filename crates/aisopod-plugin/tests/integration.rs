@@ -10,12 +10,14 @@
 use aisopod_plugin::config::{ConfigError, ConfigReloadable, PluginConfig, PluginConfigSchema};
 use aisopod_plugin::hook::{Hook, HookContext, HookHandler, HookRegistry};
 use aisopod_plugin::manifest::PluginManifest;
-use aisopod_plugin::security::{sanitize_argument, validate_command_name, MAX_ARG_SIZE, RESERVED_COMMANDS};
+use aisopod_plugin::security::{
+    sanitize_argument, validate_command_name, MAX_ARG_SIZE, RESERVED_COMMANDS,
+};
 use aisopod_plugin::{CommandRegistry, PluginCommand, PluginRegistry};
 use async_trait::async_trait;
 use serde_json::json;
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 // Mock plugin for testing
 #[derive(Debug)]
@@ -55,11 +57,17 @@ impl aisopod_plugin::Plugin for MockPlugin {
         })
     }
 
-    fn register(&self, _api: &mut aisopod_plugin::PluginApi) -> Result<(), Box<dyn std::error::Error>> {
+    fn register(
+        &self,
+        _api: &mut aisopod_plugin::PluginApi,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
 
-    async fn init(&self, _ctx: &aisopod_plugin::PluginContext) -> Result<(), Box<dyn std::error::Error>> {
+    async fn init(
+        &self,
+        _ctx: &aisopod_plugin::PluginContext,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         *self.init_called.lock().unwrap() = true;
         Ok(())
     }
@@ -136,11 +144,17 @@ impl aisopod_plugin::Plugin for ConfigReloadablePlugin {
         })
     }
 
-    fn register(&self, _api: &mut aisopod_plugin::PluginApi) -> Result<(), Box<dyn std::error::Error>> {
+    fn register(
+        &self,
+        _api: &mut aisopod_plugin::PluginApi,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
 
-    async fn init(&self, _ctx: &aisopod_plugin::PluginContext) -> Result<(), Box<dyn std::error::Error>> {
+    async fn init(
+        &self,
+        _ctx: &aisopod_plugin::PluginContext,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
 
@@ -151,7 +165,10 @@ impl aisopod_plugin::Plugin for ConfigReloadablePlugin {
 
 #[async_trait]
 impl ConfigReloadable for ConfigReloadablePlugin {
-    async fn on_config_reload(&self, new_config: &PluginConfig) -> Result<(), Box<dyn std::error::Error>> {
+    async fn on_config_reload(
+        &self,
+        new_config: &PluginConfig,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         *self.last_config.lock().unwrap() = Some(new_config.clone());
         Ok(())
     }
@@ -162,7 +179,7 @@ impl ConfigReloadable for ConfigReloadablePlugin {
 fn test_plugin_registration() {
     let mut registry = PluginRegistry::new();
     let plugin = Arc::new(MockPlugin::new("test-plugin"));
-    
+
     assert!(registry.register(plugin).is_ok());
     // Check that plugin was registered via get
     assert!(registry.get("test-plugin").is_some());
@@ -174,7 +191,7 @@ fn test_duplicate_registration() {
     let mut registry = PluginRegistry::new();
     let p1 = Arc::new(MockPlugin::new("test-plugin"));
     let p2 = Arc::new(MockPlugin::new("test-plugin"));
-    
+
     assert!(registry.register(p1).is_ok());
     match registry.register(p2) {
         Err(aisopod_plugin::RegistryError::DuplicatePlugin(id)) => assert_eq!(id, "test-plugin"),
@@ -189,13 +206,13 @@ fn test_duplicate_registration() {
 #[tokio::test]
 async fn test_hook_dispatch() {
     let mut registry = HookRegistry::new();
-    
+
     let handler = Arc::new(MockHookHandler::new());
     registry.register(Hook::BeforeAgentRun, "test".into(), handler.clone());
-    
+
     let ctx = HookContext::new(Hook::BeforeAgentRun);
     registry.dispatch(&ctx).await;
-    
+
     assert!(handler.was_called());
 }
 
@@ -203,16 +220,16 @@ async fn test_hook_dispatch() {
 #[tokio::test]
 async fn test_hook_dispatch_multiple() {
     let mut registry = HookRegistry::new();
-    
+
     let handler1 = Arc::new(MockHookHandler::new());
     let handler2 = Arc::new(MockHookHandler::new());
-    
+
     registry.register(Hook::AfterAgentRun, "plugin-1".into(), handler1.clone());
     registry.register(Hook::AfterAgentRun, "plugin-2".into(), handler2.clone());
-    
+
     let ctx = HookContext::new(Hook::AfterAgentRun);
     registry.dispatch(&ctx).await;
-    
+
     assert!(handler1.was_called());
     assert!(handler2.was_called());
 }
@@ -221,20 +238,20 @@ async fn test_hook_dispatch_multiple() {
 #[tokio::test]
 async fn test_hook_dispatch_error_handling() {
     let mut registry = HookRegistry::new();
-    
+
     #[derive(Clone)]
     struct FailingHandler;
-    
+
     #[async_trait]
     impl HookHandler for FailingHandler {
         async fn handle(&self, _ctx: &HookContext) -> Result<(), Box<dyn std::error::Error>> {
             Err("Intentional failure".into())
         }
     }
-    
+
     let handler = Arc::new(FailingHandler);
     registry.register(Hook::OnSessionCreate, "failing".into(), handler);
-    
+
     let ctx = HookContext::new(Hook::OnSessionCreate);
     // Should not panic even with failing handler
     registry.dispatch(&ctx).await;
@@ -252,7 +269,7 @@ fn test_manifest_parsing() {
         author = "Test Author"
         entry_point = "libtest"
     "#;
-    
+
     let manifest = PluginManifest::from_str(toml).unwrap();
     assert_eq!(manifest.plugin.id, "test");
     assert_eq!(manifest.plugin.name, "Test Plugin");
@@ -273,7 +290,7 @@ fn test_invalid_manifest_missing_id() {
         author = "Test Author"
         entry_point = "libtest"
     "#;
-    
+
     let result = PluginManifest::from_str(toml);
     assert!(result.is_err());
 }
@@ -282,19 +299,13 @@ fn test_invalid_manifest_missing_id() {
 #[test]
 fn test_reserved_command_rejection() {
     let reserved_commands = ["help", "status", "config", "plugin", "version"];
-    
+
     for cmd in reserved_commands {
-        let command = PluginCommand::new(
-            cmd,
-            "Test command",
-            cmd,
-            false,
-            Arc::new(|_| Ok(())),
-        );
-        
+        let command = PluginCommand::new(cmd, "Test command", cmd, false, Arc::new(|_| Ok(())));
+
         let registry = CommandRegistry::new();
         let result = registry.register(command);
-        
+
         match result {
             Err(aisopod_plugin::SecurityError::ReservedCommandName(name)) => {
                 assert_eq!(name, cmd);
@@ -309,10 +320,10 @@ fn test_reserved_command_rejection() {
 fn test_argument_sanitization() {
     // Null bytes should be removed
     assert_eq!(sanitize_argument("hello\x00world").unwrap(), "helloworld");
-    
+
     // Other control characters should be removed
     assert_eq!(sanitize_argument("line1\x0Bline2").unwrap(), "line1line2");
-    
+
     // Newline and tab should be preserved
     assert_eq!(sanitize_argument("line1\nline2").unwrap(), "line1\nline2");
     assert_eq!(sanitize_argument("col1\tcol2").unwrap(), "col1\tcol2");
@@ -325,7 +336,7 @@ fn test_argument_size_limit() {
     let large_arg = "a".repeat(MAX_ARG_SIZE + 1);
     let result = sanitize_argument(&large_arg);
     assert!(result.is_err());
-    
+
     // Exactly MAX_ARG_SIZE should succeed
     let exact_arg = "a".repeat(MAX_ARG_SIZE);
     assert!(sanitize_argument(&exact_arg).is_ok());
@@ -342,9 +353,9 @@ fn test_plugin_config_extraction() {
             }
         }
     });
-    
+
     let config = PluginConfig::from_main_config("my-plugin", &main);
-    
+
     assert_eq!(config.plugin_id(), "my-plugin");
     assert_eq!(config.get("api_key"), Some(&json!("secret")));
     assert!(config.get("enabled").unwrap().as_bool().unwrap());
@@ -355,7 +366,7 @@ fn test_plugin_config_extraction() {
 fn test_plugin_config_missing_defaults_to_empty() {
     let main = json!({});
     let config = PluginConfig::from_main_config("nonexistent", &main);
-    
+
     assert!(config.values().is_object());
     assert_eq!(config.plugin_id(), "nonexistent");
 }
@@ -377,13 +388,13 @@ fn test_plugin_config_with_defaults() {
             "key2": 100
         })),
     );
-    
+
     let config = json!({
         "key1": "custom_value"
     });
-    
+
     let merged = schema.merge_defaults(&config);
-    
+
     assert_eq!(merged["key1"], "custom_value");
     assert_eq!(merged["key2"], 100);
 }
@@ -403,14 +414,14 @@ fn test_config_validation_required_fields() {
         }),
         None,
     );
-    
+
     // Valid config
     let valid_config = json!({
         "api_key": "secret",
         "endpoint": "https://api.example.com"
     });
     assert!(schema.validate(&valid_config).is_ok());
-    
+
     // Missing required field
     let invalid_config = json!({
         "api_key": "secret"
@@ -438,14 +449,14 @@ fn test_config_validation_type_checking() {
         }),
         None,
     );
-    
+
     // Valid types
     let valid_config = json!({
         "port": 8080,
         "host": "localhost"
     });
     assert!(schema.validate(&valid_config).is_ok());
-    
+
     // Invalid types
     let invalid_config = json!({
         "port": "8080",
@@ -463,18 +474,18 @@ fn test_config_validation_type_checking() {
 #[tokio::test]
 async fn test_config_reloadable() {
     let plugin = Arc::new(ConfigReloadablePlugin::new("reloadable-plugin"));
-    
+
     let new_config = PluginConfig::new(
         "reloadable-plugin",
         json!({
             "api_key": "new_secret",
             "enabled": false
-        })
+        }),
     );
-    
+
     // Call on_config_reload
     plugin.on_config_reload(&new_config).await.unwrap();
-    
+
     // Verify config was updated
     let last_config = plugin.get_last_config();
     assert!(last_config.is_some());
@@ -485,21 +496,18 @@ async fn test_config_reloadable() {
 #[tokio::test]
 async fn test_plugin_registry_lifecycle() {
     let mut registry = PluginRegistry::new();
-    
+
     let plugin = Arc::new(MockPlugin::new("lifecycle-test"));
-    
+
     // Register
     assert!(registry.register(plugin).is_ok());
-    
+
     // Create context
-    let ctx = aisopod_plugin::PluginContext::new(
-        Arc::new(json!({})),
-        std::path::PathBuf::new(),
-    );
-    
+    let ctx = aisopod_plugin::PluginContext::new(Arc::new(json!({})), std::path::PathBuf::new());
+
     // Initialize
     assert!(registry.init_all(&ctx).await.is_ok());
-    
+
     // Shutdown
     assert!(registry.shutdown_all().await.is_ok());
 }
@@ -508,7 +516,7 @@ async fn test_plugin_registry_lifecycle() {
 #[test]
 fn test_command_registration_security() {
     let mut registry = CommandRegistry::new();
-    
+
     // Valid command
     let command = PluginCommand::new(
         "mycommand",
@@ -518,15 +526,10 @@ fn test_command_registration_security() {
         Arc::new(|_| Ok(())),
     );
     assert!(registry.register(command).is_ok());
-    
+
     // Command with reserved name
-    let reserved_command = PluginCommand::new(
-        "help",
-        "Should fail",
-        "help",
-        false,
-        Arc::new(|_| Ok(())),
-    );
+    let reserved_command =
+        PluginCommand::new("help", "Should fail", "help", false, Arc::new(|_| Ok(())));
     match registry.register(reserved_command) {
         Err(aisopod_plugin::SecurityError::ReservedCommandName(name)) => {
             assert_eq!(name, "help");
@@ -539,16 +542,16 @@ fn test_command_registration_security() {
 #[tokio::test]
 async fn test_multiple_plugins_with_hooks() {
     let mut registry = HookRegistry::new();
-    
+
     let handler1 = Arc::new(MockHookHandler::new());
     let handler2 = Arc::new(MockHookHandler::new());
-    
+
     registry.register(Hook::BeforeAgentRun, "plugin-1".into(), handler1.clone());
     registry.register(Hook::BeforeAgentRun, "plugin-2".into(), handler2.clone());
-    
+
     let ctx = HookContext::new(Hook::BeforeAgentRun);
     registry.dispatch(&ctx).await;
-    
+
     assert!(handler1.was_called());
     assert!(handler2.was_called());
     assert_eq!(registry.handler_count(&Hook::BeforeAgentRun), 2);
@@ -558,13 +561,13 @@ async fn test_multiple_plugins_with_hooks() {
 #[test]
 fn test_hook_registry_total_count() {
     let mut registry = HookRegistry::new();
-    
+
     let handler = Arc::new(MockHookHandler::new());
-    
+
     registry.register(Hook::BeforeAgentRun, "plugin-1".into(), handler.clone());
     registry.register(Hook::AfterAgentRun, "plugin-2".into(), handler.clone());
     registry.register(Hook::OnSessionCreate, "plugin-3".into(), handler.clone());
-    
+
     assert_eq!(registry.total_hook_count(), 3);
     assert_eq!(registry.hook_type_count(), 3);
 }
@@ -583,11 +586,11 @@ fn test_command_name_validation() {
     assert!(validate_command_name("mystatus").is_ok());
     assert!(validate_command_name("my-plugin").is_ok());
     assert!(validate_command_name("test_command_123").is_ok());
-    
+
     // Reserved names rejected
     assert!(validate_command_name("help").is_err());
     assert!(validate_command_name("HELP").is_err());
-    
+
     // Invalid formats
     assert!(validate_command_name("").is_err());
     assert!(validate_command_name(&"a".repeat(65)).is_err());

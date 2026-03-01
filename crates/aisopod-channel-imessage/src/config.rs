@@ -70,7 +70,7 @@ impl ImessageAccountConfig {
                 return Err(ImessageError::PlatformUnsupported(
                     "AppleScript backend requires macOS".to_string(),
                 ));
-                
+
                 #[cfg(target_os = "macos")]
                 {
                     // Validate AppleScript-specific settings
@@ -89,13 +89,14 @@ impl ImessageAccountConfig {
                 if self.bluebubbles.api_url.is_none() {
                     return Err(ImessageError::MissingBlueBubblesUrl);
                 }
-                
+
                 // Validate URL
                 let url = self.bluebubbles.api_url.as_ref().unwrap();
-                url.parse::<url::Url>().map_err(|_| ImessageError::InvalidUrl {
-                    url: url.clone(),
-                    message: "Invalid BlueBubbles API URL".to_string(),
-                })?;
+                url.parse::<url::Url>()
+                    .map_err(|_| ImessageError::InvalidUrl {
+                        url: url.clone(),
+                        message: "Invalid BlueBubbles API URL".to_string(),
+                    })?;
             }
             _ => {
                 return Err(ImessageError::InvalidBackend {
@@ -103,7 +104,7 @@ impl ImessageAccountConfig {
                 });
             }
         }
-        
+
         Ok(())
     }
 
@@ -200,15 +201,10 @@ pub enum ImessageError {
     MissingBlueBubblesUrl,
     /// Invalid URL
     #[error("Invalid URL '{url}': {message}")]
-    InvalidUrl {
-        url: String,
-        message: String,
-    },
+    InvalidUrl { url: String, message: String },
     /// Invalid backend
     #[error("Invalid backend '{backend}'. Must be 'applescript' or 'bluebubbles'")]
-    InvalidBackend {
-        backend: String,
-    },
+    InvalidBackend { backend: String },
     /// BlueBubbles API error
     #[error("BlueBubbles API error: {0}")]
     BlueBubblesApi(String),
@@ -257,7 +253,7 @@ fn default_backend() -> String {
     {
         "applescript".to_string()
     }
-    
+
     #[cfg(not(target_os = "macos"))]
     {
         "bluebubbles".to_string()
@@ -295,12 +291,12 @@ pub mod utils {
     /// Parse a phone number or email address string.
     pub fn normalize_contact_identifier(identifier: &str) -> String {
         let trimmed = identifier.trim();
-        
+
         // Check if it looks like an email
         if trimmed.contains('@') {
             return trimmed.to_string();
         }
-        
+
         // Otherwise, treat as phone number and normalize
         normalize_phone_number(trimmed)
     }
@@ -308,17 +304,17 @@ pub mod utils {
     /// Parse a phone number string and normalize it to E.164 format.
     pub fn normalize_phone_number(phone: &str) -> String {
         let cleaned: String = phone.chars().filter(|c| c.is_ascii_digit()).collect();
-        
+
         // If input already starts with + and is valid E.164, return as-is
         if phone.starts_with('+') && cleaned.len() >= 10 && cleaned.len() <= 15 {
             return format!("+{}", cleaned);
         }
-        
+
         // If already has + but wrong length, just clean it
         if phone.starts_with('+') {
             return format!("+{}", cleaned);
         }
-        
+
         if cleaned.starts_with('1') && cleaned.len() == 11 {
             // US number with country code
             format!("+{}", cleaned)
@@ -334,7 +330,8 @@ pub mod utils {
     /// Extract group ID from iMessage group data.
     pub fn extract_group_id(group_data: &serde_json::Value) -> Option<String> {
         // iMessage groups typically have a GUID or chat identifier
-        group_data.get("guid")
+        group_data
+            .get("guid")
             .or_else(|| group_data.get("chat_guid"))
             .or_else(|| group_data.get("group_id"))
             .and_then(|v| v.as_str())
@@ -344,7 +341,8 @@ pub mod utils {
     /// Extract sender identifier (phone number or email) from iMessage message.
     pub fn extract_sender_id(message: &serde_json::Value) -> Option<String> {
         // iMessage messages can have "address", "from", "sender", or "account_id"
-        message.get("address")
+        message
+            .get("address")
             .or_else(|| message.get("from"))
             .or_else(|| message.get("sender"))
             .or_else(|| message.get("account_id"))
@@ -355,7 +353,8 @@ pub mod utils {
 
     /// Extract message text from iMessage message data.
     pub fn extract_message_text(message: &serde_json::Value) -> Option<String> {
-        message.get("text")
+        message
+            .get("text")
             .or_else(|| message.get("body"))
             .or_else(|| message.get("content"))
             .and_then(|v| v.as_str())
@@ -400,7 +399,7 @@ mod tests {
             backend: "applescript".to_string(),
             ..Default::default()
         };
-        
+
         // On macOS, this should succeed
         #[cfg(target_os = "macos")]
         {
@@ -409,11 +408,14 @@ mod tests {
             // Don't assert success as osascript might not exist in test environment
             let _ = result;
         }
-        
+
         // On non-macOS, this should fail
         #[cfg(not(target_os = "macos"))]
         {
-            assert!(matches!(config.validate(), Err(ImessageError::PlatformUnsupported(_))));
+            assert!(matches!(
+                config.validate(),
+                Err(ImessageError::PlatformUnsupported(_))
+            ));
         }
     }
 
@@ -423,8 +425,11 @@ mod tests {
             backend: "bluebubbles".to_string(),
             ..Default::default()
         };
-        
-        assert!(matches!(config.validate(), Err(ImessageError::MissingBlueBubblesUrl)));
+
+        assert!(matches!(
+            config.validate(),
+            Err(ImessageError::MissingBlueBubblesUrl)
+        ));
     }
 
     #[test]
@@ -437,7 +442,7 @@ mod tests {
             },
             ..Default::default()
         };
-        
+
         assert!(config.validate().is_ok());
     }
 
@@ -447,22 +452,25 @@ mod tests {
             backend: "invalid".to_string(),
             ..Default::default()
         };
-        
-        assert!(matches!(config.validate(), Err(ImessageError::InvalidBackend { .. })));
+
+        assert!(matches!(
+            config.validate(),
+            Err(ImessageError::InvalidBackend { .. })
+        ));
     }
 
     #[test]
     fn test_is_sender_allowed() {
         let mut config = ImessageAccountConfig::new("test");
-        
+
         // No allowlist - all senders allowed
         assert!(config.is_sender_allowed("+1234567890"));
-        
+
         // Add allowlist
         let mut allowed = HashSet::new();
         allowed.insert("+1234567890".to_string());
         config.allowed_senders = Some(allowed);
-        
+
         assert!(config.is_sender_allowed("+1234567890"));
         assert!(!config.is_sender_allowed("+9876543210"));
     }
@@ -470,15 +478,15 @@ mod tests {
     #[test]
     fn test_is_group_monitored() {
         let mut config = ImessageAccountConfig::new("test");
-        
+
         // No monitor list - all groups monitored
         assert!(config.is_group_monitored("group1"));
-        
+
         // Add monitor list
         let mut monitored = HashSet::new();
         monitored.insert("group1".to_string());
         config.monitored_groups = Some(monitored);
-        
+
         assert!(config.is_group_monitored("group1"));
         assert!(!config.is_group_monitored("group2"));
     }
@@ -486,7 +494,7 @@ mod tests {
     #[test]
     fn test_normalize_phone_number() {
         use utils::normalize_phone_number;
-        
+
         assert_eq!(normalize_phone_number("+1234567890"), "+1234567890");
         assert_eq!(normalize_phone_number("1234567890"), "+11234567890");
         assert_eq!(normalize_phone_number("1-234-567-890"), "+11234567890");
@@ -496,10 +504,13 @@ mod tests {
     #[test]
     fn test_normalize_contact_identifier() {
         use utils::normalize_contact_identifier;
-        
+
         // Email address
-        assert_eq!(normalize_contact_identifier("user@example.com"), "user@example.com");
-        
+        assert_eq!(
+            normalize_contact_identifier("user@example.com"),
+            "user@example.com"
+        );
+
         // Phone number
         assert_eq!(normalize_contact_identifier("+1234567890"), "+1234567890");
         assert_eq!(normalize_contact_identifier("1234567890"), "+11234567890");
@@ -511,7 +522,7 @@ mod tests {
             "guid": "chat123",
             "chat_guid": "chat456"
         });
-        
+
         assert_eq!(utils::extract_group_id(&json), Some("chat123".to_string()));
     }
 
@@ -521,14 +532,17 @@ mod tests {
             "address": "+1234567890",
             "from": "+0987654321"
         });
-        
-        assert_eq!(utils::extract_sender_id(&json), Some("+1234567890".to_string()));
+
+        assert_eq!(
+            utils::extract_sender_id(&json),
+            Some("+1234567890".to_string())
+        );
     }
 
     #[test]
     fn test_is_phone_number() {
         use utils::is_phone_number;
-        
+
         assert!(is_phone_number("+1234567890"));
         assert!(is_phone_number("1234567890"));
         assert!(!is_phone_number("user@example.com"));
@@ -538,7 +552,7 @@ mod tests {
     #[test]
     fn test_is_email() {
         use utils::is_email;
-        
+
         assert!(is_email("user@example.com"));
         assert!(is_email("test@domain.org"));
         assert!(!is_email("not-an-email"));

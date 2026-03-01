@@ -17,7 +17,7 @@ pub use password::{hash_password, verify_password};
 pub use tokens::{generate_token, TokenStore};
 
 pub mod scopes;
-pub use scopes::{Scope, required_scope};
+pub use scopes::{required_scope, Scope};
 
 /// Authentication information extracted from a request
 ///

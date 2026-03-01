@@ -2,9 +2,9 @@
 
 mod channel;
 mod config;
-mod outbound;
 #[cfg(feature = "gateway")]
 mod gateway;
+mod outbound;
 mod runtime;
 
 pub use channel::TestChannelChannel;

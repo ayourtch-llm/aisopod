@@ -2,9 +2,9 @@
 //!
 //! This module provides commands for generating shell completions for bash, zsh, fish, and PowerShell.
 
+use crate::cli::Cli;
 use clap::{Args, CommandFactory};
 use clap_complete::{generate, Shell};
-use crate::cli::Cli;
 
 /// Completions command arguments
 #[derive(Args)]

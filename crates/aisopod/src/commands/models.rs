@@ -10,6 +10,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::output::Output;
 use aisopod_config::load_config;
 use aisopod_config::AisopodConfig;
 use aisopod_provider::discovery::ModelCatalog;
@@ -18,7 +19,6 @@ use aisopod_provider::registry::ProviderRegistry;
 use aisopod_provider::trait_module::ModelProvider;
 use aisopod_provider::types::ModelInfo;
 use std::collections::HashMap;
-use crate::output::Output;
 
 /// Model management command arguments
 #[derive(Args)]
@@ -91,15 +91,12 @@ async fn load_config_and_registry(
                 Arc::new(provider)
             }
             "bedrock" => {
-                let provider = providers::bedrock::BedrockProvider::new(
-                    None,
-                    None,
-                    None,
-                ).await?;
+                let provider = providers::bedrock::BedrockProvider::new(None, None, None).await?;
                 Arc::new(provider)
             }
             "ollama" => {
-                let provider = providers::ollama::OllamaProvider::new(Some(provider_config.endpoint.clone()));
+                let provider =
+                    providers::ollama::OllamaProvider::new(Some(provider_config.endpoint.clone()));
                 Arc::new(provider)
             }
             _ => {
@@ -164,8 +161,16 @@ pub async fn list_models(
             .iter()
             .map(|m| {
                 vec![
-                    m.get("name").unwrap_or(&json!("")).as_str().unwrap_or("").to_string(),
-                    m.get("provider").unwrap_or(&json!("")).as_str().unwrap_or("").to_string(),
+                    m.get("name")
+                        .unwrap_or(&json!(""))
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string(),
+                    m.get("provider")
+                        .unwrap_or(&json!(""))
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string(),
                     m.get("context_window").unwrap_or(&json!("")).to_string(),
                 ]
             })
@@ -211,7 +216,7 @@ pub async fn switch_model(model_id: &str, config_path: Option<String>, json: boo
     let config_path = config_path.as_deref().unwrap_or("aisopod-config.json5");
     let config = load_config(Path::new(config_path))?;
     let output = Output::new(json);
-    
+
     // Check if the model exists in any provider
     let found = {
         let (temp_config, registry) = load_config_and_registry(Some(config_path)).await?;
@@ -225,13 +230,17 @@ pub async fn switch_model(model_id: &str, config_path: Option<String>, json: boo
         let (temp_config, registry) = load_config_and_registry(Some(config_path)).await?;
         let catalog = ModelCatalog::new(registry, Duration::from_secs(60));
         let models = catalog.list_all().await?;
-        
+
         let error_message = format!(
             "Model '{}' not found in any configured provider. Available models:\n{}",
             model_id,
-            models.iter().map(|m| format!("  {}", m.id)).collect::<Vec<_>>().join("\n")
+            models
+                .iter()
+                .map(|m| format!("  {}", m.id))
+                .collect::<Vec<_>>()
+                .join("\n")
         );
-        
+
         output.error(&error_message);
         return Err(anyhow::anyhow!("Model not found"));
     }
@@ -258,7 +267,10 @@ mod tests {
     #[test]
     fn test_models_args_default() {
         let args = ModelsArgs {
-            command: ModelsCommands::List { provider: None, json: false },
+            command: ModelsCommands::List {
+                provider: None,
+                json: false,
+            },
         };
 
         match args.command {

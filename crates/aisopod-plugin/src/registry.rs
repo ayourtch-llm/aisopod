@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use tracing::{info, warn};
 
-use crate::{Plugin, PluginContext, HookRegistry};
+use crate::{HookRegistry, Plugin, PluginContext};
 
 /// Registry error types for plugin lifecycle operations.
 ///
@@ -197,18 +197,21 @@ impl PluginRegistry {
     ///
     /// Returns `RegistryError::DuplicatePlugin` if a plugin with the same
     /// ID is already registered.
-    pub async fn register_with_hooks(&mut self, plugin: Arc<dyn Plugin>) -> Result<(), RegistryError> {
+    pub async fn register_with_hooks(
+        &mut self,
+        plugin: Arc<dyn Plugin>,
+    ) -> Result<(), RegistryError> {
         self.register(plugin.clone())?;
-        
+
         // Create a PluginApi for this plugin to register hooks
         let mut api = crate::PluginApi::new();
-        
+
         // Call the plugin's register method
         plugin.register(&mut api).ok();
-        
+
         // Transfer hook registrations to the hook registry
         self.hook_registry.transfer_from_api(&api);
-        
+
         Ok(())
     }
 
@@ -298,9 +301,10 @@ impl PluginRegistry {
         for id in &self.load_order {
             if let Some(plugin) = self.plugins.get(id) {
                 info!(plugin_id = %id, "Initializing plugin");
-                plugin.init(ctx).await.map_err(|e| {
-                    RegistryError::InitFailed(id.clone(), e.to_string())
-                })?;
+                plugin
+                    .init(ctx)
+                    .await
+                    .map_err(|e| RegistryError::InitFailed(id.clone(), e.to_string()))?;
             }
         }
         Ok(())

@@ -773,7 +773,11 @@ impl BlockBuilder {
         Button::new(action_id, text, value)
     }
 
-    pub fn static_select(placeholder: &str, action_id: &str, options: Vec<SelectOption>) -> StaticSelect {
+    pub fn static_select(
+        placeholder: &str,
+        action_id: &str,
+        options: Vec<SelectOption>,
+    ) -> StaticSelect {
         StaticSelect::new(placeholder, action_id, options)
     }
 
@@ -820,10 +824,7 @@ pub struct BlockKit {
 
 impl BlockKit {
     pub fn new(blocks: Vec<Block>) -> Self {
-        Self {
-            blocks,
-            text: None,
-        }
+        Self { blocks, text: None }
     }
 
     pub fn with_text(mut self, text: &str) -> Self {
@@ -916,12 +917,9 @@ mod tests {
     fn test_block_kit_serialization() {
         let section = SectionBlock::new("*Result*");
         let divider = DividerBlock::new();
-        
-        let blocks = vec![
-            Block::Section(section),
-            Block::Divider(divider),
-        ];
-        
+
+        let blocks = vec![Block::Section(section), Block::Divider(divider)];
+
         let kit = BlockKit::new(blocks);
         let json = serde_json::to_string(&kit).unwrap();
         assert!(json.contains("blocks"));
@@ -934,7 +932,7 @@ mod tests {
         let section = BlockBuilder::section("*Hello* world");
         let divider = BlockBuilder::divider();
         let button = BlockBuilder::button("btn1", "Click", "val1");
-        
+
         assert_eq!(section.block_type, BlockType::Section);
         assert_eq!(divider.block_type, BlockType::Divider);
         assert_eq!(button.action_id, "btn1");

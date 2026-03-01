@@ -8,7 +8,7 @@ use clap::Args;
 use std::io::{self, Write};
 use std::path::Path;
 
-use aisopod_config::{load_config, default_config_path, AisopodConfig};
+use aisopod_config::{default_config_path, load_config, AisopodConfig};
 
 /// Doctor command arguments
 #[derive(Args)]
@@ -30,16 +30,19 @@ fn load_config_or_default(config_path: Option<&str>) -> Result<aisopod_config::A
     match config_path {
         Some(path) => {
             let config_path = Path::new(path);
-            load_config(config_path).map_err(|e| {
-                anyhow::anyhow!("Failed to load configuration from '{}': {}", path, e)
-            })
+            load_config(config_path)
+                .map_err(|e| anyhow::anyhow!("Failed to load configuration from '{}': {}", path, e))
         }
         None => {
             // Use default config path
             let default_path = aisopod_config::default_config_path();
             if default_path.exists() {
                 load_config(&default_path).map_err(|e| {
-                    anyhow::anyhow!("Failed to load configuration from '{}': {}", default_path.display(), e)
+                    anyhow::anyhow!(
+                        "Failed to load configuration from '{}': {}",
+                        default_path.display(),
+                        e
+                    )
                 })
             } else {
                 // If no config file exists, return empty config
@@ -62,13 +65,21 @@ pub async fn run_doctor(args: DoctorArgs, config_path: Option<String>) -> Result
     let config_err = config_result.as_ref().err().map(|e| e.to_string());
     let config_ok = config_result.is_ok();
     print_diagnostic("Configuration file", config_ok, config_err);
-    if config_ok { passed += 1; } else { failed += 1; }
+    if config_ok {
+        passed += 1;
+    } else {
+        failed += 1;
+    }
 
     // Check 2: At least one authentication profile configured
     if let Ok(ref config) = config_result {
         let auth_profiles_ok = !config.auth.profiles.is_empty();
         print_diagnostic("Authentication profiles configured", auth_profiles_ok, None);
-        if auth_profiles_ok { passed += 1; } else { failed += 1; }
+        if auth_profiles_ok {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
 
         // Check 3: API keys are set for configured auth profiles
         for profile in &config.auth.profiles {
@@ -77,15 +88,24 @@ pub async fn run_doctor(args: DoctorArgs, config_path: Option<String>) -> Result
             print_diagnostic(
                 &format!("  {} API key", profile.name),
                 key_set,
-                if key_set { None } else { Some("API key not configured".to_string()) },
+                if key_set {
+                    None
+                } else {
+                    Some("API key not configured".to_string())
+                },
             );
-            if key_set { passed += 1; } else { failed += 1; }
+            if key_set {
+                passed += 1;
+            } else {
+                failed += 1;
+            }
         }
 
         // Check 4: Gateway connectivity
         let client = reqwest::Client::new();
         let gw_url = gateway_http_url(&config.gateway);
-        let gw_ok = match client.get(format!("{}/health", gw_url))
+        let gw_ok = match client
+            .get(format!("{}/health", gw_url))
             .timeout(std::time::Duration::from_secs(5))
             .send()
             .await
@@ -93,28 +113,45 @@ pub async fn run_doctor(args: DoctorArgs, config_path: Option<String>) -> Result
             Ok(response) => response.status().is_success(),
             Err(_) => false,
         };
-        print_diagnostic("Gateway reachable", gw_ok,
-            if gw_ok { None } else { Some("Gateway is not running".to_string()) });
-        if gw_ok { passed += 1; } else { failed += 1; }
+        print_diagnostic(
+            "Gateway reachable",
+            gw_ok,
+            if gw_ok {
+                None
+            } else {
+                Some("Gateway is not running".to_string())
+            },
+        );
+        if gw_ok {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
 
         // Check 5: Network connectivity (can reach external APIs)
         if args.verbose {
-            let net_ok = client.get("https://api.openai.com")
+            let net_ok = client
+                .get("https://api.openai.com")
                 .timeout(std::time::Duration::from_secs(5))
-                .send().await
+                .send()
+                .await
                 .is_ok();
             print_diagnostic("External network access", net_ok, None);
-            if net_ok { passed += 1; } else { failed += 1; }
+            if net_ok {
+                passed += 1;
+            } else {
+                failed += 1;
+            }
         }
     }
 
     println!("\n{} passed, {} failed", passed, failed);
-    
+
     if failed > 0 {
         writeln!(io::stderr(), "{} diagnostic check(s) failed", failed)?;
         std::process::exit(1);
     }
-    
+
     Ok(())
 }
 
@@ -134,18 +171,14 @@ mod tests {
 
     #[test]
     fn test_doctor_args_default() {
-        let args = DoctorArgs {
-            verbose: false,
-        };
+        let args = DoctorArgs { verbose: false };
 
         assert!(!args.verbose);
     }
 
     #[test]
     fn test_doctor_args_verbose() {
-        let args = DoctorArgs {
-            verbose: true,
-        };
+        let args = DoctorArgs { verbose: true };
 
         assert!(args.verbose);
     }

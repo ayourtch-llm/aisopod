@@ -104,14 +104,18 @@ async fn test_jsonrpc_response_parsing() {
 
     assert!(response.is_success());
     assert_eq!(response.id, "req-456");
-    assert_eq!(response.get_result(), Some(&serde_json::json!({"message_id": "msg-789"})));
+    assert_eq!(
+        response.get_result(),
+        Some(&serde_json::json!({"message_id": "msg-789"}))
+    );
 }
 
 #[tokio::test]
 async fn test_jsonrpc_error_response() {
     use aisopod_client::parse_response;
 
-    let json = r#"{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"},"id":"req-456"}"#;
+    let json =
+        r#"{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"},"id":"req-456"}"#;
     let response = parse_response(json).unwrap();
 
     assert!(!response.is_success());
@@ -179,7 +183,7 @@ async fn test_device_capability_serialization() {
 
 #[tokio::test]
 async fn test_device_info_serialization() {
-    use aisopod_client::{DeviceInfo, DeviceCapability};
+    use aisopod_client::{DeviceCapability, DeviceInfo};
 
     let capability = DeviceCapability {
         service: "location".to_string(),

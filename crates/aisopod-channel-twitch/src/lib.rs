@@ -65,16 +65,24 @@ mod config;
 mod tmi;
 
 // Re-export common types
-pub use crate::auth::{validate_token, validate_token_blocking, is_token_expired, token_has_scopes, AuthError, TokenInfo};
-pub use crate::badges::{Badge, parse_badges, is_moderator, is_subscriber, is_broadcaster, is_vip, parse_badge_info};
+pub use crate::auth::{
+    is_token_expired, token_has_scopes, validate_token, validate_token_blocking, AuthError,
+    TokenInfo,
+};
+pub use crate::badges::{
+    is_broadcaster, is_moderator, is_subscriber, is_vip, parse_badge_info, parse_badges, Badge,
+};
 pub use crate::channel::{register, TwitchAccount, TwitchChannel};
 pub use crate::config::TwitchConfig;
-pub use crate::tmi::{TmiClient, TwitchMessage, TwitchTags, parse_irc_line};
+pub use crate::tmi::{parse_irc_line, TmiClient, TwitchMessage, TwitchTags};
 
 // Re-export types from aisopod-channel for convenience
-pub use aisopod_channel::message::{IncomingMessage, OutgoingMessage, MessageTarget, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo};
-pub use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+pub use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, OutgoingMessage, PeerInfo,
+    PeerKind, SenderInfo,
+};
 pub use aisopod_channel::plugin::ChannelPlugin;
+pub use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 pub use aisopod_channel::ChannelRegistry;
 
 /// Result type for Twitch channel operations.
@@ -93,7 +101,7 @@ mod tests {
             enable_whispers: false,
             client_id: None,
         };
-        
+
         assert!(config.validate().is_ok());
         assert_eq!(config.username, "testbot");
         assert!(config.channels.contains(&"#test".to_string()));

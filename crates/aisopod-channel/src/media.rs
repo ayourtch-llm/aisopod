@@ -136,9 +136,9 @@ pub trait DocumentExtractor: Send + Sync {
 /// ```
 pub fn resize_image(data: &[u8], max_width: u32, max_height: u32) -> Result<Vec<u8>> {
     let mut img = image::load_from_memory(data)?;
-    
+
     let (width, height) = img.dimensions();
-    
+
     // If the image is already within bounds, return it unchanged
     if width <= max_width && height <= max_height {
         // Re-encode in the original format
@@ -146,21 +146,24 @@ pub fn resize_image(data: &[u8], max_width: u32, max_height: u32) -> Result<Vec<
         img.write_to(&mut buf, detect_image_format(data)?)?;
         return Ok(buf.into_inner());
     }
-    
+
     // Calculate new dimensions while preserving aspect ratio
     let scale = f64::min(
         max_width as f64 / width as f64,
         max_height as f64 / height as f64,
     );
-    
+
     let new_width = (width as f64 * scale) as u32;
     let new_height = (height as f64 * scale) as u32;
-    
+
     // Resize using Lanczos3 filter for high quality
-    img = DynamicImage::ImageRgba8(
-        image::imageops::resize(&img.to_rgba8(), new_width, new_height, image::imageops::FilterType::Lanczos3),
-    );
-    
+    img = DynamicImage::ImageRgba8(image::imageops::resize(
+        &img.to_rgba8(),
+        new_width,
+        new_height,
+        image::imageops::FilterType::Lanczos3,
+    ));
+
     // Re-encode in the original format
     let mut buf = Cursor::new(Vec::new());
     img.write_to(&mut buf, detect_image_format(data)?)?;
@@ -187,7 +190,7 @@ pub fn resize_image(data: &[u8], max_width: u32, max_height: u32) -> Result<Vec<
 /// ```
 pub fn convert_image_format(data: &[u8], target_format: ImageFormat) -> Result<Vec<u8>> {
     let img = image::load_from_memory(data)?;
-    
+
     let mut buf = Cursor::new(Vec::new());
     img.write_to(&mut buf, target_format)?;
     Ok(buf.into_inner())
@@ -221,30 +224,33 @@ pub fn detect_media_type(data: &[u8], filename: Option<&str>) -> MediaType {
         if data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF {
             return MediaType::Image;
         }
-        
+
         // GIF: 47 49 46 (GIF)
         if data[0] == b'G' && data[1] == b'I' && data[2] == b'F' {
             return MediaType::Image;
         }
     }
-    
+
     if data.len() >= 4 {
         // PNG: 89 50 4E 47
         if data[0] == 0x89 && data[1] == b'P' && data[2] == b'N' && data[3] == b'G' {
             return MediaType::Image;
         }
-        
+
         // PDF: 25 50 44 46 (%PDF)
         if data[0] == b'%' && data[1] == b'P' && data[2] == b'D' && data[3] == b'F' {
             return MediaType::Document;
         }
     }
-    
+
     // Fall back to file extension
     if let Some(name) = filename {
-        if let Some(ext) = std::path::Path::new(name).extension().and_then(|e| e.to_str()) {
+        if let Some(ext) = std::path::Path::new(name)
+            .extension()
+            .and_then(|e| e.to_str())
+        {
             let ext_lower = ext.to_lowercase();
-            
+
             match ext_lower.as_str() {
                 // Images
                 "jpg" | "jpeg" => return MediaType::Image,
@@ -252,32 +258,32 @@ pub fn detect_media_type(data: &[u8], filename: Option<&str>) -> MediaType {
                 "gif" => return MediaType::Image,
                 "webp" => return MediaType::Image,
                 "bmp" => return MediaType::Image,
-                
+
                 // Audio
                 "mp3" => return MediaType::Audio,
                 "wav" => return MediaType::Audio,
                 "ogg" => return MediaType::Audio,
                 "flac" => return MediaType::Audio,
                 "aac" => return MediaType::Audio,
-                
+
                 // Video
                 "mp4" => return MediaType::Video,
                 "webm" => return MediaType::Video,
                 "mkv" => return MediaType::Video,
                 "avi" => return MediaType::Video,
-                
+
                 // Documents
                 "pdf" => return MediaType::Document,
                 "doc" => return MediaType::Document,
                 "docx" => return MediaType::Document,
                 "txt" => return MediaType::Document,
                 "rtf" => return MediaType::Document,
-                
+
                 _ => {}
             }
         }
     }
-    
+
     // Unknown type
     MediaType::Other("unknown".to_string())
 }
@@ -301,27 +307,30 @@ pub fn detect_mime_type(data: &[u8], filename: Option<&str>) -> String {
         if data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF {
             return "image/jpeg".to_string();
         }
-        
+
         if data[0] == b'G' && data[1] == b'I' && data[2] == b'F' {
             return "image/gif".to_string();
         }
     }
-    
+
     if data.len() >= 4 {
         if data[0] == 0x89 && data[1] == b'P' && data[2] == b'N' && data[3] == b'G' {
             return "image/png".to_string();
         }
-        
+
         if data[0] == b'%' && data[1] == b'P' && data[2] == b'D' && data[3] == b'F' {
             return "application/pdf".to_string();
         }
     }
-    
+
     // Fall back to file extension
     if let Some(name) = filename {
-        if let Some(ext) = std::path::Path::new(name).extension().and_then(|e| e.to_str()) {
+        if let Some(ext) = std::path::Path::new(name)
+            .extension()
+            .and_then(|e| e.to_str())
+        {
             let ext_lower = ext.to_lowercase();
-            
+
             match ext_lower.as_str() {
                 // Images
                 "jpg" | "jpeg" => return "image/jpeg".to_string(),
@@ -354,7 +363,7 @@ pub fn detect_mime_type(data: &[u8], filename: Option<&str>) -> String {
             }
         }
     }
-    
+
     // Unknown type
     "application/octet-stream".to_string()
 }
@@ -382,14 +391,17 @@ pub fn detect_mime_type(data: &[u8], filename: Option<&str>) -> String {
 /// Returns an error if:
 /// - The channel doesn't support media
 /// - The media type is not in the supported list
-pub fn validate_media(media_type: &MediaType, capabilities: &crate::types::ChannelCapabilities) -> Result<()> {
+pub fn validate_media(
+    media_type: &MediaType,
+    capabilities: &crate::types::ChannelCapabilities,
+) -> Result<()> {
     // Check if the channel supports media at all
     if !capabilities.supports_media {
         return Err(anyhow::anyhow!(
             "Channel does not support media transmission"
         ));
     }
-    
+
     // Check if the media type is supported
     if !capabilities.supported_media_types.contains(media_type) {
         return Err(anyhow::anyhow!(
@@ -397,7 +409,7 @@ pub fn validate_media(media_type: &MediaType, capabilities: &crate::types::Chann
             media_type
         ));
     }
-    
+
     Ok(())
 }
 
@@ -419,23 +431,23 @@ fn detect_image_format(data: &[u8]) -> Result<ImageFormat> {
         if data[0] == 0x89 && data[1] == b'P' && data[2] == b'N' && data[3] == b'G' {
             return Ok(ImageFormat::Png);
         }
-        
+
         // GIF: 47 49 46
         if data[0] == b'G' && data[1] == b'I' && data[2] == b'F' {
             return Ok(ImageFormat::Gif);
         }
-        
+
         // JPEG: FF D8 FF
         if data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF {
             return Ok(ImageFormat::Jpeg);
         }
     }
-    
+
     // Try to detect using the image crate's built-in detection
     if let Ok(img) = image::guess_format(data) {
         return Ok(img);
     }
-    
+
     Err(anyhow::anyhow!("Could not detect image format"))
 }
 
@@ -521,21 +533,21 @@ mod tests {
     #[test]
     fn test_resize_image() {
         // Create a simple 1000x1000 PNG image using the image crate
-        use std::io::Cursor;
         use image::{ImageBuffer, Rgba};
-        
+        use std::io::Cursor;
+
         // Create a 1000x1000 image filled with white
         let img_buffer: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(1000, 1000);
-        
+
         // Encode to PNG bytes using DynamicImage
         let dynamic_img = DynamicImage::ImageRgba8(img_buffer);
         let mut buf = Cursor::new(Vec::new());
         dynamic_img.write_to(&mut buf, ImageFormat::Png).unwrap();
         let data = buf.into_inner();
-        
+
         // Resize to max 500x500
         let resized = resize_image(&data, 500, 500).unwrap();
-        
+
         // Verify the result is a valid PNG
         let img = image::load_from_memory(&resized).unwrap();
         let (width, height) = img.dimensions();
@@ -551,7 +563,7 @@ mod tests {
             supported_media_types: vec![MediaType::Image, MediaType::Document],
             ..Default::default()
         };
-        
+
         assert!(validate_media(&media_type, &capabilities).is_ok());
     }
 
@@ -563,7 +575,7 @@ mod tests {
             supported_media_types: vec![MediaType::Image, MediaType::Document],
             ..Default::default()
         };
-        
+
         assert!(validate_media(&media_type, &capabilities).is_err());
     }
 
@@ -575,7 +587,7 @@ mod tests {
             supported_media_types: vec![],
             ..Default::default()
         };
-        
+
         assert!(validate_media(&media_type, &capabilities).is_err());
     }
 }

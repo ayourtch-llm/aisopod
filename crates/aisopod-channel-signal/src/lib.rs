@@ -89,7 +89,7 @@
 //!
 //! let gateway = SignalGateway::new();
 //! let signal_msg: SignalMessage = from_str(json_str).expect("Failed to parse");
-//! 
+//!
 //! // Check for disappearing message timer
 //! if let Some(expires_in) = gateway.extract_disappearing_timer(&signal_msg) {
 //!     println!("Message disappears in {} seconds", expires_in);
@@ -102,17 +102,23 @@ mod gateway;
 mod outbound;
 mod runtime;
 
-pub use crate::channel::{SignalAccount, SignalChannel, register};
-pub use crate::config::{SignalAccountConfig, SignalDaemonConfig, SignalError};
+pub use crate::channel::{register, SignalAccount, SignalChannel};
 pub use crate::config::utils;
-pub use crate::gateway::{SignalGateway, SignalGroup, SignalMessage, SignalMessageContent, SignalAttachment, message_utils};
+pub use crate::config::{SignalAccountConfig, SignalDaemonConfig, SignalError};
+pub use crate::gateway::{
+    message_utils, SignalAttachment, SignalGateway, SignalGroup, SignalMessage,
+    SignalMessageContent,
+};
 pub use crate::outbound::SignalOutbound;
-pub use crate::runtime::{SignalRuntime, utils as runtime_utils};
+pub use crate::runtime::{utils as runtime_utils, SignalRuntime};
 
 // Re-export types from aisopod-channel for convenience
-pub use aisopod_channel::message::{IncomingMessage, OutgoingMessage, MessageTarget, Media, MessageContent, MessagePart, PeerInfo, PeerKind, SenderInfo};
-pub use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+pub use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, OutgoingMessage, PeerInfo,
+    PeerKind, SenderInfo,
+};
 pub use aisopod_channel::plugin::ChannelPlugin;
+pub use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 
 /// Result type for Signal channel operations.
 pub type SignalResult<T> = std::result::Result<T, SignalError>;

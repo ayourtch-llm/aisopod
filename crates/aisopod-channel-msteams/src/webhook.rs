@@ -7,6 +7,7 @@ use crate::auth::MsTeamsAuth;
 use crate::botframework::{Activity, ChannelAccount};
 use crate::config::WebhookConfig;
 use anyhow::Result;
+use axum::response::Response;
 use axum::{
     extract::{Json, State},
     http::StatusCode,
@@ -19,7 +20,6 @@ use jsonwebtoken::{decode, DecodingKey, EncodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{debug, error, info, warn};
-use axum::response::Response;
 
 /// Webhook state for the Axum router.
 #[derive(Clone)]
@@ -102,10 +102,7 @@ fn validate_activity(activity: &Activity, state: &WebhookState) -> Result<()> {
 }
 
 /// Processes an incoming activity.
-async fn process_activity(
-    activity: Activity,
-    state: Arc<WebhookState>,
-) -> Result<()> {
+async fn process_activity(activity: Activity, state: Arc<WebhookState>) -> Result<()> {
     match activity.activity_type.as_ref() {
         Some(activity_type) => match activity_type {
             crate::botframework::ActivityType::Message => {
@@ -156,11 +153,7 @@ pub fn create_webhook_router(state: WebhookState) -> Router<Arc<WebhookState>> {
 
 /// Health check endpoint for the webhook.
 async fn health_check() -> impl IntoResponse {
-    (
-        StatusCode::OK,
-        [("content-type", "text/plain")],
-        "OK",
-    )
+    (StatusCode::OK, [("content-type", "text/plain")], "OK")
 }
 
 /// Microsoft App ID validator.
@@ -190,7 +183,9 @@ mod tests {
         let activity = Activity::create_message("Hello", None);
         let state = WebhookState::new(
             crate::botframework::BotFrameworkClient::new(
-                crate::auth::MsTeamsAuth::new(crate::auth::AzureAuthConfig::new("tenant", "client", "secret")),
+                crate::auth::MsTeamsAuth::new(crate::auth::AzureAuthConfig::new(
+                    "tenant", "client", "secret",
+                )),
                 "app_id",
             ),
             "account1",
@@ -209,7 +204,9 @@ mod tests {
 
         let state = WebhookState::new(
             crate::botframework::BotFrameworkClient::new(
-                crate::auth::MsTeamsAuth::new(crate::auth::AzureAuthConfig::new("tenant", "client", "secret")),
+                crate::auth::MsTeamsAuth::new(crate::auth::AzureAuthConfig::new(
+                    "tenant", "client", "secret",
+                )),
                 "app_id",
             ),
             "account1",
@@ -228,7 +225,9 @@ mod tests {
 
         let state = WebhookState::new(
             crate::botframework::BotFrameworkClient::new(
-                crate::auth::MsTeamsAuth::new(crate::auth::AzureAuthConfig::new("tenant", "client", "secret")),
+                crate::auth::MsTeamsAuth::new(crate::auth::AzureAuthConfig::new(
+                    "tenant", "client", "secret",
+                )),
                 "app_id",
             ),
             "account1",
@@ -242,7 +241,8 @@ mod tests {
 
     #[test]
     fn test_create_webhook_router() {
-        let azure_config = crate::auth::AzureAuthConfig::new("tenant_id", "client_id", "client_secret");
+        let azure_config =
+            crate::auth::AzureAuthConfig::new("tenant_id", "client_id", "client_secret");
         let auth = MsTeamsAuth::new(azure_config);
         let client = crate::botframework::BotFrameworkClient::new(auth, "app_id");
         let state = WebhookState::new(client, "test_account", "app_id", "app_password");

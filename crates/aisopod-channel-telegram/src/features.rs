@@ -10,8 +10,11 @@ use crate::TelegramAccount;
 use aisopod_channel::message::{MessageTarget, PeerKind};
 use anyhow::Result;
 use std::sync::Arc;
+use teloxide::{
+    prelude::*,
+    types::{ChatAction, ChatId, MessageId, UserId},
+};
 use tokio::sync::RwLock;
-use teloxide::{prelude::*, types::{ChatId, ChatAction, MessageId, UserId}};
 
 /// Bot username cache entry
 #[derive(Debug, Clone)]
@@ -63,7 +66,7 @@ impl TelegramFeatures {
     /// The cache expires after 1 hour.
     pub async fn get_bot_username(&self, account: &TelegramAccount) -> Result<String> {
         let account_id = &account.id;
-        
+
         // Try to get from cache first
         {
             let cache = self.username_cache.read().await;
@@ -73,16 +76,21 @@ impl TelegramFeatures {
                 }
             }
         }
-        
+
         // Cache miss or expired, fetch fresh
         let bot = account.bot.clone();
-        let me = bot.get_me().await.map_err(|e| {
-            anyhow::anyhow!("Failed to get bot info: {}", e)
-        })?;
-        
+        let me = bot
+            .get_me()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to get bot info: {}", e))?;
+
         let username = me.username.clone().unwrap_or_default();
-        let full_name = format!("{} {}", me.first_name, me.last_name.clone().unwrap_or_default());
-        
+        let full_name = format!(
+            "{} {}",
+            me.first_name,
+            me.last_name.clone().unwrap_or_default()
+        );
+
         // Update cache
         {
             let mut cache = self.username_cache.write().await;
@@ -91,7 +99,7 @@ impl TelegramFeatures {
                 BotUsername::new(username.clone(), full_name),
             );
         }
-        
+
         Ok(username)
     }
 
@@ -109,23 +117,23 @@ impl TelegramFeatures {
         if target.peer.kind == PeerKind::User {
             return Ok(false);
         }
-        
+
         // Check if bot was mentioned
         let bot_username = self.get_bot_username(account).await?;
-        
+
         if let Some(text) = message.text() {
             // Check for @botname mention
             let mention = format!("@{}", bot_username);
             if text.contains(&mention) {
                 return Ok(false); // Mentioned, no need to skip
             }
-            
+
             // Also check for mention without @ (just botname in some cases)
             if text.contains(&bot_username) {
                 return Ok(false);
             }
         }
-        
+
         // Check if this is a reply to the bot's message
         if let Some(reply_to) = message.reply_to_message() {
             if let Some(from) = reply_to.from() {
@@ -135,7 +143,7 @@ impl TelegramFeatures {
                 }
             }
         }
-        
+
         // If we get here, the message doesn't mention the bot
         Ok(true)
     }
@@ -145,7 +153,8 @@ impl TelegramFeatures {
     /// This sends a "typing" chat action that expires after 5 seconds.
     /// The caller is responsible for renewing it if needed.
     pub async fn send_typing(&self, account: &TelegramAccount, chat_id: i64) -> Result<()> {
-        account.bot
+        account
+            .bot
             .send_chat_action(ChatId(chat_id), ChatAction::Typing)
             .await?;
         Ok(())
@@ -155,26 +164,34 @@ impl TelegramFeatures {
     ///
     /// This starts a background task that sends typing indicators every 4 seconds
     /// until the provided future completes.
-    pub async fn send_typing_until<F, T>(&self, account: &TelegramAccount, chat_id: i64, future: F) -> T
+    pub async fn send_typing_until<F, T>(
+        &self,
+        account: &TelegramAccount,
+        chat_id: i64,
+        future: F,
+    ) -> T
     where
         F: std::future::Future<Output = T>,
     {
         let account = account.clone();
-        
+
         // Spawn a task to send typing indicators
         let typing_handle = tokio::spawn(async move {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
-                let _ = account.bot.send_chat_action(ChatId(chat_id), ChatAction::Typing).await;
+                let _ = account
+                    .bot
+                    .send_chat_action(ChatId(chat_id), ChatAction::Typing)
+                    .await;
             }
         });
-        
+
         // Wait for the main future to complete
         let result = future.await;
-        
+
         // Abort the typing task
         typing_handle.abort();
-        
+
         result
     }
 
@@ -196,7 +213,8 @@ impl TelegramFeatures {
         message_id: i64,
         new_text: &str,
     ) -> Result<()> {
-        account.bot
+        account
+            .bot
             .edit_message_text(ChatId(chat_id), MessageId(message_id as i32), new_text)
             .parse_mode(account.config.parse_mode.clone())
             .await?;
@@ -219,7 +237,8 @@ impl TelegramFeatures {
         chat_id: i64,
         message_id: i64,
     ) -> Result<()> {
-        account.bot
+        account
+            .bot
             .delete_message(ChatId(chat_id), MessageId(message_id as i32))
             .await?;
         Ok(())
@@ -247,15 +266,15 @@ impl Default for TelegramFeatures {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_bot_username_validity() {
         let now = chrono::Utc::now();
         let username = BotUsername::new("testbot".to_string(), "Test Bot".to_string());
-        
+
         // Immediately after creation, cache should be valid
         assert!(username.is_valid());
-        
+
         // Test with a recent timestamp
         let recent = BotUsername {
             username: "testbot".to_string(),
@@ -263,7 +282,7 @@ mod tests {
             cached_at: now - chrono::Duration::minutes(30),
         };
         assert!(recent.is_valid());
-        
+
         // Test with an old timestamp
         let old = BotUsername {
             username: "testbot".to_string(),
@@ -272,16 +291,16 @@ mod tests {
         };
         assert!(!old.is_valid());
     }
-    
+
     #[tokio::test]
     async fn test_username_cache() {
         let features = TelegramFeatures::new();
-        
+
         // The cache should be empty initially
         let cache = features.username_cache.read().await;
         assert!(cache.is_empty());
         drop(cache);
-        
+
         // We can't test full functionality without a real bot,
         // but we can verify the cache structure
         let mut cache = features.username_cache.write().await;

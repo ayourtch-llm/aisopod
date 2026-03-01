@@ -18,15 +18,28 @@ use crate::flex;
 use crate::webhook;
 
 // Re-export common types
-pub use api::{LineApi, LineMessage, FlexBuilder, FlexContainer, FlexComponent, TextComponentBuilder, BoxComponentBuilder, FlexContainerType, FlexStyles, FlexBlockStyle};
+pub use api::{
+    BoxComponentBuilder, FlexBlockStyle, FlexBuilder, FlexComponent, FlexContainer,
+    FlexContainerType, FlexStyles, LineApi, LineMessage, TextComponentBuilder,
+};
 pub use auth::{issue_stateless_token, validate_token, TokenManager};
 pub use config::LineAccountConfig;
-pub use webhook::{WebhookEventType, MessageEvent, EventSource, MessageContent, WebhookRequestBody, verify_signature, parse_webhook_body, extract_first_event, extract_reply_token};
+pub use webhook::{
+    extract_first_event, extract_reply_token, parse_webhook_body, verify_signature, EventSource,
+    MessageContent, MessageEvent, WebhookEventType, WebhookRequestBody,
+};
 
-use aisopod_channel::adapters::{AccountConfig, AccountSnapshot, ChannelConfigAdapter, SecurityAdapter};
-use aisopod_channel::message::{IncomingMessage, MessageTarget, MessageContent as ChannelMessageContent, MessagePart, Media, PeerInfo, PeerKind, SenderInfo};
-use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType, MediaType as ChannelMediaType};
+use aisopod_channel::adapters::{
+    AccountConfig, AccountSnapshot, ChannelConfigAdapter, SecurityAdapter,
+};
+use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent as ChannelMessageContent, MessagePart, MessageTarget,
+    PeerInfo, PeerKind, SenderInfo,
+};
 use aisopod_channel::plugin::ChannelPlugin;
+use aisopod_channel::types::{
+    ChannelCapabilities, ChannelMeta, ChatType, MediaType, MediaType as ChannelMediaType,
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -71,7 +84,7 @@ impl LineChannel {
     /// * `Err(anyhow::Error)` - An error if configuration is invalid
     pub fn new(config: LineAccountConfig, account_id: &str) -> Self {
         let account = LineAccount::new(account_id.to_string(), config);
-        
+
         let id = format!("line-{}", account_id);
         let meta = ChannelMeta {
             label: "LINE".to_string(),
@@ -98,7 +111,7 @@ impl LineChannel {
         };
 
         let accounts = vec![account];
-        
+
         let config_adapter = LineChannelConfigAdapter::new(accounts.clone());
         let security_adapter = Some(LineSecurityAdapter::new(accounts.clone()));
 
@@ -206,7 +219,8 @@ impl ChannelConfigAdapter for LineChannelConfigAdapter {
     }
 
     fn resolve_account(&self, id: &str) -> Result<AccountSnapshot> {
-        self.accounts.iter()
+        self.accounts
+            .iter()
             .find(|a| a.id == id)
             .map(|a| AccountSnapshot {
                 id: a.id.clone(),
@@ -259,9 +273,13 @@ impl SecurityAdapter for LineSecurityAdapter {
                 return true;
             }
         }
-        
+
         // If no allowed list is configured, allow all senders
-        self.accounts.is_empty() || self.accounts.iter().any(|a| a.config.allowed_users.is_none())
+        self.accounts.is_empty()
+            || self
+                .accounts
+                .iter()
+                .any(|a| a.config.allowed_users.is_none())
     }
 
     fn requires_mention_in_group(&self) -> bool {
@@ -298,7 +316,9 @@ impl ChannelPlugin for LineChannel {
 
     /// Returns the security adapter for this channel.
     fn security(&self) -> Option<&dyn SecurityAdapter> {
-        self.security_adapter.as_ref().map(|a| a as &dyn SecurityAdapter)
+        self.security_adapter
+            .as_ref()
+            .map(|a| a as &dyn SecurityAdapter)
     }
 
     /// Connect to the LINE service.
@@ -307,27 +327,28 @@ impl ChannelPlugin for LineChannel {
     /// receiving messages. Message receiving is handled by the gateway.
     async fn connect(&mut self) -> Result<()> {
         info!("Connecting to LINE service");
-        
+
         for account in &mut self.accounts {
             account.connected = true;
             account.last_connected = Some(Utc::now());
             debug!("Connected account: {}", account.id);
         }
-        
+
         Ok(())
     }
 
     /// Send a message through the LINE channel.
     async fn send(&self, msg: aisopod_channel::OutgoingMessage) -> Result<()> {
-        let account = self.get_account(&msg.target.account_id)
+        let account = self
+            .get_account(&msg.target.account_id)
             .ok_or_else(|| anyhow::anyhow!("Account {} not found", msg.target.account_id))?;
-        
+
         if !account.is_enabled() {
             return Err(anyhow::anyhow!("Account {} is not enabled", account.id));
         }
 
         let api = account.api();
-        
+
         // Convert the message target to LINE destination
         let destination = match &msg.target.peer.kind {
             PeerKind::User | PeerKind::Channel => &msg.target.peer.id,
@@ -336,12 +357,12 @@ impl ChannelPlugin for LineChannel {
 
         // Convert message content to LINE messages
         let line_messages = convert_to_line_messages(&msg.content)?;
-        
+
         // Send the messages
         for line_message in line_messages {
             api.push_message(destination, vec![line_message]).await?;
         }
-        
+
         Ok(())
     }
 
@@ -350,17 +371,19 @@ impl ChannelPlugin for LineChannel {
     /// This method is not implemented for LINE. Message receiving should be
     /// handled by the gateway adapter that polls or listens to webhooks.
     async fn receive(&mut self) -> Result<aisopod_channel::IncomingMessage> {
-        Err(anyhow::anyhow!("Receive is not implemented for LINE. Use gateway adapter instead."))
+        Err(anyhow::anyhow!(
+            "Receive is not implemented for LINE. Use gateway adapter instead."
+        ))
     }
 
     /// Disconnect from the LINE service.
     async fn disconnect(&mut self) -> Result<()> {
         info!("Disconnecting from LINE service");
-        
+
         for account in &mut self.accounts {
             account.connected = false;
         }
-        
+
         Ok(())
     }
 }
@@ -375,9 +398,7 @@ fn convert_to_line_messages(content: &ChannelMessageContent) -> Result<Vec<api::
         ChannelMessageContent::Text(text) => {
             vec![api::LineMessage::Text { text: text.clone() }]
         }
-        ChannelMessageContent::Media(media) => {
-            convert_media_to_line_messages(media)?
-        }
+        ChannelMessageContent::Media(media) => convert_media_to_line_messages(media)?,
         ChannelMessageContent::Mixed(parts) => {
             let mut messages = Vec::new();
             for part in parts {
@@ -393,7 +414,7 @@ fn convert_to_line_messages(content: &ChannelMessageContent) -> Result<Vec<api::
             messages
         }
     };
-    
+
     Ok(messages)
 }
 
@@ -435,8 +456,8 @@ fn convert_media_to_line_messages(media: &Media) -> Result<Vec<api::LineMessage>
         MediaType::Document => {
             // For documents, we'll send as a text message with the filename
             if let Some(filename) = &media.filename {
-                vec![api::LineMessage::Text { 
-                    text: format!("Document: {}", filename) 
+                vec![api::LineMessage::Text {
+                    text: format!("Document: {}", filename),
                 }]
             } else {
                 return Err(anyhow::anyhow!("Document media requires a filename"));
@@ -446,7 +467,7 @@ fn convert_media_to_line_messages(media: &Media) -> Result<Vec<api::LineMessage>
             return Err(anyhow::anyhow!("Unsupported media type for LINE"));
         }
     };
-    
+
     Ok(messages)
 }
 
@@ -508,55 +529,62 @@ pub fn webhook_to_incoming_message(
     };
 
     let content = match event.message {
-        webhook::MessageContent::Text { id, text } => {
-            ChannelMessageContent::Text(text)
-        }
-        webhook::MessageContent::Image { id } => {
-            ChannelMessageContent::Media(Media {
-                media_type: MediaType::Image,
-                url: None,
-                data: None,
-                filename: None,
-                mime_type: Some("image/jpeg".to_string()),
-                size_bytes: None,
-            })
-        }
-        webhook::MessageContent::Video { id } => {
-            ChannelMessageContent::Media(Media {
-                media_type: MediaType::Video,
-                url: None,
-                data: None,
-                filename: None,
-                mime_type: Some("video/mp4".to_string()),
-                size_bytes: None,
-            })
-        }
-        webhook::MessageContent::Audio { id, duration } => {
-            ChannelMessageContent::Media(Media {
-                media_type: MediaType::Audio,
-                url: None,
-                data: None,
-                filename: None,
-                mime_type: Some("audio/m4a".to_string()),
-                size_bytes: None,
-            })
-        }
-        webhook::MessageContent::File { id, file_name, file_size } => {
-            ChannelMessageContent::Media(Media {
-                media_type: MediaType::Document,
-                url: None,
-                data: None,
-                filename: Some(file_name),
-                mime_type: None,
-                size_bytes: Some(file_size),
-            })
-        }
-        webhook::MessageContent::Location { id, title, address, latitude, longitude } => {
+        webhook::MessageContent::Text { id, text } => ChannelMessageContent::Text(text),
+        webhook::MessageContent::Image { id } => ChannelMessageContent::Media(Media {
+            media_type: MediaType::Image,
+            url: None,
+            data: None,
+            filename: None,
+            mime_type: Some("image/jpeg".to_string()),
+            size_bytes: None,
+        }),
+        webhook::MessageContent::Video { id } => ChannelMessageContent::Media(Media {
+            media_type: MediaType::Video,
+            url: None,
+            data: None,
+            filename: None,
+            mime_type: Some("video/mp4".to_string()),
+            size_bytes: None,
+        }),
+        webhook::MessageContent::Audio { id, duration } => ChannelMessageContent::Media(Media {
+            media_type: MediaType::Audio,
+            url: None,
+            data: None,
+            filename: None,
+            mime_type: Some("audio/m4a".to_string()),
+            size_bytes: None,
+        }),
+        webhook::MessageContent::File {
+            id,
+            file_name,
+            file_size,
+        } => ChannelMessageContent::Media(Media {
+            media_type: MediaType::Document,
+            url: None,
+            data: None,
+            filename: Some(file_name),
+            mime_type: None,
+            size_bytes: Some(file_size),
+        }),
+        webhook::MessageContent::Location {
+            id,
+            title,
+            address,
+            latitude,
+            longitude,
+        } => {
             // For location messages, we create a text message with the location info
-            let text = format!("{}: {} (lat: {}, lng: {})", title, address, latitude, longitude);
+            let text = format!(
+                "{}: {} (lat: {}, lng: {})",
+                title, address, latitude, longitude
+            );
             ChannelMessageContent::Text(text)
         }
-        webhook::MessageContent::Sticker { id, package_id, sticker_id } => {
+        webhook::MessageContent::Sticker {
+            id,
+            package_id,
+            sticker_id,
+        } => {
             let text = format!("[Sticker: {}/{}]", package_id, sticker_id);
             ChannelMessageContent::Text(text)
         }
@@ -612,20 +640,14 @@ mod tests {
 
     #[test]
     fn test_line_account_config_new() {
-        let config = LineAccountConfig::new(
-            "test_token".to_string(),
-            "test_secret".to_string(),
-        );
+        let config = LineAccountConfig::new("test_token".to_string(), "test_secret".to_string());
         assert_eq!(config.channel_access_token, "test_token");
         assert_eq!(config.channel_secret, "test_secret");
     }
 
     #[test]
     fn test_line_account_enabled() {
-        let config = LineAccountConfig::new(
-            "test_token".to_string(),
-            "test_secret".to_string(),
-        );
+        let config = LineAccountConfig::new("test_token".to_string(), "test_secret".to_string());
         let account = LineAccount::new("test".to_string(), config);
         assert!(account.is_enabled());
     }
@@ -645,7 +667,7 @@ mod tests {
             allowed_users: Some(vec!["user1".to_string(), "user2".to_string()]),
             allowed_groups: None,
         };
-        
+
         assert!(config.is_sender_allowed("user1"));
         assert!(config.is_sender_allowed("user2"));
         assert!(!config.is_sender_allowed("user3"));
@@ -653,11 +675,8 @@ mod tests {
 
     #[test]
     fn test_channel_registration() {
-        let config = LineAccountConfig::new(
-            "test_token".to_string(),
-            "test_secret".to_string(),
-        );
-        
+        let config = LineAccountConfig::new("test_token".to_string(), "test_secret".to_string());
+
         // Note: This test would need to be run with tokio runtime
         // For now, we just verify the types compile
         let _channel = LineChannel::new(config, "test-account");

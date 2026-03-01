@@ -40,7 +40,10 @@ impl MsTeamsAuthToken {
 
     /// Get remaining time until expiration.
     pub fn time_until_expiration(&self) -> Duration {
-        self.expires_at.signed_duration_since(Utc::now()).to_std().unwrap_or_default()
+        self.expires_at
+            .signed_duration_since(Utc::now())
+            .to_std()
+            .unwrap_or_default()
     }
 }
 
@@ -69,7 +72,12 @@ impl AzureAuthConfig {
     }
 
     /// Creates a new Azure AD authentication configuration with custom resource.
-    pub fn with_resource(tenant_id: &str, client_id: &str, client_secret: &str, resource: &str) -> Self {
+    pub fn with_resource(
+        tenant_id: &str,
+        client_id: &str,
+        client_secret: &str,
+        resource: &str,
+    ) -> Self {
         Self {
             tenant_id: tenant_id.to_string(),
             client_id: client_id.to_string(),
@@ -102,18 +110,19 @@ impl MsTeamsAuth {
 
     /// Creates a new Microsoft Teams authentication manager from account config.
     pub fn from_account_config(config: &crate::config::MsTeamsAccountConfig) -> Self {
-        let azure_config = AzureAuthConfig::new(
-            &config.tenant_id,
-            &config.client_id,
-            &config.client_secret,
-        );
+        let azure_config =
+            AzureAuthConfig::new(&config.tenant_id, &config.client_id, &config.client_secret);
         Self::new(azure_config)
     }
 
     /// Get or refresh the access token.
     pub async fn get_token(&mut self) -> Result<MsTeamsAuthToken> {
         // Check if we have a valid cached token
-        if let Some((token, cache_time)) = self.cached_token.as_ref().zip(self.token_cache_time.as_ref()) {
+        if let Some((token, cache_time)) = self
+            .cached_token
+            .as_ref()
+            .zip(self.token_cache_time.as_ref())
+        {
             // Refresh token if it's about to expire or if more than 45 minutes have passed
             if !token.is_about_to_expire() && cache_time.elapsed() < Duration::from_secs(2700) {
                 debug!("Using cached token");
@@ -138,7 +147,11 @@ impl MsTeamsAuth {
         let client = reqwest::Client::new();
 
         // Determine the resource/scope
-        let resource = self.config.resource.as_deref().unwrap_or("https://api.botframework.com");
+        let resource = self
+            .config
+            .resource
+            .as_deref()
+            .unwrap_or("https://api.botframework.com");
         let scope = format!("{}/.default", resource);
 
         // Build the token request
@@ -156,11 +169,7 @@ impl MsTeamsAuth {
 
         debug!("Requesting token from {}", url);
 
-        let response = client
-            .post(&url)
-            .form(&form_data)
-            .send()
-            .await?;
+        let response = client.post(&url).form(&form_data).send().await?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -294,7 +303,12 @@ mod tests {
 
     #[test]
     fn test_auth_config_with_resource() {
-        let config = AzureAuthConfig::with_resource("tenant123", "client123", "secret123", "custom-resource");
+        let config = AzureAuthConfig::with_resource(
+            "tenant123",
+            "client123",
+            "secret123",
+            "custom-resource",
+        );
         assert_eq!(config.resource, Some("custom-resource".to_string()));
     }
 
@@ -323,7 +337,8 @@ mod tests {
 
     #[test]
     fn test_auth_from_account_config() {
-        let account_config = crate::config::MsTeamsAccountConfig::new("test", "tenant123", "client123", "secret123");
+        let account_config =
+            crate::config::MsTeamsAccountConfig::new("test", "tenant123", "client123", "secret123");
         let auth = MsTeamsAuth::from_account_config(&account_config);
 
         assert_eq!(auth.config.tenant_id, "tenant123");

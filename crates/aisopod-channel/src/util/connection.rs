@@ -32,12 +32,21 @@ impl ConnectionState {
 
     /// Check if the connection is in progress.
     pub fn is_connecting(&self) -> bool {
-        matches!(self, ConnectionState::Connecting | ConnectionState::Reconnecting)
+        matches!(
+            self,
+            ConnectionState::Connecting | ConnectionState::Reconnecting
+        )
     }
 
     /// Check if the connection is lost.
     pub fn is_lost(&self) -> bool {
-        matches!(self, ConnectionState::Disconnected | ConnectionState::Connecting | ConnectionState::Reconnecting | ConnectionState::Failed)
+        matches!(
+            self,
+            ConnectionState::Disconnected
+                | ConnectionState::Connecting
+                | ConnectionState::Reconnecting
+                | ConnectionState::Failed
+        )
     }
 }
 
@@ -218,8 +227,10 @@ impl ConnectionManager {
         // Apply jitter if configured, then cap at max delay
         if self.config.use_jitter {
             let jitter_range = (new_delay.as_secs_f64() * self.config.jitter_factor) as u64;
-            let jitter = (rand::random::<u64>() % (jitter_range * 2 + 1)).saturating_sub(jitter_range);
-            let delayed_with_jitter = Duration::from_secs(new_delay.as_secs().saturating_add(jitter));
+            let jitter =
+                (rand::random::<u64>() % (jitter_range * 2 + 1)).saturating_sub(jitter_range);
+            let delayed_with_jitter =
+                Duration::from_secs(new_delay.as_secs().saturating_add(jitter));
             delayed_with_jitter.min(self.config.max_delay)
         } else {
             new_delay

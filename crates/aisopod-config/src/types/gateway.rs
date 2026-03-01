@@ -206,11 +206,11 @@ impl Default for RequestSizeLimitsConfig {
 }
 
 fn default_max_body_size() -> usize {
-    10 * 1024 * 1024  // 10MB
+    10 * 1024 * 1024 // 10MB
 }
 
 fn default_max_headers_size() -> usize {
-    8192  // 8KB
+    8192 // 8KB
 }
 
 fn default_max_headers_count() -> usize {
@@ -218,5 +218,5 @@ fn default_max_headers_count() -> usize {
 }
 
 fn default_pairing_cleanup_interval() -> u64 {
-    300  // 5 minutes
+    300 // 5 minutes
 }

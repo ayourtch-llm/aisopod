@@ -236,7 +236,9 @@ impl fmt::Display for ChannelError {
                 reset_after,
                 status_code,
             } => {
-                let status = status_code.map(|s| format!(" (status {s})")).unwrap_or_default();
+                let status = status_code
+                    .map(|s| format!(" (status {s})"))
+                    .unwrap_or_default();
                 write!(
                     f,
                     "[{platform}] Rate limit exceeded{status}, retry after {reset_after:?}"
@@ -268,10 +270,7 @@ impl fmt::Display for ChannelError {
                 resource_id,
                 resource_type,
             } => {
-                write!(
-                    f,
-                    "[{platform}] {resource_type} '{resource_id}' not found"
-                )
+                write!(f, "[{platform}] {resource_type} '{resource_id}' not found")
             }
             ChannelError::Server {
                 platform,
@@ -364,12 +363,12 @@ mod tests {
     #[test]
     fn test_authentication_error() {
         let error = ChannelError::authentication("discord", "Invalid token");
-        
+
         assert_eq!(error.platform(), Some("discord"));
         assert_eq!(error.message(), "Invalid token");
         assert!(error.is_authentication());
         assert!(!error.is_rate_limit());
-        
+
         let display = format!("{}", error);
         assert!(display.contains("[discord]"));
         assert!(display.contains("Authentication error"));
@@ -378,11 +377,12 @@ mod tests {
 
     #[test]
     fn test_rate_limit_error() {
-        let error = ChannelError::rate_limit("signal", std::time::Duration::from_secs(30), Some(429));
-        
+        let error =
+            ChannelError::rate_limit("signal", std::time::Duration::from_secs(30), Some(429));
+
         assert_eq!(error.platform(), Some("signal"));
         assert!(error.is_rate_limit());
-        
+
         let display = format!("{}", error);
         assert!(display.contains("[signal]"));
         assert!(display.contains("Rate limit exceeded"));
@@ -391,10 +391,10 @@ mod tests {
     #[test]
     fn test_network_error() {
         let error = ChannelError::network("telegram", "Connection timeout", Some(504));
-        
+
         assert_eq!(error.platform(), Some("telegram"));
         assert!(error.is_network());
-        
+
         let display = format!("{}", error);
         assert!(display.contains("[telegram]"));
         assert!(display.contains("Network error"));
@@ -408,9 +408,9 @@ mod tests {
             "Invalid phone number",
             Some("invalid_parameter"),
         );
-        
+
         assert_eq!(error.platform(), Some("whatsapp"));
-        
+
         let display = format!("{}", error);
         assert!(display.contains("[whatsapp]"));
         assert!(display.contains("Invalid request"));
@@ -420,9 +420,9 @@ mod tests {
     #[test]
     fn test_not_found_error() {
         let error = ChannelError::not_found("slack", "C123456", "channel");
-        
+
         assert_eq!(error.platform(), Some("slack"));
-        
+
         let display = format!("{}", error);
         assert!(display.contains("[slack]"));
         assert!(display.contains("channel"));
@@ -432,10 +432,10 @@ mod tests {
     #[test]
     fn test_server_error() {
         let error = ChannelError::server("discord", "Internal server error", Some("Error 500"));
-        
+
         assert_eq!(error.platform(), Some("discord"));
         assert!(error.is_server_error());
-        
+
         let display = format!("{}", error);
         assert!(display.contains("[discord]"));
         assert!(display.contains("Server error"));
@@ -445,10 +445,10 @@ mod tests {
     #[test]
     fn test_gateway_error() {
         let error = ChannelError::gateway("upstream-api", "Service unavailable");
-        
+
         assert!(error.platform().is_none());
         assert!(error.is_gateway_error());
-        
+
         let display = format!("{}", error);
         assert!(display.contains("[upstream-api]"));
         assert!(display.contains("Gateway error"));
@@ -457,9 +457,9 @@ mod tests {
     #[test]
     fn test_generic_error() {
         let error = ChannelError::generic("irc", "Unknown error occurred");
-        
+
         assert_eq!(error.platform(), Some("irc"));
-        
+
         let display = format!("{}", error);
         assert!(display.contains("[irc]"));
         assert!(display.contains("Error: Unknown error occurred"));
@@ -484,7 +484,7 @@ mod tests {
     fn test_error_display_formatting() {
         let error = ChannelError::authentication("discord", "Token expired");
         let display = format!("{}", error);
-        
+
         // Verify formatting includes all components
         assert!(display.contains("[discord]"));
         assert!(display.contains("Authentication error"));
@@ -495,7 +495,7 @@ mod tests {
     fn test_error_is_commutative() {
         let error1 = ChannelError::authentication("discord", "Token expired");
         let error2 = ChannelError::authentication("discord", "Token expired");
-        
+
         assert_eq!(error1, error2);
         assert_eq!(error1.platform(), error2.platform());
         assert_eq!(error1.message(), error2.message());

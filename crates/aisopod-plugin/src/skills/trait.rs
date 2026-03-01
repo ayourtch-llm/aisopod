@@ -192,6 +192,9 @@ mod tests {
 
     #[test]
     fn test_skill_category_clone() {
-        assert_eq!(crate::skills::SkillCategory::Messaging.clone(), crate::skills::SkillCategory::Messaging);
+        assert_eq!(
+            crate::skills::SkillCategory::Messaging.clone(),
+            crate::skills::SkillCategory::Messaging
+        );
     }
 }

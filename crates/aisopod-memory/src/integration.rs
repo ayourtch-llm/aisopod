@@ -92,7 +92,7 @@ pub async fn build_memory_context(
             ..opts.filter.clone()
         };
         let memories = pipeline.store().list(filter).await?;
-        
+
         // Convert to MemoryMatch with default scores
         let mut matches: Vec<MemoryMatch> = memories
             .into_iter()
@@ -101,7 +101,7 @@ pub async fn build_memory_context(
                 score: 1.0, // Default score for list-based results
             })
             .collect();
-        
+
         // Apply the same re-ranking logic as the pipeline
         for match_ in matches.iter_mut() {
             let recency = MemoryQueryPipeline::recency_factor(match_.entry.created_at);
@@ -109,19 +109,17 @@ pub async fn build_memory_context(
             // Combined score: similarity * 0.7 + importance * 0.2 + recency * 0.1
             match_.score = match_.score * 0.7 + importance as f32 * 0.2 + recency * 0.1;
         }
-        
+
         // Sort by score descending
         matches.sort_by(|a, b| {
             b.score
                 .partial_cmp(&a.score)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        
+
         // Truncate to top_k
-        let matches: Vec<MemoryMatch> = matches.into_iter()
-            .take(opts.top_k)
-            .collect();
-        
+        let matches: Vec<MemoryMatch> = matches.into_iter().take(opts.top_k).collect();
+
         return Ok(format_memory_context(&matches, agent_id));
     }
 
@@ -691,7 +689,10 @@ mod tests {
         // Store multiple memories
         for i in 0..5 {
             let content = format!("Memory content {}", i);
-            let embedding = crate::MockEmbeddingProvider::new(4).embed(&content).await.unwrap();
+            let embedding = crate::MockEmbeddingProvider::new(4)
+                .embed(&content)
+                .await
+                .unwrap();
 
             let entry = MemoryEntry::new(
                 uuid::Uuid::new_v4().to_string(),
@@ -726,7 +727,10 @@ mod tests {
 
         // Store a memory
         let content = "Memory to delete";
-        let embedding = crate::MockEmbeddingProvider::new(4).embed(content).await.unwrap();
+        let embedding = crate::MockEmbeddingProvider::new(4)
+            .embed(content)
+            .await
+            .unwrap();
 
         let entry = MemoryEntry::new(
             uuid::Uuid::new_v4().to_string(),
@@ -806,7 +810,9 @@ mod tests {
             },
             ..MemoryQueryOptions::default()
         };
-        let context = build_memory_context(&pipeline, "", &[], opts).await.unwrap();
+        let context = build_memory_context(&pipeline, "", &[], opts)
+            .await
+            .unwrap();
 
         // Should find the memory stored with empty agent_id
         eprintln!("Context for empty agent_id test:\n{}", context);

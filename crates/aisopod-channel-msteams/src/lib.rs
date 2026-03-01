@@ -117,9 +117,21 @@ mod config;
 mod webhook;
 
 // Re-export common types
-pub use adaptive_cards::{AdaptiveCard, AdaptiveCardElement, TextBlock, Image, Container, ColumnSet, Column, FactSet, Fact, ImageSet, SetImage, AdaptiveCardAction, ShowCardAction, SubmitAction, OpenUrlAction, InputText, InputDate, InputToggle, BackgroundImage, Spacer, CardElement, helpers};
+pub use adaptive_cards::{
+    helpers, AdaptiveCard, AdaptiveCardAction, AdaptiveCardElement, BackgroundImage, CardElement,
+    Column, ColumnSet, Container, Fact, FactSet, Image, ImageSet, InputDate, InputText,
+    InputToggle, OpenUrlAction, SetImage, ShowCardAction, Spacer, SubmitAction, TextBlock,
+};
 pub use auth::{AzureAuthConfig, MsTeamsAuth, MsTeamsAuthToken};
-pub use botframework::{Activity, ActivityType, ChannelAccount, BotFrameworkClient, ConversationResponse, SendActivityResponse, ConversationMember, ConversationPsmInfo};
-pub use channel::{MsTeamsChannel, MsTeamsAccount, MsTeamsChannelConfigAdapter, MsTeamsSecurityAdapter};
-pub use config::{MsTeamsConfig, MsTeamsAccountConfig, WebhookConfig};
-pub use webhook::{WebhookState, handle_webhook, create_webhook_router, validate_microsoft_app_id, create_validation_response};
+pub use botframework::{
+    Activity, ActivityType, BotFrameworkClient, ChannelAccount, ConversationMember,
+    ConversationPsmInfo, ConversationResponse, SendActivityResponse,
+};
+pub use channel::{
+    MsTeamsAccount, MsTeamsChannel, MsTeamsChannelConfigAdapter, MsTeamsSecurityAdapter,
+};
+pub use config::{MsTeamsAccountConfig, MsTeamsConfig, WebhookConfig};
+pub use webhook::{
+    create_validation_response, create_webhook_router, handle_webhook, validate_microsoft_app_id,
+    WebhookState,
+};

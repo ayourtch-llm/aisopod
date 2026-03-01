@@ -155,31 +155,49 @@ impl IncomingMessage {
             MessageContent::Media(media) => {
                 // Return a placeholder for media content
                 match &media.media_type {
-                    crate::types::MediaType::Image => format!("[Image: {}]", media.url.as_deref().unwrap_or("unknown")),
-                    crate::types::MediaType::Audio => format!("[Audio: {}]", media.url.as_deref().unwrap_or("unknown")),
-                    crate::types::MediaType::Video => format!("[Video: {}]", media.url.as_deref().unwrap_or("unknown")),
-                    crate::types::MediaType::Document => format!("[Document: {}]", media.filename.as_deref().unwrap_or("unknown")),
-                    crate::types::MediaType::Other(other) => format!("[{}: {}]", other, media.url.as_deref().unwrap_or("unknown")),
+                    crate::types::MediaType::Image => {
+                        format!("[Image: {}]", media.url.as_deref().unwrap_or("unknown"))
+                    }
+                    crate::types::MediaType::Audio => {
+                        format!("[Audio: {}]", media.url.as_deref().unwrap_or("unknown"))
+                    }
+                    crate::types::MediaType::Video => {
+                        format!("[Video: {}]", media.url.as_deref().unwrap_or("unknown"))
+                    }
+                    crate::types::MediaType::Document => format!(
+                        "[Document: {}]",
+                        media.filename.as_deref().unwrap_or("unknown")
+                    ),
+                    crate::types::MediaType::Other(other) => {
+                        format!("[{}: {}]", other, media.url.as_deref().unwrap_or("unknown"))
+                    }
                 }
             }
-            MessageContent::Mixed(parts) => {
-                parts
-                    .iter()
-                    .map(|part| match part {
-                        MessagePart::Text(text) => text.clone(),
-                        MessagePart::Media(media) => {
-                            match &media.media_type {
-                                crate::types::MediaType::Image => format!("[Image: {}]", media.url.as_deref().unwrap_or("unknown")),
-                                crate::types::MediaType::Audio => format!("[Audio: {}]", media.url.as_deref().unwrap_or("unknown")),
-                                crate::types::MediaType::Video => format!("[Video: {}]", media.url.as_deref().unwrap_or("unknown")),
-                                crate::types::MediaType::Document => format!("[Document: {}]", media.filename.as_deref().unwrap_or("unknown")),
-                                crate::types::MediaType::Other(other) => format!("[{}: {}]", other, media.url.as_deref().unwrap_or("unknown")),
-                            }
+            MessageContent::Mixed(parts) => parts
+                .iter()
+                .map(|part| match part {
+                    MessagePart::Text(text) => text.clone(),
+                    MessagePart::Media(media) => match &media.media_type {
+                        crate::types::MediaType::Image => {
+                            format!("[Image: {}]", media.url.as_deref().unwrap_or("unknown"))
                         }
-                    })
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            }
+                        crate::types::MediaType::Audio => {
+                            format!("[Audio: {}]", media.url.as_deref().unwrap_or("unknown"))
+                        }
+                        crate::types::MediaType::Video => {
+                            format!("[Video: {}]", media.url.as_deref().unwrap_or("unknown"))
+                        }
+                        crate::types::MediaType::Document => format!(
+                            "[Document: {}]",
+                            media.filename.as_deref().unwrap_or("unknown")
+                        ),
+                        crate::types::MediaType::Other(other) => {
+                            format!("[{}: {}]", other, media.url.as_deref().unwrap_or("unknown"))
+                        }
+                    },
+                })
+                .collect::<Vec<_>>()
+                .join(" "),
         }
     }
 }

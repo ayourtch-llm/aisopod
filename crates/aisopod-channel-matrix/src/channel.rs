@@ -41,22 +41,25 @@
 //! }
 //! ```
 
-use crate::config::{MatrixAccountConfig, MatrixAuth};
 use crate::client::MatrixClient;
+use crate::config::{MatrixAccountConfig, MatrixAuth};
 use crate::encryption::setup_e2ee;
 use aisopod_channel::adapters::{
     AccountConfig, AccountSnapshot, ChannelConfigAdapter, SecurityAdapter,
 };
-use aisopod_channel::message::{IncomingMessage, MessageContent, MessageTarget, Media, MessagePart, PeerInfo, PeerKind, SenderInfo};
-use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
+use aisopod_channel::message::{
+    IncomingMessage, Media, MessageContent, MessagePart, MessageTarget, PeerInfo, PeerKind,
+    SenderInfo,
+};
 use aisopod_channel::plugin::ChannelPlugin;
+use aisopod_channel::types::{ChannelCapabilities, ChannelMeta, ChatType, MediaType};
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
@@ -105,21 +108,30 @@ impl MatrixAccount {
         if self.config.homeserver_url.is_empty() {
             return Err(anyhow::anyhow!("Homeserver URL cannot be empty"));
         }
-        
+
         // Validate homeserver URL format
-        url::Url::parse(&self.config.homeserver_url)
-            .map_err(|e| anyhow::anyhow!("Invalid homeserver URL {}: {}", self.config.homeserver_url, e))?;
-        
+        url::Url::parse(&self.config.homeserver_url).map_err(|e| {
+            anyhow::anyhow!(
+                "Invalid homeserver URL {}: {}",
+                self.config.homeserver_url,
+                e
+            )
+        })?;
+
         // Validate password authentication
         if let MatrixAuth::Password { username, password } = &self.config.auth {
             if username.is_empty() {
-                return Err(anyhow::anyhow!("Username cannot be empty for password authentication"));
+                return Err(anyhow::anyhow!(
+                    "Username cannot be empty for password authentication"
+                ));
             }
             if password.is_empty() {
-                return Err(anyhow::anyhow!("Password cannot be empty for password authentication"));
+                return Err(anyhow::anyhow!(
+                    "Password cannot be empty for password authentication"
+                ));
             }
         }
-        
+
         Ok(())
     }
 }
@@ -161,10 +173,7 @@ impl MatrixChannel {
 
         // Validate the configuration
         if let Err(e) = account.validate() {
-            return Err(anyhow::anyhow!(
-                "Failed to validate Matrix account: {}",
-                e
-            ));
+            return Err(anyhow::anyhow!("Failed to validate Matrix account: {}", e));
         }
 
         let id = format!("matrix-{}", account_id);
@@ -228,10 +237,10 @@ impl MatrixChannel {
         for account_id in self.list_account_ids() {
             let account = self.get_account(&account_id).unwrap();
             info!("Connecting Matrix account {}", account_id);
-            
+
             // Connect to homeserver
             let client = MatrixClient::connect(&account.config).await?;
-            
+
             // Join configured rooms
             if !account.config.rooms.is_empty() {
                 info!("Joining {} rooms", account.config.rooms.len());
@@ -243,7 +252,11 @@ impl MatrixChannel {
             if account.config.enable_e2ee {
                 info!("Setting up end-to-end encryption");
                 let e2ee_config = crate::encryption::E2EEConfig {
-                    state_store_path: account.config.state_store_path.as_ref().map(|p| p.to_string_lossy().to_string()),
+                    state_store_path: account
+                        .config
+                        .state_store_path
+                        .as_ref()
+                        .map(|p| p.to_string_lossy().to_string()),
                     ..Default::default()
                 };
                 setup_e2ee(&client.client, &e2ee_config).await?;
@@ -312,7 +325,8 @@ impl ChannelConfigAdapter for MatrixChannelConfigAdapter {
     }
 
     fn resolve_account(&self, id: &str) -> Result<AccountSnapshot> {
-        self.accounts.iter()
+        self.accounts
+            .iter()
             .find(|a| a.id == id)
             .map(|a| AccountSnapshot {
                 id: a.id.clone(),
@@ -374,7 +388,9 @@ impl SecurityAdapter for MatrixSecurityAdapter {
 
     fn requires_mention_in_group(&self) -> bool {
         // Check if any account requires mentions in groups
-        self.accounts.iter().any(|a| a.config.requires_mention_in_group)
+        self.accounts
+            .iter()
+            .any(|a| a.config.requires_mention_in_group)
     }
 }
 
@@ -406,7 +422,9 @@ impl ChannelPlugin for MatrixChannel {
 
     /// Returns the security adapter for this channel.
     fn security(&self) -> Option<&dyn SecurityAdapter> {
-        self.security_adapter.as_ref().map(|a| a as &dyn SecurityAdapter)
+        self.security_adapter
+            .as_ref()
+            .map(|a| a as &dyn SecurityAdapter)
     }
 }
 
@@ -500,7 +518,9 @@ mod tests {
             },
             ..Default::default()
         };
-        let channel = MatrixChannel::new(config, "test").await.expect("Failed to create channel");
+        let channel = MatrixChannel::new(config, "test")
+            .await
+            .expect("Failed to create channel");
         assert_eq!(channel.id(), "matrix-test");
     }
 
@@ -508,7 +528,7 @@ mod tests {
     fn test_matrix_account_validation() {
         let mut config = MatrixAccountConfig::default();
         config.homeserver_url = String::new();
-        
+
         let account = MatrixAccount::new("test".to_string(), config);
         assert!(account.validate().is_err());
     }
@@ -535,12 +555,12 @@ mod tests {
         };
         let account = MatrixAccount::new("test".to_string(), config);
         let adapter = MatrixSecurityAdapter::new(vec![account]);
-        
+
         let sender = SenderInfo {
             id: "@allowed:matrix.org".to_string(),
             ..Default::default()
         };
-        
+
         assert!(adapter.is_allowed_sender(&sender));
     }
 
@@ -552,12 +572,12 @@ mod tests {
         };
         let account = MatrixAccount::new("test".to_string(), config);
         let adapter = MatrixSecurityAdapter::new(vec![account]);
-        
+
         let sender = SenderInfo {
             id: "@unknown:matrix.org".to_string(),
             ..Default::default()
         };
-        
+
         assert!(!adapter.is_allowed_sender(&sender));
     }
 
@@ -573,7 +593,7 @@ mod tests {
             "Hello, world!",
             Utc::now(),
         );
-        
+
         assert_eq!(msg.channel, "matrix-main");
         assert_eq!(msg.sender.id, "@user:matrix.org");
         assert_eq!(msg.sender.display_name, Some("User".to_string()));
