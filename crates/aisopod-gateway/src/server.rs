@@ -38,6 +38,7 @@ use crate::middleware::RequestSizeLimits;
 
 /// Embedded static assets from the web UI dist directory
 #[derive(RustEmbed)]
+// Path is resolved relative to this crate's Cargo.toml within the workspace layout.
 #[folder = "../../web-ui/dist"]
 struct Assets;
 
