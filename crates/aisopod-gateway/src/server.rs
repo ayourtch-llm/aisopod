@@ -252,9 +252,9 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
     // Build the middleware stack using Layer trait
     use tower::Layer;
 
-        // Order matters! The middleware runs in reverse order (last layer listed runs first).
-        // When a request comes in, it goes through layers from outside to inside.
-        // We need auth_config_data AVAILABLE BEFORE auth_middleware runs.
+    // Order matters! The middleware runs in reverse order (last layer listed runs first).
+    // When a request comes in, it goes through layers from outside to inside.
+    // We need auth_config_data AVAILABLE BEFORE auth_middleware runs.
     //
     // Request flow (outer to inner):
     // 1. TraceLayer (logs requests)
