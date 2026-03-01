@@ -15,10 +15,15 @@ use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 use crate::auth::AuthInfo;
+use crate::auth::DeviceTokenManager;
 use crate::broadcast::Broadcaster;
 use crate::client::{ClientRegistry, GatewayClient};
-use crate::rpc::{self, chat::ChatSendHandler, MethodRouter, RequestContext, ApprovalStore, ApprovalRequestHandler, ApprovalApproveHandler, ApprovalDenyHandler, ApprovalListHandler, PairingStore, PairRequestHandler, PairConfirmHandler, PairRevokeHandler, CapabilityStore, NodeDescribeHandler, NodeInvokeHandler};
-use crate::auth::DeviceTokenManager;
+use crate::rpc::{
+    self, chat::ChatSendHandler, ApprovalApproveHandler, ApprovalDenyHandler, ApprovalListHandler,
+    ApprovalRequestHandler, ApprovalStore, CapabilityStore, MethodRouter, NodeDescribeHandler,
+    NodeInvokeHandler, PairConfirmHandler, PairRequestHandler, PairRevokeHandler, PairingStore,
+    RequestContext,
+};
 
 /// Default handshake timeout in seconds
 pub const DEFAULT_HANDSHAKE_TIMEOUT_SECS: u64 = 5;
@@ -38,6 +43,25 @@ pub const BROADCASTER_KEY: &str = "aisopod.broadcast.broadcaster";
 /// Extension key for AgentRunner
 pub const AGENT_RUNNER_KEY: &str = "aisopod.gateway.agent_runner";
 
+/// Always use the startup-loaded configuration and ignore any request-provided overrides.
+///
+/// This ensures the gateway uses the configuration loaded from disk at startup rather
+/// than relying on per-request extensions.
+fn config_for_connection(
+    startup_config: &Arc<aisopod_config::AisopodConfig>,
+    request: &axum::extract::Request,
+) -> Arc<aisopod_config::AisopodConfig> {
+    if request
+        .extensions()
+        .get::<Arc<aisopod_config::AisopodConfig>>()
+        .is_some()
+    {
+        warn!("Ignoring Aisopod configuration found in request extensions; using startup configuration instead");
+    }
+
+    startup_config.clone()
+}
+
 /// Build a complete agent dependencies stack for the gateway using the provided config
 ///
 /// This function creates the necessary dependencies for agent execution:
@@ -46,15 +70,17 @@ pub const AGENT_RUNNER_KEY: &str = "aisopod.gateway.agent_runner";
 /// - ToolRegistry: For tool execution
 /// - SessionStore: For conversation state management
 /// - AgentRunner: The main agent execution orchestrator
-pub fn create_agent_runner(config: Arc<aisopod_config::AisopodConfig>) -> Arc<aisopod_agent::AgentRunner> {
+pub fn create_agent_runner(
+    config: Arc<aisopod_config::AisopodConfig>,
+) -> Arc<aisopod_agent::AgentRunner> {
     // Create provider registry
     let providers = Arc::new(aisopod_provider::ProviderRegistry::new());
-    
+
     // Create tool registry with built-in tools
     let mut tools = aisopod_tools::ToolRegistry::new();
     aisopod_tools::register_all_tools(&mut tools);
     let tools = Arc::new(tools);
-    
+
     // Create session store (in-memory for now)
     let sessions = Arc::new(
         aisopod_session::SessionStore::new_in_memory()
@@ -63,30 +89,21 @@ pub fn create_agent_runner(config: Arc<aisopod_config::AisopodConfig>) -> Arc<ai
 
     // Create the agent runner with all dependencies
     Arc::new(aisopod_agent::AgentRunner::new(
-        config,
-        providers,
-        tools,
-        sessions,
+        config, providers, tools, sessions,
     ))
 }
 
-fn get_config_from_request(request: &axum::extract::Request) -> Arc<aisopod_config::AisopodConfig> {
-    request
-        .extensions()
-        .get::<Arc<aisopod_config::AisopodConfig>>()
-        .cloned()
-        .unwrap_or_else(|| {
-            warn!("Aisopod configuration missing from request extensions; using defaults for WebSocket connection");
-            Arc::new(aisopod_config::AisopodConfig::default())
-        })
-}
-
 /// Build the WebSocket routes with configurable timeout
-pub fn ws_routes(handshake_timeout: Option<u64>) -> Router {
+pub fn ws_routes(
+    config: Arc<aisopod_config::AisopodConfig>,
+    handshake_timeout: Option<u64>,
+) -> Router {
     let timeout = handshake_timeout;
     Router::new().route(
         "/ws",
-        get(move |ws: WebSocketUpgrade, req: axum::extract::Request| ws_handler(ws, req, timeout)),
+        get(move |ws: WebSocketUpgrade, req: axum::extract::Request| {
+            ws_handler(ws, req, timeout, config.clone())
+        }),
     )
 }
 
@@ -95,6 +112,7 @@ pub async fn ws_handler(
     ws: WebSocketUpgrade,
     request: axum::extract::Request,
     handshake_timeout: Option<u64>,
+    config: Arc<aisopod_config::AisopodConfig>,
 ) -> impl IntoResponse {
     let handshake_timeout_duration =
         Duration::from_secs(handshake_timeout.unwrap_or(DEFAULT_HANDSHAKE_TIMEOUT_SECS));
@@ -113,7 +131,7 @@ pub async fn ws_handler(
                 // Use tokio::time::timeout to enforce the handshake timeout
                 match tokio::time::timeout(
                     handshake_timeout_duration,
-                    handle_connection(socket, request),
+                    handle_connection(socket, request, config.clone()),
                 )
                 .await
                 {
@@ -130,11 +148,8 @@ pub async fn ws_handler(
             }
             Err(err) => {
                 // Version incompatible - send error response before closing
-                warn!(
-                    "Protocol version negotiation failed: {}",
-                    err
-                );
-                
+                warn!("Protocol version negotiation failed: {}", err);
+
                 // Create a new WebSocket connection for error messaging
                 // We need to handle this by sending an error message then closing
                 handle_connection_with_error(socket, request, err).await;
@@ -153,7 +168,11 @@ fn extract_remote_addr(request: &axum::extract::Request) -> SocketAddr {
 }
 
 /// Handle an established WebSocket connection
-async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
+async fn handle_connection(
+    ws: WebSocket,
+    request: axum::extract::Request,
+    startup_config: Arc<aisopod_config::AisopodConfig>,
+) {
     // Extract connection metadata from request
     let remote_addr = extract_remote_addr(&request);
 
@@ -178,12 +197,11 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
         .get::<std::sync::Arc<PairingStore>>()
         .cloned();
 
-    // Create agent runner for this connection
-    // Use the config loaded by the server; fall back to defaults if missing.
-    let config = get_config_from_request(&request);
+    // Create agent runner for this connection using startup-loaded config
+    let config = config_for_connection(&startup_config, &request);
 
     let agent_runner = create_agent_runner(config);
-    
+
     // Clone the agent runner for use in the loop
     let agent_runner_for_loop = Arc::clone(&agent_runner);
 
@@ -212,15 +230,23 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
     if let Some(broadcaster) = &broadcaster {
         let store = approval_store.clone();
         let broadcaster = broadcaster.clone();
-        
-        method_router.register("approval.request", 
-            ApprovalRequestHandler::with_deps(store.clone(), broadcaster.clone()));
-        method_router.register("approval.approve", 
-            ApprovalApproveHandler::with_store(store.clone()));
-        method_router.register("approval.deny", 
-            ApprovalDenyHandler::with_store(store.clone()));
-        method_router.register("approval.list", 
-            ApprovalListHandler::with_store(store.clone()));
+
+        method_router.register(
+            "approval.request",
+            ApprovalRequestHandler::with_deps(store.clone(), broadcaster.clone()),
+        );
+        method_router.register(
+            "approval.approve",
+            ApprovalApproveHandler::with_store(store.clone()),
+        );
+        method_router.register(
+            "approval.deny",
+            ApprovalDenyHandler::with_store(store.clone()),
+        );
+        method_router.register(
+            "approval.list",
+            ApprovalListHandler::with_store(store.clone()),
+        );
     }
 
     // Register node.pair handlers if pairing store is available
@@ -228,22 +254,28 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
         let pairing_store_for_request = pairing_store_ref.clone();
         let pairing_store_for_confirm = pairing_store_ref.clone();
         let pairing_store_for_revoke = pairing_store_ref.clone();
-        
+
         // Note: token_manager is created per-connection, but it should be shared
         // For now, create a fresh one. In production, this should also be shared.
         let token_manager = std::sync::Arc::new(std::sync::Mutex::new(DeviceTokenManager::new(
-            std::path::PathBuf::from("device_tokens.toml")
+            std::path::PathBuf::from("device_tokens.toml"),
         )));
-        
+
         let token_manager_for_request = token_manager.clone();
         let token_manager_for_confirm = token_manager.clone();
-        
-        method_router.register("node.pair.request", 
-            PairRequestHandler::with_deps(pairing_store_for_request, token_manager_for_request));
-        method_router.register("node.pair.confirm", 
-            PairConfirmHandler::with_deps(pairing_store_for_confirm, token_manager_for_confirm));
-        method_router.register("node.pair.revoke", 
-            PairRevokeHandler::with_deps(token_manager));
+
+        method_router.register(
+            "node.pair.request",
+            PairRequestHandler::with_deps(pairing_store_for_request, token_manager_for_request),
+        );
+        method_router.register(
+            "node.pair.confirm",
+            PairConfirmHandler::with_deps(pairing_store_for_confirm, token_manager_for_confirm),
+        );
+        method_router.register(
+            "node.pair.revoke",
+            PairRevokeHandler::with_deps(token_manager),
+        );
     }
 
     // Create capability store for managing device capabilities
@@ -256,14 +288,17 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
     // Register node.invoke handler
     if let Some(client_registry_clone) = client_registry.clone() {
         let capability_store_for_invoke = capability_store.clone();
-        let node_invoke_handler = NodeInvokeHandler::new(client_registry_clone, capability_store_for_invoke);
+        let node_invoke_handler =
+            NodeInvokeHandler::new(client_registry_clone, capability_store_for_invoke);
         method_router.register("node.invoke", node_invoke_handler);
     }
 
     // Register client if we have auth info and registry
     // The sender is moved into the client and also used in the main loop
     // Clone auth_info before moving it into GatewayClient
-    let client = if let (Some(auth_info), Some(registry)) = (auth_info.clone(), client_registry.clone()) {
+    let client = if let (Some(auth_info), Some(registry)) =
+        (auth_info.clone(), client_registry.clone())
+    {
         let sender = std::sync::Arc::new(tx);
         let client = GatewayClient::from_auth_info(conn_id.clone(), sender, remote_addr, auth_info);
         registry.on_connect(client.clone());
@@ -328,7 +363,7 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
                                     // Handle chat.send specially with full dependencies
                                     let chat_handler = ChatSendHandler;
                                     let ws_sender = std::sync::Arc::new(tx_for_chat.clone());
-                                    
+
                                     // Use the agent runner we already have
                                     if let Some(agent_runner) = Some(Arc::clone(&agent_runner_for_loop)) {
                                         // Call the handler directly with full dependencies
@@ -338,7 +373,7 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
                                             agent_runner,
                                             ws_sender,
                                         );
-                                        
+
                                         // Serialize response to JSON
                                         let response_text = match serde_json::to_string(&response) {
                                             Ok(json) => json,
@@ -347,7 +382,7 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
                                                 continue;
                                             }
                                         };
-                                        
+
                                         // Send response back to client
                                         if let Err(e) = ws_tx.send(Message::Text(response_text)).await {
                                             error!(conn_id = %conn_id, "Failed to send RPC response: {}", e);
@@ -502,9 +537,9 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
 mod tests {
     use super::*;
     use aisopod_config::AisopodConfig;
-    use std::sync::Arc;
     use axum::body::Body;
     use axum::http::Request;
+    use std::sync::Arc;
     use tracing_test::traced_test;
 
     #[test]
@@ -520,14 +555,24 @@ mod tests {
 
     #[test]
     #[traced_test]
-    fn get_config_from_request_uses_default_and_logs_warning_when_missing() {
-        let request = Request::new(Body::empty());
+    fn config_for_connection_ignores_request_extension_and_uses_startup_config() {
+        let mut request = Request::new(Body::empty());
 
-        let config = get_config_from_request(&request);
-        assert_eq!(config.meta.version, AisopodConfig::default().meta.version);
+        // Insert a different config into the request extensions to verify it is ignored
+        let mut ext_config = AisopodConfig::default();
+        ext_config.meta.version = "extension-version".to_string();
+        request.extensions_mut().insert(Arc::new(ext_config));
+
+        let mut startup_config = AisopodConfig::default();
+        startup_config.meta.version = "startup-version".to_string();
+        let startup_config = Arc::new(startup_config);
+
+        let config = config_for_connection(&startup_config, &request);
+
+        assert_eq!(config.meta.version, "startup-version");
         assert!(
-            logs_contain("Aisopod configuration missing from request extensions"),
-            "expected warning to mention missing config"
+            logs_contain("Ignoring Aisopod configuration found in request extensions"),
+            "expected warning when extension config is present"
         );
     }
 }
@@ -535,7 +580,11 @@ mod tests {
 /// Handle WebSocket connection with a version negotiation error
 ///
 /// This function sends a JSON-RPC error message to the client and then closes the connection.
-async fn handle_connection_with_error(ws: WebSocket, request: axum::extract::Request, err: version::VersionNegotiationError) {
+async fn handle_connection_with_error(
+    ws: WebSocket,
+    request: axum::extract::Request,
+    err: version::VersionNegotiationError,
+) {
     // Extract connection metadata from request
     let remote_addr = extract_remote_addr(&request);
 

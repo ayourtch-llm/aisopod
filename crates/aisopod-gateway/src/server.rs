@@ -22,11 +22,11 @@ use tracing::{info, warn};
 
 use crate::broadcast::Broadcaster;
 use crate::client::ClientRegistry;
-use crate::rpc::node_pair::{PairingStore, run_pairing_cleanup_task};
 use crate::middleware::{
     auth_middleware, rate_limit_middleware, AuthConfigData, RateLimitConfig, RateLimiter,
 };
-use crate::routes::{api_routes, device_token_routes, GatewayStatusState, rpc_routes};
+use crate::routes::{api_routes, device_token_routes, rpc_routes, GatewayStatusState};
+use crate::rpc::node_pair::{run_pairing_cleanup_task, PairingStore};
 use crate::static_files::{get_cache_control, get_content_type, StaticFileState};
 use crate::tls::{is_tls_enabled, load_tls_config};
 use crate::ws::ws_routes;
@@ -57,13 +57,13 @@ pub async fn https_enforcement_middleware(
 ) -> axum::response::Response {
     // Check if TLS is enabled
     let tls_enabled = request.extensions().get::<bool>().cloned().unwrap_or(false);
-    
+
     if !tls_enabled {
         // TLS is not enabled - log a warning but still process the request
         // Users can opt-in to HTTPS enforcement by enabling TLS
         warn!("HTTPS is not enabled - this server is running in HTTP mode");
     }
-    
+
     next.run(request).await
 }
 
@@ -150,7 +150,7 @@ pub async fn run_with_config(config: Arc<AisopodConfig>) -> Result<()> {
         info!("Starting HTTPS server on {} with TLS enabled", addr);
     } else {
         info!("Starting HTTP server on {}", addr);
-        
+
         // Security: Warn if TLS is not enabled when binding to external interfaces
         if address != "127.0.0.1" && address != "::1" && address != "localhost" {
             warn!("WARNING: Running without TLS on external interface. Consider enabling TLS for production use.");
@@ -177,9 +177,7 @@ pub async fn run_with_config(config: Arc<AisopodConfig>) -> Result<()> {
     );
 
     // Security: Setup request size limits
-    let size_limits = gateway_config
-        .request_size_limits
-        .clone();
+    let size_limits = gateway_config.request_size_limits.clone();
     let request_size_limits = RequestSizeLimits::new(
         size_limits.max_body_size,
         size_limits.max_headers_size,
@@ -255,35 +253,12 @@ pub async fn run_with_config(config: Arc<AisopodConfig>) -> Result<()> {
     // Order matters! The middleware runs in reverse order (last layer listed runs first).
     // When a request comes in, it goes through layers from outside to inside.
     // We need auth_config_data AVAILABLE BEFORE auth_middleware runs.
-    //
-    // Request flow (outer to inner):
-    // 1. TraceLayer (logs requests)
-    // 2. ConnectInfo middleware (adds connection info if missing)
-    // 3. auth_config_data middleware (injects auth config into extensions)
-    //    Note: This runs BEFORE auth_middleware in request flow because it's LATER in the ServiceBuilder
-    // 4. rate_limiter middleware (checks rate limits)
-    // 5. client_registry middleware (registers clients)
-    // 6. broadcaster middleware (injects broadcaster)
-    // 7. auth_middleware (validates auth - needs auth_config_data)
-    // 8. Router (handles the actual route)
-    let config_for_middleware = config.clone();
-
     let middleware_stack = tower::ServiceBuilder::new()
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
-        // Make the loaded configuration available to downstream handlers (including WebSocket routes).
-        .layer(axum::middleware::from_fn(
-            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-                let config_for_request = config_for_middleware.clone();
-                async move {
-                    req.extensions_mut().insert(config_for_request);
-                    next.run(req).await
-                }
-            },
-        ))
         // Add ConnectInfo middleware before layers that rely on connection info (config injection above does not rely on it).
         .layer(axum::middleware::from_fn(
             |mut req: axum::extract::Request, next: axum::middleware::Next| {
@@ -329,20 +304,26 @@ pub async fn run_with_config(config: Arc<AisopodConfig>) -> Result<()> {
             |mut req: axum::extract::Request, next: axum::middleware::Next| {
                 async move {
                     // Get size limits from extensions
-                    if let Some(size_limits) = req.extensions().get::<RequestSizeLimits>().cloned() {
+                    if let Some(size_limits) = req.extensions().get::<RequestSizeLimits>().cloned()
+                    {
                         // Get content length from headers
                         if let Some(content_length) = req.headers().get("content-length") {
                             if let Ok(content_length_str) = content_length.to_str() {
-                                if let Ok(content_length_bytes) = content_length_str.parse::<usize>() {
-                                    if let Err(e) = size_limits.check_body_size(content_length_bytes) {
+                                if let Ok(content_length_bytes) =
+                                    content_length_str.parse::<usize>()
+                                {
+                                    if let Err(e) =
+                                        size_limits.check_body_size(content_length_bytes)
+                                    {
                                         warn!("Request body size limit exceeded: {}", e);
                                         return (
                                             StatusCode::PAYLOAD_TOO_LARGE,
                                             axum::Json(serde_json::json!({
                                                 "error": "payload_too_large",
                                                 "message": e.to_string()
-                                            }))
-                                        ).into_response();
+                                            })),
+                                        )
+                                            .into_response();
                                     }
                                 }
                             }
@@ -424,7 +405,10 @@ pub async fn run_with_config(config: Arc<AisopodConfig>) -> Result<()> {
                 let auth_config_data_clone = auth_config_data_for_secrets.as_ref().clone();
                 async move {
                     let check = req.extensions().get::<AuthConfigData>().is_some();
-                    eprintln!("!!! SECRETS MASKING: AuthConfigData in extensions: {}", check);
+                    eprintln!(
+                        "!!! SECRETS MASKING: AuthConfigData in extensions: {}",
+                        check
+                    );
                     // Store auth config data for secrets masking
                     req.extensions_mut().insert(auth_config_data_clone);
                     next.run(req).await
@@ -443,10 +427,10 @@ pub async fn run_with_config(config: Arc<AisopodConfig>) -> Result<()> {
         ));
 
     eprintln!("=== MIDDLEWARE STACK BUILT === layers: 7");
-    
+
     // Create status state with initial counts (will be updated by agents/channels)
     let status_state = Arc::new(GatewayStatusState::new(0, 0, 0));
-    
+
     // Build the main app - order matters: static_router first (with 404 for API paths),
     // then API routes, then WebSocket routes, then device token routes, then RPC routes
     let app = Router::new()
@@ -454,7 +438,7 @@ pub async fn run_with_config(config: Arc<AisopodConfig>) -> Result<()> {
         .nest_service("/", static_router)
         .merge(device_token_routes())
         .merge(api_routes(Some(status_state.clone())))
-        .merge(ws_routes(handshake_timeout))
+        .merge(ws_routes(config.clone(), handshake_timeout))
         .merge(rpc_routes())
         .layer(middleware_stack);
 
@@ -541,50 +525,48 @@ pub async fn run(config: &GatewayConfig) -> Result<()> {
 /// This function creates the same app as run_with_config but returns it
 /// instead of starting the server, allowing integration tests to use axum-test.
 pub async fn build_app(auth_config: AuthConfig) -> Router {
-    use axum::{Router, routing::get};
+    use axum::{routing::get, Router};
     use serde_json::json;
-    
+
     // Create a minimal config for testing
     let mut config = AisopodConfig::default();
     config.auth = auth_config;
     // Use an owned Arc so tests can inject the config into request extensions.
     let config_arc = Arc::new(config);
-    
+
     let gateway_config = &config_arc.gateway;
-    
+
     // Create rate limiter with default config
     let rate_limit_config = RateLimitConfig::new(100, Duration::from_secs(60));
     let rate_limiter = Arc::new(RateLimiter::new(rate_limit_config));
-    
+
     // Spawn the cleanup task (but don't wait for it - just let it run)
     let cleanup_limiter = rate_limiter.clone();
     tokio::spawn(async move {
         cleanup_limiter.cleanup_loop().await;
     });
-    
+
     // Create auth config data
     let auth_config_data = Arc::new(AuthConfigData::new(config_arc.auth.clone()));
     // Clone for the secrets masking middleware
     let auth_config_data_for_secrets = auth_config_data.clone();
-    
+
     // Create client registry
     let client_registry = Arc::new(ClientRegistry::new());
-    
+
     // Create broadcaster
     let broadcaster = Arc::new(Broadcaster::new(128));
-    
+
     // Setup device token manager with default storage path
     let token_store_path = std::path::PathBuf::from("device-tokens.toml");
     let device_token_manager = Arc::new(Mutex::new(DeviceTokenManager::new(token_store_path)));
-    
+
     // Setup static file serving state
     let web_ui_config = gateway_config.web_ui.clone();
     let static_state = StaticFileState::new(web_ui_config.clone());
-    
+
     // Create status state
     let status_state = Arc::new(GatewayStatusState::new(0, 0, 0));
-    
-    let config_for_middleware = config_arc.clone();
 
     // Build the middleware stack (same as in run_with_config)
     let middleware_stack = tower::ServiceBuilder::new()
@@ -594,28 +576,17 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
         .layer(axum::middleware::from_fn(
-            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-                let config_for_request = config_for_middleware.clone();
-                async move {
-                    req.extensions_mut().insert(config_for_request);
-                    next.run(req).await
-                }
-            },
-        ))
-        .layer(axum::middleware::from_fn(
-            |mut req: axum::extract::Request, next: axum::middleware::Next| {
-                async move {
-                    let conn_info = req
-                        .extensions()
-                        .get::<ConnectInfo<SocketAddr>>()
-                        .cloned()
-                        .unwrap_or(ConnectInfo(std::net::SocketAddr::new(
-                            std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
-                            0,
-                        )));
-                    req.extensions_mut().insert(conn_info);
-                    next.run(req).await
-                }
+            |mut req: axum::extract::Request, next: axum::middleware::Next| async move {
+                let conn_info = req
+                    .extensions()
+                    .get::<ConnectInfo<SocketAddr>>()
+                    .cloned()
+                    .unwrap_or(ConnectInfo(std::net::SocketAddr::new(
+                        std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
+                        0,
+                    )));
+                req.extensions_mut().insert(conn_info);
+                next.run(req).await
             },
         ))
         .layer(axum::middleware::from_fn(
@@ -654,9 +625,15 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
                 let config_data = auth_config_data.as_ref().clone();
                 async move {
                     eprintln!("=== AUTH CONFIG DATA INJECTOR ===");
-                    eprintln!("Before insert, has config: {}", req.extensions().get::<AuthConfigData>().is_some());
+                    eprintln!(
+                        "Before insert, has config: {}",
+                        req.extensions().get::<AuthConfigData>().is_some()
+                    );
                     req.extensions_mut().insert(config_data);
-                    eprintln!("After insert, has config: {}", req.extensions().get::<AuthConfigData>().is_some());
+                    eprintln!(
+                        "After insert, has config: {}",
+                        req.extensions().get::<AuthConfigData>().is_some()
+                    );
                     next.run(req).await
                 }
             },
@@ -685,23 +662,23 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
                 }
             },
         ));
-    
+
     // Create static router
     let static_router = Router::new()
         .route("/", get(static_file_handler))
         .route("/*path", get(static_file_handler))
         .with_state(static_state);
-    
+
     // Build the app
     let app = Router::new()
         .route("/health", get(health))
         .nest_service("/", static_router)
         .merge(device_token_routes())
         .merge(api_routes(Some(status_state)))
-        .merge(ws_routes(None))
+        .merge(ws_routes(config_arc.clone(), None))
         .merge(rpc_routes())
         .layer(middleware_stack);
-    
+
     // Build CORS layer
     let cors_origins = web_ui_config.cors_origins;
     let cors = if cors_origins.is_empty() {
@@ -717,6 +694,6 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
             .allow_methods(tower_http::cors::Any)
             .allow_headers(tower_http::cors::Any)
     };
-    
+
     app.layer(cors)
 }

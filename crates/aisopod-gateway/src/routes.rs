@@ -13,7 +13,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use crate::auth::DeviceTokenManager;
-use crate::rpc::handler::{MethodRouter, PlaceholderHandler, RequestContext, RpcMethod, default_router};
+use crate::rpc::handler::{
+    default_router, MethodRouter, PlaceholderHandler, RequestContext, RpcMethod,
+};
 use crate::rpc::middleware::auth::check_scope;
 use crate::rpc::types::{parse, RpcRequest, RpcResponse};
 use aisopod_config::types::AuthConfig;
@@ -62,13 +64,15 @@ pub struct GatewayStatus {
 }
 
 /// Status endpoint handler
-pub async fn status(
-    State(state): State<Arc<GatewayStatusState>>,
-) -> impl IntoResponse {
+pub async fn status(State(state): State<Arc<GatewayStatusState>>) -> impl IntoResponse {
     let status = GatewayStatus {
         agent_count: state.agent_count.load(std::sync::atomic::Ordering::Relaxed),
-        active_channels: state.active_channels.load(std::sync::atomic::Ordering::Relaxed),
-        active_sessions: state.active_sessions.load(std::sync::atomic::Ordering::Relaxed),
+        active_channels: state
+            .active_channels
+            .load(std::sync::atomic::Ordering::Relaxed),
+        active_sessions: state
+            .active_sessions
+            .load(std::sync::atomic::Ordering::Relaxed),
         uptime: state.start_time.elapsed().as_secs(),
     };
     Json(json!(status))
@@ -100,17 +104,20 @@ impl GatewayStatusState {
 
     /// Update the agent count
     pub fn set_agent_count(&self, count: usize) {
-        self.agent_count.store(count, std::sync::atomic::Ordering::Relaxed);
+        self.agent_count
+            .store(count, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Update the active channel count
     pub fn set_active_channels(&self, count: usize) {
-        self.active_channels.store(count, std::sync::atomic::Ordering::Relaxed);
+        self.active_channels
+            .store(count, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Update the active session count
     pub fn set_active_sessions(&self, count: usize) {
-        self.active_sessions.store(count, std::sync::atomic::Ordering::Relaxed);
+        self.active_sessions
+            .store(count, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -174,12 +181,9 @@ pub async fn issue_device_token(
     Json(payload): Json<IssueTokenRequest>,
 ) -> Json<serde_json::Value> {
     let mut mgr = manager.lock().unwrap();
-    let device_id = payload.device_id.unwrap_or_else(|| {
-        format!(
-            "device-{}",
-            uuid::Uuid::new_v4().simple().to_string()
-        )
-    });
+    let device_id = payload
+        .device_id
+        .unwrap_or_else(|| format!("device-{}", uuid::Uuid::new_v4().simple().to_string()));
 
     // Convert scope strings to Scope enums
     let scopes: Vec<crate::auth::Scope> = payload
@@ -195,9 +199,7 @@ pub async fn issue_device_token(
         })
         .collect();
 
-    match mgr
-        .issue(payload.device_name, device_id.clone(), scopes)
-    {
+    match mgr.issue(payload.device_name, device_id.clone(), scopes) {
         Ok(token) => Json(json!(IssueTokenResponse {
             token,
             device_id,
@@ -277,12 +279,15 @@ pub async fn refresh_device_token(
 }
 
 /// Build WebSocket routes
-pub fn ws_routes(handshake_timeout: Option<u64>) -> Router {
+pub fn ws_routes(
+    config: Arc<aisopod_config::AisopodConfig>,
+    handshake_timeout: Option<u64>,
+) -> Router {
     Router::new().route(
         "/ws",
         get(
             move |ws: WebSocketUpgrade, request: axum::extract::Request| {
-                crate::ws::ws_handler(ws, request, handshake_timeout)
+                crate::ws::ws_handler(ws, request, handshake_timeout, config.clone())
             },
         ),
     )
@@ -292,11 +297,7 @@ pub fn ws_routes(handshake_timeout: Option<u64>) -> Router {
 pub struct SystemPingHandler;
 
 impl RpcMethod for SystemPingHandler {
-    fn handle(
-        &self,
-        _ctx: &RequestContext,
-        _params: Option<serde_json::Value>,
-    ) -> RpcResponse {
+    fn handle(&self, _ctx: &RequestContext, _params: Option<serde_json::Value>) -> RpcResponse {
         RpcResponse::success(
             None, // Will be set by MethodRouter::dispatch
             json!({"status": "ok", "ping": "pong"}),
@@ -308,11 +309,7 @@ impl RpcMethod for SystemPingHandler {
 pub struct AdminShutdownHandler;
 
 impl RpcMethod for AdminShutdownHandler {
-    fn handle(
-        &self,
-        _ctx: &RequestContext,
-        _params: Option<serde_json::Value>,
-    ) -> RpcResponse {
+    fn handle(&self, _ctx: &RequestContext, _params: Option<serde_json::Value>) -> RpcResponse {
         RpcResponse::success(
             None, // Will be set by MethodRouter::dispatch
             json!({"status": "shutdown initiated"}),
@@ -324,11 +321,7 @@ impl RpcMethod for AdminShutdownHandler {
 pub struct AgentListHandler;
 
 impl RpcMethod for AgentListHandler {
-    fn handle(
-        &self,
-        _ctx: &RequestContext,
-        _params: Option<serde_json::Value>,
-    ) -> RpcResponse {
+    fn handle(&self, _ctx: &RequestContext, _params: Option<serde_json::Value>) -> RpcResponse {
         RpcResponse::success(
             None, // Will be set by MethodRouter::dispatch
             json!({"agents": [], "count": 0}),
@@ -340,11 +333,7 @@ impl RpcMethod for AgentListHandler {
 pub struct AgentStartHandler;
 
 impl RpcMethod for AgentStartHandler {
-    fn handle(
-        &self,
-        _ctx: &RequestContext,
-        _params: Option<serde_json::Value>,
-    ) -> RpcResponse {
+    fn handle(&self, _ctx: &RequestContext, _params: Option<serde_json::Value>) -> RpcResponse {
         RpcResponse::success(
             None, // Will be set by MethodRouter::dispatch
             json!({"status": "starting", "message": "Agent start requested"}),
@@ -356,11 +345,7 @@ impl RpcMethod for AgentStartHandler {
 pub struct AgentStopHandler;
 
 impl RpcMethod for AgentStopHandler {
-    fn handle(
-        &self,
-        _ctx: &RequestContext,
-        _params: Option<serde_json::Value>,
-    ) -> RpcResponse {
+    fn handle(&self, _ctx: &RequestContext, _params: Option<serde_json::Value>) -> RpcResponse {
         RpcResponse::success(
             None, // Will be set by MethodRouter::dispatch
             json!({"status": "stopping", "message": "Agent stop requested"}),
@@ -372,11 +357,7 @@ impl RpcMethod for AgentStopHandler {
 pub struct AgentCreateHandler;
 
 impl RpcMethod for AgentCreateHandler {
-    fn handle(
-        &self,
-        _ctx: &RequestContext,
-        _params: Option<serde_json::Value>,
-    ) -> RpcResponse {
+    fn handle(&self, _ctx: &RequestContext, _params: Option<serde_json::Value>) -> RpcResponse {
         RpcResponse::success(
             None, // Will be set by MethodRouter::dispatch
             json!({"status": "created", "message": "Agent created successfully"}),
@@ -388,11 +369,7 @@ impl RpcMethod for AgentCreateHandler {
 pub struct AgentUpdateHandler;
 
 impl RpcMethod for AgentUpdateHandler {
-    fn handle(
-        &self,
-        _ctx: &RequestContext,
-        _params: Option<serde_json::Value>,
-    ) -> RpcResponse {
+    fn handle(&self, _ctx: &RequestContext, _params: Option<serde_json::Value>) -> RpcResponse {
         RpcResponse::success(
             None, // Will be set by MethodRouter::dispatch
             json!({"status": "updated", "message": "Agent updated successfully"}),
@@ -404,11 +381,7 @@ impl RpcMethod for AgentUpdateHandler {
 pub struct AgentDeleteHandler;
 
 impl RpcMethod for AgentDeleteHandler {
-    fn handle(
-        &self,
-        _ctx: &RequestContext,
-        _params: Option<serde_json::Value>,
-    ) -> RpcResponse {
+    fn handle(&self, _ctx: &RequestContext, _params: Option<serde_json::Value>) -> RpcResponse {
         RpcResponse::success(
             None, // Will be set by MethodRouter::dispatch
             json!({"status": "deleted", "message": "Agent deleted successfully"}),
@@ -420,10 +393,10 @@ impl RpcMethod for AgentDeleteHandler {
 pub fn rpc_routes() -> Router {
     use axum::routing::post;
     use std::sync::Arc;
-    
+
     // Create a default router with all method handlers
     let method_router = Arc::new(Mutex::new(default_router()));
-    
+
     // Override default handlers with proper implementations for HTTP
     {
         let mut router = method_router.lock().unwrap();
@@ -436,67 +409,74 @@ pub fn rpc_routes() -> Router {
         router.register("agent.update", AgentUpdateHandler);
         router.register("agent.delete", AgentDeleteHandler);
     }
-    
+
     // Use a closure that handles the request directly
-    Router::new().route("/rpc", post(move |request: axum::extract::Request| async move {
-        // Extract auth info from extensions
-        let auth_info = request.extensions().get::<crate::auth::AuthInfo>().cloned();
-        
-        // Extract remote addr
-        let remote_addr = request.extensions()
-            .get::<axum::extract::ConnectInfo::<std::net::SocketAddr>>()
-            .map(|info| info.0)
-            .unwrap_or(std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), 0));
-        
-        // Extract JSON payload from body
-        let payload_bytes = match axum::body::to_bytes(request.into_body(), usize::MAX).await {
-            Ok(bytes) => bytes,
-            Err(e) => {
-                return Json(json!({
-                    "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32700,
-                        "message": format!("Body read error: {}", e)
-                    },
-                    "id": None::<serde_json::Value>
-                }));
-            }
-        };
-        
-        let payload = match serde_json::from_slice::<serde_json::Value>(&payload_bytes) {
-            Ok(p) => p,
-            Err(e) => {
-                return Json(json!({
-                    "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32700,
-                        "message": format!("Parse error: {}", e)
-                    },
-                    "id": None::<serde_json::Value>
-                }));
-            }
-        };
-        
-        // Parse the JSON-RPC request
-        let rpc_request = match parse(&payload.to_string()) {
-            Ok(req) => req,
-            Err(rpc_error) => {
-                return Json(json!(rpc_error));
-            }
-        };
+    Router::new().route(
+        "/rpc",
+        post(move |request: axum::extract::Request| async move {
+            // Extract auth info from extensions
+            let auth_info = request.extensions().get::<crate::auth::AuthInfo>().cloned();
 
-        // Create request context with connection info
-        let conn_id = format!("http-{}", uuid::Uuid::new_v4().simple());
-        let ctx = if let Some(auth_info) = auth_info {
-            RequestContext::with_auth(conn_id, remote_addr, auth_info)
-        } else {
-            RequestContext::new(conn_id, remote_addr)
-        };
+            // Extract remote addr
+            let remote_addr = request
+                .extensions()
+                .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+                .map(|info| info.0)
+                .unwrap_or(std::net::SocketAddr::new(
+                    std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
+                    0,
+                ));
 
-        // Dispatch to the method router
-        let method_router = method_router.lock().unwrap();
-        let response = method_router.dispatch(ctx, rpc_request);
-        
-        Json(json!(response))
-    }))
+            // Extract JSON payload from body
+            let payload_bytes = match axum::body::to_bytes(request.into_body(), usize::MAX).await {
+                Ok(bytes) => bytes,
+                Err(e) => {
+                    return Json(json!({
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32700,
+                            "message": format!("Body read error: {}", e)
+                        },
+                        "id": None::<serde_json::Value>
+                    }));
+                }
+            };
+
+            let payload = match serde_json::from_slice::<serde_json::Value>(&payload_bytes) {
+                Ok(p) => p,
+                Err(e) => {
+                    return Json(json!({
+                        "jsonrpc": "2.0",
+                        "error": {
+                            "code": -32700,
+                            "message": format!("Parse error: {}", e)
+                        },
+                        "id": None::<serde_json::Value>
+                    }));
+                }
+            };
+
+            // Parse the JSON-RPC request
+            let rpc_request = match parse(&payload.to_string()) {
+                Ok(req) => req,
+                Err(rpc_error) => {
+                    return Json(json!(rpc_error));
+                }
+            };
+
+            // Create request context with connection info
+            let conn_id = format!("http-{}", uuid::Uuid::new_v4().simple());
+            let ctx = if let Some(auth_info) = auth_info {
+                RequestContext::with_auth(conn_id, remote_addr, auth_info)
+            } else {
+                RequestContext::new(conn_id, remote_addr)
+            };
+
+            // Dispatch to the method router
+            let method_router = method_router.lock().unwrap();
+            let response = method_router.dispatch(ctx, rpc_request);
+
+            Json(json!(response))
+        }),
+    )
 }
