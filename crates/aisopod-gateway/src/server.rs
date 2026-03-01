@@ -584,6 +584,8 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
     // Create status state
     let status_state = Arc::new(GatewayStatusState::new(0, 0, 0));
     
+    let config_for_middleware = config_arc.clone();
+
     // Build the middleware stack (same as in run_with_config)
     let middleware_stack = tower::ServiceBuilder::new()
         .layer(
@@ -591,15 +593,16 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
-        .layer(axum::middleware::from_fn(
+        .layer(axum::middleware::from_fn({
+            let config_for_middleware = config_for_middleware.clone();
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-                let config = config_arc.clone();
+                let config = config_for_middleware.clone();
                 async move {
                     req.extensions_mut().insert(config);
                     next.run(req).await
                 }
-            },
-        ))
+            }
+        }))
         .layer(axum::middleware::from_fn(
             |mut req: axum::extract::Request, next: axum::middleware::Next| {
                 async move {
