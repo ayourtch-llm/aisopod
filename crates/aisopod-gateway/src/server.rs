@@ -277,9 +277,9 @@ pub async fn run_with_config(config: Arc<AisopodConfig>) -> Result<()> {
         .layer(axum::middleware::from_fn({
             let config_for_middleware = config_for_middleware.clone();
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-                let config = config_for_middleware.clone();
+                let config_for_request = config_for_middleware.clone();
                 async move {
-                    req.extensions_mut().insert(config);
+                    req.extensions_mut().insert(config_for_request);
                     next.run(req).await
                 }
             }
@@ -596,9 +596,9 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
         .layer(axum::middleware::from_fn({
             let config_for_middleware = config_for_middleware.clone();
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-                let config = config_for_middleware.clone();
+                let config_for_request = config_for_middleware.clone();
                 async move {
-                    req.extensions_mut().insert(config);
+                    req.extensions_mut().insert(config_for_request);
                     next.run(req).await
                 }
             }
