@@ -176,7 +176,7 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
     {
         Some(cfg) => cfg,
         None => {
-            warn!("AIsopod configuration missing from request extensions; using defaults for WebSocket connection");
+            warn!("Aisopod configuration missing from request extensions; using defaults for WebSocket connection");
             Arc::new(aisopod_config::AisopodConfig::default())
         }
     };
