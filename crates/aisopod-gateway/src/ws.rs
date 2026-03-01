@@ -518,6 +518,7 @@ mod tests {
         assert_eq!(runner.config().meta.version, "test-version");
     }
 
+    #[test]
     #[traced_test]
     fn get_config_from_request_uses_default_and_logs_warning_when_missing() {
         let request = Request::new(Body::empty());
