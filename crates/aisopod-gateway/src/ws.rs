@@ -169,11 +169,17 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
 
     // Create agent runner for this connection
     // Use the config loaded by the server; fall back to defaults if missing.
-    let config = request
+    let config = match request
         .extensions()
         .get::<Arc<aisopod_config::AisopodConfig>>()
         .cloned()
-        .unwrap_or_else(|| Arc::new(aisopod_config::AisopodConfig::default()));
+    {
+        Some(cfg) => cfg,
+        None => {
+            warn!("Aisopod configuration missing from request extensions; using defaults for WebSocket connection");
+            Arc::new(aisopod_config::AisopodConfig::default())
+        }
+    };
 
     let agent_runner = create_agent_runner(config);
     

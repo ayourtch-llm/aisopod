@@ -273,8 +273,7 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
-        // Inject full configuration into request extensions so downstream handlers
-        // (including WebSocket handlers) can access the loaded config from file.
+        // Inject full configuration into request extensions so downstream handlers (including WebSocket handlers) can access the loaded config from file.
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
                 let config_clone = config_arc.clone();
