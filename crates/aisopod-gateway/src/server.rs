@@ -274,15 +274,16 @@ pub async fn run_with_config(config: Arc<AisopodConfig>) -> Result<()> {
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
         // Make the loaded configuration available to downstream handlers (including WebSocket routes).
-        .layer(axum::middleware::from_fn(
+        .layer(axum::middleware::from_fn({
+            let config_arc = config_arc.clone();
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
                 let config_for_request = config_arc.clone();
                 async move {
                     req.extensions_mut().insert(config_for_request);
                     next.run(req).await
                 }
-            },
-        ))
+            }
+        }))
         // Add ConnectInfo middleware before layers that rely on connection info (config injection above does not).
         .layer(axum::middleware::from_fn(
             |mut req: axum::extract::Request, next: axum::middleware::Next| {
@@ -590,15 +591,16 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
-        .layer(axum::middleware::from_fn(
+        .layer(axum::middleware::from_fn({
+            let config_arc = config_arc.clone();
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
                 let config_for_request = config_arc.clone();
                 async move {
                     req.extensions_mut().insert(config_for_request);
                     next.run(req).await
                 }
-            },
-        ))
+            }
+        }))
         .layer(axum::middleware::from_fn(
             |mut req: axum::extract::Request, next: axum::middleware::Next| {
                 async move {
