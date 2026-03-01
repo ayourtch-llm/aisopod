@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use clap::Args;
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use aisopod_config::load_config;
 use aisopod_gateway::run_with_config;
@@ -70,7 +70,7 @@ pub async fn run(args: GatewayArgs, config_path: Option<String>) -> Result<()> {
     }
 
     // Run the gateway server with the loaded config
-    run_with_config(&config).await?;
+    run_with_config(Arc::new(config)).await?;
 
     Ok(())
 }

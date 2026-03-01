@@ -240,7 +240,7 @@ async fn start_test_server_with_auth(
             ..Default::default()
         };
 
-        let _ = run_with_config(&aisopod_config).await;
+        let _ = run_with_config(Arc::new(aisopod_config)).await;
     });
 
     // Wait for the port to be released before starting the next test

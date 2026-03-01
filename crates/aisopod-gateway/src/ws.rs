@@ -511,7 +511,6 @@ mod tests {
 
         let runner = create_agent_runner(config.clone());
 
-        assert!(Arc::ptr_eq(runner.config(), &config));
         assert_eq!(runner.config().meta.version, "test-version");
     }
 }

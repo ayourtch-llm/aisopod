@@ -112,9 +112,7 @@ async fn static_file_handler(State(state): State<StaticFileState>, uri: Uri) -> 
 }
 
 /// Run the Axum HTTP server with the given configuration
-pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
-    // Clone into an Arc so the config can be stored in request extensions with a 'static lifetime.
-    let config_arc = Arc::new(config.clone());
+pub async fn run_with_config(config: Arc<AisopodConfig>) -> Result<()> {
     let gateway_config = &config.gateway;
     let auth_config = &config.auth;
 
@@ -267,6 +265,7 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
     // 6. broadcaster middleware (injects broadcaster)
     // 7. auth_middleware (validates auth - needs auth_config_data)
     // 8. Router (handles the actual route)
+    let config_arc = config.clone();
 
     let middleware_stack = tower::ServiceBuilder::new()
         .layer(
@@ -277,8 +276,9 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
         // Make the loaded configuration available to downstream handlers (including WebSocket routes).
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                let config_for_request = config_arc.clone();
                 async move {
-                    req.extensions_mut().insert(config_arc.clone());
+                    req.extensions_mut().insert(config_for_request);
                     next.run(req).await
                 }
             },
@@ -532,7 +532,7 @@ pub async fn run(config: &GatewayConfig) -> Result<()> {
         gateway: config.clone(),
         ..Default::default()
     };
-    run_with_config(&aisopod_config).await
+    run_with_config(Arc::new(aisopod_config)).await
 }
 
 /// Build the Axum application for testing purposes
@@ -547,9 +547,9 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
     let mut config = AisopodConfig::default();
     config.auth = auth_config;
     // Use an owned Arc so tests can inject the config into request extensions.
-    let config_arc = Arc::new(config.clone());
+    let config_arc = Arc::new(config);
     
-    let gateway_config = &config.gateway;
+    let gateway_config = &config_arc.gateway;
     
     // Create rate limiter with default config
     let rate_limit_config = RateLimitConfig::new(100, Duration::from_secs(60));
@@ -562,7 +562,7 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
     });
     
     // Create auth config data
-    let auth_config_data = Arc::new(AuthConfigData::new(config.auth.clone()));
+    let auth_config_data = Arc::new(AuthConfigData::new(config_arc.auth.clone()));
     // Clone for the secrets masking middleware
     let auth_config_data_for_secrets = auth_config_data.clone();
     
@@ -592,8 +592,9 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
         )
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                let config_for_request = config_arc.clone();
                 async move {
-                    req.extensions_mut().insert(config_arc.clone());
+                    req.extensions_mut().insert(config_for_request);
                     next.run(req).await
                 }
             },
