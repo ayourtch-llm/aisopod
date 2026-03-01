@@ -20,7 +20,7 @@ use aisopod_config::types::WebUiConfig;
 /// The assets are embedded at compile time from the `web-ui/dist` directory
 /// which should be at the workspace root.
 #[derive(RustEmbed)]
-// Path is resolved relative to the crate's Cargo.toml within the workspace layout.
+// Path is resolved relative to this crate's Cargo.toml within the workspace layout.
 #[folder = "../../web-ui/dist"]
 struct Assets;
 
