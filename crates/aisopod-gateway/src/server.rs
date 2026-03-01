@@ -284,7 +284,7 @@ pub async fn run_with_config(config: Arc<AisopodConfig>) -> Result<()> {
                 }
             },
         ))
-        // Add ConnectInfo middleware before layers that rely on connection info (config injection above does not).
+        // Add ConnectInfo middleware before layers that rely on connection info (config injection above does not rely on it).
         .layer(axum::middleware::from_fn(
             |mut req: axum::extract::Request, next: axum::middleware::Next| {
                 async move {
