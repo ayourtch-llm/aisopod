@@ -70,6 +70,17 @@ pub fn create_agent_runner(config: Arc<aisopod_config::AisopodConfig>) -> Arc<ai
     ))
 }
 
+fn get_config_from_request(request: &axum::extract::Request) -> Arc<aisopod_config::AisopodConfig> {
+    request
+        .extensions()
+        .get::<Arc<aisopod_config::AisopodConfig>>()
+        .cloned()
+        .unwrap_or_else(|| {
+            warn!("Aisopod configuration missing from request extensions; using defaults for WebSocket connection");
+            Arc::new(aisopod_config::AisopodConfig::default())
+        })
+}
+
 /// Build the WebSocket routes with configurable timeout
 pub fn ws_routes(handshake_timeout: Option<u64>) -> Router {
     let timeout = handshake_timeout;
@@ -169,17 +180,7 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
 
     // Create agent runner for this connection
     // Use the config loaded by the server; fall back to defaults if missing.
-    let config = match request
-        .extensions()
-        .get::<Arc<aisopod_config::AisopodConfig>>()
-        .cloned()
-    {
-        Some(cfg) => cfg,
-        None => {
-            warn!("Aisopod configuration missing from request extensions; using defaults for WebSocket connection");
-            Arc::new(aisopod_config::AisopodConfig::default())
-        }
-    };
+    let config = get_config_from_request(&request);
 
     let agent_runner = create_agent_runner(config);
     
@@ -502,6 +503,9 @@ mod tests {
     use super::*;
     use aisopod_config::AisopodConfig;
     use std::sync::Arc;
+    use axum::body::Body;
+    use axum::http::Request;
+    use tracing_test::traced_test;
 
     #[test]
     fn create_agent_runner_uses_provided_config() {
@@ -512,6 +516,18 @@ mod tests {
         let runner = create_agent_runner(config.clone());
 
         assert_eq!(runner.config().meta.version, "test-version");
+    }
+
+    #[traced_test]
+    fn get_config_from_request_uses_default_and_logs_warning_when_missing() {
+        let request = Request::new(Body::empty());
+
+        let config = get_config_from_request(&request);
+        assert_eq!(config.meta.version, AisopodConfig::default().meta.version);
+        assert!(
+            logs_contain("Aisopod configuration missing from request extensions"),
+            "expected warning to mention missing config"
+        );
     }
 }
 
