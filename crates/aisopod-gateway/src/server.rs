@@ -276,9 +276,8 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
         // Make the loaded configuration available to downstream handlers (including WebSocket routes).
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-                let config_clone = config_arc.clone();
                 async move {
-                    req.extensions_mut().insert(config_clone);
+                    req.extensions_mut().insert(config_arc.clone());
                     next.run(req).await
                 }
             },
@@ -591,9 +590,8 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
         )
         .layer(axum::middleware::from_fn(
             move |mut req: axum::extract::Request, next: axum::middleware::Next| {
-                let config_clone = config_arc.clone();
                 async move {
-                    req.extensions_mut().insert(config_clone);
+                    req.extensions_mut().insert(config_arc.clone());
                     next.run(req).await
                 }
             },
