@@ -113,6 +113,7 @@ async fn static_file_handler(State(state): State<StaticFileState>, uri: Uri) -> 
 
 /// Run the Axum HTTP server with the given configuration
 pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
+    // Clone into an Arc so the config can be stored in request extensions with a 'static lifetime.
     let config_arc = Arc::new(config.clone());
     let gateway_config = &config.gateway;
     let auth_config = &config.auth;
@@ -545,6 +546,7 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
     // Create a minimal config for testing
     let mut config = AisopodConfig::default();
     config.auth = auth_config;
+    // Use an owned Arc so tests can inject the config into request extensions.
     let config_arc = Arc::new(config.clone());
     
     let gateway_config = &config.gateway;
