@@ -38,7 +38,7 @@ pub const BROADCASTER_KEY: &str = "aisopod.broadcast.broadcaster";
 /// Extension key for AgentRunner
 pub const AGENT_RUNNER_KEY: &str = "aisopod.gateway.agent_runner";
 
-/// Build a complete agent dependencies stack for the gateway
+/// Build a complete agent dependencies stack for the gateway using the provided config
 ///
 /// This function creates the necessary dependencies for agent execution:
 /// - Config: From the aisopod-config crate
@@ -46,10 +46,7 @@ pub const AGENT_RUNNER_KEY: &str = "aisopod.gateway.agent_runner";
 /// - ToolRegistry: For tool execution
 /// - SessionStore: For conversation state management
 /// - AgentRunner: The main agent execution orchestrator
-pub fn create_agent_runner() -> Arc<aisopod_agent::AgentRunner> {
-    // Create configuration (will be replaced with actual config loading in production)
-    let config = Arc::new(aisopod_config::AisopodConfig::default());
-    
+pub fn create_agent_runner(config: Arc<aisopod_config::AisopodConfig>) -> Arc<aisopod_agent::AgentRunner> {
     // Create provider registry
     let providers = Arc::new(aisopod_provider::ProviderRegistry::new());
     
@@ -171,7 +168,14 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
         .cloned();
 
     // Create agent runner for this connection
-    let agent_runner = create_agent_runner();
+    // Use the config loaded by the server; fall back to defaults if missing.
+    let config = request
+        .extensions()
+        .get::<Arc<aisopod_config::AisopodConfig>>()
+        .cloned()
+        .unwrap_or_else(|| Arc::new(aisopod_config::AisopodConfig::default()));
+
+    let agent_runner = create_agent_runner(config);
     
     // Clone the agent runner for use in the loop
     let agent_runner_for_loop = Arc::clone(&agent_runner);
@@ -484,6 +488,25 @@ async fn handle_connection(ws: WebSocket, request: axum::extract::Request) {
     // Deregister client from registry
     if let Some(registry) = client_registry {
         registry.on_disconnect(&conn_id);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use aisopod_config::AisopodConfig;
+    use std::sync::Arc;
+
+    #[test]
+    fn create_agent_runner_uses_provided_config() {
+        let mut config = AisopodConfig::default();
+        config.meta.version = "test-version".to_string();
+        let config = Arc::new(config);
+
+        let runner = create_agent_runner(config.clone());
+
+        assert!(Arc::ptr_eq(runner.config(), &config));
+        assert_eq!(runner.config().meta.version, "test-version");
     }
 }
 

@@ -113,6 +113,7 @@ async fn static_file_handler(State(state): State<StaticFileState>, uri: Uri) -> 
 
 /// Run the Axum HTTP server with the given configuration
 pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
+    let config_arc = Arc::new(config.clone());
     let gateway_config = &config.gateway;
     let auth_config = &config.auth;
 
@@ -251,9 +252,9 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
     // Build the middleware stack using Layer trait
     use tower::Layer;
 
-    // Order matters! The middleware runs in reverse order (last layer listed runs first).
-    // When a request comes in, it goes through layers from outside to inside.
-    // We need auth_config_data AVAILABLE BEFORE auth_middleware runs.
+        // Order matters! The middleware runs in reverse order (last layer listed runs first).
+        // When a request comes in, it goes through layers from outside to inside.
+        // We need auth_config_data AVAILABLE BEFORE auth_middleware runs.
     //
     // Request flow (outer to inner):
     // 1. TraceLayer (logs requests)
@@ -272,6 +273,17 @@ pub async fn run_with_config(config: &AisopodConfig) -> Result<()> {
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
+        // Inject full configuration into request extensions so downstream handlers
+        // (including WebSocket handlers) can access the loaded config from file.
+        .layer(axum::middleware::from_fn(
+            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                let config_clone = config_arc.clone();
+                async move {
+                    req.extensions_mut().insert(config_clone);
+                    next.run(req).await
+                }
+            },
+        ))
         // Add ConnectInfo middleware - this must come before middleware that need it
         .layer(axum::middleware::from_fn(
             |mut req: axum::extract::Request, next: axum::middleware::Next| {
@@ -535,6 +547,7 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
     // Create a minimal config for testing
     let mut config = AisopodConfig::default();
     config.auth = auth_config;
+    let config_arc = Arc::new(config.clone());
     
     let gateway_config = &config.gateway;
     
@@ -577,6 +590,15 @@ pub async fn build_app(auth_config: AuthConfig) -> Router {
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
+        .layer(axum::middleware::from_fn(
+            move |mut req: axum::extract::Request, next: axum::middleware::Next| {
+                let config_clone = config_arc.clone();
+                async move {
+                    req.extensions_mut().insert(config_clone);
+                    next.run(req).await
+                }
+            },
+        ))
         .layer(axum::middleware::from_fn(
             |mut req: axum::extract::Request, next: axum::middleware::Next| {
                 async move {

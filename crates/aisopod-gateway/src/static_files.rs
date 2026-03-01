@@ -20,7 +20,7 @@ use aisopod_config::types::WebUiConfig;
 /// The assets are embedded at compile time from the `web-ui/dist` directory
 /// which should be at the workspace root.
 #[derive(RustEmbed)]
-#[folder = "/home/ayourtch/rust/aisopod/web-ui/dist"]
+#[folder = "../../web-ui/dist"]
 struct Assets;
 
 /// Static file serving state
